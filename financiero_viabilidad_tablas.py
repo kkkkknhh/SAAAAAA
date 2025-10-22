@@ -1560,7 +1560,7 @@ class PDETMunicipalPlanAnalyzer:
             return 1.0
 
         rr = np.exp(effect.posterior_mean)  # Convert log-scale to risk ratio
-        if rr * (rr - 1) < 0:
+        if rr <= 1:
             return 1.0
         e_value = rr + np.sqrt(rr * (rr - 1))
 
