@@ -338,14 +338,13 @@ def _create_advanced_seed(plan_name: str, salt: str = "") -> int:
         Re-run pipeline twice with identical inputs/salt → output hashes must match 100%
         Achieves MMR-level determinism per Beach & Pedersen 2019
     """
-    timestamp = datetime.now().strftime("%Y%m%d")
-    combined = f"{plan_name}-{salt}-{timestamp}".encode("utf-8")
+    combined = f"{plan_name}-{salt}".encode("utf-8")
     hash_obj = hashlib.sha512(combined)
     seed = int.from_bytes(hash_obj.digest()[:8], "big", signed=False)
 
     # Log for audit trail
     LOGGER.info(
-        f"[Audit 1.1] Deterministic seed: {seed} (plan={plan_name}, salt={salt}, date={timestamp})"
+        f"[Audit 1.1] Deterministic seed: {seed} (plan={plan_name}, salt={salt})"
     )
 
     return seed
