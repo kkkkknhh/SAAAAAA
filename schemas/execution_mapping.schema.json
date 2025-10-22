@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pdm-evaluator.local/schemas/execution_mapping/v2.0.0",
+  "title": "Execution Mapping Schema",
+  "description": "Schema for execution_mapping.yaml - defines question execution chains",
+  "type": "object",
+  "required": ["version", "chains"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (MAJOR.MINOR.PATCH)"
+    },
+    "compatible_with": {
+      "type": "object",
+      "properties": {
+        "orchestrator": {
+          "type": "string",
+          "pattern": "^[><=]{0,2}\\d+\\.\\d+\\.\\d+$"
+        },
+        "choreographer": {
+          "type": "string",
+          "pattern": "^[><=]{0,2}\\d+\\.\\d+\\.\\d+$"
+        }
+      }
+    },
+    "chains": {
+      "type": "object",
+      "patternProperties": {
+        "^P[1-9][0-9]?-D[1-6]-Q\\d{3}$": {
+          "$ref": "#/definitions/execution_chain"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "execution_chain": {
+      "type": "object",
+      "required": ["chain"],
+      "properties": {
+        "chain": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/execution_step"
+          },
+          "minItems": 1
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_elements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        }
+      }
+    },
+    "execution_step": {
+      "type": "object",
+      "required": ["module", "method"],
+      "properties": {
+        "module": {
+          "type": "string",
+          "enum": [
+            "dereck_beach",
+            "policy_processor",
+            "embedding_policy",
+            "semantic_chunking_policy",
+            "teoria_cambio",
+            "contradiction_deteccion",
+            "financiero_viabilidad_tablas",
+            "report_assembly",
+            "analyzer_one"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[a-z_][a-z0-9_]*$"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "required_context": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_output_schema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
