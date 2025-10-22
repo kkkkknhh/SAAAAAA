@@ -362,13 +362,13 @@ class ReportAssembler:
         - execution_results must be non-empty dict
         - plan_text must be non-empty string
         """
-        # Precondition assertions
-        assert hasattr(question_spec, 'expected_elements'), \
-            "question_spec must have expected_elements attribute for TYPE_A scoring"
-        assert execution_results, \
-            "execution_results cannot be empty for TYPE_A scoring"
-        assert plan_text and isinstance(plan_text, str), \
-            "plan_text must be non-empty string for TYPE_A scoring"
+        # Precondition checks (raise exceptions instead of assert)
+        if not hasattr(question_spec, 'expected_elements'):
+            raise AttributeError("question_spec must have expected_elements attribute for TYPE_A scoring")
+        if not execution_results:
+            raise ValueError("execution_results cannot be empty for TYPE_A scoring")
+        if not (plan_text and isinstance(plan_text, str)):
+            raise TypeError("plan_text must be non-empty string for TYPE_A scoring")
         
         required_elements = question_spec.expected_elements or []
         elements_found = {}
