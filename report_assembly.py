@@ -514,8 +514,8 @@ class ReportAssembler:
         - question_spec must have validation_rules with logical conditions
         - execution_results must be non-empty dict
         """
-        assert execution_results, \
-            "execution_results cannot be empty for TYPE_E scoring"
+        if not execution_results:
+            raise ValueError("execution_results cannot be empty for TYPE_E scoring")
         
         elements_found = {}
         score = 0.0
