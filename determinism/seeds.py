@@ -42,7 +42,7 @@ class SeedFactory:
         os.environ["PYTHONHASHSEED"] = str(seed)
         random.seed(seed)
         if NUMPY_AVAILABLE and np is not None:
-            np.random.default_rng(seed)
+            np.random.seed(seed)
 
 
 @dataclass
