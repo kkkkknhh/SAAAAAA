@@ -55,8 +55,11 @@ from embedding_policy import (
 )
 from semantic_chunking_policy import (
     SemanticProcessor, BayesianEvidenceIntegrator,
-    PolicyDocumentAnalyzer, SemanticConfig
+    PolicyDocumentAnalyzer, SemanticConfig, CausalDimension
 )
+
+if 'CausalDimension' not in globals():
+    raise ImportError("CausalDimension is required by choreographer startup")
 from teoria_cambio import (
     TeoriaCambio,
     AdvancedDAGValidator, IndustrialGradeValidator, GraphType
