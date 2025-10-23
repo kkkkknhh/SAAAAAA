@@ -222,17 +222,16 @@
 
 ---
 
-## ⏳ REMAINING SCHEMAS (8/19 - 42%)
+## ⏳ REMAINING SCHEMAS (7/19 - 37%)
 
 ### **report_assembly/** (2 schemas)
 - `meso_cluster.schema.json` - MesoLevelCluster with cluster aggregation
 - `macro_convergence.schema.json` - MacroLevelConvergence with gap analysis
 
-### **Core Producers** (6 schemas)
+### **Core Producers** (5 schemas)
 - `analyzer_one/semantic_cube.schema.json`
 - `analyzer_one/performance_analysis.schema.json`
 - `embedding_policy/bayesian_evaluation.schema.json`
-- `dereck_beach/meta_node.schema.json`
 - `dereck_beach/audit_result.schema.json`
 - `policy_processor/evidence_bundle.schema.json`
 
