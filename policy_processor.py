@@ -23,7 +23,7 @@ import logging
 import re
 import unicodedata
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, ClassVar, Dict, FrozenSet, List, Optional, Set, Tuple, Union
@@ -31,6 +31,82 @@ from typing import Any, ClassVar, Dict, FrozenSet, List, Optional, Set, Tuple, U
 import numpy as np
 from functools import lru_cache
 from itertools import chain
+
+try:
+    from contradiction_deteccion import (
+        BayesianConfidenceCalculator,
+        PolicyContradictionDetector,
+        TemporalLogicVerifier,
+        PolicyDimension as ContradictionPolicyDimension,
+    )
+    CONTRADICTION_MODULE_AVAILABLE = True
+except Exception as import_error:  # pragma: no cover - safety net for heavy deps
+    CONTRADICTION_MODULE_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "Falling back to lightweight contradiction components due to import error: %s",
+        import_error,
+    )
+
+    class BayesianConfidenceCalculator:  # type: ignore[misc]
+        """Fallback Bayesian calculator when advanced module is unavailable."""
+
+        def __init__(self) -> None:
+            self.prior_alpha = 1.0
+            self.prior_beta = 1.0
+
+        def calculate_posterior(
+            self, evidence_strength: float, observations: int, domain_weight: float = 1.0
+        ) -> float:
+            alpha_post = self.prior_alpha + evidence_strength * observations * domain_weight
+            beta_post = self.prior_beta + (1 - evidence_strength) * observations * domain_weight
+            return alpha_post / (alpha_post + beta_post)
+
+    class TemporalLogicVerifier:  # type: ignore[misc]
+        """Fallback temporal verifier providing graceful degradation."""
+
+        def verify_temporal_consistency(self, statements: List[Any]) -> Tuple[bool, List[Dict[str, Any]]]:
+            return True, []
+
+    class _FallbackContradictionDetector:
+        def detect(
+            self,
+            text: str,
+            plan_name: str = "PDM",
+            dimension: Any = None,
+        ) -> Dict[str, Any]:
+            return {
+                "plan_name": plan_name,
+                "dimension": getattr(dimension, "value", "unknown"),
+                "contradictions": [],
+                "total_contradictions": 0,
+                "high_severity_count": 0,
+                "coherence_metrics": {},
+                "recommendations": [],
+                "knowledge_graph_stats": {"nodes": 0, "edges": 0, "components": 0},
+            }
+
+        def _extract_policy_statements(self, text: str, dimension: Any) -> List[Any]:
+            return []
+
+    PolicyContradictionDetector = _FallbackContradictionDetector  # type: ignore[misc]
+
+    class ContradictionPolicyDimension(Enum):  # type: ignore[misc]
+        DIAGNOSTICO = "diagnóstico"
+        ESTRATEGICO = "estratégico"
+        PROGRAMATICO = "programático"
+        FINANCIERO = "plan plurianual de inversiones"
+        SEGUIMIENTO = "seguimiento y evaluación"
+        TERRITORIAL = "ordenamiento territorial"
+
+from Analyzer_one import (
+    DocumentProcessor,
+    MunicipalAnalyzer,
+    MunicipalOntology,
+    PerformanceAnalyzer,
+    SemanticAnalyzer,
+)
+from financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -484,6 +560,14 @@ class IndustrialPolicyProcessor:
         self,
         config: Optional[ProcessorConfig] = None,
         questionnaire_path: Optional[Path] = None,
+        *,
+        ontology: Optional[MunicipalOntology] = None,
+        semantic_analyzer: Optional[SemanticAnalyzer] = None,
+        performance_analyzer: Optional[PerformanceAnalyzer] = None,
+        contradiction_detector: Optional[PolicyContradictionDetector] = None,
+        temporal_verifier: Optional[TemporalLogicVerifier] = None,
+        confidence_calculator: Optional[BayesianConfidenceCalculator] = None,
+        municipal_analyzer: Optional[MunicipalAnalyzer] = None,
     ):
         self.config = config or ProcessorConfig()
         self.config.validate()
@@ -493,6 +577,14 @@ class IndustrialPolicyProcessor:
             prior_confidence=self.config.bayesian_prior_confidence,
             entropy_weight=self.config.bayesian_entropy_weight,
         )
+
+        self.ontology = ontology or MunicipalOntology()
+        self.semantic_analyzer = semantic_analyzer or SemanticAnalyzer(self.ontology)
+        self.performance_analyzer = performance_analyzer or PerformanceAnalyzer(self.ontology)
+        self.contradiction_detector = contradiction_detector or PolicyContradictionDetector()
+        self.temporal_verifier = temporal_verifier or TemporalLogicVerifier()
+        self.confidence_calculator = confidence_calculator or BayesianConfidenceCalculator()
+        self.municipal_analyzer = municipal_analyzer or MunicipalAnalyzer()
 
         # Load canonical questionnaire structure
         self.questionnaire_file_path = questionnaire_path or self.QUESTIONNAIRE_PATH
@@ -597,11 +689,50 @@ class IndustrialPolicyProcessor:
         # Global causal dimension analysis
         dimension_analysis = self._analyze_causal_dimensions(normalized, sentences)
 
+        # Semantic diagnostics and performance evaluation
+        semantic_cube = self.semantic_analyzer.extract_semantic_cube(sentences)
+        performance_analysis = self.performance_analyzer.analyze_performance(
+            semantic_cube
+        )
+
+        try:
+            contradiction_bundle = self._run_contradiction_analysis(normalized, metadata)
+        except PDETAnalysisException as exc:
+            logger.error("Contradiction analysis failed: %s", exc)
+            contradiction_bundle = {
+                "reports": {},
+                "temporal_assessments": {},
+                "bayesian_scores": {},
+                "critical_diagnosis": {
+                    "critical_links": {},
+                    "risk_assessment": {},
+                    "intervention_recommendations": {},
+                },
+            }
+
+        quality_score = self._calculate_quality_score(
+            dimension_analysis, contradiction_bundle, performance_analysis
+        )
+
+        summary = self.municipal_analyzer._generate_summary(
+            semantic_cube,
+            performance_analysis,
+            contradiction_bundle["critical_diagnosis"],
+        )
+
         # Compile results
         return {
             "metadata": metadata,
             "point_evidence": point_evidence,
             "dimension_analysis": dimension_analysis,
+            "semantic_cube": semantic_cube,
+            "performance_analysis": performance_analysis,
+            "critical_diagnosis": contradiction_bundle["critical_diagnosis"],
+            "contradiction_reports": contradiction_bundle["reports"],
+            "temporal_consistency": contradiction_bundle["temporal_assessments"],
+            "bayesian_dimension_scores": contradiction_bundle["bayesian_scores"],
+            "quality_score": asdict(quality_score),
+            "summary": summary,
             "document_statistics": {
                 "character_count": len(normalized),
                 "sentence_count": len(sentences),
@@ -687,6 +818,182 @@ class IndustrialPolicyProcessor:
             match_positions=positions[: self.config.max_evidence_per_pattern],
         )
         return bundle.to_dict()
+
+    def _run_contradiction_analysis(
+        self, text: str, metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute contradiction and temporal diagnostics across all dimensions."""
+
+        if not self.contradiction_detector:
+            raise PDETAnalysisException("Contradiction detector unavailable")
+
+        plan_name = metadata.get("title", "Plan de Desarrollo")
+        dimension_mapping = {
+            CausalDimension.D1_INSUMOS: ContradictionPolicyDimension.DIAGNOSTICO,
+            CausalDimension.D2_ACTIVIDADES: ContradictionPolicyDimension.ESTRATEGICO,
+            CausalDimension.D3_PRODUCTOS: ContradictionPolicyDimension.PROGRAMATICO,
+            CausalDimension.D4_RESULTADOS: ContradictionPolicyDimension.SEGUIMIENTO,
+            CausalDimension.D5_IMPACTOS: ContradictionPolicyDimension.TERRITORIAL,
+            CausalDimension.D6_CAUSALIDAD: ContradictionPolicyDimension.ESTRATEGICO,
+        }
+
+        domain_weights = {
+            CausalDimension.D1_INSUMOS: 1.1,
+            CausalDimension.D2_ACTIVIDADES: 1.0,
+            CausalDimension.D3_PRODUCTOS: 1.05,
+            CausalDimension.D4_RESULTADOS: 1.1,
+            CausalDimension.D5_IMPACTOS: 1.15,
+            CausalDimension.D6_CAUSALIDAD: 1.2,
+        }
+
+        reports: Dict[str, Any] = {}
+        temporal_assessments: Dict[str, Any] = {}
+        bayesian_scores: Dict[str, float] = {}
+        critical_links: Dict[str, Any] = {}
+        risk_assessment: Dict[str, Any] = {}
+        intervention_recommendations: Dict[str, Any] = {}
+
+        for dimension in CausalDimension:
+            policy_dimension = dimension_mapping.get(dimension)
+            try:
+                report = self.contradiction_detector.detect(
+                    text, plan_name=plan_name, dimension=policy_dimension
+                )
+            except Exception as exc:  # pragma: no cover - external deps
+                raise PDETAnalysisException(
+                    f"Contradiction detection failed for {dimension.name}: {exc}"
+                ) from exc
+
+            reports[dimension.value] = report
+
+            try:
+                statements = self.contradiction_detector._extract_policy_statements(  # type: ignore[attr-defined]
+                    text, policy_dimension
+                )
+            except Exception:  # pragma: no cover - best effort if detector lacks method
+                statements = []
+
+            is_consistent, conflicts = self.temporal_verifier.verify_temporal_consistency(
+                statements
+            )
+            temporal_assessments[dimension.value] = {
+                "is_consistent": is_consistent,
+                "conflicts": conflicts,
+            }
+
+            coherence_metrics = report.get("coherence_metrics", {})
+            coherence_score = float(coherence_metrics.get("coherence_score", 0.0))
+            observations = max(1, len(statements))
+            posterior = self.confidence_calculator.calculate_posterior(
+                evidence_strength=max(coherence_score, 0.01),
+                observations=observations,
+                domain_weight=domain_weights.get(dimension, 1.0),
+            )
+            bayesian_scores[dimension.value] = float(posterior)
+
+            total_contradictions = int(report.get("total_contradictions", 0))
+            if total_contradictions:
+                keywords = []
+                for contradiction in report.get("contradictions", []):
+                    ctype = contradiction.get("contradiction_type")
+                    if ctype:
+                        keywords.append(ctype)
+
+                severity = 1 - coherence_score if coherence_score else 0.5
+                critical_links[dimension.value] = {
+                    "criticality_score": round(min(1.0, max(0.0, severity)), 4),
+                    "text_analysis": {
+                        "sentiment": "negative" if coherence_score < 0.5 else "neutral",
+                        "keywords": keywords,
+                        "word_count": len(text.split()),
+                    },
+                }
+                risk_assessment[dimension.value] = {
+                    "overall_risk": "high" if total_contradictions > 3 else "medium",
+                    "risk_factors": keywords,
+                }
+                intervention_recommendations[dimension.value] = report.get(
+                    "recommendations", []
+                )
+
+        return {
+            "reports": reports,
+            "temporal_assessments": temporal_assessments,
+            "bayesian_scores": bayesian_scores,
+            "critical_diagnosis": {
+                "critical_links": critical_links,
+                "risk_assessment": risk_assessment,
+                "intervention_recommendations": intervention_recommendations,
+            },
+        }
+
+    def _calculate_quality_score(
+        self,
+        dimension_analysis: Dict[str, Any],
+        contradiction_bundle: Dict[str, Any],
+        performance_analysis: Dict[str, Any],
+    ) -> QualityScore:
+        """Aggregate key indicators into a structured QualityScore dataclass."""
+
+        bayesian_scores = contradiction_bundle.get("bayesian_scores", {})
+        bayesian_values = list(bayesian_scores.values())
+        overall_score = float(np.mean(bayesian_values)) if bayesian_values else 0.0
+
+        def _dimension_confidence(key: CausalDimension) -> float:
+            return float(
+                dimension_analysis.get(key.value, {}).get("dimension_confidence", 0.0)
+            )
+
+        temporal_flags = contradiction_bundle.get("temporal_assessments", {})
+        temporal_values = [
+            1.0 if assessment.get("is_consistent", True) else 0.0
+            for assessment in temporal_flags.values()
+        ]
+        temporal_consistency = (
+            float(np.mean(temporal_values)) if temporal_values else 1.0
+        )
+
+        reports = contradiction_bundle.get("reports", {})
+        coherence_scores = [
+            float(report.get("coherence_metrics", {}).get("coherence_score", 0.0))
+            for report in reports.values()
+        ]
+        causal_coherence = float(np.mean(coherence_scores)) if coherence_scores else 0.0
+
+        objective_alignment = float(
+            reports.get(
+                CausalDimension.D4_RESULTADOS.value,
+                {},
+            )
+            .get("coherence_metrics", {})
+            .get("objective_alignment", 0.0)
+        )
+
+        confidence_interval = (
+            float(min(bayesian_values)) if bayesian_values else 0.0,
+            float(max(bayesian_values)) if bayesian_values else 0.0,
+        )
+
+        evidence = {
+            "bayesian_scores": bayesian_scores,
+            "dimension_confidences": {
+                key: value.get("dimension_confidence", 0.0)
+                for key, value in dimension_analysis.items()
+            },
+            "performance_metrics": performance_analysis.get("value_chain_metrics", {}),
+        }
+
+        return QualityScore(
+            overall_score=overall_score,
+            financial_feasibility=_dimension_confidence(CausalDimension.D1_INSUMOS),
+            indicator_quality=_dimension_confidence(CausalDimension.D3_PRODUCTOS),
+            responsibility_clarity=_dimension_confidence(CausalDimension.D2_ACTIVIDADES),
+            temporal_consistency=temporal_consistency,
+            pdet_alignment=objective_alignment,
+            causal_coherence=causal_coherence,
+            confidence_interval=confidence_interval,
+            evidence=evidence,
+        )
 
     def _extract_point_evidence(
         self, text: str, sentences: List[str], point_code: str
@@ -1007,7 +1314,27 @@ class PolicyAnalysisPipeline:
     ):
         self.config = config or ProcessorConfig()
         self.sanitizer = AdvancedTextSanitizer(self.config)
-        self.processor = IndustrialPolicyProcessor(self.config, questionnaire_path)
+
+        # Initialize shared domain components
+        self.ontology = MunicipalOntology()
+        self.semantic_analyzer = SemanticAnalyzer(self.ontology)
+        self.performance_analyzer = PerformanceAnalyzer(self.ontology)
+        self.temporal_verifier = TemporalLogicVerifier()
+        self.confidence_calculator = BayesianConfidenceCalculator()
+        self.contradiction_detector = PolicyContradictionDetector()
+        self.municipal_analyzer = MunicipalAnalyzer()
+
+        self.processor = IndustrialPolicyProcessor(
+            self.config,
+            questionnaire_path,
+            ontology=self.ontology,
+            semantic_analyzer=self.semantic_analyzer,
+            performance_analyzer=self.performance_analyzer,
+            contradiction_detector=self.contradiction_detector,
+            temporal_verifier=self.temporal_verifier,
+            confidence_calculator=self.confidence_calculator,
+            municipal_analyzer=self.municipal_analyzer,
+        )
         self.file_handler = ResilientFileHandler()
 
     def analyze_file(
@@ -1029,7 +1356,15 @@ class PolicyAnalysisPipeline:
         logger.info(f"Starting analysis of {input_path}")
 
         # Stage 1: Load document
-        raw_text = self.file_handler.read_text(input_path)
+        raw_text = ""
+        suffix = input_path.suffix.lower()
+        if suffix == ".pdf":
+            raw_text = DocumentProcessor.load_pdf(str(input_path))
+        elif suffix in {".docx", ".doc"}:
+            raw_text = DocumentProcessor.load_docx(str(input_path))
+
+        if not raw_text:
+            raw_text = self.file_handler.read_text(input_path)
         logger.info(f"Loaded {len(raw_text)} characters from {input_path.name}")
 
         # Stage 2: Sanitize
