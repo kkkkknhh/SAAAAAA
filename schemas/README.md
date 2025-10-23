@@ -2,7 +2,7 @@
 ## Commit 3: Schema Definitions
 
 **Generated:** 2025-10-22  
-**Total Schemas:** 19 JSON Schema files  
+**Total Schemas:** 20 JSON Schema files
 **Validation Level:** STRICT  
 **Format:** JSON Schema Draft-07
 
@@ -27,7 +27,7 @@ schemas/
 ├── embedding_policy/               (2 schemas - IN PROGRESS)
 │   ├── semantic_chunk.schema.json
 │   └── bayesian_evaluation.schema.json
-├── teoria_cambio/                  (2 schemas - IN PROGRESS)
+├── teoria_cambio/                  (3 schemas - IN PROGRESS)
 │   ├── validacion_resultado.schema.json
 │   └── monte_carlo_result.schema.json
 ├── dereck_beach/                   (1/2 schemas - IN PROGRESS)
@@ -86,7 +86,7 @@ schemas/
 
 ---
 
-## 🔄 REMAINING SCHEMAS (13/19)
+## 🔄 REMAINING SCHEMAS (13/20)
 
 ### Priority 1: Report Assembly Outputs (2 schemas)
 - **meso_cluster.schema.json** - Cluster aggregation (MesoLevelCluster dataclass)
