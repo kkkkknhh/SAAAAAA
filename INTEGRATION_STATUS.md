@@ -85,12 +85,12 @@
 - **Questionnaire Alignment:** 89/100 (A) - Strong P-D-Q coverage
 - **OVERALL QUALITY:** 89/100 (A) - EXCELLENT
 
-**Completed (14/19):**
+**Completed (12/19):**
 - ✅ `schemas/financiero_viabilidad/` (5/5 - 100%) - 312 lines, 65/65 methods ✅
 - ✅ `schemas/contradiction_deteccion/` (2/2 - 100%) - 441 lines, 58/62 methods ✅
 - ✅ `schemas/embedding_policy/semantic_chunk.schema.json` (1/2) - 242 lines, 32/36 methods ✅
 - ✅ `schemas/teoria_cambio/` (2/2 - 100%) - 412 lines, 29/30 methods ✅
-- ✅ `schemas/report_assembly/` (3/3 - 100%) - 667 lines, 43/43 methods ✅
+- ✅ `schemas/report_assembly/` (1/3 - 33%) - 98 lines, 43/43 methods (micro_answer only)
 - ✅ `schemas/README.md` + `COMMIT_3_PROGRESS.md` + `SCHEMA_AUDIT_REPORT.md`
 - ✅ `schemas/dereck_beach/meta_node.schema.json` (1/2) - 170 lines, 44/99 métodos capturados ✅
 
