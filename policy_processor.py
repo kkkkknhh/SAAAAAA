@@ -228,6 +228,41 @@ class ProcessorConfig:
     proximity_decay_rate: float = 0.15
     min_sentence_length: int = 20
     max_sentence_length: int = 500
+    bayesian_prior_confidence: float = 0.5
+    bayesian_entropy_weight: float = 0.3
+    minimum_dimension_scores: Dict[str, float] = field(
+        default_factory=lambda: {
+            "D1": 0.50,
+            "D2": 0.50,
+            "D3": 0.50,
+            "D4": 0.50,
+            "D5": 0.50,
+            "D6": 0.50,
+        }
+    )
+    critical_dimension_overrides: Dict[str, float] = field(
+        default_factory=lambda: {"D1": 0.55, "D6": 0.55}
+    )
+    differential_focus_indicators: Tuple[str, ...] = (
+        "enfoque diferencial",
+        "enfoque de género",
+        "mujeres rurales",
+        "población víctima",
+        "firmantes del acuerdo",
+        "comunidades indígenas",
+        "población LGBTIQ+",
+        "juventud rural",
+        "comunidades ribereñas",
+    )
+    adaptability_indicators: Tuple[str, ...] = (
+        "mecanismo de ajuste",
+        "retroalimentación",
+        "aprendizaje",
+        "monitoreo adaptativo",
+        "ciclo de mejora",
+        "sistema de alerta temprana",
+        "evaluación continua",
+    )
 
     LEGACY_PARAM_MAP: ClassVar[Dict[str, str]] = {
         "keep_structure": "preserve_document_structure",
@@ -252,6 +287,20 @@ class ProcessorConfig:
             raise ValueError("context_window_chars must be >= 100")
         if self.entropy_weight < 0 or self.entropy_weight > 1:
             raise ValueError("entropy_weight must be in [0, 1]")
+        if not 0.0 <= self.bayesian_prior_confidence <= 1.0:
+            raise ValueError("bayesian_prior_confidence must be in [0, 1]")
+        if not 0.0 <= self.bayesian_entropy_weight <= 1.0:
+            raise ValueError("bayesian_entropy_weight must be in [0, 1]")
+        for dimension, threshold in self.minimum_dimension_scores.items():
+            if not 0.0 <= threshold <= 1.0:
+                raise ValueError(
+                    f"minimum_dimension_scores[{dimension}] must be in [0, 1]"
+                )
+        for dimension, threshold in self.critical_dimension_overrides.items():
+            if not 0.0 <= threshold <= 1.0:
+                raise ValueError(
+                    f"critical_dimension_overrides[{dimension}] must be in [0, 1]"
+                )
 
 
 # ============================================================================
@@ -441,8 +490,8 @@ class IndustrialPolicyProcessor:
 
         self.text_processor = PolicyTextProcessor(self.config)
         self.scorer = BayesianEvidenceScorer(
-            prior_confidence=self.config.confidence_threshold,
-            entropy_weight=self.config.entropy_weight,
+            prior_confidence=self.config.bayesian_prior_confidence,
+            entropy_weight=self.config.bayesian_entropy_weight,
         )
 
         # Load canonical questionnaire structure
