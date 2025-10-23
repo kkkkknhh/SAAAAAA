@@ -70,13 +70,14 @@ class MicroLevelAnswer:
 class MesoLevelCluster:
     """
     MESO level: Cluster aggregation across policy areas
-    
+
     Aggregates related questions into thematic clusters for mid-level analysis
     """
     cluster_name: str  # CLUSTER_1, CLUSTER_2, etc.
     cluster_description: str  # Human-readable description
     policy_areas: List[str]  # Policy areas included (e.g., [P1, P2, P3])
     avg_score: float  # 0-100 percentage score
+    policy_area_scores: Dict[str, float] = field(default_factory=dict)
     dimension_scores: Dict[str, float]  # D1: 75.0, D2: 65.0, etc. (percentages)
     strengths: List[str]  # Identified strengths
     weaknesses: List[str]  # Identified weaknesses
@@ -128,7 +129,13 @@ class ReportAssembler:
     - ExecutionChoreographer (orchestration)
     """
 
-    def __init__(self, dimension_descriptions: Optional[Dict[str, str]] = None):
+    def __init__(
+            self,
+            dimension_descriptions: Optional[Dict[str, str]] = None,
+            cluster_weights: Optional[Dict[str, float]] = None,
+            cluster_policy_weights: Optional[Dict[str, Dict[str, float]]] = None,
+            causal_thresholds: Optional[Dict[str, float]] = None
+    ):
         """
         Initialize report assembler with rubric definitions
         """
@@ -159,6 +166,15 @@ class ReportAssembler:
             "D6": "Teoría de Cambio y Coherencia Causal - Coherencia causal global, auditoría completa"
         }
 
+        self.cluster_weights = cluster_weights or {}
+        self.cluster_policy_weights = cluster_policy_weights or {}
+        self.causal_thresholds = causal_thresholds or {
+            "default": 0.6,
+            "D4": 0.65,
+            "D5": 0.7,
+            "D6": 0.75
+        }
+
         logger.info("ReportAssembler initialized with rubric definitions")
 
     # ========================================================================
@@ -187,7 +203,7 @@ class ReportAssembler:
         start_time = datetime.now()
 
         # Step 1: Apply scoring modality to calculate score
-        score, elements_found, pattern_matches = self._apply_scoring_modality(
+        score, elements_found, pattern_matches, causal_correction = self._apply_scoring_modality(
             question_spec,
             execution_results,
             plan_text
@@ -265,7 +281,10 @@ class ReportAssembler:
                 "timestamp": datetime.now().isoformat(),
                 "policy_area": question_spec.policy_area,
                 "dimension": question_spec.dimension,
-                "question_number": getattr(question_spec, 'question_no', 0)
+                "question_number": getattr(question_spec, 'question_no', 0),
+                "cluster_id": getattr(question_spec, 'cluster_id', ''),
+                "cluster_name": getattr(question_spec, 'cluster_name', ''),
+                "causal_correction": causal_correction
             }
         )
 
@@ -274,12 +293,12 @@ class ReportAssembler:
             question_spec,
             execution_results: Dict[str, Any],
             plan_text: str
-    ) -> Tuple[float, Dict[str, bool], Dict[str, Any]]:
+    ) -> Tuple[float, Dict[str, bool], Dict[str, Any], Dict[str, Any]]:
         """
         Apply scoring modality (TYPE_A, TYPE_B, etc.) to calculate question score
-        
+
         Returns:
-            (score, elements_found, pattern_matches)
+            (score, elements_found, pattern_matches, causal_correction_metadata)
         """
         modality = question_spec.scoring_modality
         logger.debug(f"Applying scoring modality: {modality}")
@@ -334,7 +353,138 @@ class ReportAssembler:
             question_spec, execution_results, plan_text
         )
 
-        return score, elements_found, pattern_matches
+        score, correction_metadata = self._apply_causal_correction(
+            question_spec,
+            score,
+            execution_results
+        )
+
+        return score, elements_found, pattern_matches, correction_metadata
+
+    def _apply_causal_correction(
+            self,
+            question_spec,
+            base_score: float,
+            execution_results: Dict[str, Any]
+    ) -> Tuple[float, Dict[str, Any]]:
+        """Adjust base score using causal coherence signals when required."""
+
+        dimension = getattr(question_spec, 'dimension', '') or "default"
+        threshold = self.causal_thresholds.get(
+            dimension,
+            self.causal_thresholds.get('default', 0.6)
+        )
+
+        signals = self._extract_causal_signals(execution_results)
+        flags = self._extract_causal_flags(execution_results)
+
+        numeric_values = [value for _, value in signals if isinstance(value, (int, float))]
+        coherence_estimate = statistics.mean(numeric_values) if numeric_values else None
+
+        penalty_ratio = 0.0
+        applied = False
+
+        if coherence_estimate is not None and threshold:
+            if coherence_estimate < threshold:
+                gap = threshold - coherence_estimate
+                penalty_ratio = min(0.4, max(0.0, gap / max(threshold, 1e-6) * 0.5))
+                applied = penalty_ratio > 0
+
+        flag_penalty = 0.0
+        if any(not flag_value for _, flag_value in flags):
+            flag_penalty = 0.1
+            applied = True
+
+        total_penalty = min(0.5, penalty_ratio + flag_penalty)
+        adjusted_score = base_score * (1 - total_penalty)
+        adjusted_score = max(0.0, min(3.0, adjusted_score))
+
+        correction_metadata = {
+            "applied": applied,
+            "dimension": dimension,
+            "base_score": round(base_score, 4),
+            "adjusted_score": round(adjusted_score, 4),
+            "coherence_estimate": round(coherence_estimate, 4) if coherence_estimate is not None else None,
+            "threshold": threshold,
+            "penalty_ratio": round(total_penalty, 4),
+            "signal_count": len(signals),
+            "flags": [
+                {"key": key, "value": flag_value}
+                for key, flag_value in flags
+            ],
+            "signals": [
+                {"key": key, "value": round(value, 4)}
+                for key, value in signals[:5]
+            ]
+        }
+
+        return adjusted_score, correction_metadata
+
+    def _extract_causal_signals(
+            self,
+            execution_results: Dict[str, Any]
+    ) -> List[Tuple[str, float]]:
+        """Collect numeric causal signals present in execution results."""
+
+        signal_keys = {
+            "causal_coherence",
+            "coherence_score",
+            "causal_confidence",
+            "causal_score",
+            "causal_strength",
+            "causal_density",
+            "mission_causal_score",
+            "causal_alignment"
+        }
+
+        signals: List[Tuple[str, float]] = []
+
+        def traverse(obj: Any):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key in signal_keys and isinstance(value, (int, float)):
+                        signals.append((key, float(value)))
+                    elif isinstance(value, (dict, list)):
+                        traverse(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    traverse(item)
+
+        for module_result in execution_results.values():
+            traverse(module_result)
+
+        return signals
+
+    def _extract_causal_flags(
+            self,
+            execution_results: Dict[str, Any]
+    ) -> List[Tuple[str, bool]]:
+        """Identify boolean causal flags signalling structural issues."""
+
+        flag_keys = {
+            "meets_threshold",
+            "causal_chain_valid",
+            "causal_gap_detected",
+            "causal_alert"
+        }
+
+        flags: List[Tuple[str, bool]] = []
+
+        def traverse(obj: Any):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key in flag_keys and isinstance(value, bool):
+                        flags.append((key, value))
+                    elif isinstance(value, (dict, list)):
+                        traverse(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    traverse(item)
+
+        for module_result in execution_results.values():
+            traverse(module_result)
+
+        return flags
 
     def _score_type_a(
             self,
@@ -1010,6 +1160,14 @@ class ReportAssembler:
         avg_score_raw = statistics.mean(scores) if scores else 0.0
         avg_score_pct = (avg_score_raw / 3.0) * 100  # Convert to percentage
 
+        policy_area_scores = self._calculate_policy_area_scores(micro_answers)
+        avg_score_pct, weighting_trace = self._apply_policy_weighting(
+            cluster_name,
+            avg_score_pct,
+            policy_area_scores,
+            cluster_definition
+        )
+
         # Calculate dimension scores
         dimension_scores = self._calculate_dimension_scores(micro_answers)
 
@@ -1038,6 +1196,7 @@ class ReportAssembler:
             cluster_description=cluster_description,
             policy_areas=policy_areas,
             avg_score=avg_score_pct,
+            policy_area_scores=policy_area_scores,
             dimension_scores=dimension_scores,
             strengths=strengths,
             weaknesses=weaknesses,
@@ -1048,7 +1207,10 @@ class ReportAssembler:
             evidence_quality=evidence_quality,
             metadata={
                 "timestamp": datetime.now().isoformat(),
-                "score_distribution": self._calculate_score_distribution(micro_answers)
+                "score_distribution": self._calculate_score_distribution(micro_answers),
+                "weighting_trace": weighting_trace,
+                "policy_weights": cluster_definition.get("policy_weights", {}),
+                "macro_weight": cluster_definition.get("macro_weight")
             }
         )
 
@@ -1070,6 +1232,63 @@ class ReportAssembler:
             dim: statistics.mean(scores)
             for dim, scores in dimension_scores.items()
         }
+
+    def _calculate_policy_area_scores(
+            self,
+            micro_answers: List[MicroLevelAnswer]
+    ) -> Dict[str, float]:
+        """Calculate average scores per policy area in percentage scale."""
+
+        policy_scores = defaultdict(list)
+
+        for answer in micro_answers:
+            policy_area = answer.metadata.get("policy_area", "")
+            if not policy_area:
+                continue
+            pct_score = (answer.quantitative_score / 3.0) * 100
+            policy_scores[policy_area].append(pct_score)
+
+        return {
+            policy_area: statistics.mean(scores)
+            for policy_area, scores in policy_scores.items()
+        }
+
+    def _apply_policy_weighting(
+            self,
+            cluster_id: str,
+            fallback_score: float,
+            policy_area_scores: Dict[str, float],
+            cluster_definition: Dict[str, Any]
+    ) -> Tuple[float, List[Dict[str, Any]]]:
+        """Apply rubric-defined weights to policy area contributions."""
+
+        weights = self.cluster_policy_weights.get(cluster_id) or cluster_definition.get("policy_weights", {})
+        if not weights:
+            return fallback_score, []
+
+        weighted_sum = 0.0
+        used_weight = 0.0
+        trace: List[Dict[str, Any]] = []
+
+        for policy_area, weight in weights.items():
+            score = policy_area_scores.get(policy_area)
+            if score is None:
+                continue
+            contribution = score * weight
+            weighted_sum += contribution
+            used_weight += weight
+            trace.append({
+                "policy_area": policy_area,
+                "weight": weight,
+                "score": score,
+                "contribution": contribution
+            })
+
+        if used_weight == 0:
+            return fallback_score, trace
+
+        weighted_score = weighted_sum / used_weight
+        return weighted_score, trace
 
     def _identify_strengths(
             self,
@@ -1260,7 +1479,12 @@ class ReportAssembler:
 
         # Calculate overall score
         all_scores = [answer.quantitative_score for answer in all_micro_answers]
-        overall_score = (statistics.mean(all_scores) / 3.0) * 100 if all_scores else 0
+        base_micro_average = (statistics.mean(all_scores) / 3.0) * 100 if all_scores else 0.0
+
+        overall_score, weighting_trace, missing_clusters = self._aggregate_macro_score(
+            all_meso_clusters,
+            base_micro_average
+        )
 
         # Calculate convergence by dimension (D1-D6)
         convergence_by_dimension = self._calculate_dimension_convergence(
@@ -1317,6 +1541,17 @@ class ReportAssembler:
         # Calculate confidence metrics
         confidence_metrics = self._calculate_confidence_metrics(all_micro_answers)
 
+        metadata = {
+            "timestamp": datetime.now().isoformat(),
+            "total_questions_analyzed": len(all_micro_answers),
+            "total_clusters": len(all_meso_clusters),
+            "plan_name": plan_metadata.get("name", "Unknown"),
+            "base_micro_average": base_micro_average,
+            "weighting_trace": weighting_trace,
+            "cluster_weights": self.cluster_weights,
+            "missing_clusters": missing_clusters
+        }
+
         return MacroLevelConvergence(
             overall_score=overall_score,
             convergence_by_dimension=convergence_by_dimension,
@@ -1330,13 +1565,62 @@ class ReportAssembler:
             implementation_roadmap=implementation_roadmap,
             score_distribution=score_distribution,
             confidence_metrics=confidence_metrics,
-            metadata={
-                "timestamp": datetime.now().isoformat(),
-                "total_questions_analyzed": len(all_micro_answers),
-                "total_clusters": len(all_meso_clusters),
-                "plan_name": plan_metadata.get("name", "Unknown")
-            }
+            metadata=metadata
         )
+
+    def _aggregate_macro_score(
+            self,
+            meso_clusters: List[MesoLevelCluster],
+            fallback_score: float
+    ) -> Tuple[float, List[Dict[str, Any]], List[str]]:
+        """Aggregate macro score using rubric-defined cluster weights."""
+
+        if not meso_clusters:
+            return fallback_score, [], []
+
+        if not self.cluster_weights:
+            return fallback_score, [], []
+
+        weighted_sum = 0.0
+        used_weight = 0.0
+        trace: List[Dict[str, Any]] = []
+        available_clusters = {cluster.cluster_name: cluster for cluster in meso_clusters}
+
+        for cluster_id, weight in self.cluster_weights.items():
+            cluster = available_clusters.get(cluster_id)
+            if not cluster:
+                trace.append({
+                    "cluster_id": cluster_id,
+                    "weight": weight,
+                    "cluster_score": None,
+                    "contribution": 0.0
+                })
+                continue
+
+            cluster_score = cluster.avg_score
+            contribution = cluster_score * weight
+            weighted_sum += contribution
+            used_weight += weight
+            trace.append({
+                "cluster_id": cluster_id,
+                "weight": weight,
+                "cluster_score": cluster_score,
+                "contribution": contribution
+            })
+
+        missing_clusters = [
+            entry["cluster_id"]
+            for entry in trace
+            if entry.get("cluster_score") is None
+        ]
+
+        if used_weight == 0:
+            return fallback_score, trace, missing_clusters
+
+        macro_score = weighted_sum / used_weight
+        macro_score = max(0.0, min(100.0, macro_score))
+
+        return macro_score, trace, missing_clusters
 
     def _calculate_dimension_convergence(
             self,
