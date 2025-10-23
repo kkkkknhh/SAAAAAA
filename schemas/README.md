@@ -2,7 +2,7 @@
 ## Commit 3: Schema Definitions
 
 **Generated:** 2025-10-22  
-**Total Schemas:** 19 JSON Schema files  
+**Total Schemas:** 20 JSON Schema files
 **Validation Level:** STRICT  
 **Format:** JSON Schema Draft-07
 
@@ -27,9 +27,10 @@ schemas/
 ├── embedding_policy/               (2 schemas - IN PROGRESS)
 │   ├── semantic_chunk.schema.json
 │   └── bayesian_evaluation.schema.json
-├── teoria_cambio/                  (2 schemas - IN PROGRESS)
+├── teoria_cambio/                  (3 schemas - IN PROGRESS)
 │   ├── validacion_resultado.schema.json
-│   └── monte_carlo_result.schema.json
+│   ├── monte_carlo_result.schema.json
+│   └── advanced_graph_node.schema.json
 ├── dereck_beach/                   (2 schemas - IN PROGRESS)
 │   ├── meta_node.schema.json
 │   └── audit_result.schema.json
@@ -43,7 +44,7 @@ schemas/
 
 ---
 
-## ✅ COMPLETED SCHEMAS (6/19)
+## ✅ COMPLETED SCHEMAS (7/20)
 
 ### **financiero_viabilidad/** (5 schemas)
 
@@ -79,9 +80,14 @@ schemas/
    - Properties: question_id (P#-D#-Q# pattern), qualitative_note (EXCELENTE/BUENO/ACEPTABLE/INSUFICIENTE), quantitative_score (0.0-3.0), evidence, explanation (150-3000 chars), confidence, scoring_modality (TYPE_A-F), elements_found, modules_executed, execution_time, execution_chain
    - Doctoral-level explanation with 150-300 word requirement
 
+7. **advanced_graph_node.schema.json** (80 lines)
+   - Nodo enriquecido del AdvancedDAGValidator
+   - Properties: name, dependencies (array ordenada de strings únicas), metadata.created (date-time), metadata.confidence (0-1), role (variable/insumo/proceso/producto/resultado/causalidad)
+   - `additionalProperties` restringe los metadatos a primitivos JSON
+
 ---
 
-## 🔄 REMAINING SCHEMAS (13/19)
+## 🔄 REMAINING SCHEMAS (13/20)
 
 ### Priority 1: Report Assembly Outputs (2 schemas)
 - **meso_cluster.schema.json** - Cluster aggregation (MesoLevelCluster dataclass)
@@ -193,11 +199,11 @@ ajv validate -s schemas/financiero_viabilidad/causal_node.schema.json \
 | analyzer_one | 2 | TBD | ⏳ 0% |
 | contradiction_deteccion | 2 | TBD | ⏳ 0% |
 | embedding_policy | 2 | TBD | ⏳ 0% |
-| teoria_cambio | 2 | TBD | ⏳ 0% |
+| teoria_cambio | 3 | TBD | ⏳ 0% |
 | dereck_beach | 2 | TBD | ⏳ 0% |
 | policy_processor | 1 | TBD | ⏳ 0% |
 | report_assembly | 3 | 98 | ⏳ 33% |
-| **TOTAL** | **19** | **410+** | **32%** |
+| **TOTAL** | **20** | **430+** | **35%** |
 
 ---
 
@@ -222,6 +228,6 @@ ajv validate -s schemas/financiero_viabilidad/causal_node.schema.json \
 
 ---
 
-**Status:** 6/19 schemas complete (32%)  
+**Status:** 7/20 schemas complete (35%)
 **Next:** Complete report_assembly + core producer schemas  
 **Target:** 100% schema coverage for Commit 3 completion
