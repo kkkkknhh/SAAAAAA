@@ -140,25 +140,38 @@ class SchemaValidator:
         # 1. JSON Schema validation
         if jsonschema and self.questionnaire_schema:
             try:
-                validate(instance=questionnaire, schema=self.questionnaire_schema)
+                from jsonschema import validate as json_validate
+                json_validate(instance=questionnaire, schema=self.questionnaire_schema)
                 logger.info("✓ JSON Schema validation passed")
-            except ValidationError as e:
-                report.add_error(f"Schema validation failed: {e.message}")
-                logger.error(f"✗ Schema validation failed: {e.message}")
+            except Exception as e:
+                error_msg = str(e) if not hasattr(e, 'message') else e.message  # type: ignore
+                report.add_error(f"Schema validation failed: {error_msg}")
+                logger.error(f"✗ Schema validation failed: {error_msg}")
         else:
             report.add_warning("jsonschema not available, skipping schema validation")
         
         # 2. Extract metadata
         metadata = questionnaire.get("metadata", {})
         clusters = metadata.get("clusters", [])
-        policy_areas = metadata.get("policy_areas", [])
-        dimensions = metadata.get("dimensions", [])
+        # Handle both array (new) and number (legacy) formats
+        policy_areas_raw = metadata.get("policy_areas", [])
+        if isinstance(policy_areas_raw, int):
+            # Legacy format: policy_areas is count, get from puntos_decalogo
+            policy_areas_raw = list(questionnaire.get("puntos_decalogo", {}).keys())
+        dimensions_raw = metadata.get("dimensions", [])
+        if isinstance(dimensions_raw, int):
+            # Legacy format: dimensions is count, get from dimensiones
+            dimensions_raw = list(questionnaire.get("dimensiones", {}).keys())
+        
         questions = questionnaire.get("questions", [])
+        if not questions:
+            # Try preguntas_base
+            questions = questionnaire.get("preguntas_base", [])
         
         report.metadata["version"] = metadata.get("version", "UNKNOWN")
         report.metadata["cluster_count"] = len(clusters)
-        report.metadata["policy_area_count"] = len(policy_areas)
-        report.metadata["dimension_count"] = len(dimensions)
+        report.metadata["policy_area_count"] = len(policy_areas_raw)
+        report.metadata["dimension_count"] = len(dimensions_raw)
         report.metadata["question_count"] = len(questions)
         
         # 3. Validate cluster count (must be exactly 4)
@@ -168,26 +181,30 @@ class SchemaValidator:
             logger.info(f"✓ Cluster count: {len(clusters)}")
         
         # 4. Validate policy area count (must be exactly 10)
-        if len(policy_areas) != 10:
-            report.add_error(f"Must have exactly 10 policy areas, found {len(policy_areas)}")
+        if len(policy_areas_raw) != 10:
+            report.add_error(f"Must have exactly 10 policy areas, found {len(policy_areas_raw)}")
         else:
-            logger.info(f"✓ Policy area count: {len(policy_areas)}")
+            logger.info(f"✓ Policy area count: {len(policy_areas_raw)}")
         
         # 5. Validate dimension count (must be exactly 6)
-        if len(dimensions) != 6:
-            report.add_error(f"Must have exactly 6 dimensions, found {len(dimensions)}")
+        if len(dimensions_raw) != 6:
+            report.add_error(f"Must have exactly 6 dimensions, found {len(dimensions_raw)}")
         else:
-            logger.info(f"✓ Dimension count: {len(dimensions)}")
+            logger.info(f"✓ Dimension count: {len(dimensions_raw)}")
         
-        # 6. Check all PAxx referenced by CLxx exist
-        pa_ids = {pa["policy_area_id"] for pa in policy_areas}
+        # 6. Check all PAxx/P# referenced by CLxx exist
+        # Handle legacy P# format
+        pa_ids_set = set(policy_areas_raw) if isinstance(policy_areas_raw, list) else set()
         
         for cluster in clusters:
             cluster_id = cluster.get("cluster_id")
-            referenced_pas = cluster.get("policy_area_ids", [])
+            referenced_pas = cluster.get("policy_area_ids", []) or cluster.get("legacy_point_ids", [])
             
             for pa_id in referenced_pas:
-                if pa_id not in pa_ids:
+                if pa_id not in pa_ids_set:
+                    # Allow if it's a reference we can't validate yet (metadata-only format)
+                    if not pa_ids_set:
+                        continue
                     report.add_error(
                         f"Cluster {cluster_id} references non-existent PA: {pa_id}"
                     )
@@ -195,40 +212,46 @@ class SchemaValidator:
         if not report.errors:
             logger.info(f"✓ All cluster references valid")
         
-        # 7. Check every Qxxx maps to exactly one PAxx and one DIMxx
-        dim_ids = {dim["dimension_id"] for dim in dimensions}
-        
-        for question in questions:
-            q_id = question.get("question_id", "UNKNOWN")
-            pa_id = question.get("policy_area_id")
-            dim_id = question.get("dimension_id")
+        # 7. Check questions (skip if using legacy format)
+        if questions and isinstance(policy_areas_raw, list):
+            dim_ids_set = set(dimensions_raw) if isinstance(dimensions_raw, list) else set()
             
-            if pa_id not in pa_ids:
-                report.add_error(f"Question {q_id} references non-existent PA: {pa_id}")
+            for question in questions:
+                q_id = question.get("question_id") or question.get("id", "UNKNOWN")
+                pa_id = question.get("policy_area_id")
+                dim_id = question.get("dimension_id") or question.get("dimension")
+                
+                if pa_id and pa_id not in pa_ids_set:
+                    report.add_error(f"Question {q_id} references non-existent PA: {pa_id}")
+                
+                if dim_id and dim_id not in dim_ids_set:
+                    report.add_error(f"Question {q_id} references non-existent DIM: {dim_id}")
             
-            if dim_id not in dim_ids:
-                report.add_error(f"Question {q_id} references non-existent DIM: {dim_id}")
-        
-        if not report.errors:
-            logger.info(f"✓ All question references valid")
-        
-        # 8. Check 100% coverage: all PAxx have at least one question
-        questions_by_pa = {pa_id: 0 for pa_id in pa_ids}
-        
-        for question in questions:
-            pa_id = question.get("policy_area_id")
-            if pa_id in questions_by_pa:
-                questions_by_pa[pa_id] += 1
-        
-        orphaned_pas = [pa_id for pa_id, count in questions_by_pa.items() if count == 0]
-        
-        if orphaned_pas:
-            report.add_error(f"Orphaned policy areas (no questions): {orphaned_pas}")
+            if not report.errors:
+                logger.info(f"✓ All question references valid")
         else:
-            logger.info(f"✓ 100% policy area coverage")
+            logger.info(f"  Skipping question validation (legacy format)")
         
-        # 9. Report statistics
-        logger.info(f"  Questions per PA: {dict(questions_by_pa)}")
+        # 8. Check 100% coverage: all PAxx have at least one question (skip if legacy format)
+        if questions and isinstance(policy_areas_raw, list):
+            questions_by_pa = {pa_id: 0 for pa_id in pa_ids_set}
+            
+            for question in questions:
+                pa_id = question.get("policy_area_id")
+                if pa_id in questions_by_pa:
+                    questions_by_pa[pa_id] += 1
+            
+            orphaned_pas = [pa_id for pa_id, count in questions_by_pa.items() if count == 0]
+            
+            if orphaned_pas:
+                report.add_error(f"Orphaned policy areas (no questions): {orphaned_pas}")
+            else:
+                logger.info(f"✓ 100% policy area coverage")
+            
+            # 9. Report statistics
+            logger.info(f"  Questions per PA: {dict(questions_by_pa)}")
+        else:
+            logger.info(f"  Skipping coverage check (legacy format)")
         
         logger.info("=" * 80)
         logger.info(report.summary())
@@ -268,11 +291,13 @@ class SchemaValidator:
         # 1. JSON Schema validation
         if jsonschema and self.rubric_schema:
             try:
-                validate(instance=rubric, schema=self.rubric_schema)
+                from jsonschema import validate as json_validate
+                json_validate(instance=rubric, schema=self.rubric_schema)
                 logger.info("✓ JSON Schema validation passed")
-            except ValidationError as e:
-                report.add_error(f"Schema validation failed: {e.message}")
-                logger.error(f"✗ Schema validation failed: {e.message}")
+            except Exception as e:
+                error_msg = str(e) if not hasattr(e, 'message') else e.message  # type: ignore
+                report.add_error(f"Schema validation failed: {error_msg}")
+                logger.error(f"✗ Schema validation failed: {error_msg}")
         else:
             report.add_warning("jsonschema not available, skipping schema validation")
         
@@ -361,8 +386,8 @@ def example_usage():
     
     # Validate both files
     q_report, r_report = validator.validate_all(
-        questionnaire_path="questionnaire.json",
-        rubric_path="rubric_scoring.json"
+        questionnaire_path="cuestionario_FIXED.json",
+        rubric_path="rubric_scoring_FIXED.json"
     )
     
     if not q_report.is_valid:

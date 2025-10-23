@@ -111,6 +111,19 @@
       "dimensions_per_point": 6,
       "description": "Aggregate of 6 dimensions in a thematic point"
     },
+    "level_3_5_meso": {
+      "name": "Cluster Score (MESO)",
+      "range": [
+        0.0,
+        100.0
+      ],
+      "unit": "percentage",
+      "precision": 1,
+      "formula": "weighted_average(point_scores_in_cluster)",
+      "description": "Aggregate of policy areas into subsystem clusters",
+      "imbalance_detection_enabled": true,
+      "metrics": ["range", "std_dev", "gini"]
+    },
     "level_4": {
       "name": "Global Score",
       "range": [
@@ -119,9 +132,16 @@
       ],
       "unit": "percentage",
       "precision": 1,
-      "formula": "sum_of_applicable_points / count_applicable",
+      "formula": "weighted_average(cluster_scores)",
+      "aggregation_source": "meso_clusters",
+      "cluster_weights": {
+        "CL01": 0.30,
+        "CL02": 0.25,
+        "CL03": 0.25,
+        "CL04": 0.20
+      },
       "exclude_na": true,
-      "description": "Aggregate of all thematic points (excluding N/A)"
+      "description": "Aggregate of MESO clusters to macro score"
     }
   },
   "score_bands": {
@@ -164,6 +184,40 @@
       "emoji": "❌❌❌",
       "description": "Ausencia de diseño causal verificable. Intervención no fundamentada.",
       "recommendation": "PDM no cumple estándares básicos. Rediseño completo necesario."
+    }
+  },
+  "meso_clusters": {
+    "CL01": {
+      "cluster_id": "CL01",
+      "name": "Seguridad y Paz",
+      "policy_areas": ["P2", "P3", "P7"],
+      "weights": {"P2": 0.40, "P3": 0.35, "P7": 0.25},
+      "imbalance_threshold": 30.0,
+      "aggregation_method": "weighted_average"
+    },
+    "CL02": {
+      "cluster_id": "CL02",
+      "name": "Grupos Poblacionales",
+      "policy_areas": ["P1", "P5", "P6"],
+      "weights": {"P1": 0.40, "P5": 0.35, "P6": 0.25},
+      "imbalance_threshold": 30.0,
+      "aggregation_method": "weighted_average"
+    },
+    "CL03": {
+      "cluster_id": "CL03",
+      "name": "Territorio-Ambiente",
+      "policy_areas": ["P4", "P8"],
+      "weights": {"P4": 0.55, "P8": 0.45},
+      "imbalance_threshold": 25.0,
+      "aggregation_method": "weighted_average"
+    },
+    "CL04": {
+      "cluster_id": "CL04",
+      "name": "Derechos Sociales & Crisis",
+      "policy_areas": ["P9", "P10"],
+      "weights": {"P9": 0.50, "P10": 0.50},
+      "imbalance_threshold": 25.0,
+      "aggregation_method": "weighted_average"
     }
   },
   "dimensions": {

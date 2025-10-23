@@ -10,7 +10,42 @@
     "dimensions": 6,
     "author": "JCRR",
     "notation_format": "P#-D#-Q#",
-    "updated_notation": true
+    "updated_notation": true,
+    "meso_enabled": true,
+    "clusters": [
+      {
+        "cluster_id": "CL01",
+        "name": "Seguridad y Paz",
+        "rationale": "Seguridad humana, protección de la vida y paz territorial",
+        "policy_area_ids": ["P2", "P3", "P7"],
+        "legacy_point_ids": ["P2", "P3", "P7"]
+      },
+      {
+        "cluster_id": "CL02",
+        "name": "Grupos Poblacionales",
+        "rationale": "Enfoque diferencial y derechos de grupos específicos",
+        "policy_area_ids": ["P1", "P5", "P6"],
+        "legacy_point_ids": ["P1", "P5", "P6"]
+      },
+      {
+        "cluster_id": "CL03",
+        "name": "Territorio-Ambiente",
+        "rationale": "Sostenibilidad territorial y gestión ambiental",
+        "policy_area_ids": ["P4", "P8"],
+        "legacy_point_ids": ["P4", "P8"]
+      },
+      {
+        "cluster_id": "CL04",
+        "name": "Derechos Sociales & Crisis",
+        "rationale": "DESC y gestión de crisis migratoria",
+        "policy_area_ids": ["P9", "P10"],
+        "legacy_point_ids": ["P9", "P10"]
+      }
+    ],
+    "policy_area_mapping": {
+      "PA01": "P1", "PA02": "P2", "PA03": "P3", "PA04": "P4", "PA05": "P5",
+      "PA06": "P6", "PA07": "P7", "PA08": "P8", "PA09": "P9", "PA10": "P10"
+    }
   },
   "dimensiones": {
     "D1": {
