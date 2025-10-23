@@ -30,6 +30,8 @@ import json
 import logging
 import time
 import hashlib
+import re
+import statistics
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
@@ -110,6 +112,7 @@ class ExecutionResult:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     provenance: Dict[str, Any] = field(default_factory=dict)
+    mission_assessment: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -165,7 +168,12 @@ class ExecutionChoreographer:
         self.execution_mapping = self._load_execution_mapping(execution_mapping_path)
         self.method_class_map = self._load_method_class_map(method_class_map_path)
         self.config = self._load_config(config_path)
-        
+
+        # Mission-level calibration and mappings
+        self.dimension_mapper = self._build_dimension_mapper()
+        self.mission_config = self._build_mission_config(self.config)
+        self.processor_config = self._build_processor_config(self.mission_config)
+
         # Initialize all 9 producer adapters
         self._initialize_producers()
         
@@ -230,20 +238,104 @@ class ExecutionChoreographer:
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load configuration (Golden Rule 1)"""
         logger.info(f"Loading configuration: {path}")
-        
+
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-            
+
             logger.info(f"✓ Configuration loaded")
             return config
-        
+
         except FileNotFoundError:
             logger.warning(f"Config not found: {path}, using defaults")
             return {}
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
             raise
+
+    def _build_dimension_mapper(self) -> Dict[str, str]:
+        """Build lookup table for legacy and canonical dimension identifiers."""
+        mapper: Dict[str, str] = {}
+        for dimension in CausalDimension:
+            short_code = dimension.name.split('_')[0]
+            yaml_key = dimension.name.title()
+            mapper[short_code.upper()] = yaml_key
+            mapper[yaml_key.upper()] = yaml_key
+            mapper[dimension.value.upper()] = yaml_key
+            mapper[dimension.name.upper()] = yaml_key
+        return mapper
+
+    def _normalize_dimension_code(self, dimension: str) -> str:
+        """Normalize dimension codes to canonical short form (e.g., D1)."""
+        if not dimension:
+            return "D0"
+        upper = dimension.upper()
+        if '_' in upper:
+            upper = upper.split('_')[0]
+        if '-' in upper:
+            upper = upper.split('-')[0]
+        return upper
+
+    def _map_to_yaml_dimension(self, dimension: str) -> str:
+        """Resolve dimension to execution-mapping key (e.g., D1_Insumos)."""
+        return self.dimension_mapper.get(dimension.upper(), dimension)
+
+    def _resolve_dimension_value(self, dimension: str) -> str:
+        """Resolve dimension to CausalDimension value string."""
+        normalized = self._normalize_dimension_code(dimension)
+        for dim in CausalDimension:
+            if dim.name.split('_')[0].upper() == normalized.upper():
+                return dim.value
+        return normalized.lower()
+
+    def _build_mission_config(self, raw_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge mission defaults with external configuration overrides."""
+        defaults = {
+            "bayesian_prior_confidence": 0.5,
+            "bayesian_entropy_weight": 0.3,
+            "confidence_threshold": 0.65,
+            "dimension_thresholds": {
+                "D1": 0.50,
+                "D2": 0.50,
+                "D3": 0.50,
+                "D4": 0.50,
+                "D5": 0.50,
+                "D6": 0.50,
+            },
+            "critical_dimension_overrides": {"D1": 0.55, "D6": 0.55},
+            "coherence_threshold": 0.60,
+            "adaptability_threshold": 0.35,
+            "differential_focus_threshold": 0.25,
+        }
+
+        mission_overrides = raw_config.get("mission_profile", {}) if raw_config else {}
+        dimension_thresholds = {
+            **defaults["dimension_thresholds"],
+            **mission_overrides.get("dimension_thresholds", {}),
+        }
+        critical_overrides = {
+            **defaults["critical_dimension_overrides"],
+            **mission_overrides.get("critical_dimension_overrides", {}),
+        }
+
+        mission_config = {
+            **defaults,
+            **{k: v for k, v in mission_overrides.items() if k not in {"dimension_thresholds", "critical_dimension_overrides"}},
+        }
+        mission_config["dimension_thresholds"] = dimension_thresholds
+        mission_config["critical_dimension_overrides"] = critical_overrides
+        return mission_config
+
+    def _build_processor_config(self, mission_config: Dict[str, Any]) -> ProcessorConfig:
+        """Instantiate ProcessorConfig aligned with mission requirements."""
+        return ProcessorConfig(
+            confidence_threshold=mission_config.get("confidence_threshold", 0.65),
+            entropy_weight=mission_config.get("bayesian_entropy_weight", 0.3),
+            bayesian_prior_confidence=mission_config.get("bayesian_prior_confidence", 0.5),
+            bayesian_entropy_weight=mission_config.get("bayesian_entropy_weight", 0.3),
+            minimum_dimension_scores=mission_config.get("dimension_thresholds", {}),
+            critical_dimension_overrides=mission_config.get("critical_dimension_overrides", {}),
+        )
 
     def _get_default_execution_mapping(self) -> Dict[str, Any]:
         """Fallback execution mapping"""
@@ -334,10 +426,13 @@ class ExecutionChoreographer:
     def _init_policy_processor(self) -> Dict[str, Any]:
         """Initialize Policy Processor module (32 methods)"""
         try:
-            config = ProcessorConfig()
+            config = self.processor_config
             return {
                 "processor": IndustrialPolicyProcessor(config=config),
-                "bayesian_scorer": BayesianEvidenceScorer(),
+                "bayesian_scorer": BayesianEvidenceScorer(
+                    prior_confidence=config.bayesian_prior_confidence,
+                    entropy_weight=config.bayesian_entropy_weight
+                ),
                 "text_processor": PolicyTextProcessor(config),
                 "methods_count": 32,
                 "status": "initialized"
@@ -506,17 +601,28 @@ class ExecutionChoreographer:
                 plan_document,
                 execution_trace
             )
-            
+
+            mission_assessment = self._evaluate_mission_capabilities(
+                question_spec,
+                context,
+                micro_answer,
+                execution_results,
+                plan_document
+            )
+
             # Calculate performance metrics
             performance_metrics = {
                 "execution_time": time.time() - start_time,
                 "methods_invoked": len(execution_trace),
                 "confidence": micro_answer.confidence if micro_answer else 0.0
             }
-            
+
+            performance_metrics.update(mission_assessment["metrics"])
+            provenance.metadata.update(mission_assessment["metadata"])
+
             # Update statistics
             self.stats["successful_executions"] += 1
-            
+
             result = ExecutionResult(
                 question_id=question_spec.get('canonical_id', 'UNKNOWN'),
                 status="success",
@@ -525,7 +631,8 @@ class ExecutionChoreographer:
                 performance_metrics=performance_metrics,
                 errors=errors,
                 warnings=warnings,
-                provenance=asdict(provenance)
+                provenance=asdict(provenance),
+                mission_assessment=mission_assessment["snapshot"]
             )
             
             logger.info(f"✓ Execution completed in {performance_metrics['execution_time']:.2f}s")
@@ -558,16 +665,19 @@ class ExecutionChoreographer:
         Performs atomic context hydration with complete metadata loading
         """
         canonical_id = question_spec.get('canonical_id', '')
-        
+
         # Parse P#-D#-Q# format
         parts = canonical_id.split('-')
         policy_area = parts[0] if len(parts) > 0 else 'P0'
-        dimension = parts[1] if len(parts) > 1 else 'D0'
+        raw_dimension = parts[1] if len(parts) > 1 else 'D0'
+        dimension = self._normalize_dimension_code(raw_dimension)
+        dimension_yaml = self._map_to_yaml_dimension(dimension)
+        dimension_value = self._resolve_dimension_value(dimension)
         question_num = int(parts[2].replace('Q', '')) if len(parts) > 2 else 0
-        
+
         # Load execution chain from metadata
-        execution_chain = self._get_execution_chain(dimension, question_spec)
-        
+        execution_chain = self._get_execution_chain(dimension_yaml, question_spec)
+
         return ExecutionContext(
             question_id=canonical_id,
             policy_area=policy_area,
@@ -577,12 +687,16 @@ class ExecutionChoreographer:
             metadata={
                 "scoring_modality": question_spec.get('scoring_modality', 'TYPE_A'),
                 "expected_elements": question_spec.get('expected_elements', []),
-                "search_patterns": question_spec.get('search_patterns', {})
+                "search_patterns": question_spec.get('search_patterns', {}),
+                "dimension_yaml_key": dimension_yaml,
+                "dimension_value": dimension_value,
+                "critical_dimensions": question_spec.get('dimensiones_criticas', []),
+                "differential_focus": question_spec.get('enfoque_diferencial', []),
             }
         )
 
     def _get_execution_chain(
-        self, 
+        self,
         dimension: str, 
         question_spec: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -810,11 +924,203 @@ class ExecutionChoreographer:
             return {"status": "error", "error": str(e), "confidence": 0.0}
 
     # Method-level execution implementations for each producer
-    
+
+    def _evaluate_mission_capabilities(
+        self,
+        question_spec: Dict[str, Any],
+        context: ExecutionContext,
+        micro_answer: Optional[MicroLevelAnswer],
+        execution_results: Dict[str, Any],
+        plan_document: str
+    ) -> Dict[str, Any]:
+        """Aggregate mission-level assurances required for high-level deployments."""
+
+        methodological_risk = self._evaluate_methodological_risk(context, micro_answer)
+        causal_feasibility = self._validate_causal_feasibility(
+            context,
+            execution_results,
+            micro_answer
+        )
+        adaptability = self._assess_adaptability(plan_document, execution_results)
+        differential_focus = self._check_differential_focus(question_spec, plan_document)
+
+        metrics = {
+            "critical_dimension_compliant": 1.0 if methodological_risk["compliant"] else 0.0,
+            "causal_coherence_score": causal_feasibility["coherence_score"],
+            "adaptability_coverage": adaptability["coverage"],
+            "differential_focus_coverage": differential_focus["coverage"],
+        }
+
+        metadata = {
+            "critical_dimension_risk": methodological_risk,
+            "causal_feasibility": causal_feasibility,
+            "adaptability_profile": adaptability,
+            "differential_focus_profile": differential_focus,
+        }
+
+        snapshot = {
+            "methodological_risk": methodological_risk,
+            "causal_feasibility": causal_feasibility,
+            "adaptability": adaptability,
+            "differential_focus": differential_focus,
+        }
+
+        return {
+            "metrics": metrics,
+            "metadata": metadata,
+            "snapshot": snapshot,
+        }
+
+    def _evaluate_methodological_risk(
+        self,
+        context: ExecutionContext,
+        micro_answer: Optional[MicroLevelAnswer]
+    ) -> Dict[str, Any]:
+        """Assess compliance with critical-dimension thresholds."""
+
+        dimension_code = context.dimension
+        critical_dims = {
+            self._normalize_dimension_code(dim)
+            for dim in context.metadata.get("critical_dimensions", [])
+        }
+        overrides = self.processor_config.critical_dimension_overrides
+        base_thresholds = self.processor_config.minimum_dimension_scores
+
+        threshold = overrides.get(
+            dimension_code,
+            base_thresholds.get(
+                dimension_code,
+                self.mission_config["dimension_thresholds"].get(dimension_code, 0.5),
+            ),
+        )
+        score = micro_answer.confidence if micro_answer else 0.0
+        is_critical = dimension_code in critical_dims or dimension_code in overrides
+        compliant = not is_critical or score >= threshold
+
+        return {
+            "dimension": dimension_code,
+            "score": round(score, 4),
+            "threshold": round(threshold, 4),
+            "threshold_source": "override" if dimension_code in overrides else "baseline",
+            "critical_dimensions": sorted(critical_dims),
+            "is_critical": is_critical,
+            "compliant": compliant,
+            "gap": round(threshold - score, 4) if is_critical and score < threshold else 0.0,
+        }
+
+    def _validate_causal_feasibility(
+        self,
+        context: ExecutionContext,
+        execution_results: Dict[str, Any],
+        micro_answer: Optional[MicroLevelAnswer]
+    ) -> Dict[str, Any]:
+        """Validate coherence and proportionality of causal claims."""
+
+        dimension_value = context.metadata.get("dimension_value", "")
+        policy_processor_result = execution_results.get("policy_processor", {})
+        policy_data = policy_processor_result.get("data", {})
+        dimension_analysis = policy_data.get("dimension_analysis", {})
+        dimension_metrics = dimension_analysis.get(dimension_value, {})
+        dimension_confidence = dimension_metrics.get("dimension_confidence", 0.0)
+        match_count = dimension_metrics.get("total_matches", 0)
+
+        semantic_confidence = execution_results.get("semantic_chunking", {}).get("confidence", 0.0)
+        contradiction_confidence = execution_results.get("contradiction_detection", {}).get("confidence", 0.0)
+
+        confidence_values = [
+            value
+            for value in [dimension_confidence, semantic_confidence, contradiction_confidence]
+            if isinstance(value, (int, float))
+        ]
+
+        if not confidence_values and micro_answer:
+            confidence_values.append(micro_answer.confidence)
+
+        coherence_score = statistics.mean(confidence_values) if confidence_values else 0.0
+        coherence_threshold = self.mission_config.get("coherence_threshold", 0.6)
+
+        document_stats = policy_data.get("document_statistics", {})
+        document_length = document_stats.get("character_count", 0)
+        evidence_density = match_count / max(1, document_length / 1000)
+
+        return {
+            "dimension": context.dimension,
+            "dimension_value": dimension_value,
+            "coherence_score": round(coherence_score, 4),
+            "coherence_threshold": coherence_threshold,
+            "meets_threshold": coherence_score >= coherence_threshold,
+            "evidence_density": round(evidence_density, 4),
+            "match_count": match_count,
+            "document_length": document_length,
+            "inputs": {
+                "dimension_confidence": dimension_confidence,
+                "semantic_confidence": semantic_confidence,
+                "contradiction_confidence": contradiction_confidence,
+            },
+        }
+
+    def _assess_adaptability(
+        self,
+        plan_document: str,
+        execution_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Detect adaptive management mechanisms within the plan."""
+
+        indicators = self.processor_config.adaptability_indicators
+        text = plan_document.lower()
+        hits: Dict[str, bool] = {}
+        for indicator in indicators:
+            pattern = re.compile(rf"\b{re.escape(indicator)}\b", re.IGNORECASE)
+            hits[indicator] = bool(pattern.search(text))
+
+        coverage = sum(1 for hit in hits.values() if hit) / max(1, len(indicators))
+        threshold = self.mission_config.get("adaptability_threshold", 0.35)
+
+        causal_dimension_data = execution_results.get("policy_processor", {}).get("data", {})
+        d6_metrics = causal_dimension_data.get("dimension_analysis", {}).get("d6_causalidad", {})
+        d6_confidence = d6_metrics.get("dimension_confidence", 0.0)
+
+        return {
+            "coverage": round(coverage, 4),
+            "threshold": threshold,
+            "compliant": coverage >= threshold,
+            "indicator_hits": hits,
+            "causal_feedback_confidence": d6_confidence,
+        }
+
+    def _check_differential_focus(
+        self,
+        question_spec: Dict[str, Any],
+        plan_document: str
+    ) -> Dict[str, Any]:
+        """Verify application of differential focus patterns in the causal logic."""
+
+        base_patterns = set(self.processor_config.differential_focus_indicators)
+        requested_focus = question_spec.get("enfoque_diferencial", []) or []
+        base_patterns.update({pattern for pattern in requested_focus if pattern})
+
+        text = plan_document.lower()
+        matches: Dict[str, bool] = {}
+        for pattern in base_patterns:
+            regex = re.compile(rf"\b{re.escape(pattern)}\b", re.IGNORECASE)
+            matches[pattern] = bool(regex.search(text))
+
+        coverage = sum(1 for flag in matches.values() if flag) / max(1, len(matches))
+        threshold = self.mission_config.get("differential_focus_threshold", 0.25)
+        matched_targets = [pattern for pattern, flag in matches.items() if flag]
+
+        return {
+            "coverage": round(coverage, 4),
+            "threshold": threshold,
+            "compliant": coverage >= threshold,
+            "requested_targets": requested_focus,
+            "matched_targets": matched_targets,
+        }
+
     def _exec_policy_processor(self, method_name: str, plan_document: str) -> Dict[str, Any]:
         """Execute Policy Processor methods"""
         processor = self.policy_processor.get("processor")
-        
+
         if method_name == "process" and processor:
             result = processor.process(plan_document)
             return {
