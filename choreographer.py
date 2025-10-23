@@ -74,6 +74,9 @@ from Analyzer_one import (
     PerformanceAnalyzer, TextMiningEngine
 )
 
+# Import validation engine
+from validation_engine import ValidationEngine
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -165,6 +168,10 @@ class ExecutionChoreographer:
         
         # Initialize all 9 producer adapters
         self._initialize_producers()
+        
+        # Initialize validation engine
+        self.validation_engine = ValidationEngine()
+        logger.info("✓ ValidationEngine initialized")
         
         # Execution statistics
         self.stats = {
@@ -664,6 +671,49 @@ class ExecutionChoreographer:
         Implements Golden Rule 3: Deterministic Pipeline Execution
         """
         results = {}
+        
+        # PRE-STEP VALIDATION HOOK (Agent 3 Integration)
+        logger.info("\n" + "=" * 80)
+        logger.info("PRE-STEP VALIDATION - Checking preconditions")
+        logger.info("=" * 80)
+        
+        # Validate execution context
+        context_validation = self.validation_engine.validate_execution_context(
+            context.question_id,
+            context.policy_area,
+            context.dimension
+        )
+        
+        if not context_validation.is_valid:
+            logger.error(f"Context validation failed: {context_validation.message}")
+            raise ValueError(f"Invalid execution context: {context_validation.message}")
+        
+        logger.info(f"✓ Execution context validated: {context.question_id}")
+        
+        # Validate producer availability for required modules
+        producers_dict = {
+            "dereck_beach": self.dereck_beach,
+            "policy_processor": self.policy_processor,
+            "embedding_policy": self.embedding_policy,
+            "semantic_chunking": self.semantic_chunking,
+            "teoria_cambio": self.teoria_cambio,
+            "contradiction_detection": self.contradiction_detection,
+            "financiero_viabilidad": self.financiero_viabilidad,
+            "report_assembly": self.report_assembly,
+            "analyzer_one": self.analyzer_one
+        }
+        
+        for step in context.execution_chain:
+            module_name = step.get("module", "")
+            if module_name:
+                producer_validation = self.validation_engine.validate_producer_availability(
+                    module_name, producers_dict
+                )
+                if not producer_validation.is_valid:
+                    logger.warning(f"⚠ Producer validation warning: {producer_validation.message}")
+        
+        logger.info("=" * 80 + "\n")
+        # END PRE-STEP VALIDATION
         
         for step_idx, step in enumerate(context.execution_chain):
             step_start = time.time()

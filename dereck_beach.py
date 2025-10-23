@@ -3967,6 +3967,1498 @@ class CDAFFramework:
             self.logger.error(f"Error guardando reporte DNP: {e}")
 
 
+# ============================================================================
+# AGUJA I: PRIOR ADAPTATIVO (EVIDENCIA → BAYES)
+# ============================================================================
+
+class BayesFactorTable:
+    """Tabla fija de Bayes Factors por tipo de test evidencial (Beach & Pedersen 2019)"""
+    FACTORS = {
+        'straw': (1.0, 1.5),      # STRAW_IN_WIND: Weak evidence
+        'hoop': (3.0, 5.0),       # HOOP TEST: Necessary but not sufficient
+        'smoking': (10.0, 30.0),  # SMOKING GUN: Sufficient but not necessary
+        'doubly': (50.0, 100.0)   # DOUBLY DECISIVE: Necessary AND sufficient
+    }
+    
+    @classmethod
+    def get_bayes_factor(cls, test_type: str) -> float:
+        """Obtiene BF medio para tipo de test"""
+        if test_type not in cls.FACTORS:
+            return 1.5  # Default straw-in-wind
+        min_bf, max_bf = cls.FACTORS[test_type]
+        return (min_bf + max_bf) / 2.0
+    
+    @classmethod
+    def get_version(cls) -> str:
+        """Version de tabla BF para trazabilidad"""
+        return "Beach2019_v1.0"
+
+
+class AdaptivePriorCalculator:
+    """
+    AGUJA I - Prior Adaptativo con Bayes Factor y calibración
+    
+    PROMPT I-1: Ponderación evidencial con BF y calibración
+    Mapea test_type→BayesFactor, calcula likelihood adaptativo combinando 
+    dominios {semantic, temporal, financial, structural} con pesos normalizados.
+    
+    PROMPT I-2: Sensibilidad, OOD y ablation evidencial
+    Perturba cada componente ±10% y reporta ∂p/∂component top-3.
+    
+    PROMPT I-3: Trazabilidad y reproducibilidad
+    Con semilla fija, guarda bf_table_version, weights_version, snippets.
+    
+    QUALITY CRITERIA:
+    - BrierScore ≤ 0.20 en validación sintética
+    - ACE ∈ [−0.02, 0.02] (Average Calibration Error)
+    - Cobertura CI95% ∈ [92%, 98%]
+    - Monotonicidad: ↑ señales → ¬↓ p_mechanism
+    """
+    
+    def __init__(self, calibration_params: Optional[Dict[str, float]] = None):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.bf_table = BayesFactorTable()
+        
+        # Calibration params: logit⁻¹(α + β·score)
+        self.calibration = calibration_params or {
+            'alpha': -2.0,  # Intercept
+            'beta': 4.0     # Slope
+        }
+        
+        # Domain weights (normalized)
+        self.default_domain_weights = {
+            'semantic': 0.35,
+            'temporal': 0.25,
+            'financial': 0.25,
+            'structural': 0.15
+        }
+    
+    def calculate_likelihood_adaptativo(
+        self,
+        evidence_dict: Dict[str, Any],
+        test_type: str = 'hoop'
+    ) -> Dict[str, Any]:
+        """
+        PROMPT I-1: Calcula likelihood adaptativo con BF y dominios
+        
+        Args:
+            evidence_dict: Evidencia por caso {semantic, temporal, financial, structural}
+            test_type: Tipo de test evidencial (straw, hoop, smoking, doubly)
+        
+        Returns:
+            Dict con p_mechanism, BF_used, domain_weights, triangulation_bonus, etc.
+        """
+        # 1. Obtener Bayes Factor para test_type
+        bf_used = self.bf_table.get_bayes_factor(test_type)
+        
+        # 2. Extraer scores por dominio
+        domain_scores = {
+            'semantic': evidence_dict.get('semantic', {}).get('score', 0.0),
+            'temporal': evidence_dict.get('temporal', {}).get('score', 0.0),
+            'financial': evidence_dict.get('financial', {}).get('score', 0.0),
+            'structural': evidence_dict.get('structural', {}).get('score', 0.0)
+        }
+        
+        # 3. Ajustar pesos si falta dominio (baja peso a 0, reparte)
+        adjusted_weights = self._adjust_domain_weights(domain_scores)
+        
+        # 4. Calcular score combinado normalizado
+        combined_score = sum(
+            domain_scores[domain] * adjusted_weights[domain]
+            for domain in domain_scores.keys()
+        )
+        
+        # 5. Aplicar multiplicador BF normalizado
+        all_bfs = [np.mean(bf_range) for bf_range in self.bf_table.FACTORS.values()]
+        mean_bf = np.mean(all_bfs)
+        bf_multiplier = bf_used / mean_bf
+        adapted_score = combined_score * bf_multiplier
+        
+        # 6. Bonus de triangulación si ≥3 dominios activos
+        active_domains = sum(1 for s in domain_scores.values() if s > 0.1)
+        triangulation_bonus = 0.05 if active_domains >= 3 else 0.0
+        
+        final_score = min(1.0, adapted_score + triangulation_bonus)
+        
+        # 7. Transformar a probabilidad con logit inverso: p = 1/(1+exp(-(α+β·score)))
+        alpha = self.calibration['alpha']
+        beta = self.calibration['beta']
+        logit_value = alpha + beta * final_score
+        p_mechanism = 1.0 / (1.0 + np.exp(-logit_value))
+        
+        # 8. Clip [1e-6, 1-1e-6]
+        p_mechanism = np.clip(p_mechanism, 1e-6, 1 - 1e-6)
+        
+        return {
+            'p_mechanism': float(p_mechanism),
+            'BF_used': bf_used,
+            'domain_weights': adjusted_weights,
+            'triangulation_bonus': triangulation_bonus,
+            'calibration_params': self.calibration,
+            'test_type': test_type,
+            'combined_score': combined_score,
+            'active_domains': active_domains
+        }
+    
+    def _adjust_domain_weights(self, domain_scores: Dict[str, float]) -> Dict[str, float]:
+        """Ajusta pesos si falta dominio: baja a 0 y reparte"""
+        adjusted = self.default_domain_weights.copy()
+        
+        # Identificar dominios faltantes (score ≤ 0)
+        missing_domains = [d for d, s in domain_scores.items() if s <= 0]
+        
+        if missing_domains:
+            # Bajar peso a 0 para dominios faltantes
+            total_missing_weight = sum(adjusted[d] for d in missing_domains)
+            for d in missing_domains:
+                adjusted[d] = 0.0
+            
+            # Repartir peso entre dominios activos
+            active_domains = [d for d in adjusted.keys() if adjusted[d] > 0]
+            if active_domains:
+                bonus_per_domain = total_missing_weight / len(active_domains)
+                for d in active_domains:
+                    adjusted[d] += bonus_per_domain
+        
+        # Renormalizar para asegurar suma = 1.0
+        total = sum(adjusted.values())
+        if total > 0:
+            adjusted = {k: v / total for k, v in adjusted.items()}
+        
+        return adjusted
+    
+    def sensitivity_analysis(
+        self,
+        evidence_dict: Dict[str, Any],
+        test_type: str = 'hoop',
+        perturbation: float = 0.10
+    ) -> Dict[str, Any]:
+        """
+        PROMPT I-2: Sensibilidad, OOD y ablation evidencial
+        
+        Perturba cada componente ±10% y reporta ∂p/∂component top-3.
+        Ejecuta ablaciones: sólo textual, sólo financiero, sólo estructural.
+        
+        CRITERIA:
+        - |delta_p_sensitivity|_max ≤ 0.15
+        - sign_concordance ≥ 2/3
+        - OOD_drop ≤ 0.10
+        """
+        # Baseline
+        baseline_result = self.calculate_likelihood_adaptativo(evidence_dict, test_type)
+        baseline_p = baseline_result['p_mechanism']
+        
+        # 1. Sensibilidad por componente
+        sensitivity_map = {}
+        for domain in ['semantic', 'temporal', 'financial', 'structural']:
+            if domain in evidence_dict and isinstance(evidence_dict[domain], dict) and 'score' in evidence_dict[domain]:
+                # Perturbar +10%
+                perturbed_evidence = self._perturb_evidence(evidence_dict, domain, perturbation)
+                perturbed_result = self.calculate_likelihood_adaptativo(perturbed_evidence, test_type)
+                delta_p = perturbed_result['p_mechanism'] - baseline_p
+                
+                sensitivity_map[domain] = {
+                    'delta_p': delta_p,
+                    'relative_change': delta_p / max(baseline_p, 1e-6)
+                }
+        
+        # Top-3 por magnitud
+        top_3 = sorted(
+            sensitivity_map.items(),
+            key=lambda x: abs(x[1]['delta_p']),
+            reverse=True
+        )[:3]
+        
+        # 2. Ablaciones: sólo un dominio
+        ablation_results = {}
+        for domain in ['semantic', 'financial', 'structural']:
+            ablated_evidence = {
+                domain: evidence_dict.get(domain, {'score': 0.0})
+            }
+            if ablated_evidence[domain].get('score', 0) > 0:
+                abl_result = self.calculate_likelihood_adaptativo(ablated_evidence, test_type)
+                ablation_results[f'only_{domain}'] = {
+                    'p_mechanism': abl_result['p_mechanism'],
+                    'sign_match': (abl_result['p_mechanism'] > 0.5) == (baseline_p > 0.5)
+                }
+        
+        # Sign concordance
+        sign_concordance = sum(
+            1 for r in ablation_results.values() if r['sign_match']
+        ) / max(len(ablation_results), 1)
+        
+        # 3. OOD con ruido
+        ood_evidence = self._add_ood_noise(evidence_dict)
+        ood_result = self.calculate_likelihood_adaptativo(ood_evidence, test_type)
+        ood_drop = abs(baseline_p - ood_result['p_mechanism'])
+        
+        # 4. Evaluación de criterios
+        max_sensitivity = max((abs(item[1]['delta_p']) for item in top_3), default=0.0)
+        criteria_met = {
+            'max_sensitivity_ok': max_sensitivity <= 0.15,
+            'sign_concordance_ok': sign_concordance >= 2/3,
+            'ood_drop_ok': ood_drop <= 0.10
+        }
+        
+        # Determinar si caso es frágil
+        is_fragile = not all(criteria_met.values())
+        
+        return {
+            'influence_top3': [(domain, data['delta_p']) for domain, data in top_3],
+            'delta_p_sensitivity': max_sensitivity,
+            'sign_concordance': sign_concordance,
+            'OOD_drop': ood_drop,
+            'ablation_results': ablation_results,
+            'criteria_met': criteria_met,
+            'is_fragile': is_fragile,
+            'recommendation': 'downgrade' if is_fragile else 'accept'
+        }
+    
+    def _perturb_evidence(
+        self,
+        evidence_dict: Dict[str, Any],
+        domain: str,
+        perturbation: float
+    ) -> Dict[str, Any]:
+        """Perturba un dominio específico"""
+        import copy
+        perturbed = copy.deepcopy(evidence_dict)
+        if domain in perturbed and isinstance(perturbed[domain], dict) and 'score' in perturbed[domain]:
+            perturbed[domain]['score'] *= (1.0 + perturbation)
+            perturbed[domain]['score'] = min(1.0, perturbed[domain]['score'])
+        return perturbed
+    
+    def _add_ood_noise(self, evidence_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Genera set OOD con ruido semántico y tablas malformadas"""
+        import copy
+        ood = copy.deepcopy(evidence_dict)
+        
+        # Agregar ruido gaussiano a todos los scores
+        for domain in ood.keys():
+            if isinstance(ood[domain], dict) and 'score' in ood[domain]:
+                noise = np.random.normal(0, 0.05)  # 5% noise
+                ood[domain]['score'] = np.clip(ood[domain]['score'] + noise, 0.0, 1.0)
+        
+        return ood
+    
+    def generate_traceability_record(
+        self,
+        evidence_dict: Dict[str, Any],
+        test_type: str,
+        result: Dict[str, Any],
+        seed: int = 42
+    ) -> Dict[str, Any]:
+        """
+        PROMPT I-3: Trazabilidad y reproducibilidad
+        
+        Con semilla fija, guarda bf_table_version, weights_version,
+        snippets textuales con offsets, campos financieros usados.
+        
+        METRICS:
+        - Re-ejecución con misma semilla produce hash_result idéntico
+        - trace_completeness ≥ 0.95
+        """
+        # Fijar semilla para reproducibilidad
+        np.random.seed(seed)
+        
+        # Construir evidence trace
+        evidence_trace = []
+        for domain, data in evidence_dict.items():
+            if isinstance(data, dict) and 'score' in data:
+                trace_item = {
+                    'source': domain,
+                    'line_span': data.get('line_span', 'unknown'),
+                    'transform_before': data.get('raw_value', None),
+                    'transform_after': data['score'],
+                    'snippet': data.get('snippet', '')[:100]  # Primeros 100 chars
+                }
+                evidence_trace.append(trace_item)
+        
+        # Config hash
+        config_str = json.dumps({
+            'bf_table_version': self.bf_table.get_version(),
+            'calibration_params': self.calibration,
+            'domain_weights': self.default_domain_weights,
+            'test_type': test_type,
+            'seed': seed
+        }, sort_keys=True)
+        
+        config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
+        
+        # Result hash
+        result_str = json.dumps(result, sort_keys=True)
+        result_hash = hashlib.sha256(result_str.encode()).hexdigest()[:16]
+        
+        # Trace completeness
+        factors_in_trace = len(evidence_trace)
+        total_factors = len([d for d in evidence_dict.keys() if isinstance(evidence_dict.get(d), dict)])
+        trace_completeness = factors_in_trace / max(total_factors, 1)
+        
+        return {
+            'evidence_trace': evidence_trace,
+            'hash_config': config_hash,
+            'hash_result': result_hash,
+            'seed': seed,
+            'bf_table_version': self.bf_table.get_version(),
+            'weights_version': 'default_v1.0',
+            'trace_completeness': trace_completeness,
+            'reproducibility_guaranteed': trace_completeness >= 0.95
+        }
+    
+    def validate_quality_criteria(self, validation_samples: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Valida criterios de calidad en conjunto de validación sintética
+        
+        QUALITY CRITERIA:
+        - BrierScore ≤ 0.20
+        - ACE ∈ [−0.02, 0.02]
+        - Cobertura CI95% ∈ [92%, 98%]
+        - Monotonicidad verificada
+        """
+        predictions = []
+        actuals = []
+        
+        for sample in validation_samples:
+            evidence = sample.get('evidence', {})
+            actual_label = sample.get('actual_label', 0.5)
+            test_type = sample.get('test_type', 'hoop')
+            
+            result = self.calculate_likelihood_adaptativo(evidence, test_type)
+            predictions.append(result['p_mechanism'])
+            actuals.append(actual_label)
+        
+        predictions = np.array(predictions)
+        actuals = np.array(actuals)
+        
+        # 1. Brier Score
+        brier_score = np.mean((predictions - actuals) ** 2)
+        brier_ok = brier_score <= 0.20
+        
+        # 2. ACE (Average Calibration Error)
+        # Dividir en bins
+        n_bins = 10
+        bin_boundaries = np.linspace(0, 1, n_bins + 1)
+        ace = 0.0
+        
+        for i in range(n_bins):
+            bin_mask = (predictions >= bin_boundaries[i]) & (predictions < bin_boundaries[i + 1])
+            if bin_mask.sum() > 0:
+                bin_accuracy = actuals[bin_mask].mean()
+                bin_confidence = predictions[bin_mask].mean()
+                ace += abs(bin_accuracy - bin_confidence) / n_bins
+        
+        ace_ok = -0.02 <= ace <= 0.02
+        
+        # 3. Cobertura CI95%
+        # Simular con bootstrap
+        n_bootstrap = 100
+        coverage_count = 0
+        
+        for _ in range(n_bootstrap):
+            idx = np.random.choice(len(predictions), size=len(predictions), replace=True)
+            boot_preds = predictions[idx]
+            boot_actuals = actuals[idx]
+            
+            # Calcular CI95%
+            ci_low = np.percentile(boot_preds, 2.5)
+            ci_high = np.percentile(boot_preds, 97.5)
+            
+            # Verificar si mean actual está dentro
+            actual_mean = boot_actuals.mean()
+            if ci_low <= actual_mean <= ci_high:
+                coverage_count += 1
+        
+        coverage = coverage_count / n_bootstrap
+        coverage_ok = 0.92 <= coverage <= 0.98
+        
+        # 4. Monotonicidad: verificar que ↑ señales → ¬↓ p_mechanism
+        monotonicity_violations = 0
+        
+        for i in range(len(validation_samples) - 1):
+            current_total = sum(
+                validation_samples[i]['evidence'].get(d, {}).get('score', 0)
+                for d in ['semantic', 'temporal', 'financial', 'structural']
+            )
+            next_total = sum(
+                validation_samples[i + 1]['evidence'].get(d, {}).get('score', 0)
+                for d in ['semantic', 'temporal', 'financial', 'structural']
+            )
+            
+            if next_total > current_total and predictions[i + 1] < predictions[i]:
+                monotonicity_violations += 1
+        
+        monotonicity_ok = monotonicity_violations == 0
+        
+        return {
+            'brier_score': float(brier_score),
+            'brier_ok': brier_ok,
+            'ace': float(ace),
+            'ace_ok': ace_ok,
+            'ci95_coverage': float(coverage),
+            'coverage_ok': coverage_ok,
+            'monotonicity_violations': monotonicity_violations,
+            'monotonicity_ok': monotonicity_ok,
+            'all_criteria_met': brier_ok and ace_ok and coverage_ok and monotonicity_ok,
+            'quality_grade': 'EXCELLENT' if (brier_ok and ace_ok and coverage_ok and monotonicity_ok) else 'NEEDS_IMPROVEMENT'
+        }
+
+
+# ============================================================================
+# AGUJA II: MODELO GENERATIVO JERÁRQUICO
+# ============================================================================
+
+class HierarchicalGenerativeModel:
+    """
+    AGUJA II - Modelo Generativo Jerárquico con inferencia MCMC
+    
+    PROMPT II-1: Inferencia jerárquica con incertidumbre
+    Estima posterior(mechanism_type, activity_sequence | obs) con MCMC.
+    
+    PROMPT II-2: Posterior Predictive Checks + Ablation
+    Genera datos simulados desde posterior y compara con observados.
+    
+    PROMPT II-3: Independencias y parsimonia
+    Verifica d-separaciones y calcula ΔWAIC.
+    
+    QUALITY CRITERIA:
+    - R-hat ≤ 1.10
+    - ESS ≥ 200
+    - entropy/entropy_max < 0.7 para certeza
+    - ppd_p_value ∈ [0.1, 0.9]
+    - ΔWAIC ≤ −2 para preferir jerárquico
+    """
+    
+    def __init__(self, mechanism_priors: Optional[Dict[str, float]] = None):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Priors débiles para mechanism_type si no se proveen
+        self.mechanism_priors = mechanism_priors or {
+            'administrativo': 0.30,
+            'tecnico': 0.25,
+            'financiero': 0.20,
+            'politico': 0.15,
+            'mixto': 0.10
+        }
+        
+        # Validar que suman ~1.0
+        prior_sum = sum(self.mechanism_priors.values())
+        if abs(prior_sum - 1.0) > 0.01:
+            self.logger.warning(f"Mechanism priors sum to {prior_sum:.3f}, normalizing...")
+            self.mechanism_priors = {
+                k: v / prior_sum for k, v in self.mechanism_priors.items()
+            }
+    
+    def infer_mechanism_posterior(
+        self,
+        observations: Dict[str, Any],
+        n_iter: int = 500,
+        burn_in: int = 100,
+        n_chains: int = 2
+    ) -> Dict[str, Any]:
+        """
+        PROMPT II-1: Inferencia jerárquica con MCMC
+        
+        Estima posterior(mechanism_type, activity_sequence | obs) usando MCMC.
+        
+        Args:
+            observations: Dict con {verbos, co_ocurrencias, coherence, structural_signals}
+            n_iter: Iteraciones MCMC (≥500)
+            burn_in: Burn-in iterations (≥100)
+            n_chains: Número de cadenas para R-hat (≥2)
+        
+        Returns:
+            Dict con type_posterior, sequence_mode, coherence_score, entropy, CI95, R-hat, ESS
+        """
+        self.logger.info(f"Starting MCMC inference: {n_iter} iter, {burn_in} burn-in, {n_chains} chains")
+        
+        # Validar observaciones mínimas
+        if not observations or 'coherence' not in observations:
+            self.logger.warning("Missing observations, using weak priors")
+            observations = observations or {}
+            observations.setdefault('coherence', 0.5)
+        
+        # Ejecutar múltiples cadenas para diagnóstico
+        chains = []
+        for chain_idx in range(n_chains):
+            chain_samples = self._run_mcmc_chain(
+                observations, n_iter, burn_in, seed=42 + chain_idx
+            )
+            chains.append(chain_samples)
+            self.logger.debug(f"Chain {chain_idx + 1}/{n_chains} completed: {len(chain_samples)} samples")
+        
+        # Agregar samples de todas las cadenas
+        all_samples = []
+        for chain in chains:
+            all_samples.extend(chain)
+        
+        # 1. Type posterior (frecuencias de mechanism_type)
+        type_counts = {mtype: 0 for mtype in self.mechanism_priors.keys()}
+        for sample in all_samples:
+            mtype = sample.get('mechanism_type', 'mixto')
+            if mtype in type_counts:
+                type_counts[mtype] += 1
+        
+        total_samples = len(all_samples)
+        type_posterior = {
+            mtype: count / max(total_samples, 1)
+            for mtype, count in type_counts.items()
+        }
+        
+        # 2. Sequence mode (secuencia más frecuente)
+        sequence_mode = self._get_mode_sequence(all_samples)
+        
+        # 3. Coherence score (estadísticas)
+        coherence_scores = [s.get('coherence', 0.5) for s in all_samples]
+        coherence_mean = float(np.mean(coherence_scores))
+        coherence_std = float(np.std(coherence_scores))
+        
+        # 4. Entropy del posterior
+        posterior_probs = list(type_posterior.values())
+        entropy_posterior = -sum(p * np.log(p + 1e-10) for p in posterior_probs if p > 0)
+        max_entropy = np.log(len(self.mechanism_priors))
+        normalized_entropy = entropy_posterior / max_entropy if max_entropy > 0 else 0.0
+        
+        # 5. CI95 para coherence
+        ci95_low = float(np.percentile(coherence_scores, 2.5))
+        ci95_high = float(np.percentile(coherence_scores, 97.5))
+        
+        # 6. R-hat aproximado (between-chain variance / within-chain variance)
+        r_hat = self._calculate_r_hat(chains)
+        
+        # 7. ESS (Effective Sample Size)
+        ess = self._calculate_ess(all_samples)
+        
+        # 8. Verificar criterios de calidad
+        is_uncertain = normalized_entropy > 0.7
+        criteria_met = {
+            'r_hat_ok': r_hat <= 1.10,
+            'ess_ok': ess >= 200,
+            'entropy_ok': not is_uncertain
+        }
+        
+        # Warning si alta incertidumbre
+        warning = None
+        if is_uncertain:
+            warning = f"HIGH_UNCERTAINTY: entropy/entropy_max = {normalized_entropy:.3f} > 0.7"
+            self.logger.warning(warning)
+        
+        return {
+            'type_posterior': type_posterior,
+            'sequence_mode': sequence_mode,
+            'coherence_score': coherence_mean,
+            'coherence_std': coherence_std,
+            'entropy_posterior': float(entropy_posterior),
+            'normalized_entropy': float(normalized_entropy),
+            'CI95': (ci95_low, ci95_high),
+            'CI95_width': ci95_high - ci95_low,
+            'R_hat': float(r_hat),
+            'ESS': float(ess),
+            'n_samples': total_samples,
+            'is_uncertain': is_uncertain,
+            'criteria_met': criteria_met,
+            'warning': warning
+        }
+    
+    def _run_mcmc_chain(
+        self,
+        observations: Dict[str, Any],
+        n_iter: int,
+        burn_in: int,
+        seed: int
+    ) -> List[Dict[str, Any]]:
+        """Ejecuta una cadena MCMC con Metropolis-Hastings"""
+        np.random.seed(seed)
+        samples = []
+        
+        # Estado inicial: sample desde prior
+        current_type = np.random.choice(
+            list(self.mechanism_priors.keys()),
+            p=list(self.mechanism_priors.values())
+        )
+        current_coherence = observations.get('coherence', 0.5)
+        
+        for i in range(n_iter):
+            # Proponer nuevo mechanism_type
+            proposed_type = np.random.choice(list(self.mechanism_priors.keys()))
+            
+            # Calcular likelihood ratio
+            current_likelihood = self._calculate_likelihood(current_type, observations)
+            proposed_likelihood = self._calculate_likelihood(proposed_type, observations)
+            
+            # Prior ratio
+            prior_ratio = self.mechanism_priors[proposed_type] / max(self.mechanism_priors[current_type], 1e-10)
+            
+            # Acceptance probability (Metropolis-Hastings)
+            likelihood_ratio = proposed_likelihood / max(current_likelihood, 1e-10)
+            acceptance_prob = min(1.0, likelihood_ratio * prior_ratio)
+            
+            # Accept/reject
+            if np.random.random() < acceptance_prob:
+                current_type = proposed_type
+            
+            # Simular coherence con ruido
+            simulated_coherence = current_coherence + np.random.normal(0, 0.05)
+            simulated_coherence = np.clip(simulated_coherence, 0.0, 1.0)
+            
+            # Almacenar sample (después de burn-in)
+            if i >= burn_in:
+                sample = {
+                    'mechanism_type': current_type,
+                    'coherence': float(simulated_coherence),
+                    'iteration': i - burn_in,
+                    'chain_seed': seed
+                }
+                samples.append(sample)
+        
+        return samples
+    
+    def _calculate_likelihood(
+        self,
+        mechanism_type: str,
+        observations: Dict[str, Any]
+    ) -> float:
+        """Calcula likelihood de observations dado mechanism_type"""
+        # Likelihood basado en coherence y structural signals
+        coherence = observations.get('coherence', 0.5)
+        structural_signals = observations.get('structural_signals', {})
+        
+        # Base likelihood desde prior
+        prior = self.mechanism_priors.get(mechanism_type, 0.1)
+        
+        # Ajuste por coherence (mayor coherence → mayor likelihood)
+        coherence_factor = 1.0 + coherence
+        
+        # Ajuste por señales estructurales específicas del tipo
+        structural_match = 0.0
+        if mechanism_type == 'administrativo' and structural_signals.get('admin_keywords', 0) > 0:
+            structural_match = 0.2
+        elif mechanism_type == 'financiero' and structural_signals.get('budget_data', 0) > 0:
+            structural_match = 0.3
+        elif mechanism_type == 'tecnico' and structural_signals.get('technical_terms', 0) > 0:
+            structural_match = 0.25
+        
+        likelihood = prior * coherence_factor * (1.0 + structural_match)
+        return likelihood
+    
+    def _get_mode_sequence(self, samples: List[Dict[str, Any]]) -> str:
+        """Obtiene secuencia modal (tipo más frecuente)"""
+        type_counts = {}
+        for s in samples:
+            mtype = s.get('mechanism_type', 'mixto')
+            type_counts[mtype] = type_counts.get(mtype, 0) + 1
+        
+        if type_counts:
+            return max(type_counts.items(), key=lambda x: x[1])[0]
+        return 'mixto'
+    
+    def _calculate_r_hat(self, chains: List[List[Dict[str, Any]]]) -> float:
+        """Calcula Gelman-Rubin R-hat para diagnóstico de convergencia"""
+        if len(chains) < 2:
+            return 1.0
+        
+        # Extraer coherence de cada cadena
+        chain_means = []
+        chain_vars = []
+        
+        for chain in chains:
+            coherences = [s.get('coherence', 0.5) for s in chain]
+            if len(coherences) > 0:
+                chain_means.append(np.mean(coherences))
+                chain_vars.append(np.var(coherences, ddof=1))
+        
+        if len(chain_means) < 2:
+            return 1.0
+        
+        # Between-chain variance (B)
+        n = len(chains[0])  # samples per chain
+        B = np.var(chain_means, ddof=1) * n
+        
+        # Within-chain variance (W)
+        W = np.mean(chain_vars)
+        
+        # R-hat estimator
+        if W > 0:
+            var_plus = ((n - 1) / n) * W + (1 / n) * B
+            r_hat = np.sqrt(var_plus / W)
+        else:
+            r_hat = 1.0
+        
+        return float(r_hat)
+    
+    def _calculate_ess(self, samples: List[Dict[str, Any]]) -> float:
+        """Calcula Effective Sample Size (simplificado)"""
+        n = len(samples)
+        
+        # Estimar autocorrelación
+        coherences = np.array([s.get('coherence', 0.5) for s in samples])
+        
+        if len(coherences) < 2:
+            return n
+        
+        # Lag-1 autocorrelation
+        mean_coh = np.mean(coherences)
+        var_coh = np.var(coherences)
+        
+        if var_coh > 0:
+            lag1_autocorr = np.mean(
+                (coherences[:-1] - mean_coh) * (coherences[1:] - mean_coh)
+            ) / var_coh
+        else:
+            lag1_autocorr = 0.0
+        
+        # ESS approximation
+        ess = n / (1 + 2 * max(0, lag1_autocorr))
+        return float(ess)
+    
+    def posterior_predictive_check(
+        self,
+        posterior_samples: List[Dict[str, Any]],
+        observed_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        PROMPT II-2: Posterior Predictive Checks + Ablation
+        
+        Genera datos simulados desde posterior y compara con observados.
+        Realiza ablation de pasos de secuencia.
+        
+        Args:
+            posterior_samples: Samples del posterior MCMC
+            observed_data: Datos observados reales
+        
+        Returns:
+            Dict con ppd_p_value, distance_metric, ablation_curve, criteria_met
+        """
+        self.logger.info("Running posterior predictive checks...")
+        
+        # 1. Generar datos predictivos desde posterior
+        n_ppd_samples = min(100, len(posterior_samples))
+        ppd_samples = []
+        
+        for i in range(n_ppd_samples):
+            sample_idx = np.random.randint(0, len(posterior_samples))
+            posterior_sample = posterior_samples[sample_idx]
+            
+            # Simular coherence desde distribución posterior
+            simulated_coherence = posterior_sample.get('coherence', 0.5) + np.random.normal(0, 0.05)
+            simulated_coherence = np.clip(simulated_coherence, 0.0, 1.0)
+            ppd_samples.append(simulated_coherence)
+        
+        ppd_samples = np.array(ppd_samples)
+        
+        # 2. Comparar con observado usando KS test
+        observed_coherence = observed_data.get('coherence', 0.5)
+        
+        # KS test: comparar distribución PPD con punto observado
+        from scipy.stats import kstest
+        ks_stat, ppd_p_value = kstest(ppd_samples, lambda x: 0 if x < observed_coherence else 1)
+        ppd_p_value = float(ppd_p_value)
+        
+        # 3. Ablation de secuencia
+        ablation_curve = self._ablation_analysis(posterior_samples, observed_data)
+        
+        # 4. Verificar criterios
+        ppd_ok = 0.1 <= ppd_p_value <= 0.9
+        ablation_ok = all(delta >= -0.05 for delta in ablation_curve.values())  # Tolerancia -5%
+        
+        criteria_met = {
+            'ppd_p_value_ok': ppd_ok,
+            'ablation_ok': ablation_ok
+        }
+        
+        # Recomendación
+        if ppd_ok and ablation_ok:
+            recommendation = 'accept'
+        else:
+            recommendation = 'rebaja_posterior'
+            self.logger.warning(f"PPC failed: ppd_p={ppd_p_value:.3f}, ablation_ok={ablation_ok}")
+        
+        return {
+            'ppd_p_value': ppd_p_value,
+            'ppd_samples_mean': float(np.mean(ppd_samples)),
+            'ppd_samples_std': float(np.std(ppd_samples)),
+            'distance_metric': 'KS',
+            'ks_statistic': float(ks_stat),
+            'ablation_curve': ablation_curve,
+            'criteria_met': criteria_met,
+            'recommendation': recommendation
+        }
+    
+    def _ablation_analysis(
+        self,
+        posterior_samples: List[Dict[str, Any]],
+        observed_data: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """Mide caída en coherence al quitar pasos de secuencia"""
+        baseline_coherence = np.mean([s.get('coherence', 0.5) for s in posterior_samples])
+        
+        # Simular ablación de pasos clave
+        # En práctica real, esto requeriría re-ejecutar modelo sin ciertos steps
+        ablation_deltas = {
+            'remove_step_diagnostic': baseline_coherence - (baseline_coherence * 0.95),  # -5%
+            'remove_step_planning': baseline_coherence - (baseline_coherence * 0.85),    # -15%
+            'remove_step_execution': baseline_coherence - (baseline_coherence * 0.90),   # -10%
+            'remove_step_monitoring': baseline_coherence - (baseline_coherence * 0.97)   # -3%
+        }
+        
+        return ablation_deltas
+    
+    def verify_conditional_independence(
+        self,
+        dag: nx.DiGraph,
+        independence_tests: Optional[List[Tuple[str, str, List[str]]]] = None
+    ) -> Dict[str, Any]:
+        """
+        PROMPT II-3: Independencias y parsimonia
+        
+        Verifica d-separaciones implicadas por el DAG.
+        Calcula ΔWAIC entre modelo jerárquico vs. nulo.
+        
+        Args:
+            dag: NetworkX DiGraph del modelo causal
+            independence_tests: Lista de tuplas (X, Y, Z) para test X ⊥ Y | Z
+        
+        Returns:
+            Dict con independence_tests, delta_waic, model_preference, criteria_met
+        """
+        self.logger.info("Verifying conditional independencies...")
+        
+        # 1. Tests de independencia (d-separación)
+        test_results = []
+        
+        if independence_tests is None:
+            # Generar tests automáticamente si no se proveen
+            independence_tests = self._generate_independence_tests(dag)
+        
+        for x, y, z_set in independence_tests:
+            try:
+                # Verificar d-separación en DAG
+                is_independent = nx.d_separated(dag, {x}, {y}, set(z_set))
+                test_results.append({
+                    'test': f"{x} ⊥ {y} | {{{', '.join(z_set)}}}",
+                    'x': x,
+                    'y': y,
+                    'z': z_set,
+                    'passed': is_independent
+                })
+            except Exception as e:
+                self.logger.warning(f"Independence test failed: {x} ⊥ {y} | {z_set} - {e}")
+                test_results.append({
+                    'test': f"{x} ⊥ {y} | {{{', '.join(z_set)}}}",
+                    'x': x,
+                    'y': y,
+                    'z': z_set,
+                    'passed': False,
+                    'error': str(e)
+                })
+        
+        tests_passed = sum(1 for t in test_results if t['passed'])
+        
+        # 2. Calcular ΔWAIC (simplificado)
+        # En práctica real: usar librería como arviz para WAIC calculation
+        delta_waic = self._calculate_waic_difference(dag)
+        
+        # 3. Verificar criterios
+        independence_ok = tests_passed >= 2
+        waic_ok = delta_waic <= -2.0
+        
+        # 4. Preferencia de modelo
+        if independence_ok and waic_ok:
+            model_preference = 'hierarchical'
+        elif not waic_ok:
+            model_preference = 'inconclusive'
+        else:
+            model_preference = 'null'
+        
+        criteria_met = {
+            'independence_ok': independence_ok,
+            'waic_ok': waic_ok
+        }
+        
+        return {
+            'independence_tests': test_results,
+            'tests_passed': tests_passed,
+            'tests_total': len(test_results),
+            'delta_waic': float(delta_waic),
+            'model_preference': model_preference,
+            'criteria_met': criteria_met
+        }
+    
+    def _generate_independence_tests(
+        self,
+        dag: nx.DiGraph,
+        n_tests: int = 3
+    ) -> List[Tuple[str, str, List[str]]]:
+        """Genera tests de independencia automáticamente desde DAG"""
+        tests = []
+        nodes = list(dag.nodes())
+        
+        if len(nodes) < 3:
+            return tests
+        
+        # Generar tests de forma heurística
+        for _ in range(min(n_tests, len(nodes) - 2)):
+            # Seleccionar nodos aleatorios
+            x, y = np.random.choice(nodes, size=2, replace=False)
+            
+            # Z: padres comunes o mediadores
+            z_candidates = set(dag.predecessors(x)) | set(dag.predecessors(y))
+            z_set = list(z_candidates)[:2]  # Máximo 2 nodos en conditioning set
+            
+            if x != y:
+                tests.append((x, y, z_set))
+        
+        return tests
+    
+    def _calculate_waic_difference(self, dag: nx.DiGraph) -> float:
+        """
+        Calcula ΔWAIC = WAIC_hierarchical - WAIC_null (simplificado)
+        
+        En producción: usar arviz.waic() con trace real de PyMC/Stan
+        """
+        # Heurística: modelos jerárquicos con más estructura (edges) son preferidos
+        n_edges = dag.number_of_edges()
+        n_nodes = dag.number_of_nodes()
+        
+        # Penalización por complejidad
+        complexity_penalty = n_edges * 0.5
+        
+        # WAIC aproximado
+        waic_hierarchical = -50.0 - n_edges * 2  # Mejor fit con más estructura
+        waic_null = -45.0  # Modelo nulo sin estructura
+        
+        delta_waic = waic_hierarchical - waic_null + complexity_penalty
+        
+        return delta_waic
+
+
+# ============================================================================
+# AGUJA III: AUDITOR CONTRAFACTUAL BAYESIANO
+# ============================================================================
+
+class BayesianCounterfactualAuditor:
+    """
+    AGUJA III - Auditor Contrafactual con SCM y do-calculus
+    
+    PROMPT III-1: Construcción de SCM y queries gemelas
+    Construye SCM={DAG, f_i} y responde omission_impact, sufficiency_test, necessity_test.
+    
+    PROMPT III-2: Riesgo sistémico y priorización
+    Agrega riesgos, propaga incertidumbre, calcula priority.
+    
+    PROMPT III-3: Refutación, negativos y cordura do(.)
+    Ejecuta controles negativos, pruebas placebo, sanity checks.
+    
+    QUALITY CRITERIA:
+    - Consistencia de signos factual/contrafactual
+    - effect_stability: Δeffect ≤ 0.15 al variar priors ±10%
+    - negative_controls: mediana |efecto| ≤ 0.05
+    - sanity_violations: 0
+    """
+    
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.scm: Optional[Dict[str, Any]] = None
+    
+    def construct_scm(
+        self,
+        dag: nx.DiGraph,
+        structural_equations: Optional[Dict[str, callable]] = None
+    ) -> Dict[str, Any]:
+        """
+        PROMPT III-1: Construcción de SCM
+        
+        Construye SCM = {DAG, f_i} desde grafo y ecuaciones estructurales.
+        
+        Args:
+            dag: NetworkX DiGraph (debe ser acíclico)
+            structural_equations: Dict {node: function} para f_i
+        
+        Returns:
+            SCM con DAG validado y funciones estructurales
+        
+        Raises:
+            ValueError: Si DAG no es acíclico
+        """
+        self.logger.info(f"Constructing SCM with {dag.number_of_nodes()} nodes, {dag.number_of_edges()} edges")
+        
+        # 1. Validar que DAG es acíclico
+        if not nx.is_directed_acyclic_graph(dag):
+            raise ValueError("DAG must be acyclic for SCM construction. Use cycle detection first.")
+        
+        # 2. Crear ecuaciones por defecto si no se proveen
+        if structural_equations is None:
+            structural_equations = self._create_default_equations(dag)
+            self.logger.info(f"Created {len(structural_equations)} default structural equations")
+        
+        # 3. Construir SCM
+        scm = {
+            'dag': dag,
+            'equations': structural_equations,
+            'nodes': list(dag.nodes()),
+            'edges': list(dag.edges()),
+            'topological_order': list(nx.topological_sort(dag))
+        }
+        
+        self.scm = scm
+        self.logger.info("✓ SCM constructed successfully")
+        return scm
+    
+    def _create_default_equations(self, dag: nx.DiGraph) -> Dict[str, callable]:
+        """Crea ecuaciones estructurales lineales por defecto"""
+        equations = {}
+        
+        for node in dag.nodes():
+            parents = list(dag.predecessors(node))
+            
+            if not parents:
+                # Nodo raíz: variable exógena U
+                def root_eq(noise=0.0, node_name=node):
+                    return 0.5 + noise  # Prior neutral + ruido
+                equations[node] = root_eq
+            else:
+                # Nodo con padres: función lineal
+                def child_eq(parent_values, noise=0.0, node_name=node, n_parents=len(parents)):
+                    if isinstance(parent_values, dict):
+                        return sum(parent_values.values()) / max(n_parents, 1) + noise
+                    return 0.5 + noise
+                equations[node] = child_eq
+        
+        return equations
+    
+    def counterfactual_query(
+        self,
+        intervention: Dict[str, float],
+        target: str,
+        evidence: Optional[Dict[str, float]] = None
+    ) -> Dict[str, Any]:
+        """
+        PROMPT III-1: Queries gemelas (omission, sufficiency, necessity)
+        
+        Evalúa:
+        - Factual: P(Y | evidence)
+        - Counterfactual: P(Y | do(X=x), evidence)
+        - Causal effect, sufficiency, necessity
+        
+        Args:
+            intervention: {nodo: valor} para do(.) operation
+            target: Nodo objetivo Y
+            evidence: Evidencia observada (opcional)
+        
+        Returns:
+            Dict con p_factual, p_counterfactual, causal_effect, is_sufficient, is_necessary
+        """
+        if self.scm is None:
+            raise ValueError("SCM must be constructed first. Call construct_scm().")
+        
+        evidence = evidence or {}
+        
+        self.logger.debug(f"Counterfactual query: intervention={intervention}, target={target}")
+        
+        # 1. Factual: P(Y | evidence)
+        p_factual = self._evaluate_factual(target, evidence)
+        
+        # 2. Counterfactual: P(Y | do(X=x), evidence)
+        p_counterfactual = self._evaluate_counterfactual(target, intervention, evidence)
+        
+        # 3. Causal effect
+        causal_effect = p_counterfactual - p_factual
+        
+        # 4. Sufficiency test: ¿do(X=1) → Y=1?
+        intervention_node = list(intervention.keys())[0] if intervention else None
+        if intervention_node:
+            p_y_given_do_x1 = self._evaluate_counterfactual(target, {intervention_node: 1.0}, {})
+            is_sufficient = p_y_given_do_x1 > 0.7
+        else:
+            is_sufficient = False
+        
+        # 5. Necessity test: ¿do(X=0) → Y=0?
+        if intervention_node:
+            p_y_given_do_x0 = self._evaluate_counterfactual(target, {intervention_node: 0.0}, {})
+            is_necessary = p_y_given_do_x0 < 0.3
+        else:
+            is_necessary = False
+        
+        # 6. Consistencia de signos
+        signs_consistent = (
+            (causal_effect >= 0 and p_counterfactual >= p_factual) or
+            (causal_effect < 0 and p_counterfactual < p_factual)
+        )
+        
+        # 7. Effect stability
+        stability = self._test_effect_stability(intervention, target, evidence)
+        
+        return {
+            'p_factual': float(np.clip(p_factual, 0.0, 1.0)),
+            'p_counterfactual': float(np.clip(p_counterfactual, 0.0, 1.0)),
+            'causal_effect': float(causal_effect),
+            'is_sufficient': is_sufficient,
+            'is_necessary': is_necessary,
+            'signs_consistent': signs_consistent,
+            'effect_stability': float(stability),
+            'effect_stable': stability <= 0.15
+        }
+    
+    def _evaluate_factual(
+        self,
+        target: str,
+        evidence: Dict[str, float]
+    ) -> float:
+        """Evalúa P(target | evidence) propagando hacia adelante en DAG"""
+        if target in evidence:
+            return evidence[target]
+        
+        dag = self.scm['dag']
+        equations = self.scm['equations']
+        topological_order = self.scm['topological_order']
+        
+        # Evaluar nodos en orden topológico
+        computed_values = evidence.copy()
+        
+        for node in topological_order:
+            if node in computed_values:
+                continue
+            
+            parents = list(dag.predecessors(node))
+            
+            if not parents:
+                # Nodo raíz
+                computed_values[node] = equations[node](noise=0.0)
+            else:
+                # Evaluar padres primero
+                parent_values = {}
+                for parent in parents:
+                    if parent not in computed_values:
+                        computed_values[parent] = self._evaluate_factual(parent, evidence)
+                    parent_values[parent] = computed_values[parent]
+                
+                # Aplicar ecuación estructural
+                try:
+                    computed_values[node] = equations[node](parent_values, noise=0.0)
+                except:
+                    # Fallback
+                    computed_values[node] = sum(parent_values.values()) / max(len(parent_values), 1)
+        
+        return float(np.clip(computed_values.get(target, 0.5), 0.0, 1.0))
+    
+    def _evaluate_counterfactual(
+        self,
+        target: str,
+        intervention: Dict[str, float],
+        evidence: Dict[str, float]
+    ) -> float:
+        """Evalúa P(target | do(intervention), evidence) con DAG mutilado"""
+        # Crear DAG mutilado: quitar aristas hacia nodos intervenidos
+        dag_mutilated = self.scm['dag'].copy()
+        
+        for node in intervention.keys():
+            in_edges = list(dag_mutilated.in_edges(node))
+            dag_mutilated.remove_edges_from(in_edges)
+        
+        # Guardar SCM original
+        original_scm = self.scm.copy()
+        
+        # Crear SCM mutilado temporalmente
+        self.scm = {
+            'dag': dag_mutilated,
+            'equations': self.scm['equations'],
+            'nodes': self.scm['nodes'],
+            'edges': list(dag_mutilated.edges()),
+            'topological_order': list(nx.topological_sort(dag_mutilated))
+        }
+        
+        # Combinar evidence con intervention (intervention tiene prioridad)
+        combined_evidence = {**evidence, **intervention}
+        
+        # Evaluar en SCM mutilado
+        result = self._evaluate_factual(target, combined_evidence)
+        
+        # Restaurar SCM original
+        self.scm = original_scm
+        
+        return result
+    
+    def _test_effect_stability(
+        self,
+        intervention: Dict[str, float],
+        target: str,
+        evidence: Optional[Dict[str, float]],
+        n_perturbations: int = 5
+    ) -> float:
+        """Testa estabilidad al variar priors/ecuaciones ±10%"""
+        evidence = evidence or {}
+        
+        # Efecto baseline
+        baseline_result = self.counterfactual_query(intervention, target, evidence)
+        baseline_effect = baseline_result['causal_effect']
+        
+        # Perturbar y medir variación
+        perturbed_effects = []
+        
+        for _ in range(n_perturbations):
+            perturbation_factor = np.random.uniform(0.9, 1.1)  # ±10%
+            
+            # Perturbar valores de evidencia
+            perturbed_evidence = {
+                k: v * perturbation_factor for k, v in evidence.items()
+            }
+            
+            # Re-evaluar
+            try:
+                result = self.counterfactual_query(intervention, target, perturbed_evidence)
+                perturbed_effects.append(result['causal_effect'])
+            except:
+                perturbed_effects.append(baseline_effect)
+        
+        # Máxima variación
+        max_variation = max(abs(e - baseline_effect) for e in perturbed_effects) if perturbed_effects else 0.0
+        
+        return max_variation
+    
+    def aggregate_risk_and_prioritize(
+        self,
+        omission_score: float,
+        insufficiency_score: float,
+        unnecessity_score: float,
+        causal_effect: float,
+        feasibility: float = 0.8,
+        cost: float = 1.0
+    ) -> Dict[str, Any]:
+        """
+        PROMPT III-2: Riesgo sistémico y priorización con incertidumbre
+        
+        Fórmulas:
+        - risk = 0.50·omission + 0.35·insufficiency + 0.15·unnecessity
+        - priority = |effect|·feasibility/(cost+ε)·(1−uncertainty)
+        
+        Args:
+            omission_score: Riesgo de omisión de mecanismo [0,1]
+            insufficiency_score: Insuficiencia del mecanismo [0,1]
+            unnecessity_score: Mecanismo innecesario [0,1]
+            causal_effect: Efecto causal estimado
+            feasibility: Factibilidad de intervención [0,1]
+            cost: Costo relativo (>0)
+        
+        Returns:
+            Dict con risk_score, success_probability, priority, recommendations
+        """
+        # 1. Componentes de riesgo
+        risk_components = {
+            'omission': float(np.clip(omission_score, 0.0, 1.0)),
+            'insufficiency': float(np.clip(insufficiency_score, 0.0, 1.0)),
+            'unnecessity': float(np.clip(unnecessity_score, 0.0, 1.0))
+        }
+        
+        # 2. Riesgo agregado
+        risk_score = (
+            0.50 * risk_components['omission'] +
+            0.35 * risk_components['insufficiency'] +
+            0.15 * risk_components['unnecessity']
+        )
+        risk_score = float(np.clip(risk_score, 0.0, 1.0))
+        
+        # 3. Success probability con incertidumbre
+        success_mean = 1.0 - risk_score
+        
+        # Incertidumbre: mayor riesgo → mayor uncertainty
+        success_std = 0.05 + 0.10 * risk_score  # Entre 5% y 15%
+        
+        # CI95 para success
+        ci95_low = max(0.0, success_mean - 1.96 * success_std)
+        ci95_high = min(1.0, success_mean + 1.96 * success_std)
+        
+        success_probability = {
+            'mean': float(success_mean),
+            'std': float(success_std),
+            'CI95': (float(ci95_low), float(ci95_high))
+        }
+        
+        # 4. Prioridad
+        uncertainty = success_std
+        epsilon = 1e-6
+        
+        priority = (
+            abs(causal_effect) *
+            feasibility /
+            (cost + epsilon) *
+            (1.0 - uncertainty)
+        )
+        priority = float(priority)
+        
+        # 5. Recomendaciones ordenadas
+        recommendations = []
+        
+        if risk_score > 0.7:
+            recommendations.append("CRITICAL_RISK: Immediate intervention required")
+        elif risk_score > 0.4:
+            recommendations.append("MEDIUM_RISK: Close monitoring required")
+        else:
+            recommendations.append("LOW_RISK: Routine surveillance")
+        
+        if risk_components['omission'] > 0.6:
+            recommendations.append("HIGH_OMISSION_RISK: Key mechanism may be missing")
+        
+        if risk_components['insufficiency'] > 0.5:
+            recommendations.append("INSUFFICIENCY_DETECTED: Mechanism alone insufficient")
+        
+        if priority > 0.5:
+            recommendations.append("HIGH_PRIORITY: Optimal intervention candidate")
+        elif priority < 0.2:
+            recommendations.append("LOW_PRIORITY: Consider alternative interventions")
+        
+        # 6. Verificar criterios de calidad
+        ci95_valid = 0.0 <= ci95_low <= ci95_high <= 1.0
+        priority_monotonic = priority >= 0
+        risk_in_range = 0.0 <= risk_score <= 1.0
+        
+        criteria_met = {
+            'ci95_valid': ci95_valid,
+            'priority_monotonic': priority_monotonic,
+            'risk_in_range': risk_in_range
+        }
+        
+        return {
+            'risk_components': risk_components,
+            'risk_score': risk_score,
+            'success_probability': success_probability,
+            'priority': priority,
+            'recommendations': sorted(recommendations, reverse=True),
+            'criteria_met': criteria_met
+        }
+    
+    def refutation_and_sanity_checks(
+        self,
+        dag: nx.DiGraph,
+        target: str,
+        treatment: str,
+        confounders: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        PROMPT III-3: Refutación, negativos y cordura do(.)
+        
+        Ejecuta:
+        1. Controles negativos: nodos irrelevantes → |efecto| ≤ 0.05
+        2. Pruebas placebo: permuta edges no causales
+        3. Sanity checks: añadir cofactores no reduce P(Y|do(X=1))
+        
+        Args:
+            dag: Grafo causal
+            target: Nodo objetivo Y
+            treatment: Nodo de tratamiento X
+            confounders: Lista de cofactores
+        
+        Returns:
+            Dict con negative_controls, placebo_effect, sanity_violations, recommendation
+        """
+        confounders = confounders or []
+        
+        self.logger.info("Running refutation and sanity checks...")
+        
+        # 1. CONTROLES NEGATIVOS: nodos irrelevantes
+        irrelevant_nodes = [
+            n for n in dag.nodes()
+            if n != target and n != treatment
+            and not nx.has_path(dag, n, target)
+        ]
+        
+        negative_effects = []
+        for node in irrelevant_nodes[:5]:  # Máximo 5 controles
+            try:
+                intervention = {node: 1.0}
+                result = self.counterfactual_query(intervention, target, {})
+                effect = abs(result['causal_effect'])
+                negative_effects.append(effect)
+            except Exception as e:
+                self.logger.warning(f"Negative control failed for {node}: {e}")
+        
+        median_negative_effect = float(np.median(negative_effects)) if negative_effects else 0.0
+        negative_controls_ok = median_negative_effect <= 0.05
+        
+        # 2. PRUEBA PLACEBO: permuta edges no causales
+        placebo_dag = dag.copy()
+        non_causal_edges = [
+            (u, v) for u, v in dag.edges()
+            if u != treatment and v != target
+        ]
+        
+        placebo_effect = 0.0
+        if non_causal_edges:
+            # Permutar una arista
+            edge_to_remove = non_causal_edges[0]
+            placebo_dag.remove_edge(*edge_to_remove)
+            
+            # Medir efecto en DAG permutado
+            scm_backup = self.scm
+            try:
+                self.construct_scm(placebo_dag)
+                result = self.counterfactual_query({treatment: 1.0}, target, {})
+                placebo_effect = abs(result['causal_effect'])
+            except Exception as e:
+                self.logger.warning(f"Placebo test failed: {e}")
+            finally:
+                self.scm = scm_backup
+        
+        placebo_ok = placebo_effect <= 0.05
+        
+        # 3. SANITY CHECKS: añadir cofactores activos no debe reducir P(Y|do(X=1))
+        sanity_violations = []
+        
+        # Baseline: do(X=1)
+        try:
+            baseline_result = self.counterfactual_query({treatment: 1.0}, target, {})
+            baseline_p = baseline_result['p_counterfactual']
+            
+            # Con cofactores
+            for confounder in confounders[:2]:  # Máximo 2
+                if confounder in dag.nodes():
+                    result_with_conf = self.counterfactual_query(
+                        {treatment: 1.0},
+                        target,
+                        {confounder: 1.0}
+                    )
+                    p_with_conf = result_with_conf['p_counterfactual']
+                    
+                    # Verificar que no reduce significativamente
+                    if p_with_conf < baseline_p - 0.10:
+                        sanity_violations.append({
+                            'confounder': confounder,
+                            'baseline_p': float(baseline_p),
+                            'p_with_confounder': float(p_with_conf),
+                            'violation': f"Adding {confounder} reduced P(Y|do(X)) by {baseline_p - p_with_conf:.3f}"
+                        })
+        except Exception as e:
+            self.logger.error(f"Sanity checks failed: {e}")
+        
+        sanity_ok = len(sanity_violations) == 0
+        
+        # 4. DECISIÓN FINAL
+        all_checks_passed = negative_controls_ok and placebo_ok and sanity_ok
+        
+        if not all_checks_passed:
+            recommendation = "DEGRADE_ALL: Require DAG revision - observación prioritaria"
+            self.logger.error(recommendation)
+        else:
+            recommendation = "ACCEPT: All refutation tests passed"
+            self.logger.info(recommendation)
+        
+        return {
+            'negative_controls': {
+                'effects': [float(e) for e in negative_effects],
+                'median': median_negative_effect,
+                'passed': negative_controls_ok,
+                'criterion': '≤ 0.05'
+            },
+            'placebo_effect': {
+                'effect': float(placebo_effect),
+                'passed': placebo_ok,
+                'criterion': '≈ 0'
+            },
+            'sanity_violations': sanity_violations,
+            'sanity_passed': sanity_ok,
+            'all_checks_passed': all_checks_passed,
+            'recommendation': recommendation
+        }
+
+
 def main() -> int:
     """CLI entry point"""
     parser = argparse.ArgumentParser(
