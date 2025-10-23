@@ -29,7 +29,7 @@
 | Producer | Methods | Captured | % | Grade |
 |----------|--------:|---------:|--:|-------|
 | financiero_viabilidad | 65 | 65 | 100% | A+ ✅ |
-| report_assembly | 43 | 43 | 100% | A+ ✅ |
+| report_assembly | 43 | 14 (micro only) | 33% | B ⏳ |
 | contradiction_deteccion | 62 | 58 | 94% | A ✅ |
 | teoria_cambio | 30 | 29 | 97% | A+ ✅ |
 | embedding_policy | 36 | 32 | 89% | A ✅ |
@@ -39,7 +39,7 @@
 | **TOTAL** | **584** | **508** | **87%** | **A** |
 
 ### Key Strengths
-- ✅ 100% aggregator coverage (report_assembly)
+- ⏳ Aggregator coverage pending completion of meso & macro schemas (report_assembly 1/3)
 - ✅ 100% largest producer (financiero_viabilidad)
 - ✅ Complete Bayesian metadata
 - ✅ Statistical inference methods
