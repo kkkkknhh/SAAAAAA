@@ -29,10 +29,9 @@ schemas/
 │   └── bayesian_evaluation.schema.json
 ├── teoria_cambio/                  (3 schemas - IN PROGRESS)
 │   ├── validacion_resultado.schema.json
-│   ├── monte_carlo_result.schema.json
-│   └── advanced_graph_node.schema.json
-├── dereck_beach/                   (2 schemas - IN PROGRESS)
-│   ├── meta_node.schema.json
+│   └── monte_carlo_result.schema.json
+├── dereck_beach/                   (1/2 schemas - IN PROGRESS)
+│   ├── meta_node.schema.json       ✅
 │   └── audit_result.schema.json
 ├── policy_processor/               (1 schema - IN PROGRESS)
 │   └── evidence_bundle.schema.json
@@ -44,7 +43,7 @@ schemas/
 
 ---
 
-## ✅ COMPLETED SCHEMAS (7/20)
+## ✅ COMPLETED SCHEMAS (7/19)
 
 ### **financiero_viabilidad/** (5 schemas)
 
@@ -80,10 +79,10 @@ schemas/
    - Properties: question_id (P#-D#-Q# pattern), qualitative_note (EXCELENTE/BUENO/ACEPTABLE/INSUFICIENTE), quantitative_score (0.0-3.0), evidence, explanation (150-3000 chars), confidence, scoring_modality (TYPE_A-F), elements_found, modules_executed, execution_time, execution_chain
    - Doctoral-level explanation with 150-300 word requirement
 
-7. **advanced_graph_node.schema.json** (80 lines)
-   - Nodo enriquecido del AdvancedDAGValidator
-   - Properties: name, dependencies (array ordenada de strings únicas), metadata.created (date-time), metadata.confidence (0-1), role (variable/insumo/proceso/producto/resultado/causalidad)
-   - `additionalProperties` restringe los metadatos a primitivos JSON
+7. **dereck_beach/meta_node.schema.json** (170 lines)
+   - Nodo meta del CDAF con entidades, dinámica y pruebas probatorias
+   - Properties: id (MP-001), type (programa/producto/resultado/impacto), baseline/target (numérico o marcadores ND/N/A), entity_activity (entity, activity, verb_lemma, confidence 0-1)
+   - Control estricto de riesgos contextuales, banderas de auditoría y score de confianza
 
 ---
 
@@ -93,7 +92,7 @@ schemas/
 - **meso_cluster.schema.json** - Cluster aggregation (MesoLevelCluster dataclass)
 - **macro_convergence.schema.json** - Overall convergence (MacroLevelConvergence dataclass)
 
-### Priority 2: Core Producers (11 schemas)
+### Priority 2: Core Producers (10 schemas)
 - **analyzer_one/semantic_cube.schema.json** - Semantic analysis cube
 - **analyzer_one/performance_analysis.schema.json** - Performance metrics
 - **contradiction_deteccion/contradiction_evidence.schema.json** - Contradiction evidence
@@ -102,7 +101,6 @@ schemas/
 - **embedding_policy/bayesian_evaluation.schema.json** - Bayesian numerical evaluation
 - **teoria_cambio/validacion_resultado.schema.json** - Validation result
 - **teoria_cambio/monte_carlo_result.schema.json** - Monte Carlo result
-- **dereck_beach/meta_node.schema.json** - CDAF meta node
 - **dereck_beach/audit_result.schema.json** - Operationalization audit result
 - **policy_processor/evidence_bundle.schema.json** - Evidence bundle with patterns
 
@@ -199,11 +197,11 @@ ajv validate -s schemas/financiero_viabilidad/causal_node.schema.json \
 | analyzer_one | 2 | TBD | ⏳ 0% |
 | contradiction_deteccion | 2 | TBD | ⏳ 0% |
 | embedding_policy | 2 | TBD | ⏳ 0% |
-| teoria_cambio | 3 | TBD | ⏳ 0% |
-| dereck_beach | 2 | TBD | ⏳ 0% |
+| teoria_cambio | 2 | TBD | ⏳ 0% |
+| dereck_beach | 2 | 170 | ⏳ 50% |
 | policy_processor | 1 | TBD | ⏳ 0% |
 | report_assembly | 3 | 98 | ⏳ 33% |
-| **TOTAL** | **20** | **430+** | **35%** |
+| **TOTAL** | **19** | **580+** | **37%** |
 
 ---
 
@@ -213,7 +211,7 @@ ajv validate -s schemas/financiero_viabilidad/causal_node.schema.json \
    - meso_cluster.schema.json
    - macro_convergence.schema.json
 
-2. **Generate remaining producer schemas** (11 remaining)
+2. **Generate remaining producer schemas** (10 remaining)
    - Read dataclass definitions from source files
    - Extract field names, types, constraints
    - Generate JSON Schema with strict validation
@@ -228,6 +226,6 @@ ajv validate -s schemas/financiero_viabilidad/causal_node.schema.json \
 
 ---
 
-**Status:** 7/20 schemas complete (35%)
-**Next:** Complete report_assembly + core producer schemas  
+**Status:** 7/19 schemas complete (37%)
+**Next:** Completar report_assembly + productores pendientes clave
 **Target:** 100% schema coverage for Commit 3 completion
