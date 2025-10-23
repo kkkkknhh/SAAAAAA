@@ -59,9 +59,15 @@ class GoldenRuleValidator:
         if len(step_ids) != len(set(step_ids)):
             raise GoldenRuleViolation("Duplicate step identifiers detected")
 
-        if sorted(step_ids) != step_ids:
+        # Validate that step_ids is a subsequence of the canonical step catalog and in the same order
+        canonical = self._baseline_step_catalog
+        canonical_indices = {step_id: idx for idx, step_id in enumerate(canonical)}
+        try:
+            indices = [canonical_indices[step_id] for step_id in step_ids]
+        except KeyError as e:
+            raise GoldenRuleViolation(f"Step ID '{e.args[0]}' not found in canonical step catalog")
+        if indices != sorted(indices):
             raise GoldenRuleViolation("Execution chain deviates from canonical order")
-
     def assert_homogeneous_treatment(self, predicate_set: Iterable[str]) -> None:
         """Ensure identical predicate set is applied across all questions."""
 
