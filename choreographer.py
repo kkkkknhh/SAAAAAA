@@ -524,10 +524,7 @@ class ExecutionChoreographer:
                         continue
 
         # Preserve canonical ordering while removing duplicates
-        seen: Dict[str, None] = {}
-        for item in catalog:
-            seen.setdefault(item, None)
-        return list(seen.keys())
+        return list(dict.fromkeys(catalog))
 
     def _resolve_fq_method(self, step: Dict[str, Any]) -> str:
         """Derive canonical method string from step metadata."""
