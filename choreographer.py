@@ -26,6 +26,7 @@ Version: 1.0.0 - Complete Method-Level Integration
 Python: 3.10+
 """
 
+import copy
 import json
 import logging
 import time
@@ -33,11 +34,18 @@ import hashlib
 import re
 import statistics
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 import yaml
 import traceback
+
+try:
+    import jsonschema
+    JSONSCHEMA_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    jsonschema = None  # type: ignore
+    JSONSCHEMA_AVAILABLE = False
 
 # Import all 9 producer modules
 from dereck_beach import (
@@ -77,7 +85,9 @@ from Analyzer_one import (
 )
 
 # Import validation engine
+from determinism.seeds import DeterministicContext
 from validation_engine import ValidationEngine
+from validation.golden_rule import GoldenRuleValidator
 
 # Configure logging
 logging.basicConfig(
@@ -115,6 +125,14 @@ class ExecutionResult:
     mission_assessment: Dict[str, Any] = field(default_factory=dict)
 
 
+class MethodNotFound(Exception):
+    """Raised when an execution step refers to an unknown canonical method."""
+
+    def __init__(self, fq_method: str):
+        self.fq_method = fq_method
+        super().__init__(f"Canonical method not found: {fq_method}")
+
+
 @dataclass
 class ProvenanceRecord:
     """Complete provenance tracking for data lineage"""
@@ -148,7 +166,9 @@ class ExecutionChoreographer:
         self,
         execution_mapping_path: str = "execution_mapping.yaml",
         method_class_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json",
-        config_path: str = "config.yaml"
+        config_path: str = "config.yaml",
+        questionnaire_hash: str = "",
+        deterministic_context: Optional[DeterministicContext] = None
     ):
         """
         Initialize Choreographer with atomic context hydration (Golden Rule 2)
@@ -169,6 +189,11 @@ class ExecutionChoreographer:
         self.method_class_map = self._load_method_class_map(method_class_map_path)
         self.config = self._load_config(config_path)
 
+        # Canonical method dispatch registry
+        self._module_catalog = self.execution_mapping.get("modules", {})
+        self._producer_instances: Dict[str, Dict[str, Any]] = {}
+        self.CANONICAL_METHODS: Dict[str, Callable[[str, Dict[str, Any], Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = {}
+
         # Mission-level calibration and mappings
         self.dimension_mapper = self._build_dimension_mapper()
         self.mission_config = self._build_mission_config(self.config)
@@ -176,6 +201,25 @@ class ExecutionChoreographer:
 
         # Initialize all 9 producer adapters
         self._initialize_producers()
+
+        # Build registry for canonical method dispatch
+        self._build_method_registry()
+
+        # Load execution step schema for runtime validation
+        self._execution_step_schema = self._load_execution_step_schema()
+
+        # Golden Rule enforcement context
+        self._questionnaire_hash = questionnaire_hash
+        self._step_catalog = self._collect_step_catalog()
+        self.golden_rule_enforcer = GoldenRuleValidator(
+            questionnaire_hash,
+            self._step_catalog
+        )
+        self.golden_rule_enforcer.assert_immutable_metadata(
+            questionnaire_hash,
+            self._step_catalog
+        )
+        self._deterministic_context = deterministic_context
         
         # Initialize validation engine
         self.validation_engine = ValidationEngine()
@@ -366,14 +410,29 @@ class ExecutionChoreographer:
     # GOLDEN RULE 2: ATOMIC CONTEXT HYDRATION - PRODUCER INITIALIZATION
     # ========================================================================
 
+    def _register_producer_instance(self, module_alias: str, class_name: str, instance: Any) -> None:
+        """Register instantiated producer object for canonical dispatch."""
+
+        if instance is None:
+            return
+
+        if self._deterministic_context is not None:
+            try:
+                setattr(instance, "deterministic_context", self._deterministic_context)
+            except Exception:
+                pass
+
+        module_registry = self._producer_instances.setdefault(module_alias, {})
+        module_registry[class_name] = instance
+
     def _initialize_producers(self):
         """
         Initialize all 9 producer modules with complete context hydration
-        
+
         TARGET: 555 methods (95% of 584) across 9 files
         """
         logger.info("Initializing 9 producer modules (584 methods)...")
-        
+
         # 1. DERECK BEACH (99 methods) - THE KEY
         self.dereck_beach = self._init_dereck_beach()
         
@@ -403,13 +462,186 @@ class ExecutionChoreographer:
         
         # Track initialization
         self.stats["methods_initialized"] = 584
-        
+
         logger.info(f"✓ All 9 producers initialized ({self.stats['methods_initialized']} methods)")
+
+    def _build_method_registry(self) -> None:
+        """Register canonical method adapters for dispatch."""
+
+        registry: Dict[str, Callable[[str, Dict[str, Any], Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = {}
+
+        adapter_map: Dict[str, Callable[[str, Dict[str, Any], Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = {
+            "policy_processor:IndustrialPolicyProcessor.process": self._adapter_policy_processor_process,
+            "semantic_chunking:PolicyDocumentAnalyzer.analyze": self._adapter_semantic_chunking_analyze,
+            "dereck_beach:TeoriaCambio.validacion_completa": self._adapter_dereck_beach_validacion,
+            "embedding_policy:PolicyAnalysisEmbedder.process_document": self._adapter_embedding_process_document,
+            "teoria_cambio:TeoriaCambio.construir_grafo_causal": self._adapter_teoria_cambio_construir,
+            "contradiction_detection:PolicyContradictionDetector.detect": self._adapter_contradiction_detect,
+            "financiero_viabilidad:PDETMunicipalPlanAnalyzer.analyze_financial_feasibility": self._adapter_financiero_analyze,
+            "analyzer_one:MunicipalAnalyzer.analyze_document": self._adapter_analyzer_one_document,
+        }
+
+        for fq_method, adapter in adapter_map.items():
+            module_alias, class_method = fq_method.split(":", 1)
+            class_name = class_method.split(".")[0]
+            module_registry = self._producer_instances.get(module_alias, {})
+            if class_name not in module_registry:
+                continue
+            registry[fq_method] = adapter
+
+        self.CANONICAL_METHODS = registry
+
+    def _load_execution_step_schema(self) -> Optional[Dict[str, Any]]:
+        """Load JSON schema used to validate execution steps."""
+
+        schema_path = Path("schemas/execution_step.schema.json")
+        if not schema_path.exists():
+            logger.warning("Execution step schema not found; step validation disabled")
+            return None
+
+        try:
+            with open(schema_path, "r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error(f"Failed to load execution step schema: {exc}")
+            return None
+
+    def _collect_step_catalog(self) -> List[str]:
+        """Collect canonical method identifiers from execution mapping."""
+
+        catalog: List[str] = []
+        dimensions = self.execution_mapping.get("dimensions", {})
+
+        for dimension_config in dimensions.values():
+            typical_chains = dimension_config.get("typical_chains", {})
+            for chain_config in typical_chains.values():
+                sequence = chain_config.get("sequence", [])
+                for idx, raw_step in enumerate(sequence):
+                    try:
+                        normalized = self._normalize_execution_step(raw_step, idx)
+                        catalog.append(normalized["fq_method"])
+                    except MethodNotFound:
+                        continue
+
+        # Preserve canonical ordering while removing duplicates
+        return list(dict.fromkeys(catalog))
+
+    def _resolve_fq_method(self, step: Dict[str, Any]) -> str:
+        """Derive canonical method string from step metadata."""
+
+        if "fq_method" in step and step["fq_method"]:
+            return step["fq_method"]
+
+        module_alias = step.get("module")
+        method_name = step.get("method")
+
+        if not module_alias or not method_name:
+            raise MethodNotFound("unknown:unknown.unknown")
+
+        class_name: Optional[str] = None
+        module_info = self._module_catalog.get(module_alias)
+        if isinstance(module_info, dict):
+            class_name = module_info.get("class")
+
+        if not class_name:
+            module_registry = self._producer_instances.get(module_alias, {})
+            if len(module_registry) == 1:
+                class_name = next(iter(module_registry))
+
+        if not class_name:
+            raise MethodNotFound(f"{module_alias}:unknown.{method_name}")
+
+        fq_method = f"{module_alias}:{class_name}.{method_name}"
+        step["fq_method"] = fq_method
+        return fq_method
+
+    def _normalize_execution_step(self, raw_step: Dict[str, Any], index: int) -> Dict[str, Any]:
+        """Normalize step metadata with canonical identifiers."""
+
+        module_alias = raw_step.get("module")
+        method_name = raw_step.get("method")
+
+        step_template = {
+            "module": module_alias,
+            "method": method_name,
+            "fq_method": raw_step.get("fq_method"),
+        }
+
+        fq_method = self._resolve_fq_method(step_template)
+
+        inputs = [str(item) for item in raw_step.get("inputs", [])]
+        artifacts_in = [str(item) for item in raw_step.get("artifacts_in", inputs)]
+        artifacts_out = [
+            str(item)
+            for item in raw_step.get("artifacts_out", raw_step.get("outputs", []))
+        ]
+
+        evidence_contract = raw_step.get("evidence_contract")
+        if not isinstance(evidence_contract, dict):
+            evidence_contract = {}
+
+        normalized_step = {
+            "step_id": raw_step.get(
+                "step_id",
+                f"{index + 1:03d}_{module_alias or 'unknown'}:{method_name or 'unknown'}"
+            ),
+            "fq_method": fq_method,
+            "inputs": inputs,
+            "artifacts_in": artifacts_in,
+            "artifacts_out": artifacts_out,
+            "evidence_contract": evidence_contract,
+        }
+
+        return normalized_step
+
+    @staticmethod
+    def _get_module_result(execution_results: Dict[str, Any], module_alias: str) -> Dict[str, Any]:
+        """Retrieve the first result matching the given module alias."""
+
+        prefix = f"{module_alias}:"
+        for key, value in execution_results.items():
+            if key.startswith(prefix):
+                return value
+        return {}
+
+    def _validate_execution_step(self, step: Dict[str, Any]) -> None:
+        """Validate step metadata against schema and registry."""
+
+        allowed_keys = {
+            "step_id",
+            "fq_method",
+            "inputs",
+            "artifacts_in",
+            "artifacts_out",
+            "evidence_contract",
+        }
+
+        unknown_keys = set(step.keys()) - allowed_keys
+        if unknown_keys:
+            raise ValueError(f"Unknown execution step keys: {sorted(unknown_keys)}")
+
+        if JSONSCHEMA_AVAILABLE and self._execution_step_schema:
+            try:
+                jsonschema.validate(instance=step, schema=self._execution_step_schema)
+            except jsonschema.ValidationError as exc:  # pragma: no cover - jsonschema detail
+                raise ValueError(f"Execution step schema violation: {exc.message}") from exc
+        else:
+            # Fallback minimal validation
+            if not step.get("step_id") or not step.get("fq_method"):
+                raise ValueError("Execution step must include step_id and fq_method")
+
+        fq_method = step.get("fq_method", "")
+        if ":" not in fq_method or "." not in fq_method.split(":", 1)[1]:
+            raise MethodNotFound(fq_method or "unknown:unknown.unknown")
+
+        module_alias = fq_method.split(":", 1)[0]
+        if module_alias not in self._producer_instances:
+            raise MethodNotFound(fq_method)
 
     def _init_dereck_beach(self) -> Dict[str, Any]:
         """Initialize Derek Beach module (99 methods - THE KEY)"""
         try:
-            return {
+            module = {
                 "config_loader": ConfigLoader(Path(self.config.get("config_path", "config.yaml"))),
                 "beach_test": BeachEvidentialTest(),
                 "pdf_processor": PDFProcessor(
@@ -419,6 +651,8 @@ class ExecutionChoreographer:
                 "methods_count": 99,
                 "status": "initialized"
             }
+            self._register_producer_instance("dereck_beach", "TeoriaCambio", module.get("teoria_cambio"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize dereck_beach: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -427,7 +661,7 @@ class ExecutionChoreographer:
         """Initialize Policy Processor module (32 methods)"""
         try:
             config = self.processor_config
-            return {
+            module = {
                 "processor": IndustrialPolicyProcessor(config=config),
                 "bayesian_scorer": BayesianEvidenceScorer(
                     prior_confidence=config.bayesian_prior_confidence,
@@ -437,6 +671,10 @@ class ExecutionChoreographer:
                 "methods_count": 32,
                 "status": "initialized"
             }
+            self._register_producer_instance("policy_processor", "IndustrialPolicyProcessor", module.get("processor"))
+            self._register_producer_instance("bayesian_scorer", "BayesianEvidenceScorer", module.get("bayesian_scorer"))
+            self._register_producer_instance("policy_text_processor", "PolicyTextProcessor", module.get("text_processor"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize policy_processor: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -446,8 +684,8 @@ class ExecutionChoreographer:
         try:
             embedding_config = PolicyEmbeddingConfig()
             chunking_config = ChunkingConfig()
-            
-            return {
+
+            module = {
                 "chunker": AdvancedSemanticChunker(chunking_config),
                 "bayesian_analyzer": BayesianNumericalAnalyzer(),
                 "cross_encoder": PolicyCrossEncoderReranker(),
@@ -455,6 +693,9 @@ class ExecutionChoreographer:
                 "methods_count": 36,
                 "status": "initialized"
             }
+            self._register_producer_instance("embedding_policy", "PolicyAnalysisEmbedder", module.get("embedder"))
+            self._register_producer_instance("semantic_chunker", "AdvancedSemanticChunker", module.get("chunker"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize embedding_policy: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -463,14 +704,16 @@ class ExecutionChoreographer:
         """Initialize Semantic Chunking module (15 methods)"""
         try:
             semantic_config = SemanticConfig()
-            
-            return {
+
+            module = {
                 "semantic_processor": SemanticProcessor(semantic_config),
                 "bayesian_integrator": BayesianEvidenceIntegrator(),
                 "policy_analyzer": PolicyDocumentAnalyzer(semantic_config),
                 "methods_count": 15,
                 "status": "initialized"
             }
+            self._register_producer_instance("semantic_chunking", "PolicyDocumentAnalyzer", module.get("policy_analyzer"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize semantic_chunking: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -478,13 +721,16 @@ class ExecutionChoreographer:
     def _init_teoria_cambio(self) -> Dict[str, Any]:
         """Initialize Teoria Cambio module (30 methods)"""
         try:
-            return {
+            module = {
                 "validator": TeoriaCambio(),
                 "dag_validator": AdvancedDAGValidator(GraphType.CAUSAL_DAG),
                 "industrial_validator": IndustrialGradeValidator(),
                 "methods_count": 30,
                 "status": "initialized"
             }
+            self._register_producer_instance("teoria_cambio", "TeoriaCambio", module.get("validator"))
+            self._register_producer_instance("dag_validator", "AdvancedDAGValidator", module.get("dag_validator"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize teoria_cambio: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -492,13 +738,16 @@ class ExecutionChoreographer:
     def _init_contradiction_detection(self) -> Dict[str, Any]:
         """Initialize Contradiction Detection module (62 methods)"""
         try:
-            return {
+            module = {
                 "detector": PolicyContradictionDetector(),
                 "temporal_verifier": TemporalLogicVerifier(),
                 "bayesian_calculator": BayesianConfidenceCalculator(),
                 "methods_count": 62,
                 "status": "initialized"
             }
+            self._register_producer_instance("contradiction_detection", "PolicyContradictionDetector", module.get("detector"))
+            self._register_producer_instance("temporal_verifier", "TemporalLogicVerifier", module.get("temporal_verifier"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize contradiction_detection: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -506,12 +755,14 @@ class ExecutionChoreographer:
     def _init_financiero_viabilidad(self) -> Dict[str, Any]:
         """Initialize Financiero Viabilidad module (65 methods)"""
         try:
-            return {
+            module = {
                 "analyzer": PDETMunicipalPlanAnalyzer(use_gpu=False),
                 "context": ColombianMunicipalContext(),
                 "methods_count": 65,
                 "status": "initialized"
             }
+            self._register_producer_instance("financiero_viabilidad", "PDETMunicipalPlanAnalyzer", module.get("analyzer"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize financiero_viabilidad: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -531,12 +782,14 @@ class ExecutionChoreographer:
     def _init_analyzer_one(self) -> Dict[str, Any]:
         """Initialize Analyzer One module (34 methods)"""
         try:
-            return {
+            module = {
                 "analyzer": MunicipalAnalyzer(),
                 "ontology": MunicipalOntology(),
                 "methods_count": 34,
                 "status": "initialized"
             }
+            self._register_producer_instance("analyzer_one", "MunicipalAnalyzer", module.get("analyzer"))
+            return module
         except Exception as e:
             logger.error(f"Failed to initialize analyzer_one: {e}")
             return {"status": "failed", "error": str(e), "methods_count": 0}
@@ -575,7 +828,18 @@ class ExecutionChoreographer:
         
         # Initialize execution context (Golden Rule 2)
         context = self._hydrate_execution_context(question_spec)
-        
+
+        # Golden Rule metadata assertions
+        self.golden_rule_enforcer.assert_immutable_metadata(
+            self._questionnaire_hash,
+            self._step_catalog
+        )
+
+        predicate_set = set(question_spec.get('expected_elements', []))
+        predicate_set.update(question_spec.get('search_patterns', {}).keys())
+        predicate_set.update(question_spec.get('validation_rules', {}).keys())
+        self.golden_rule_enforcer.assert_homogeneous_treatment(predicate_set)
+
         # Initialize provenance tracking (Golden Rule 6)
         provenance = self._init_provenance(execution_id, context)
         
@@ -729,7 +993,7 @@ class ExecutionChoreographer:
         if not chain:
             chain = self._get_default_chain(dimension)
         
-        return chain
+        return [self._normalize_execution_step(step, idx) for idx, step in enumerate(chain)]
 
     def _get_default_chain(self, dimension: str) -> List[Dict[str, Any]]:
         """Fallback execution chain for dimension"""
@@ -785,7 +1049,11 @@ class ExecutionChoreographer:
         Implements Golden Rule 3: Deterministic Pipeline Execution
         """
         results = {}
-        
+
+        step_ids = [step.get("step_id", "") for step in context.execution_chain]
+        self.golden_rule_enforcer.assert_deterministic_dag(step_ids)
+        self.golden_rule_enforcer.reset_atomic_state()
+
         # PRE-STEP VALIDATION HOOK (Agent 3 Integration)
         logger.info("\n" + "=" * 80)
         logger.info("PRE-STEP VALIDATION - Checking preconditions")
@@ -818,7 +1086,10 @@ class ExecutionChoreographer:
         }
         
         for step in context.execution_chain:
-            module_name = step.get("module", "")
+            self._validate_execution_step(step)
+            fq_method = step.get("fq_method", "")
+            module_name = fq_method.split(":", 1)[0] if ":" in fq_method else ""
+
             if module_name:
                 producer_validation = self.validation_engine.validate_producer_availability(
                     module_name, producers_dict
@@ -831,97 +1102,102 @@ class ExecutionChoreographer:
         
         for step_idx, step in enumerate(context.execution_chain):
             step_start = time.time()
-            module_name = step.get("module", "")
-            method_name = step.get("method", "")
-            
-            logger.info(f"  Step {step_idx + 1}/{len(context.execution_chain)}: "
-                       f"{module_name}.{method_name}")
-            
+            self._validate_execution_step(step)
+            state_snapshot = copy.deepcopy(results)
+            self.golden_rule_enforcer.assert_atomic_context(state_snapshot)
+
             try:
-                # Execute method based on module
-                step_result = self._execute_method(
-                    module_name,
-                    method_name,
-                    plan_document,
-                    plan_metadata,
-                    results
-                )
-                
-                # Record in trace
+                fq_method = self._resolve_fq_method(step)
+            except MethodNotFound as missing:
+                logger.warning(f"  ⚠ Canonical method resolution failed: {missing}")
                 execution_trace.append({
                     "step": step_idx + 1,
-                    "module": module_name,
+                    "step_id": step.get("step_id"),
+                    "status": "missing",
+                    "error": str(missing),
+                    "duration": time.time() - step_start
+                })
+                break
+
+            module_alias, class_method = fq_method.split(":", 1)
+            method_name = class_method.split(".")[-1]
+
+            logger.info(
+                f"  Step {step_idx + 1}/{len(context.execution_chain)}: {fq_method}"
+            )
+
+            try:
+                step_result = self._execute_method(
+                    step,
+                    plan_document,
+                    plan_metadata,
+                    state_snapshot
+                )
+
+                execution_trace.append({
+                    "step": step_idx + 1,
+                    "step_id": step.get("step_id"),
+                    "fq_method": fq_method,
+                    "module": module_alias,
                     "method": method_name,
                     "status": "success",
                     "duration": time.time() - step_start,
                     "confidence": step_result.get("confidence", 0.0)
                 })
-                
-                # Update provenance
-                provenance.methods_invoked.append(f"{module_name}.{method_name}")
-                provenance.confidence_scores[f"{module_name}.{method_name}"] = step_result.get("confidence", 0.0)
-                
-                # Store result
-                results[module_name] = step_result
-                
+
+                provenance.methods_invoked.append(fq_method)
+                provenance.confidence_scores[fq_method] = step_result.get("confidence", 0.0)
+
+                results[fq_method] = step_result
+
+            except MethodNotFound as missing:
+                logger.warning(f"  ⚠ Canonical method missing: {missing}")
+                execution_trace.append({
+                    "step": step_idx + 1,
+                    "step_id": step.get("step_id"),
+                    "fq_method": fq_method,
+                    "module": module_alias,
+                    "method": method_name,
+                    "status": "missing",
+                    "error": str(missing),
+                    "duration": time.time() - step_start
+                })
+                break
             except Exception as e:
                 logger.warning(f"  ⚠ Step failed: {e}")
                 execution_trace.append({
                     "step": step_idx + 1,
-                    "module": module_name,
+                    "step_id": step.get("step_id"),
+                    "fq_method": fq_method,
+                    "module": module_alias,
                     "method": method_name,
                     "status": "failed",
                     "error": str(e),
                     "duration": time.time() - step_start
                 })
-        
+
         return results
 
     def _execute_method(
         self,
-        module_name: str,
-        method_name: str,
+        step: Dict[str, Any],
         plan_document: str,
         plan_metadata: Dict[str, Any],
         previous_results: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """
-        Execute specific method from module (method-level granularity)
-        
-        This is the KEY integration point - calls specific methods from 9 producers
-        """
+        """Dispatch execution to registered canonical method adapters."""
+
+        fq_method = self._resolve_fq_method(step)
+        handler = self.CANONICAL_METHODS.get(fq_method)
+
+        if not handler:
+            raise MethodNotFound(fq_method)
+
         try:
-            # Route to appropriate producer
-            if module_name == "policy_processor":
-                return self._exec_policy_processor(method_name, plan_document)
-            
-            elif module_name == "semantic_chunking":
-                return self._exec_semantic_chunking(method_name, plan_document)
-            
-            elif module_name == "dereck_beach":
-                return self._exec_dereck_beach(method_name, plan_document, previous_results)
-            
-            elif module_name == "embedding_policy":
-                return self._exec_embedding_policy(method_name, plan_document)
-            
-            elif module_name == "teoria_cambio":
-                return self._exec_teoria_cambio(method_name, previous_results)
-            
-            elif module_name == "contradiction_detection":
-                return self._exec_contradiction_detection(method_name, plan_document)
-            
-            elif module_name == "financiero_viabilidad":
-                return self._exec_financiero_viabilidad(method_name, plan_document)
-            
-            elif module_name == "analyzer_one":
-                return self._exec_analyzer_one(method_name, plan_document)
-            
-            else:
-                return {"status": "unknown_module", "confidence": 0.0}
-                
-        except Exception as e:
-            logger.error(f"Method execution failed: {module_name}.{method_name} - {e}")
-            return {"status": "error", "error": str(e), "confidence": 0.0}
+            return handler(plan_document, plan_metadata, previous_results, step)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error(f"Method execution failed: {fq_method} - {exc}")
+            return {"status": "error", "error": str(exc), "confidence": 0.0}
 
     # Method-level execution implementations for each producer
 
@@ -1017,15 +1293,21 @@ class ExecutionChoreographer:
         """Validate coherence and proportionality of causal claims."""
 
         dimension_value = context.metadata.get("dimension_value", "")
-        policy_processor_result = execution_results.get("policy_processor", {})
+        policy_processor_result = self._get_module_result(execution_results, "policy_processor")
         policy_data = policy_processor_result.get("data", {})
         dimension_analysis = policy_data.get("dimension_analysis", {})
         dimension_metrics = dimension_analysis.get(dimension_value, {})
         dimension_confidence = dimension_metrics.get("dimension_confidence", 0.0)
         match_count = dimension_metrics.get("total_matches", 0)
 
-        semantic_confidence = execution_results.get("semantic_chunking", {}).get("confidence", 0.0)
-        contradiction_confidence = execution_results.get("contradiction_detection", {}).get("confidence", 0.0)
+        semantic_confidence = self._get_module_result(
+            execution_results,
+            "semantic_chunking"
+        ).get("confidence", 0.0)
+        contradiction_confidence = self._get_module_result(
+            execution_results,
+            "contradiction_detection"
+        ).get("confidence", 0.0)
 
         confidence_values = [
             value
@@ -1076,7 +1358,10 @@ class ExecutionChoreographer:
         coverage = sum(1 for hit in hits.values() if hit) / max(1, len(indicators))
         threshold = self.mission_config.get("adaptability_threshold", 0.35)
 
-        causal_dimension_data = execution_results.get("policy_processor", {}).get("data", {})
+        causal_dimension_data = self._get_module_result(
+            execution_results,
+            "policy_processor"
+        ).get("data", {})
         d6_metrics = causal_dimension_data.get("dimension_analysis", {}).get("d6_causalidad", {})
         d6_confidence = d6_metrics.get("dimension_confidence", 0.0)
 
@@ -1116,6 +1401,78 @@ class ExecutionChoreographer:
             "requested_targets": requested_focus,
             "matched_targets": matched_targets,
         }
+
+    def _adapter_policy_processor_process(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_policy_processor("process", plan_document)
+
+    def _adapter_semantic_chunking_analyze(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_semantic_chunking("analyze", plan_document)
+
+    def _adapter_dereck_beach_validacion(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_dereck_beach("validacion_completa", plan_document, previous_results)
+
+    def _adapter_embedding_process_document(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_embedding_policy("process_document", plan_document)
+
+    def _adapter_teoria_cambio_construir(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_teoria_cambio("construir_grafo_causal", previous_results)
+
+    def _adapter_contradiction_detect(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_contradiction_detection("detect", plan_document)
+
+    def _adapter_financiero_analyze(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_financiero_viabilidad("analyze_financial_feasibility", plan_document)
+
+    def _adapter_analyzer_one_document(
+        self,
+        plan_document: str,
+        plan_metadata: Dict[str, Any],
+        previous_results: Dict[str, Any],
+        step: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        return self._exec_analyzer_one("analyze_document", plan_document)
 
     def _exec_policy_processor(self, method_name: str, plan_document: str) -> Dict[str, Any]:
         """Execute Policy Processor methods"""

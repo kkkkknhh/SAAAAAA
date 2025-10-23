@@ -34,6 +34,7 @@ Python: 3.10+
 """
 
 import json
+import hashlib
 import logging
 import time
 import asyncio
@@ -46,6 +47,7 @@ import statistics
 
 # Import Choreographer and Report Assembly
 from choreographer import ExecutionChoreographer, ExecutionResult, ExecutionContext
+from determinism.seeds import DeterministicContext, SeedFactory
 from report_assembly import (
     ReportAssembler, MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 )
@@ -101,6 +103,7 @@ class OrchestratorConfig:
     max_workers: int = 4
     enable_meso_clustering: bool = True
     enable_macro_convergence: bool = True
+    run_id: str = "run-default"
 
 
 @dataclass
@@ -157,14 +160,28 @@ class PolicyAnalysisOrchestrator:
         
         self.config = config
         self.start_time = time.time()
-        
+
         # Golden Rule 1: Load canonical truth model (cuestionario_FIXED.json)
         self.questionnaire = self._load_questionnaire()
-        
+        self.questionnaire_hash = self._compute_questionnaire_hash()
+
+        # Deterministic context configuration
+        self.seed_factory = SeedFactory()
+        run_identifier = config.run_id or "run-default"
+        self.deterministic_context = DeterministicContext.from_factory(
+            self.seed_factory,
+            self.questionnaire_hash,
+            run_identifier
+        )
+        self.run_seed = self.deterministic_context.seed
+        logger.info(f"✓ Deterministic seed configured: {self.run_seed}")
+
         # Initialize Choreographer (Data Plane)
         self.choreographer = ExecutionChoreographer(
             execution_mapping_path=config.execution_mapping_path,
-            method_class_map_path=config.method_class_map_path
+            method_class_map_path=config.method_class_map_path,
+            questionnaire_hash=self.questionnaire_hash,
+            deterministic_context=self.deterministic_context
         )
         
         # Initialize Report Assembler (Collection & Assembly Pipeline)
@@ -198,26 +215,32 @@ class PolicyAnalysisOrchestrator:
     def _load_questionnaire(self) -> Dict[str, Any]:
         """
         Load cuestionario_FIXED.json (canonical truth model)
-        
+
         This is the authoritative source for all questions, scoring logic, and evidence definitions.
         """
         logger.info(f"Loading canonical truth model: {self.config.questionnaire_path}")
-        
+
         try:
             with open(self.config.questionnaire_path, 'r', encoding='utf-8') as f:
                 questionnaire = json.load(f)
-            
+
             total_questions = len(questionnaire.get("questions", []))
             logger.info(f"✓ Loaded {total_questions} questions from canonical truth model")
-            
+
             return questionnaire
-        
+
         except FileNotFoundError:
             logger.error(f"Canonical truth model not found: {self.config.questionnaire_path}")
             raise
         except Exception as e:
             logger.error(f"Failed to load questionnaire: {e}")
             raise
+
+    def _compute_questionnaire_hash(self) -> str:
+        """Compute stable hash of the loaded questionnaire metadata."""
+
+        canonical = json.dumps(self.questionnaire, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def _parse_all_questions(self) -> List[QuestionSpec]:
         """
