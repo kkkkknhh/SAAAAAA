@@ -1,0 +1,188 @@
+{
+  "summary": {
+    "total_checks": 49,
+    "passed_checks": 42,
+    "failed_checks": 7,
+    "pass_rate": 85.71428571428571,
+    "critical": 4,
+    "errors": 2,
+    "warnings": 1,
+    "info": 0
+  },
+  "domains": [
+    {
+      "domain": "Wiring & Dependencies",
+      "checks": 9,
+      "passed": 6,
+      "failed": 3,
+      "pass_rate": 66.66666666666666,
+      "violations": [
+        {
+          "severity": "ERROR",
+          "type": "LOAD_FAILURE",
+          "component": "Choreographer",
+          "description": "[Errno 2] No such file or directory: '/home/recovered/DEREK-BEACH/choreographer.py'",
+          "location": null
+        },
+        {
+          "severity": "CRITICAL",
+          "type": "MISSING_ORCHESTRATOR",
+          "component": "Orchestrator",
+          "description": "orchestrator.py not found",
+          "location": null
+        },
+        {
+          "severity": "ERROR",
+          "type": "MISSING_PRODUCERS_KEY",
+          "component": "ExecutionMapping",
+          "description": "No 'producers' key",
+          "location": null
+        }
+      ]
+    },
+    {
+      "domain": "Choreography & Orchestration",
+      "checks": 3,
+      "passed": 0,
+      "failed": 3,
+      "pass_rate": 0.0,
+      "violations": [
+        {
+          "severity": "CRITICAL",
+          "type": "MISSING_FILE",
+          "component": "Choreographer",
+          "description": "choreographer.py not found",
+          "location": null
+        },
+        {
+          "severity": "CRITICAL",
+          "type": "MISSING_COMPONENT",
+          "component": "orchestrator.py",
+          "description": "orchestrator.py not found",
+          "location": null
+        },
+        {
+          "severity": "CRITICAL",
+          "type": "MISSING_COMPONENT",
+          "component": "choreographer.py",
+          "description": "choreographer.py not found",
+          "location": null
+        }
+      ]
+    },
+    {
+      "domain": "Syntax & Code Quality",
+      "checks": 18,
+      "passed": 17,
+      "failed": 1,
+      "pass_rate": 94.44444444444444,
+      "violations": [
+        {
+          "severity": "WARNING",
+          "type": "DUPLICATE_IMPORTS",
+          "component": "metadata_loader.py",
+          "description": "Duplicate imports detected",
+          "location": null
+        }
+      ]
+    },
+    {
+      "domain": "Library Compatibility",
+      "checks": 4,
+      "passed": 4,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    },
+    {
+      "domain": "JSON Schema Validation",
+      "checks": 4,
+      "passed": 4,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    },
+    {
+      "domain": "JSON Invocation",
+      "checks": 6,
+      "passed": 6,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    },
+    {
+      "domain": "Question Parsing",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    },
+    {
+      "domain": "Weighting & Scoring",
+      "checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    },
+    {
+      "domain": "Metadata Usage",
+      "checks": 2,
+      "passed": 2,
+      "failed": 0,
+      "pass_rate": 100.0,
+      "violations": []
+    }
+  ],
+  "by_severity": {
+    "ERROR": [
+      {
+        "domain": "Wiring",
+        "component": "Choreographer",
+        "type": "LOAD_FAILURE",
+        "description": "[Errno 2] No such file or directory: '/home/recovered/DEREK-BEACH/choreographer.py'"
+      },
+      {
+        "domain": "Wiring",
+        "component": "ExecutionMapping",
+        "type": "MISSING_PRODUCERS_KEY",
+        "description": "No 'producers' key"
+      }
+    ],
+    "CRITICAL": [
+      {
+        "domain": "Wiring",
+        "component": "Orchestrator",
+        "type": "MISSING_ORCHESTRATOR",
+        "description": "orchestrator.py not found"
+      },
+      {
+        "domain": "Choreography",
+        "component": "Choreographer",
+        "type": "MISSING_FILE",
+        "description": "choreographer.py not found"
+      },
+      {
+        "domain": "Choreography",
+        "component": "orchestrator.py",
+        "type": "MISSING_COMPONENT",
+        "description": "orchestrator.py not found"
+      },
+      {
+        "domain": "Choreography",
+        "component": "choreographer.py",
+        "type": "MISSING_COMPONENT",
+        "description": "choreographer.py not found"
+      }
+    ],
+    "WARNING": [
+      {
+        "domain": "Syntax",
+        "component": "metadata_loader.py",
+        "type": "DUPLICATE_IMPORTS",
+        "description": "Duplicate imports detected"
+      }
+    ]
+  }
+}
