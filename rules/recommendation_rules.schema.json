@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/recommendation_rules.schema.json",
+  "title": "Recommendation Rules Schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "pattern": "^REC-MICRO-PA\\d{2}-DIM\\d{2}-[A-Z0-9-]{3,}$"
+          },
+          "level": {
+            "type": "string",
+            "const": "MICRO"
+          },
+          "when": {
+            "type": "object",
+            "properties": {
+              "pa_id": {
+                "type": "string",
+                "pattern": "^PA\\d{2}$"
+              },
+              "dim_id": {
+                "type": "string",
+                "pattern": "^DIM\\d{2}$"
+              },
+              "score_lt": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pa_id",
+              "dim_id",
+              "score_lt"
+            ],
+            "additionalProperties": false
+          },
+          "template": {
+            "type": "object",
+            "properties": {
+              "problem": {
+                "type": "string"
+              },
+              "intervention": {
+                "type": "string"
+              },
+              "indicator": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "baseline": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "target": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "unit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "baseline",
+                  "target",
+                  "unit"
+                ],
+                "additionalProperties": false
+              },
+              "responsible": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "partners": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "entity",
+                  "role",
+                  "partners"
+                ],
+                "additionalProperties": false
+              },
+              "horizon": {
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": "string",
+                    "enum": [
+                      "T0"
+                    ]
+                  },
+                  "end": {
+                    "type": "string",
+                    "enum": [
+                      "T1",
+                      "T2",
+                      "T3"
+                    ]
+                  }
+                },
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "additionalProperties": false
+              },
+              "verification": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 3
+              }
+            },
+            "required": [
+              "problem",
+              "intervention",
+              "indicator",
+              "responsible",
+              "horizon",
+              "verification"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "rule_id",
+          "level",
+          "when",
+          "template"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "version",
+    "rules"
+  ],
+  "additionalProperties": false
+}

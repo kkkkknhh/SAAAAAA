@@ -34,6 +34,7 @@ Python: 3.10+
 """
 
 import json
+import hashlib
 import logging
 import time
 import asyncio
@@ -46,6 +47,7 @@ import statistics
 
 # Import Choreographer and Report Assembly
 from choreographer import ExecutionChoreographer, ExecutionResult, ExecutionContext
+from determinism.seeds import DeterministicContext, SeedFactory
 from report_assembly import (
     ReportAssembler, MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 )
@@ -70,6 +72,8 @@ class QuestionSpec:
     question_number: int  # Q#
     question_text: str
     scoring_modality: str  # TYPE_A through TYPE_F
+    cluster_id: str = ""
+    cluster_name: str = ""
     expected_elements: List[str] = field(default_factory=list)
     search_patterns: Dict[str, Any] = field(default_factory=dict)
     element_weights: Dict[str, float] = field(default_factory=dict)
@@ -87,12 +91,15 @@ class ClusterDefinition:
     policy_areas: List[str]  # P1, P2, etc.
     dimensions: List[str]  # D1, D2, etc.
     question_ids: List[str]  # List of P#-D#-Q# IDs
+    policy_weights: Dict[str, float] = field(default_factory=dict)
+    macro_weight: float = 0.0
 
 
 @dataclass
 class OrchestratorConfig:
     """Configuration for Orchestrator execution"""
     questionnaire_path: str = "cuestionario_FIXED.json"
+    rubric_path: str = "rubric_scoring_FIXED.json"
     plan_document_path: str = ""
     execution_mapping_path: str = "execution_mapping.yaml"
     method_class_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json"
@@ -101,6 +108,7 @@ class OrchestratorConfig:
     max_workers: int = 4
     enable_meso_clustering: bool = True
     enable_macro_convergence: bool = True
+    run_id: str = "run-default"
 
 
 @dataclass
@@ -157,22 +165,58 @@ class PolicyAnalysisOrchestrator:
         
         self.config = config
         self.start_time = time.time()
-        
+
         # Golden Rule 1: Load canonical truth model (cuestionario_FIXED.json)
         self.questionnaire = self._load_questionnaire()
-        
+        self.questionnaire_hash = self._compute_questionnaire_hash()
+
+        # Load rubric configuration for weighting rules
+        self.rubric = self._load_rubric()
+
+        # Build canonical cluster catalog (CL01-CL04)
+        (
+            self.cluster_catalog,
+            self.cluster_weights,
+            self.cluster_policy_weights,
+        ) = self._build_cluster_catalog()
+        self.policy_area_to_cluster = {
+            policy_area: cluster_id
+            for cluster_id, info in self.cluster_catalog.items()
+            for policy_area in info.get("policy_areas", [])
+        }
+
+        # Configure causal thresholds (dimension-specific)
+        self.causal_thresholds = self._build_causal_thresholds()
+
+        # Deterministic context configuration
+        self.seed_factory = SeedFactory()
+        run_identifier = config.run_id or "run-default"
+        self.deterministic_context = DeterministicContext.from_factory(
+            self.seed_factory,
+            self.questionnaire_hash,
+            run_identifier
+        )
+        self.run_seed = self.deterministic_context.seed
+        logger.info(f"✓ Deterministic seed configured: {self.run_seed}")
+
         # Initialize Choreographer (Data Plane)
         self.choreographer = ExecutionChoreographer(
             execution_mapping_path=config.execution_mapping_path,
-            method_class_map_path=config.method_class_map_path
+            method_class_map_path=config.method_class_map_path,
+            questionnaire_hash=self.questionnaire_hash,
+            deterministic_context=self.deterministic_context
         )
-        
+
         # Initialize Report Assembler (Collection & Assembly Pipeline)
-        self.report_assembler = ReportAssembler()
-        
+        self.report_assembler = ReportAssembler(
+            cluster_weights=self.cluster_weights,
+            cluster_policy_weights=self.cluster_policy_weights,
+            causal_thresholds=self.causal_thresholds
+        )
+
         # Parse all questions into structured specs (Golden Rule 2: Atomic Context Hydration)
         self.all_questions = self._parse_all_questions()
-        
+
         # Define MESO clusters
         self.clusters = self._define_clusters()
         
@@ -198,26 +242,143 @@ class PolicyAnalysisOrchestrator:
     def _load_questionnaire(self) -> Dict[str, Any]:
         """
         Load cuestionario_FIXED.json (canonical truth model)
-        
+
         This is the authoritative source for all questions, scoring logic, and evidence definitions.
         """
         logger.info(f"Loading canonical truth model: {self.config.questionnaire_path}")
-        
+
         try:
             with open(self.config.questionnaire_path, 'r', encoding='utf-8') as f:
                 questionnaire = json.load(f)
-            
-            total_questions = len(questionnaire.get("questions", []))
+
+            question_key = "questions" if "questions" in questionnaire else "preguntas_base"
+            total_questions = len(questionnaire.get(question_key, []))
             logger.info(f"✓ Loaded {total_questions} questions from canonical truth model")
-            
+
             return questionnaire
-        
+
         except FileNotFoundError:
             logger.error(f"Canonical truth model not found: {self.config.questionnaire_path}")
             raise
         except Exception as e:
             logger.error(f"Failed to load questionnaire: {e}")
             raise
+
+    def _load_rubric(self) -> Dict[str, Any]:
+        """Load rubric_scoring configuration for weighting and aggregation."""
+        rubric_path = self.config.rubric_path
+        logger.info(f"Loading rubric configuration: {rubric_path}")
+
+        try:
+            with open(rubric_path, 'r', encoding='utf-8') as f:
+                rubric = json.load(f)
+
+            return rubric
+
+        except FileNotFoundError:
+            logger.warning(f"Rubric configuration not found at {rubric_path}; using defaults")
+            return {}
+        except Exception as e:
+            logger.error(f"Failed to load rubric configuration: {e}")
+            raise
+
+    def _build_cluster_catalog(self) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, float], Dict[str, Dict[str, float]]]:
+        """Combine questionnaire metadata and rubric rules into canonical cluster catalog."""
+
+        metadata_clusters = (
+            self.questionnaire.get("metadata", {}).get("clusters", [])
+            if isinstance(self.questionnaire.get("metadata"), dict)
+            else []
+        )
+        rubric_meso = self.rubric.get("meso_clusters", {}) if isinstance(self.rubric, dict) else {}
+        rubric_macro_weights = (
+            self.rubric.get("aggregation_levels", {})
+            .get("level_4", {})
+            .get("cluster_weights", {})
+            if isinstance(self.rubric, dict)
+            else {}
+        )
+
+        cluster_catalog: Dict[str, Dict[str, Any]] = {}
+
+        # Prefer questionnaire metadata for cluster definitions, fallback to rubric
+        source_clusters = metadata_clusters or [
+            {
+                "cluster_id": cluster_id,
+                "name": data.get("name", cluster_id),
+                "rationale": data.get("description", ""),
+                "policy_area_ids": data.get("policy_areas", []),
+            }
+            for cluster_id, data in rubric_meso.items()
+        ]
+
+        for cluster_data in source_clusters:
+            cluster_id = cluster_data.get("cluster_id")
+            if not cluster_id:
+                continue
+
+            rubric_entry = rubric_meso.get(cluster_id, {})
+            cluster_catalog[cluster_id] = {
+                "cluster_id": cluster_id,
+                "name": cluster_data.get("name", cluster_id),
+                "description": cluster_data.get("rationale", rubric_entry.get("description", "")),
+                "policy_areas": cluster_data.get("policy_area_ids", rubric_entry.get("policy_areas", [])),
+                "policy_weights": rubric_entry.get("weights", {}),
+                "macro_weight": rubric_macro_weights.get(cluster_id, 0.0),
+                "imbalance_threshold": rubric_entry.get("imbalance_threshold"),
+            }
+
+        if not cluster_catalog:
+            logger.warning("No cluster definitions found; defaulting to empty catalog")
+
+        # Ensure canonical ordering CL01-CL04 if available
+        ordered_catalog = {
+            cluster_id: cluster_catalog[cluster_id]
+            for cluster_id in sorted(cluster_catalog.keys())
+        }
+
+        cluster_weights = {
+            cluster_id: info.get("macro_weight", 0.0)
+            for cluster_id, info in ordered_catalog.items()
+        }
+
+        cluster_policy_weights = {
+            cluster_id: info.get("policy_weights", {})
+            for cluster_id, info in ordered_catalog.items()
+        }
+
+        logger.info(
+            "✓ Loaded cluster catalog: %s",
+            ", ".join(f"{cid}({len(info.get('policy_areas', []))} PAs)" for cid, info in ordered_catalog.items())
+        )
+
+        return ordered_catalog, cluster_weights, cluster_policy_weights
+
+    def _build_causal_thresholds(self) -> Dict[str, float]:
+        """Create dimension-specific causal thresholds for correction logic."""
+
+        defaults = {
+            "default": 0.6,
+            "D2": 0.6,
+            "D3": 0.6,
+            "D4": 0.65,
+            "D5": 0.7,
+            "D6": 0.75,
+        }
+
+        rubric_thresholds = {}
+        if isinstance(self.rubric, dict):
+            rubric_thresholds = self.rubric.get("causal_thresholds", {}) or {}
+
+        defaults.update({k: float(v) for k, v in rubric_thresholds.items() if isinstance(v, (int, float))})
+
+        return defaults
+
+    def _compute_questionnaire_hash(self) -> str:
+        """Compute stable hash of the loaded questionnaire metadata."""
+
+        canonical = json.dumps(self.questionnaire, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def _parse_all_questions(self) -> List[QuestionSpec]:
         """
@@ -226,41 +387,91 @@ class PolicyAnalysisOrchestrator:
         Performs atomic context hydration - loads ALL question metadata before execution
         """
         logger.info("Parsing all questions into structured specs...")
-        
+
         questions = []
-        
-        for q_data in self.questionnaire.get("questions", []):
+
+        question_entries = []
+
+        if "questions" in self.questionnaire:
+            question_entries = self.questionnaire.get("questions", [])
+        elif "preguntas_base" in self.questionnaire:
+            question_entries = self.questionnaire.get("preguntas_base", [])
+
+        for q_data in question_entries:
             try:
                 # Extract P#-D#-Q# components
-                canonical_id = q_data.get("question_unique_id", "")
+                canonical_id = q_data.get("question_unique_id") or q_data.get("id", "")
                 parts = canonical_id.split("-")
-                
-                policy_area = parts[0] if len(parts) > 0 else "P0"
-                dimension = parts[1] if len(parts) > 1 else "D0"
-                question_num = int(parts[2].replace("Q", "")) if len(parts) > 2 else 0
-                
+
+                policy_area = (
+                    q_data.get("policy_area")
+                    or q_data.get("metadata", {}).get("policy_area")
+                    or (parts[0] if len(parts) > 0 else "P0")
+                )
+                dimension = q_data.get("dimension") or (parts[1] if len(parts) > 1 else "D0")
+                question_num = (
+                    q_data.get("question_number")
+                    or q_data.get("numero")
+                    or (int(parts[2].replace("Q", "")) if len(parts) > 2 and parts[2].startswith("Q") else 0)
+                )
+
+                cluster_id = self.policy_area_to_cluster.get(policy_area, "")
+                cluster_name = self.cluster_catalog.get(cluster_id, {}).get("name", cluster_id)
+
+                question_text = q_data.get("question_text") or q_data.get("texto_template", "")
+
+                scoring_modality = (
+                    q_data.get("scoring_modality")
+                    or q_data.get("metadata", {}).get("scoring_modality")
+                    or self.questionnaire.get("scoring_system", {}).get("default_modality")
+                    or "TYPE_F"
+                )
+
+                expected_elements = q_data.get("expected_elements")
+                if expected_elements is None:
+                    patterns = q_data.get("patrones_verificacion", [])
+                    if isinstance(patterns, list):
+                        expected_elements = patterns
+                    else:
+                        expected_elements = []
+
+                search_patterns = q_data.get("search_patterns")
+                if search_patterns is None:
+                    patterns = q_data.get("patrones_verificacion", [])
+                    if isinstance(patterns, list):
+                        search_patterns = {
+                            f"pattern_{idx:03d}": pattern
+                            for idx, pattern in enumerate(patterns)
+                        }
+                    else:
+                        search_patterns = {}
+
                 # Create QuestionSpec
                 spec = QuestionSpec(
                     canonical_id=canonical_id,
                     policy_area=policy_area,
                     dimension=dimension,
                     question_number=question_num,
-                    question_text=q_data.get("question_text", ""),
-                    scoring_modality=q_data.get("scoring_modality", "TYPE_A"),
-                    expected_elements=q_data.get("expected_elements", []),
-                    search_patterns=q_data.get("search_patterns", {}),
+                    question_text=question_text,
+                    scoring_modality=scoring_modality,
+                    cluster_id=cluster_id,
+                    cluster_name=cluster_name,
+                    expected_elements=expected_elements or [],
+                    search_patterns=search_patterns,
                     element_weights=q_data.get("element_weights", {}),
                     numerical_thresholds=q_data.get("numerical_thresholds", {}),
                     validation_rules=q_data.get("validation_rules", {}),
                     metadata={
                         "hints": q_data.get("hints", []),
-                        "point_code": q_data.get("point_code", ""),
-                        "point_title": q_data.get("point_title", "")
+                        "point_code": q_data.get("point_code", q_data.get("metadata", {}).get("original_id", "")),
+                        "point_title": q_data.get("point_title", ""),
+                        "cluster_id": cluster_id,
+                        "cluster_name": cluster_name,
                     }
                 )
-                
+
                 questions.append(spec)
-                
+
             except Exception as e:
                 logger.warning(f"Failed to parse question {q_data.get('question_unique_id', 'UNKNOWN')}: {e}")
                 continue
@@ -271,47 +482,38 @@ class PolicyAnalysisOrchestrator:
     def _define_clusters(self) -> List[ClusterDefinition]:
         """
         Define MESO-level clusters for aggregation
-        
+
         Clusters group related questions across policy areas for mid-level analysis
         """
-        # Define clusters based on policy areas (P1-P10)
-        clusters = []
-        
-        # Cluster by policy area
-        policy_areas_map = defaultdict(list)
-        for q in self.all_questions:
-            policy_areas_map[q.policy_area].append(q.canonical_id)
-        
-        for policy_area, question_ids in policy_areas_map.items():
+        clusters: List[ClusterDefinition] = []
+
+        for cluster_id, info in self.cluster_catalog.items():
+            question_ids = [
+                q.canonical_id
+                for q in self.all_questions
+                if q.cluster_id == cluster_id
+            ]
+
+            dimensions = sorted({
+                q.dimension
+                for q in self.all_questions
+                if q.cluster_id == cluster_id
+            })
+
             cluster = ClusterDefinition(
-                cluster_id=f"CLUSTER_{policy_area}",
-                cluster_name=f"Política {policy_area}",
-                description=f"Cluster para área de política {policy_area}",
-                policy_areas=[policy_area],
-                dimensions=["D1", "D2", "D3", "D4", "D5", "D6"],
-                question_ids=question_ids
+                cluster_id=cluster_id,
+                cluster_name=info.get("name", cluster_id),
+                description=info.get("description", ""),
+                policy_areas=info.get("policy_areas", []),
+                dimensions=dimensions or ["D1", "D2", "D3", "D4", "D5", "D6"],
+                question_ids=question_ids,
+                policy_weights=info.get("policy_weights", {}),
+                macro_weight=info.get("macro_weight", 0.0)
             )
+
             clusters.append(cluster)
-        
-        # Additional cross-cutting clusters
-        # Cluster by dimension (D1-D6)
-        dimension_map = defaultdict(list)
-        for q in self.all_questions:
-            dimension_map[q.dimension].append(q.canonical_id)
-        
-        for dimension, question_ids in dimension_map.items():
-            if len(question_ids) >= 10:  # Only create if sufficient questions
-                cluster = ClusterDefinition(
-                    cluster_id=f"CLUSTER_{dimension}",
-                    cluster_name=f"Dimensión {dimension}",
-                    description=f"Cluster para dimensión {dimension}",
-                    policy_areas=["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10"],
-                    dimensions=[dimension],
-                    question_ids=question_ids
-                )
-                clusters.append(cluster)
-        
-        logger.info(f"✓ Defined {len(clusters)} MESO clusters")
+
+        logger.info(f"✓ Defined {len(clusters)} canonical MESO clusters (expected 4)")
         return clusters
 
     # ========================================================================
@@ -527,7 +729,7 @@ class PolicyAnalysisOrchestrator:
         
         for cluster_def in self.clusters:
             logger.info(f"  Generating cluster: {cluster_def.cluster_id}")
-            
+
             # Get answers for this cluster
             cluster_answers = [
                 micro_results[qid] 
@@ -542,14 +744,17 @@ class PolicyAnalysisOrchestrator:
             # Use ReportAssembler to generate MESO cluster
             meso_cluster = self.report_assembler.generate_meso_cluster(
                 cluster_name=cluster_def.cluster_id,
-                cluster_description=cluster_def.description,
+                cluster_description=cluster_def.description or cluster_def.cluster_name,
                 micro_answers=cluster_answers,
                 cluster_definition={
                     "policy_areas": cluster_def.policy_areas,
-                    "dimensions": cluster_def.dimensions
+                    "dimensions": cluster_def.dimensions,
+                    "total_questions": len(cluster_def.question_ids),
+                    "policy_weights": cluster_def.policy_weights,
+                    "macro_weight": cluster_def.macro_weight
                 }
             )
-            
+
             meso_results[cluster_def.cluster_id] = meso_cluster
             
             logger.info(f"    ✓ Avg score: {meso_cluster.avg_score:.1f}/100, "
