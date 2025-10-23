@@ -53,8 +53,8 @@ from dereck_beach import (
     BayesianMechanismInference, CDAFFramework
 )
 from policy_processor import (
-    IndustrialPolicyProcessor, BayesianEvidenceScorer, 
-    PolicyTextProcessor, ProcessorConfig
+    IndustrialPolicyProcessor, BayesianEvidenceScorer,
+    PolicyTextProcessor, ProcessorConfig, CausalDimension
 )
 from embedding_policy import (
     AdvancedSemanticChunker, BayesianNumericalAnalyzer,
