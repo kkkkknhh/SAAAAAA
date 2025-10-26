@@ -2,164 +2,533 @@
   "metadata": {
     "generated_at": "2025-10-22T14:30:00",
     "strategy": "CHESS_OPTIMIZATION_DOCTORAL_RIGOR",
-    "total_methods": 584,
+    "total_methods": 416,
     "total_questions": 300,
-    "optimization": "Opening-Middle-Endgame combinations for 150-300 word explanations"
+    "optimization": "Opening-Middle-Endgame combinations for 150-300 word explanations",
+    "questionnaire_version": "3.0.0",
+    "inventory_reference": "inventory.json",
+    "total_components": 9,
+    "last_aligned": "2025-10-26"
   },
   "architecture": {
     "producers": [
-      {"file": "financiero_viabilidad_tablas.py", "methods": 65, "evidence": ["financial", "causal_DAG", "PDET"], "dimensions": ["D1","D3","D4","D6"]},
-      {"file": "Analyzer_one.py", "methods": 34, "evidence": ["semantic_cube", "value_chain", "bottlenecks"], "dimensions": ["D1","D2","D3","D4"]},
-      {"file": "contradiction_deteccion.py", "methods": 62, "evidence": ["contradictions", "temporal_conflicts", "coherence"], "dimensions": ["D2","D6"]},
-      {"file": "embedding_policy.py", "methods": 36, "evidence": ["semantic_search", "Bayesian_numerical", "PDQ_mapping"], "dimensions": ["D1","D2","D3","D4","D5","D6"]},
-      {"file": "teoria_cambio.py", "methods": 30, "evidence": ["DAG_validation", "Monte_Carlo", "acyclicity"], "dimensions": ["D6"]},
-      {"file": "dereck_beach.py", "methods": 99, "evidence": ["Beach_tests", "mechanism_inference", "counterfactual"], "dimensions": ["D2","D4","D5","D6"]},
-      {"file": "policy_processor.py", "methods": 32, "evidence": ["pattern_matching", "evidence_scoring"], "dimensions": ["D1","D2","D3","D4","D5","D6"]}
+      {
+        "file": "financiero_viabilidad_tablas.py",
+        "methods": 65,
+        "evidence": [
+          "financial",
+          "causal_DAG",
+          "PDET"
+        ],
+        "dimensions": [
+          "D1",
+          "D3",
+          "D4",
+          "D6"
+        ]
+      },
+      {
+        "file": "Analyzer_one.py",
+        "methods": 34,
+        "evidence": [
+          "semantic_cube",
+          "value_chain",
+          "bottlenecks"
+        ],
+        "dimensions": [
+          "D1",
+          "D2",
+          "D3",
+          "D4"
+        ]
+      },
+      {
+        "file": "contradiction_deteccion.py",
+        "methods": 62,
+        "evidence": [
+          "contradictions",
+          "temporal_conflicts",
+          "coherence"
+        ],
+        "dimensions": [
+          "D2",
+          "D6"
+        ]
+      },
+      {
+        "file": "embedding_policy.py",
+        "methods": 36,
+        "evidence": [
+          "semantic_search",
+          "Bayesian_numerical",
+          "PDQ_mapping"
+        ],
+        "dimensions": [
+          "D1",
+          "D2",
+          "D3",
+          "D4",
+          "D5",
+          "D6"
+        ]
+      },
+      {
+        "file": "teoria_cambio.py",
+        "methods": 30,
+        "evidence": [
+          "DAG_validation",
+          "Monte_Carlo",
+          "acyclicity"
+        ],
+        "dimensions": [
+          "D6"
+        ]
+      },
+      {
+        "file": "dereck_beach.py",
+        "methods": 99,
+        "evidence": [
+          "Beach_tests",
+          "mechanism_inference",
+          "counterfactual"
+        ],
+        "dimensions": [
+          "D2",
+          "D4",
+          "D5",
+          "D6"
+        ]
+      },
+      {
+        "file": "policy_processor.py",
+        "methods": 32,
+        "evidence": [
+          "pattern_matching",
+          "evidence_scoring"
+        ],
+        "dimensions": [
+          "D1",
+          "D2",
+          "D3",
+          "D4",
+          "D5",
+          "D6"
+        ]
+      }
     ],
-    "aggregator": {"file": "report_assembly.py", "methods": 43, "modalities": ["TYPE_A","TYPE_B","TYPE_C","TYPE_D","TYPE_E","TYPE_F"]}
+    "aggregator": {
+      "file": "report_assembly.py",
+      "methods": 43,
+      "modalities": [
+        "TYPE_A",
+        "TYPE_B",
+        "TYPE_C",
+        "TYPE_D",
+        "TYPE_E",
+        "TYPE_F"
+      ]
+    },
+    "pre_processors": [
+      {
+        "file": "semantic_chunking_policy.py",
+        "class": "SemanticProcessor",
+        "methods": 15,
+        "evidence": [
+          "semantic_chunks",
+          "bayesian_dimension_consistency"
+        ],
+        "dimensions": [
+          "D1",
+          "D2",
+          "D3",
+          "D4",
+          "D5",
+          "D6"
+        ]
+      }
+    ]
   },
   "chess_strategy": {
-    "opening": {"phase": "Evidence Collection", "methods": 358, "execution": "parallel", "key": "All 7 producers extract maximum evidence"},
-    "middle_game": {"phase": "Triangulation", "methods": 43, "execution": "sequential", "key": "6 scoring modalities per question"},
-    "endgame": {"phase": "Doctoral Synthesis", "methods": 183, "execution": "aggregation", "key": "150-300 word multi-source explanations"}
+    "opening": {
+      "phase": "Evidence Collection",
+      "methods": 373,
+      "execution": "parallel",
+      "key": "All 7 producers + semantic pre-processor deliver evidence artifacts"
+    },
+    "middle_game": {
+      "phase": "Triangulation",
+      "methods": 43,
+      "execution": "sequential",
+      "key": "ReportAssembler scoring modalities consolidate 6 evidence lanes per question"
+    },
+    "endgame": {
+      "phase": "Doctoral Synthesis",
+      "methods": 0,
+      "execution": "aggregation",
+      "key": "Doctoral synthesis reuses aggregator outputs (no additional method expansion)"
+    }
   },
   "dimension_mappings": {
     "D1_Insumos": {
+      "dimension_id": "DIM01",
+      "legacy_id": "D1",
+      "dimension_label": "Insumos (Diagnóstico y Líneas Base)",
       "questions": 50,
       "Q1_baseline_data": {
-        "chain": ["PDFProcessor.extract_text", "AdvancedSemanticChunker.chunk_document", "IndustrialPolicyProcessor._match_patterns_in_sentences", "BayesianEvidenceScorer.compute_evidence_score", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "PDFProcessor.extract_text",
+          "AdvancedSemanticChunker.chunk_document",
+          "IndustrialPolicyProcessor._match_patterns_in_sentences",
+          "BayesianEvidenceScorer.compute_evidence_score",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q2_gap_quantification": {
-        "chain": ["PolicyContradictionDetector._extract_quantitative_claims", "PolicyContradictionDetector._detect_numerical_inconsistencies", "BayesianNumericalAnalyzer.evaluate_policy_metric", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "PolicyContradictionDetector._extract_quantitative_claims",
+          "PolicyContradictionDetector._detect_numerical_inconsistencies",
+          "BayesianNumericalAnalyzer.evaluate_policy_metric",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q3_budget_traceability": {
-        "chain": ["PDETMunicipalPlanAnalyzer.extract_tables", "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility", "FinancialAuditor.trace_financial_allocation", "ReportAssembler._score_type_e", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_E", "length": "150-300w"
+        "chain": [
+          "PDETMunicipalPlanAnalyzer.extract_tables",
+          "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility",
+          "FinancialAuditor.trace_financial_allocation",
+          "ReportAssembler._score_type_e",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_E",
+        "length": "150-300w"
       },
       "Q4_capacity_assessment": {
-        "chain": ["SemanticAnalyzer.extract_semantic_cube", "PDETMunicipalPlanAnalyzer.identify_responsible_entities", "PerformanceAnalyzer._detect_bottlenecks", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "SemanticAnalyzer.extract_semantic_cube",
+          "PDETMunicipalPlanAnalyzer.identify_responsible_entities",
+          "PerformanceAnalyzer._detect_bottlenecks",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q5_coherence": {
-        "chain": ["PolicyContradictionDetector.detect", "PolicyContradictionDetector._calculate_objective_alignment", "CDAFFramework._validate_dnp_compliance", "ReportAssembler._score_type_c", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_C", "length": "150-300w"
+        "chain": [
+          "PolicyContradictionDetector.detect",
+          "PolicyContradictionDetector._calculate_objective_alignment",
+          "CDAFFramework._validate_dnp_compliance",
+          "ReportAssembler._score_type_c",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_C",
+        "length": "150-300w"
       }
     },
     "D2_Actividades": {
+      "dimension_id": "DIM02",
+      "legacy_id": "D2",
+      "dimension_label": "Actividades (Diseño de Intervención)",
       "questions": 50,
       "Q1_formalization": {
-        "chain": ["PDFProcessor.extract_tables", "PDETMunicipalPlanAnalyzer._classify_tables", "IndustrialPolicyProcessor._match_patterns_in_sentences", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "PDFProcessor.extract_tables",
+          "PDETMunicipalPlanAnalyzer._classify_tables",
+          "IndustrialPolicyProcessor._match_patterns_in_sentences",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q2_specificity": {
-        "chain": ["CausalExtractor.extract_causal_hierarchy", "MechanismPartExtractor.extract_entity_activity", "BayesianMechanismInference.infer_mechanisms", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "CausalExtractor.extract_causal_hierarchy",
+          "MechanismPartExtractor.extract_entity_activity",
+          "BayesianMechanismInference.infer_mechanisms",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       },
       "Q3_root_cause_linkage": {
-        "chain": ["TeoriaCambio.construir_grafo_causal", "TeoriaCambio._validar_orden_causal", "PDETMunicipalPlanAnalyzer.construct_causal_dag", "ReportAssembler._score_type_b", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_B", "length": "150-300w"
+        "chain": [
+          "TeoriaCambio.construir_grafo_causal",
+          "TeoriaCambio._validar_orden_causal",
+          "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+          "ReportAssembler._score_type_b",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_B",
+        "length": "150-300w"
       },
       "Q4_risk_mitigation": {
-        "chain": ["PerformanceAnalyzer._detect_bottlenecks", "OperationalizationAuditor.bayesian_counterfactual_audit", "OperationalizationAuditor._generate_optimal_remediations", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "PerformanceAnalyzer._detect_bottlenecks",
+          "OperationalizationAuditor.bayesian_counterfactual_audit",
+          "OperationalizationAuditor._generate_optimal_remediations",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q5_complementarity": {
-        "chain": ["PolicyContradictionDetector._calculate_global_semantic_coherence", "TeoriaCambio._encontrar_caminos_completos", "ReportAssembler._score_type_c", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_C", "length": "150-300w"
+        "chain": [
+          "PolicyContradictionDetector._calculate_global_semantic_coherence",
+          "TeoriaCambio._encontrar_caminos_completos",
+          "ReportAssembler._score_type_c",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_C",
+        "length": "150-300w"
       }
     },
     "D3_Productos": {
+      "dimension_id": "DIM03",
+      "legacy_id": "D3",
+      "dimension_label": "Productos (Verificables)",
       "questions": 50,
       "Q1_product_specification": {
-        "chain": ["PolicyAnalysisEmbedder.process_document", "IndustrialPolicyProcessor._extract_point_evidence", "BayesianNumericalAnalyzer.evaluate_policy_metric", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "PolicyAnalysisEmbedder.process_document",
+          "IndustrialPolicyProcessor._extract_point_evidence",
+          "BayesianNumericalAnalyzer.evaluate_policy_metric",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q2_indicator_formulas": {
-        "chain": ["PolicyContradictionDetector._extract_quantitative_claims", "IndustrialPolicyProcessor._match_patterns_in_sentences", "BayesianNumericalAnalyzer._classify_evidence_strength", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "PolicyContradictionDetector._extract_quantitative_claims",
+          "IndustrialPolicyProcessor._match_patterns_in_sentences",
+          "BayesianNumericalAnalyzer._classify_evidence_strength",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q3_budget_traceability": {
-        "chain": ["FinancialAuditor.trace_financial_allocation", "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility", "ReportAssembler._score_type_e", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_E", "length": "150-300w"
+        "chain": [
+          "FinancialAuditor.trace_financial_allocation",
+          "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility",
+          "ReportAssembler._score_type_e",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_E",
+        "length": "150-300w"
       },
       "Q4_baseline_target": {
-        "chain": ["PolicyContradictionDetector._extract_quantitative_claims", "BayesianNumericalAnalyzer.evaluate_policy_metric", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "PolicyContradictionDetector._extract_quantitative_claims",
+          "BayesianNumericalAnalyzer.evaluate_policy_metric",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q5_product_result_linkage": {
-        "chain": ["CausalExtractor.extract_causal_hierarchy", "PDETMunicipalPlanAnalyzer.construct_causal_dag", "TeoriaCambio._validar_orden_causal", "ReportAssembler._score_type_b", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_B", "length": "150-300w"
+        "chain": [
+          "CausalExtractor.extract_causal_hierarchy",
+          "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+          "TeoriaCambio._validar_orden_causal",
+          "ReportAssembler._score_type_b",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_B",
+        "length": "150-300w"
       }
     },
     "D4_Resultados": {
+      "dimension_id": "DIM04",
+      "legacy_id": "D4",
+      "dimension_label": "Resultados (Medibles)",
       "questions": 50,
       "Q1_result_metrics": {
-        "chain": ["PolicyAnalysisEmbedder.process_document", "IndustrialPolicyProcessor._extract_point_evidence", "CausalInferenceSetup.classify_goal_dynamics", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "PolicyAnalysisEmbedder.process_document",
+          "IndustrialPolicyProcessor._extract_point_evidence",
+          "CausalInferenceSetup.classify_goal_dynamics",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q2_causal_chain": {
-        "chain": ["PDETMunicipalPlanAnalyzer.construct_causal_dag", "PDETMunicipalPlanAnalyzer.estimate_causal_effects", "BayesianMechanismInference.infer_mechanisms", "BayesianMechanismInference._test_sufficiency", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+          "PDETMunicipalPlanAnalyzer.estimate_causal_effects",
+          "BayesianMechanismInference.infer_mechanisms",
+          "BayesianMechanismInference._test_sufficiency",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       },
       "Q3_measurability": {
-        "chain": ["IndustrialPolicyProcessor._match_patterns_in_sentences", "BayesianNumericalAnalyzer._classify_evidence_strength", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "IndustrialPolicyProcessor._match_patterns_in_sentences",
+          "BayesianNumericalAnalyzer._classify_evidence_strength",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q4_temporal_coherence": {
-        "chain": ["TemporalLogicVerifier.verify_temporal_consistency", "PolicyContradictionDetector._detect_temporal_conflicts", "ReportAssembler._score_type_c", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_C", "length": "150-300w"
+        "chain": [
+          "TemporalLogicVerifier.verify_temporal_consistency",
+          "PolicyContradictionDetector._detect_temporal_conflicts",
+          "ReportAssembler._score_type_c",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_C",
+        "length": "150-300w"
       },
       "Q5_attribution": {
-        "chain": ["PDETMunicipalPlanAnalyzer._identify_confounders", "PDETMunicipalPlanAnalyzer.sensitivity_analysis", "OperationalizationAuditor.bayesian_counterfactual_audit", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "PDETMunicipalPlanAnalyzer._identify_confounders",
+          "PDETMunicipalPlanAnalyzer.sensitivity_analysis",
+          "OperationalizationAuditor.bayesian_counterfactual_audit",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       }
     },
     "D5_Impactos": {
+      "dimension_id": "DIM05",
+      "legacy_id": "D5",
+      "dimension_label": "Impactos (Largo Plazo)",
       "questions": 50,
       "Q1_impact_projection": {
-        "chain": ["CausalInferenceSetup.classify_goal_dynamics", "PolicyAnalysisEmbedder.process_document", "BayesianNumericalAnalyzer.evaluate_policy_metric", "ReportAssembler._score_type_d", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_D", "length": "150-300w"
+        "chain": [
+          "CausalInferenceSetup.classify_goal_dynamics",
+          "PolicyAnalysisEmbedder.process_document",
+          "BayesianNumericalAnalyzer.evaluate_policy_metric",
+          "ReportAssembler._score_type_d",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_D",
+        "length": "150-300w"
       },
       "Q2_transmission_pathways": {
-        "chain": ["CausalExtractor.extract_causal_hierarchy", "BayesianMechanismInference.infer_mechanisms", "PDETMunicipalPlanAnalyzer._find_mediator_mentions", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "CausalExtractor.extract_causal_hierarchy",
+          "BayesianMechanismInference.infer_mechanisms",
+          "PDETMunicipalPlanAnalyzer._find_mediator_mentions",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       },
       "Q3_temporal_lags": {
-        "chain": ["CausalInferenceSetup.classify_goal_dynamics", "TemporalLogicVerifier._parse_temporal_marker", "ReportAssembler._score_type_c", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_C", "length": "150-300w"
+        "chain": [
+          "CausalInferenceSetup.classify_goal_dynamics",
+          "TemporalLogicVerifier._parse_temporal_marker",
+          "ReportAssembler._score_type_c",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_C",
+        "length": "150-300w"
       },
       "Q4_systemic_risk": {
-        "chain": ["OperationalizationAuditor._audit_systemic_risk", "CausalInferenceSetup.identify_failure_points", "ReportAssembler._score_type_a", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_A", "length": "150-300w"
+        "chain": [
+          "OperationalizationAuditor._audit_systemic_risk",
+          "CausalInferenceSetup.identify_failure_points",
+          "ReportAssembler._score_type_a",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_A",
+        "length": "150-300w"
       },
       "Q5_plausibility": {
-        "chain": ["BeachEvidentialTest.classify_test", "BeachEvidentialTest.apply_test_logic", "CausalInferenceSetup.assign_probative_value", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "BeachEvidentialTest.classify_test",
+          "BeachEvidentialTest.apply_test_logic",
+          "CausalInferenceSetup.assign_probative_value",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       }
     },
     "D6_Causalidad": {
+      "dimension_id": "DIM06",
+      "legacy_id": "D6",
+      "dimension_label": "Causalidad (Teoría de Cambio Explícita)",
       "questions": 50,
       "Q1_explicit_ToC": {
-        "chain": ["TeoriaCambio.construir_grafo_causal", "TeoriaCambio.validacion_completa", "CausalExtractor.extract_causal_hierarchy", "PDETMunicipalPlanAnalyzer.construct_causal_dag", "ReportAssembler._score_type_b", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_B", "length": "150-300w"
+        "chain": [
+          "TeoriaCambio.construir_grafo_causal",
+          "TeoriaCambio.validacion_completa",
+          "CausalExtractor.extract_causal_hierarchy",
+          "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+          "ReportAssembler._score_type_b",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_B",
+        "length": "150-300w"
       },
       "Q2_root_causes": {
-        "chain": ["CausalExtractor._extract_goals", "TeoriaCambio._extraer_categorias", "CausalExtractor._calculate_type_transition_prior", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "CausalExtractor._extract_goals",
+          "TeoriaCambio._extraer_categorias",
+          "CausalExtractor._calculate_type_transition_prior",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       },
       "Q3_mediators_moderators": {
-        "chain": ["PDETMunicipalPlanAnalyzer._find_mediator_mentions", "CausalExtractor._extract_causal_links", "BayesianMechanismInference._infer_activity_sequence", "ReportAssembler._score_type_b", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_B", "length": "150-300w"
+        "chain": [
+          "PDETMunicipalPlanAnalyzer._find_mediator_mentions",
+          "CausalExtractor._extract_causal_links",
+          "BayesianMechanismInference._infer_activity_sequence",
+          "ReportAssembler._score_type_b",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_B",
+        "length": "150-300w"
       },
       "Q4_testable_assumptions": {
-        "chain": ["BeachEvidentialTest.classify_test", "OperationalizationAuditor.audit_evidence_traceability", "BayesianMechanismInference._test_necessity", "ReportAssembler._score_type_f", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_F", "length": "150-300w"
+        "chain": [
+          "BeachEvidentialTest.classify_test",
+          "OperationalizationAuditor.audit_evidence_traceability",
+          "BayesianMechanismInference._test_necessity",
+          "ReportAssembler._score_type_f",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_F",
+        "length": "150-300w"
       },
       "Q5_DAG_completeness": {
-        "chain": ["TeoriaCambio._encontrar_caminos_completos", "AdvancedDAGValidator.calculate_acyclicity_pvalue", "PDETMunicipalPlanAnalyzer._break_cycles", "ReportAssembler._score_type_b", "ReportAssembler._generate_explanation"],
-        "modality": "TYPE_B", "length": "150-300w"
+        "chain": [
+          "TeoriaCambio._encontrar_caminos_completos",
+          "AdvancedDAGValidator.calculate_acyclicity_pvalue",
+          "PDETMunicipalPlanAnalyzer._break_cycles",
+          "ReportAssembler._score_type_b",
+          "ReportAssembler._generate_explanation"
+        ],
+        "modality": "TYPE_B",
+        "length": "150-300w"
       }
     }
   },
@@ -200,15 +569,42 @@
     }
   },
   "tactical_combinations": {
-    "TYPE_A_Bayesian": ["BayesianNumericalAnalyzer.evaluate_policy_metric", "BayesianMechanismInference.infer_mechanisms", "BayesianConfidenceCalculator.calculate_posterior", "BayesianEvidenceScorer.compute_evidence_score"],
-    "TYPE_B_DAG": ["TeoriaCambio.construir_grafo_causal", "PDETMunicipalPlanAnalyzer.construct_causal_dag", "AdvancedDAGValidator.calculate_acyclicity_pvalue", "TeoriaCambio.validacion_completa"],
-    "TYPE_C_Coherence": ["PolicyContradictionDetector.detect", "PolicyContradictionDetector._calculate_global_semantic_coherence", "TemporalLogicVerifier.verify_temporal_consistency"],
-    "TYPE_D_Pattern": ["IndustrialPolicyProcessor._match_patterns_in_sentences", "BayesianEvidenceScorer.compute_evidence_score", "PolicyTextProcessor.extract_contextual_window"],
-    "TYPE_E_Financial": ["PDETMunicipalPlanAnalyzer.analyze_financial_feasibility", "FinancialAuditor.trace_financial_allocation", "FinancialAuditor._perform_counterfactual_budget_check"],
-    "TYPE_F_Beach": ["BeachEvidentialTest.classify_test", "BeachEvidentialTest.apply_test_logic", "CausalInferenceSetup.assign_probative_value", "BayesianMechanismInference._test_sufficiency"]
+    "TYPE_A_Bayesian": [
+      "BayesianNumericalAnalyzer.evaluate_policy_metric",
+      "BayesianMechanismInference.infer_mechanisms",
+      "BayesianConfidenceCalculator.calculate_posterior",
+      "BayesianEvidenceScorer.compute_evidence_score"
+    ],
+    "TYPE_B_DAG": [
+      "TeoriaCambio.construir_grafo_causal",
+      "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+      "AdvancedDAGValidator.calculate_acyclicity_pvalue",
+      "TeoriaCambio.validacion_completa"
+    ],
+    "TYPE_C_Coherence": [
+      "PolicyContradictionDetector.detect",
+      "PolicyContradictionDetector._calculate_global_semantic_coherence",
+      "TemporalLogicVerifier.verify_temporal_consistency"
+    ],
+    "TYPE_D_Pattern": [
+      "IndustrialPolicyProcessor._match_patterns_in_sentences",
+      "BayesianEvidenceScorer.compute_evidence_score",
+      "PolicyTextProcessor.extract_contextual_window"
+    ],
+    "TYPE_E_Financial": [
+      "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility",
+      "FinancialAuditor.trace_financial_allocation",
+      "FinancialAuditor._perform_counterfactual_budget_check"
+    ],
+    "TYPE_F_Beach": [
+      "BeachEvidentialTest.classify_test",
+      "BeachEvidentialTest.apply_test_logic",
+      "CausalInferenceSetup.assign_probative_value",
+      "BayesianMechanismInference._test_sufficiency"
+    ]
   },
   "quality_assurance": {
-    "NO_MOCKS": "All 584 methods are real implementations",
+    "NO_MOCKS": "All 416 methods are real implementations",
     "NO_PLACEHOLDERS": "All scoring uses actual Bayesian/evidential logic",
     "EXHAUSTIVE": "All 300 questions receive 150-300 word doctoral explanations",
     "MULTI_SOURCE": "Each answer triangulates 3-5 producer outputs",

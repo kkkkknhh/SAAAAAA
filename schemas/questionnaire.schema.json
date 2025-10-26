@@ -23,15 +23,23 @@
     },
     "i18nLabel": {
       "type": "object",
-      "required": ["default", "keys"],
+      "required": [
+        "default",
+        "keys"
+      ],
       "properties": {
         "default": {
           "type": "string",
-          "enum": ["es"]
+          "enum": [
+            "es"
+          ]
         },
         "keys": {
           "type": "object",
-          "required": ["label_es", "label_en"],
+          "required": [
+            "label_es",
+            "label_en"
+          ],
           "properties": {
             "label_es": {
               "type": "string",
@@ -82,7 +90,9 @@
       "properties": {
         "default_language": {
           "type": "string",
-          "enum": ["es"]
+          "enum": [
+            "es"
+          ]
         },
         "description": {
           "type": "string",
@@ -97,7 +107,13 @@
           "maxItems": 4,
           "items": {
             "type": "object",
-            "required": ["cluster_id", "i18n", "policy_area_ids", "legacy_policy_area_ids", "rationale"],
+            "required": [
+              "cluster_id",
+              "i18n",
+              "policy_area_ids",
+              "legacy_policy_area_ids",
+              "rationale"
+            ],
             "additionalProperties": false,
             "properties": {
               "cluster_id": {
@@ -136,7 +152,12 @@
           "maxItems": 6,
           "items": {
             "type": "object",
-            "required": ["dimension_id", "legacy_id", "i18n", "description"],
+            "required": [
+              "dimension_id",
+              "legacy_id",
+              "i18n",
+              "description"
+            ],
             "additionalProperties": false,
             "properties": {
               "dimension_id": {
@@ -213,7 +234,13 @@
           "minItems": 3,
           "items": {
             "type": "object",
-            "required": ["key", "type", "format", "auth_level", "description"],
+            "required": [
+              "key",
+              "type",
+              "format",
+              "auth_level",
+              "description"
+            ],
             "additionalProperties": false,
             "properties": {
               "key": {
@@ -221,15 +248,26 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["primary", "secondary"]
+                "enum": [
+                  "primary",
+                  "secondary"
+                ]
               },
               "format": {
                 "type": "string",
-                "enum": ["table", "stat", "narrative", "map"]
+                "enum": [
+                  "table",
+                  "stat",
+                  "narrative",
+                  "map"
+                ]
               },
               "auth_level": {
                 "type": "string",
-                "enum": ["official", "third_party"]
+                "enum": [
+                  "official",
+                  "third_party"
+                ]
               },
               "description": {
                 "type": "string",
@@ -243,7 +281,11 @@
     },
     "provenance": {
       "type": "object",
-      "required": ["author", "tool", "edited_at"],
+      "required": [
+        "author",
+        "tool",
+        "edited_at"
+      ],
       "additionalProperties": false,
       "properties": {
         "author": {
@@ -265,7 +307,11 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["version", "summary", "reason"],
+        "required": [
+          "version",
+          "summary",
+          "reason"
+        ],
         "additionalProperties": false,
         "properties": {
           "version": {
@@ -329,7 +375,11 @@
           },
           "order": {
             "type": "object",
-            "required": ["global", "within_policy_area", "within_policy_area_dimension"],
+            "required": [
+              "global",
+              "within_policy_area",
+              "within_policy_area_dimension"
+            ],
             "additionalProperties": false,
             "properties": {
               "global": {
@@ -358,7 +408,14 @@
           },
           "scoring_modality": {
             "type": "string",
-            "enum": ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"]
+            "enum": [
+              "TYPE_A",
+              "TYPE_B",
+              "TYPE_C",
+              "TYPE_D",
+              "TYPE_E",
+              "TYPE_F"
+            ]
           },
           "required_evidence_keys": {
             "$ref": "#/$defs/evidenceKeyArray"
@@ -367,12 +424,17 @@
             "type": "object",
             "minProperties": 1,
             "additionalProperties": {
-              "type": ["boolean", "number"]
+              "type": [
+                "boolean",
+                "number"
+              ]
             }
           },
           "search_patterns": {
             "type": "object",
-            "required": ["regex"],
+            "required": [
+              "regex"
+            ],
             "additionalProperties": false,
             "properties": {
               "regex": {
@@ -391,7 +453,10 @@
             "patternProperties": {
               "^[a-z_]+$": {
                 "type": "object",
-                "required": ["min_score", "criteria"],
+                "required": [
+                  "min_score",
+                  "criteria"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "min_score": {
@@ -410,10 +475,7 @@
           },
           "validation_checks": {
             "type": "object",
-            "anyOf": [
-              {"maxProperties": 0},
-              {"minProperties": 1}
-            ],
+            "minProperties": 0,
             "patternProperties": {
               "^.+$": {
                 "type": "object",
