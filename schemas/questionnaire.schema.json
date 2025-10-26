@@ -410,7 +410,10 @@
           },
           "validation_checks": {
             "type": "object",
-            "minProperties": 1,
+            "anyOf": [
+              {"maxProperties": 0},
+              {"minProperties": 1}
+            ],
             "patternProperties": {
               "^.+$": {
                 "type": "object",

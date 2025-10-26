@@ -4,11 +4,10 @@
   "title": "RubricScoring",
   "description": "Scoring rubrics with weights for Q→PA→CL aggregation",
   "type": "object",
-  "required": ["metadata", "scoring_modalities", "aggregation_rules"],
+  "required": ["scoring_modalities"],
   "properties": {
     "metadata": {
       "type": "object",
-      "required": ["version", "compatible_questionnaire_version"],
       "properties": {
         "version": {
           "type": "string",
@@ -20,6 +19,16 @@
           "description": "Compatible questionnaire.json version"
         }
       }
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Alias for metadata.version in legacy payloads"
+    },
+    "requires_questionnaire_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Alias for metadata.compatible_questionnaire_version"
     },
     "scoring_modalities": {
       "type": "object",
@@ -48,6 +57,80 @@
       }
     },
     "aggregation_rules": {
+      "type": "object",
+      "required": ["question_to_policy_area", "policy_area_to_cluster", "cluster_to_macro"],
+      "properties": {
+        "question_to_policy_area": {
+          "type": "object",
+          "description": "Aggregation weights Q→PA by policy area",
+          "patternProperties": {
+            "^PA(0[1-9]|10)$": {
+              "type": "object",
+              "required": ["method", "weights"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["weighted_average", "simple_average", "bayesian"]
+                },
+                "weights": {
+                  "type": "object",
+                  "description": "Weights by dimension",
+                  "patternProperties": {
+                    "^DIM0[1-6]$": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "policy_area_to_cluster": {
+          "type": "object",
+          "description": "Aggregation weights PA→CL by cluster",
+          "patternProperties": {
+            "^CL0[1-4]$": {
+              "type": "object",
+              "required": ["method", "weights"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["weighted_average", "simple_average", "bayesian"]
+                },
+                "weights": {
+                  "type": "object",
+                  "description": "Weights by policy area",
+                  "patternProperties": {
+                    "^PA(0[1-9]|10)$": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                },
+                "imbalance_threshold": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Threshold τ for high imbalance detection (max-min)"
+                }
+              }
+            }
+          }
+        },
+        "cluster_to_macro": {
+          "type": "object",
+          "required": ["method", "weights"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["weighted_average", "simple_average", "bayesian"]
+            },
+            "weights": {
+              "type": "object",
+              "description": "Weights by cluster",
+              "patternProperties": {
+                "^CL0[1-4]$": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "aggregation": {
       "type": "object",
       "required": ["question_to_policy_area", "policy_area_to_cluster", "cluster_to_macro"],
       "properties": {
@@ -164,5 +247,78 @@
       }
     }
   },
+  "anyOf": [
+    {
+      "description": "Legacy v1 layout with version info nested under metadata and aggregation_rules",
+      "required": ["metadata", "scoring_modalities", "aggregation_rules"],
+      "properties": {
+        "metadata": {
+          "required": ["version", "compatible_questionnaire_version"]
+        }
+      }
+    },
+    {
+      "description": "Aliased structure exposing top-level versioning and aggregation block",
+      "required": ["version", "requires_questionnaire_version", "scoring_modalities", "aggregation"]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": ["metadata", "version"],
+        "properties": {
+          "metadata": {
+            "required": ["version"],
+            "properties": {
+              "version": {"type": "string"}
+            }
+          },
+          "version": {"type": "string"}
+        }
+      },
+      "then": {
+        "properties": {
+          "metadata": {
+            "properties": {
+              "version": {"constRef": "/version"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["metadata", "requires_questionnaire_version"],
+        "properties": {
+          "metadata": {
+            "required": ["compatible_questionnaire_version"],
+            "properties": {
+              "compatible_questionnaire_version": {"type": "string"}
+            }
+          },
+          "requires_questionnaire_version": {"type": "string"}
+        }
+      },
+      "then": {
+        "properties": {
+          "metadata": {
+            "properties": {
+              "compatible_questionnaire_version": {"constRef": "/requires_questionnaire_version"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["aggregation", "aggregation_rules"]
+      },
+      "then": {
+        "properties": {
+          "aggregation_rules": {"constRef": "/aggregation"}
+        }
+      }
+    }
+  ],
   "additionalProperties": false
 }
