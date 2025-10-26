@@ -1,405 +1,422 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Schema Validator - JSON Schema Validation for Canonical Configuration
-=====================================================================
+"""Data contract validator for questionnaire and rubric configurations."""
 
-Validates questionnaire.json and rubric_scoring.json against their schemas
-at orchestrator startup and before each run.
+from __future__ import annotations
 
-Validation Rules:
-- All PAxx referenced by CLxx must exist
-- Every Qxxx maps to exactly one PAxx and one DIMxx
-- 100% question coverage by PAxx
-- No orphaned PAxx
-- Version compatibility between files
-
-Author: Integration Team
-Version: 2.0.0
-Python: 3.10+
-"""
-
+import hashlib
 import json
-import logging
-from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 try:
     import jsonschema
-    from jsonschema import validate, ValidationError
-except ImportError:
+    from jsonschema import ValidationError  # noqa: F401
+    from jsonschema.validators import extend, validator_for
+except ImportError:  # pragma: no cover - jsonschema shipped with repo tooling
     jsonschema = None
-    ValidationError = Exception
+    extend = None
+    validator_for = None
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+
+ROOT = Path(__file__).resolve().parent
+REPO_ROOT = ROOT
+
+QUESTIONNAIRE_PATH = REPO_ROOT / "questionnaire.json"
+RUBRIC_PATH = REPO_ROOT / "rubric_scoring.json"
+CHECKSUM_PATH = REPO_ROOT / "config" / "metadata_checksums.json"
+QUESTIONNAIRE_SCHEMA = REPO_ROOT / "schemas" / "questionnaire.schema.json"
+RUBRIC_SCHEMA = REPO_ROOT / "schemas" / "rubric_scoring.schema.json"
+
+FLOAT_TOLERANCE = 1e-6
 
 
 @dataclass
 class SchemaValidationReport:
-    """Report of schema validation with detailed errors."""
-    is_valid: bool
+    """Structured validation report."""
+
+    is_valid: bool = True
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    def add_error(self, error: str):
-        """Add validation error."""
-        self.errors.append(error)
+
+    def add_error(self, message: str) -> None:
+        self.errors.append(message)
         self.is_valid = False
-    
-    def add_warning(self, warning: str):
-        """Add validation warning."""
-        self.warnings.append(warning)
-    
-    def summary(self) -> str:
-        """Generate validation summary."""
-        if self.is_valid:
-            status = "✓ PASSED"
+
+    def add_warning(self, message: str) -> None:
+        self.warnings.append(message)
+
+
+def _resolve_json_pointer(instance: Any, pointer: str) -> Any:
+    if pointer == "" or pointer == "/":
+        return instance
+
+    if not pointer.startswith("/"):
+        raise ValueError(f"JSON pointer must start with '/' (got {pointer!r})")
+
+    parts = pointer.lstrip("/").split("/")
+    current = instance
+    for part in parts:
+        token = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, list):
+            index = int(token)
+            current = current[index]
+        elif isinstance(current, dict):
+            current = current[token]
         else:
-            status = "✗ FAILED"
-        
-        return (f"Schema Validation {status}: "
-                f"{len(self.errors)} errors, {len(self.warnings)} warnings")
+            raise KeyError(token)
+    return current
+
+
+def _const_ref_validator(validator, const_ref_value, instance, schema):
+    if const_ref_value is None:
+        return
+
+    pointer = str(const_ref_value)
+    root = getattr(validator, "root_instance", None)
+    if root is None:
+        return
+
+    try:
+        target = _resolve_json_pointer(root, pointer)
+    except (KeyError, IndexError, ValueError):
+        return
+
+    if instance != target:
+        yield jsonschema.ValidationError(
+            f"Value {instance!r} must match data at pointer '{pointer}', observed {target!r}"
+        )
 
 
 class SchemaValidator:
-    """
-    Validates questionnaire.json and rubric_scoring.json against schemas.
-    
-    Enforces:
-    - JSON Schema compliance
-    - Referential integrity (PAxx, DIMxx, Qxxx)
-    - Coverage completeness
-    - Version compatibility
-    """
-    
-    def __init__(
-        self,
-        questionnaire_schema_path: str = "schemas/questionnaire.schema.json",
-        rubric_schema_path: str = "schemas/rubric_scoring.schema.json"
-    ):
-        """
-        Initialize schema validator.
-        
-        Args:
-            questionnaire_schema_path: Path to questionnaire schema
-            rubric_schema_path: Path to rubric scoring schema
-        """
-        self.questionnaire_schema = self._load_schema(questionnaire_schema_path)
-        self.rubric_schema = self._load_schema(rubric_schema_path)
-        
-        logger.info("SchemaValidator initialized")
-    
-    def _load_schema(self, path: str) -> Optional[Dict[str, Any]]:
-        """Load JSON schema from file."""
+    """Validate questionnaire and rubric data contracts."""
+
+    def __init__(self) -> None:
+        self.questionnaire_schema = self._load_schema(QUESTIONNAIRE_SCHEMA)
+        self.rubric_schema = self._load_schema(RUBRIC_SCHEMA)
+
+    @staticmethod
+    def _load_schema(path: Path) -> Optional[Dict[str, Any]]:
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                schema = json.load(f)
-            logger.info(f"✓ Loaded schema: {path}")
-            return schema
+            with path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
         except FileNotFoundError:
-            logger.error(f"Schema file not found: {path}")
             return None
-        except Exception as e:
-            logger.error(f"Failed to load schema {path}: {e}")
+
+    @staticmethod
+    def _canonical_hash(payload: Mapping[str, Any]) -> str:
+        clone = json.loads(json.dumps(payload, ensure_ascii=False))
+        clone = dict(clone)
+        clone.pop("content_hash", None)
+        canonical = json.dumps(clone, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def _validate_with_schema(
+        self,
+        payload: Mapping[str, Any],
+        schema: Optional[Mapping[str, Any]],
+        report: SchemaValidationReport,
+        name: str,
+    ) -> None:
+        if not schema:
+            report.add_warning(f"jsonschema missing - skipped schema validation for {name}")
+            return
+        if not jsonschema or not extend or not validator_for:
+            report.add_warning(f"jsonschema missing - skipped schema validation for {name}")
+            return
+
+        try:
+            base_cls = validator_for(schema)
+            validator_cls = extend(base_cls, {"constRef": _const_ref_validator})
+            validator = validator_cls(schema)
+            validator.validate(instance=payload)
+        except jsonschema.ValidationError as exc:  # pragma: no cover
+            report.add_error(f"{name} schema violation: {exc.message}")
+        except jsonschema.SchemaError as exc:  # pragma: no cover
+            report.add_error(f"{name} schema invalid: {exc.message}")
+    def _load_payload(self, path: Path, report: SchemaValidationReport) -> Optional[Dict[str, Any]]:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except Exception as exc:
+            report.add_error(f"Unable to read {path.name}: {exc}")
             return None
-    
-    def validate_questionnaire(
-        self,
-        questionnaire_path: str
-    ) -> SchemaValidationReport:
-        """
-        Validate questionnaire.json against schema and business rules.
-        
-        Args:
-            questionnaire_path: Path to questionnaire.json
-            
-        Returns:
-            SchemaValidationReport with validation results
-        """
-        report = SchemaValidationReport(is_valid=True)
-        
-        logger.info("=" * 80)
-        logger.info("VALIDATING QUESTIONNAIRE.JSON")
-        logger.info("=" * 80)
-        
-        # Load questionnaire
-        try:
-            with open(questionnaire_path, 'r', encoding='utf-8') as f:
-                questionnaire = json.load(f)
-        except Exception as e:
-            report.add_error(f"Failed to load questionnaire: {e}")
-            return report
-        
-        # 1. JSON Schema validation
-        if jsonschema and self.questionnaire_schema:
-            try:
-                from jsonschema import validate as json_validate
-                json_validate(instance=questionnaire, schema=self.questionnaire_schema)
-                logger.info("✓ JSON Schema validation passed")
-            except Exception as e:
-                error_msg = str(e) if not hasattr(e, 'message') else e.message  # type: ignore
-                report.add_error(f"Schema validation failed: {error_msg}")
-                logger.error(f"✗ Schema validation failed: {error_msg}")
-        else:
-            report.add_warning("jsonschema not available, skipping schema validation")
-        
-        # 2. Extract metadata
-        metadata = questionnaire.get("metadata", {})
-        clusters = metadata.get("clusters", [])
-        # Handle both array (new) and number (legacy) formats
-        policy_areas_raw = metadata.get("policy_areas", [])
-        if isinstance(policy_areas_raw, int):
-            # Legacy format: policy_areas is count, get from puntos_decalogo
-            policy_areas_raw = list(questionnaire.get("puntos_decalogo", {}).keys())
-        dimensions_raw = metadata.get("dimensions", [])
-        if isinstance(dimensions_raw, int):
-            # Legacy format: dimensions is count, get from dimensiones
-            dimensions_raw = list(questionnaire.get("dimensiones", {}).keys())
-        
-        questions = questionnaire.get("questions", [])
-        if not questions:
-            # Try preguntas_base
-            questions = questionnaire.get("preguntas_base", [])
-        
-        report.metadata["version"] = metadata.get("version", "UNKNOWN")
-        report.metadata["cluster_count"] = len(clusters)
-        report.metadata["policy_area_count"] = len(policy_areas_raw)
-        report.metadata["dimension_count"] = len(dimensions_raw)
-        report.metadata["question_count"] = len(questions)
-        
-        # 3. Validate cluster count (must be exactly 4)
-        if len(clusters) != 4:
-            report.add_error(f"Must have exactly 4 clusters, found {len(clusters)}")
-        else:
-            logger.info(f"✓ Cluster count: {len(clusters)}")
-        
-        # 4. Validate policy area count (must be exactly 10)
-        if len(policy_areas_raw) != 10:
-            report.add_error(f"Must have exactly 10 policy areas, found {len(policy_areas_raw)}")
-        else:
-            logger.info(f"✓ Policy area count: {len(policy_areas_raw)}")
-        
-        # 5. Validate dimension count (must be exactly 6)
-        if len(dimensions_raw) != 6:
-            report.add_error(f"Must have exactly 6 dimensions, found {len(dimensions_raw)}")
-        else:
-            logger.info(f"✓ Dimension count: {len(dimensions_raw)}")
-        
-        # 6. Check all PAxx/P# referenced by CLxx exist
-        # Handle legacy P# format
-        pa_ids_set = set(policy_areas_raw) if isinstance(policy_areas_raw, list) else set()
-        
-        for cluster in clusters:
-            cluster_id = cluster.get("cluster_id")
-            referenced_pas = cluster.get("policy_area_ids", []) or cluster.get("legacy_point_ids", [])
-            
-            for pa_id in referenced_pas:
-                if pa_id not in pa_ids_set:
-                    # Allow if it's a reference we can't validate yet (metadata-only format)
-                    if not pa_ids_set:
-                        continue
-                    report.add_error(
-                        f"Cluster {cluster_id} references non-existent PA: {pa_id}"
-                    )
-        
-        if not report.errors:
-            logger.info(f"✓ All cluster references valid")
-        
-        # 7. Check questions (skip if using legacy format)
-        if questions and isinstance(policy_areas_raw, list):
-            dim_ids_set = set(dimensions_raw) if isinstance(dimensions_raw, list) else set()
-            
-            for question in questions:
-                q_id = question.get("question_id") or question.get("id", "UNKNOWN")
-                pa_id = question.get("policy_area_id")
-                dim_id = question.get("dimension_id") or question.get("dimension")
-                
-                if pa_id and pa_id not in pa_ids_set:
-                    report.add_error(f"Question {q_id} references non-existent PA: {pa_id}")
-                
-                if dim_id and dim_id not in dim_ids_set:
-                    report.add_error(f"Question {q_id} references non-existent DIM: {dim_id}")
-            
-            if not report.errors:
-                logger.info(f"✓ All question references valid")
-        else:
-            logger.info(f"  Skipping question validation (legacy format)")
-        
-        # 8. Check 100% coverage: all PAxx have at least one question (skip if legacy format)
-        if questions and isinstance(policy_areas_raw, list):
-            questions_by_pa = {pa_id: 0 for pa_id in pa_ids_set}
-            
-            for question in questions:
-                pa_id = question.get("policy_area_id")
-                if pa_id in questions_by_pa:
-                    questions_by_pa[pa_id] += 1
-            
-            orphaned_pas = [pa_id for pa_id, count in questions_by_pa.items() if count == 0]
-            
-            if orphaned_pas:
-                report.add_error(f"Orphaned policy areas (no questions): {orphaned_pas}")
-            else:
-                logger.info(f"✓ 100% policy area coverage")
-            
-            # 9. Report statistics
-            logger.info(f"  Questions per PA: {dict(questions_by_pa)}")
-        else:
-            logger.info(f"  Skipping coverage check (legacy format)")
-        
-        logger.info("=" * 80)
-        logger.info(report.summary())
-        logger.info("=" * 80)
-        
-        return report
-    
-    def validate_rubric_scoring(
-        self,
-        rubric_path: str,
-        questionnaire_data: Optional[Dict[str, Any]] = None
-    ) -> SchemaValidationReport:
-        """
-        Validate rubric_scoring.json against schema.
-        
-        Args:
-            rubric_path: Path to rubric_scoring.json
-            questionnaire_data: Optional questionnaire data for cross-validation
-            
-        Returns:
-            SchemaValidationReport with validation results
-        """
-        report = SchemaValidationReport(is_valid=True)
-        
-        logger.info("=" * 80)
-        logger.info("VALIDATING RUBRIC_SCORING.JSON")
-        logger.info("=" * 80)
-        
-        # Load rubric
-        try:
-            with open(rubric_path, 'r', encoding='utf-8') as f:
-                rubric = json.load(f)
-        except Exception as e:
-            report.add_error(f"Failed to load rubric: {e}")
-            return report
-        
-        # 1. JSON Schema validation
-        if jsonschema and self.rubric_schema:
-            try:
-                from jsonschema import validate as json_validate
-                json_validate(instance=rubric, schema=self.rubric_schema)
-                logger.info("✓ JSON Schema validation passed")
-            except Exception as e:
-                error_msg = str(e) if not hasattr(e, 'message') else e.message  # type: ignore
-                report.add_error(f"Schema validation failed: {error_msg}")
-                logger.error(f"✗ Schema validation failed: {error_msg}")
-        else:
-            report.add_warning("jsonschema not available, skipping schema validation")
-        
-        # 2. Check version compatibility
-        rubric_version = rubric.get("metadata", {}).get("version", "UNKNOWN")
-        compatible_version = rubric.get("metadata", {}).get("compatible_questionnaire_version", "UNKNOWN")
-        
-        report.metadata["version"] = rubric_version
-        report.metadata["compatible_questionnaire_version"] = compatible_version
-        
-        logger.info(f"  Rubric version: {rubric_version}")
-        logger.info(f"  Compatible with questionnaire: {compatible_version}")
-        
-        # 3. Cross-validate with questionnaire if provided
-        if questionnaire_data:
-            metadata = questionnaire_data.get("metadata", {})
-            q_version = metadata.get("version", "UNKNOWN")
-            
-            if q_version != compatible_version:
-                report.add_warning(
-                    f"Version mismatch: questionnaire {q_version} vs "
-                    f"rubric expects {compatible_version}"
+
+    def validate_questionnaire(self, path: Path = QUESTIONNAIRE_PATH) -> Tuple[SchemaValidationReport, Optional[Dict[str, Any]]]:
+        report = SchemaValidationReport()
+        payload = self._load_payload(path, report)
+        if not payload:
+            return report, None
+
+        self._validate_with_schema(payload, self.questionnaire_schema, report, "questionnaire.json")
+
+        expected_hash = payload.get("content_hash")
+        actual_hash = self._canonical_hash(payload)
+        if expected_hash != actual_hash:
+            report.add_error(
+                f"questionnaire.json content_hash mismatch (expected {expected_hash}, computed {actual_hash})"
+            )
+
+        metadata = payload.get("metadata", {})
+        sources = {item["key"] for item in metadata.get("sources_of_verification", [])}
+        if len(sources) != len(metadata.get("sources_of_verification", [])):
+            report.add_error("Duplicate keys in sources_of_verification")
+
+        policy_areas = metadata.get("policy_areas", [])
+        if len(policy_areas) != 10:
+            report.add_error(f"Expected 10 policy areas, found {len(policy_areas)}")
+        policy_area_ids = {pa["policy_area_id"] for pa in policy_areas if "policy_area_id" in pa}
+        if len(policy_area_ids) != len(policy_areas):
+            report.add_error("Duplicated policy_area_id detected")
+
+        dimensions = metadata.get("dimensions", [])
+        if len(dimensions) != 6:
+            report.add_error(f"Expected 6 dimensions, found {len(dimensions)}")
+        dimension_ids = {dim["dimension_id"] for dim in dimensions if "dimension_id" in dim}
+
+        cluster_map: Dict[str, str] = {}
+        for cluster in metadata.get("clusters", []):
+            for pa_id in cluster.get("policy_area_ids", []):
+                cluster_map[pa_id] = cluster["cluster_id"]
+
+        questions = payload.get("questions", [])
+        if len(questions) != 300:
+            report.add_error(f"Expected 300 questions, found {len(questions)}")
+
+        question_ids = set()
+        for question in questions:
+            qid = question.get("question_id")
+            if qid in question_ids:
+                report.add_error(f"Duplicated question_id {qid}")
+            question_ids.add(qid)
+
+            pa_id = question.get("policy_area_id")
+            if pa_id not in policy_area_ids:
+                report.add_error(f"Question {qid} references unknown policy_area_id {pa_id}")
+
+            dim_id = question.get("dimension_id")
+            if dim_id not in dimension_ids:
+                report.add_error(f"Question {qid} references unknown dimension_id {dim_id}")
+
+            expected_cluster = cluster_map.get(pa_id)
+            if expected_cluster and question.get("cluster_id") != expected_cluster:
+                report.add_error(
+                    f"Question {qid} cluster mismatch: expected {expected_cluster} from policy area {pa_id}"
                 )
-        
-        logger.info("=" * 80)
-        logger.info(report.summary())
-        logger.info("=" * 80)
-        
-        return report
-    
-    def validate_all(
+
+            missing_keys = set(question.get("required_evidence_keys", [])) - sources
+            if missing_keys:
+                report.add_error(f"Question {qid} references unknown evidence keys {sorted(missing_keys)}")
+
+        return report, payload
+
+    def validate_rubric(
         self,
-        questionnaire_path: str,
-        rubric_path: str
-    ) -> Tuple[SchemaValidationReport, SchemaValidationReport]:
-        """
-        Validate both questionnaire and rubric with cross-validation.
-        
-        Args:
-            questionnaire_path: Path to questionnaire.json
-            rubric_path: Path to rubric_scoring.json
-            
-        Returns:
-            Tuple of (questionnaire_report, rubric_report)
-        """
-        logger.info("\n" + "=" * 80)
-        logger.info("COMPREHENSIVE SCHEMA VALIDATION")
-        logger.info("=" * 80)
-        
-        # Validate questionnaire
-        q_report = self.validate_questionnaire(questionnaire_path)
-        
-        # Load questionnaire for cross-validation
-        questionnaire_data = None
-        if q_report.is_valid:
-            try:
-                with open(questionnaire_path, 'r', encoding='utf-8') as f:
-                    questionnaire_data = json.load(f)
-            except:
-                pass
-        
-        # Validate rubric
-        r_report = self.validate_rubric_scoring(rubric_path, questionnaire_data)
-        
-        # Overall summary
-        logger.info("\n" + "=" * 80)
-        logger.info("VALIDATION SUMMARY")
-        logger.info("=" * 80)
-        logger.info(f"Questionnaire: {q_report.summary()}")
-        logger.info(f"Rubric: {r_report.summary()}")
-        
-        overall_valid = q_report.is_valid and r_report.is_valid
-        logger.info(f"\nOverall Status: {'✓ ALL VALID' if overall_valid else '✗ ERRORS FOUND'}")
-        logger.info("=" * 80)
-        
-        return q_report, r_report
+        questionnaire_payload: Optional[Dict[str, Any]],
+        path: Path = RUBRIC_PATH,
+    ) -> SchemaValidationReport:
+        report = SchemaValidationReport()
+        payload = self._load_payload(path, report)
+        if not payload:
+            return report
+
+        self._validate_with_schema(payload, self.rubric_schema, report, "rubric_scoring.json")
+
+        expected_hash = payload.get("content_hash")
+        actual_hash = self._canonical_hash(payload)
+        if expected_hash != actual_hash:
+            report.add_error(
+                f"rubric_scoring.json content_hash mismatch (expected {expected_hash}, computed {actual_hash})"
+            )
+
+        metadata = payload.get("metadata", {})
+        if payload.get("version") and metadata.get("version") and payload["version"] != metadata["version"]:
+            report.add_error(
+                "Rubric metadata.version must match top-level version when both are present"
+            )
+
+        if (
+            payload.get("requires_questionnaire_version")
+            and metadata.get("compatible_questionnaire_version")
+            and payload["requires_questionnaire_version"] != metadata["compatible_questionnaire_version"]
+        ):
+            report.add_error(
+                "Rubric metadata.compatible_questionnaire_version must match requires_questionnaire_version"
+            )
+
+        if (
+            payload.get("aggregation") is not None
+            and payload.get("aggregation_rules") is not None
+            and payload["aggregation"] != payload["aggregation_rules"]
+        ):
+            report.add_error("Rubric aggregation and aggregation_rules must be equivalent when both are provided")
+
+        if questionnaire_payload:
+            q_version = questionnaire_payload.get("version")
+            requires_version = payload.get("requires_questionnaire_version") or metadata.get(
+                "compatible_questionnaire_version"
+            )
+            if q_version != requires_version:
+                report.add_error(
+                    f"Version compatibility mismatch: questionnaire {q_version} vs rubric requires {requires_version}"
+                )
+
+        # Weight validations
+        aggregation = payload.get("aggregation") or payload.get("aggregation_rules", {})
+        scoring_modalities = payload.get("scoring_modalities", {})
+        if "TYPE_F" in scoring_modalities and "determinism" not in scoring_modalities["TYPE_F"]:
+            report.add_error("TYPE_F modality must declare determinism metadata")
+        self._validate_weight_matrix(aggregation.get("dimension_question_weights", {}), "dimension", report)
+        self._validate_weight_matrix(aggregation.get("policy_area_dimension_weights", {}), "policy_area", report)
+        self._validate_weight_matrix(aggregation.get("cluster_policy_area_weights", {}), "cluster", report)
+        macro_weights = aggregation.get("macro_cluster_weights", {})
+        if not self._weights_sum_to_one(macro_weights):
+            report.add_error("macro_cluster_weights must sum to 1.0")
+
+        rubric_matrix = payload.get("rubric_matrix", {})
+        required_keys = payload.get("required_evidence_keys", {})
+
+        if questionnaire_payload:
+            questions = questionnaire_payload.get("questions", [])
+            for question in questions:
+                pa_id = question.get("policy_area_id")
+                dim_id = question.get("dimension_id")
+                qid = question.get("question_id")
+                modality = question.get("scoring_modality")
+                matrix_entry = rubric_matrix.get(pa_id, {}).get(dim_id)
+                if not matrix_entry:
+                    report.add_error(f"Rubric matrix missing entry for {pa_id}/{dim_id}")
+                    continue
+                if modality not in matrix_entry.get("allowed_modalities", []):
+                    report.add_error(
+                        f"Question {qid} modality {modality} not allowed by rubric matrix for {pa_id}/{dim_id}"
+                    )
+                matrix_keys = set(matrix_entry.get("required_evidence_keys", []))
+                question_keys = set(question.get("required_evidence_keys", []))
+                if not question_keys.issubset(matrix_keys):
+                    report.add_error(
+                        f"Question {qid} requires evidence keys {sorted(question_keys)} not covered by matrix"
+                    )
+                pa_keys = set(required_keys.get(pa_id, []))
+                if not question_keys.issubset(pa_keys):
+                    report.add_error(
+                        f"Question {qid} evidence keys not present in rubric required_evidence_keys for {pa_id}"
+                    )
+
+            # Ensure dimension_question_weights cover all questions
+            dimension_weights = aggregation.get("dimension_question_weights", {})
+            missing_weights = [
+                q["question_id"]
+                for q in questions
+                if q.get("question_id") not in dimension_weights.get(q.get("dimension_id"), {})
+            ]
+            if missing_weights:
+                report.add_error(f"Questions missing dimension weights: {missing_weights[:5]}...")
+
+        # NA rules coverage
+        modalities = payload.get("scoring_modalities", {})
+        na_modalities = set(payload.get("na_rules", {}).get("modalities", {}).keys())
+        missing_modalities = set(modalities.keys()) - na_modalities
+        if missing_modalities:
+            report.add_error(f"NA rules missing for modalities: {sorted(missing_modalities)}")
+
+        required_pa_keys = set(required_keys.keys())
+        if questionnaire_payload:
+            pa_ids = {pa["policy_area_id"] for pa in questionnaire_payload.get("metadata", {}).get("policy_areas", [])}
+            missing_pa = pa_ids - required_pa_keys
+            if missing_pa:
+                report.add_error(f"Rubric required_evidence_keys missing policy areas: {sorted(missing_pa)}")
+
+        return report
+
+    def _validate_weight_matrix(
+        self,
+        matrix: Mapping[str, Mapping[str, float]],
+        scope: str,
+        report: SchemaValidationReport,
+    ) -> None:
+        for parent, weights in matrix.items():
+            if not self._weights_sum_to_one(weights):
+                report.add_error(f"Weights for {scope} {parent} must sum to 1.0")
+
+    @staticmethod
+    def _weights_sum_to_one(weights: Mapping[str, float]) -> bool:
+        total = sum(weights.values())
+        return abs(total - 1.0) <= FLOAT_TOLERANCE
+
+    def validate_metadata_checksums(self) -> SchemaValidationReport:
+        report = SchemaValidationReport()
+        if not CHECKSUM_PATH.exists():
+            report.add_error("config/metadata_checksums.json missing")
+            return report
+        try:
+            with CHECKSUM_PATH.open("r", encoding="utf-8") as handle:
+                recorded = json.load(handle)
+        except Exception as exc:
+            report.add_error(f"Unable to read metadata checksums: {exc}")
+            return report
+
+        questionnaire_payload = self._load_payload(QUESTIONNAIRE_PATH, report)
+        rubric_payload = self._load_payload(RUBRIC_PATH, report)
+
+        if questionnaire_payload:
+            expected = recorded.get("questionnaire.json")
+            actual = self._canonical_hash(questionnaire_payload)
+            if expected != actual:
+                report.add_error(
+                    f"Checksum mismatch for questionnaire.json (expected {expected}, computed {actual})"
+                )
+        if rubric_payload:
+            expected = recorded.get("rubric_scoring.json")
+            actual = self._canonical_hash(rubric_payload)
+            if expected != actual:
+                report.add_error(
+                    f"Checksum mismatch for rubric_scoring.json (expected {expected}, computed {actual})"
+                )
+        execution_path = REPO_ROOT / "execution_mapping.yaml"
+        if execution_path.exists():
+            expected = recorded.get("execution_mapping.yaml")
+            with execution_path.open("r", encoding="utf-8") as handle:
+                text = "\n".join(line.rstrip() for line in handle.read().splitlines()).strip() + "\n"
+            actual = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            if expected != actual:
+                report.add_error(
+                    f"Checksum mismatch for execution_mapping.yaml (expected {expected}, computed {actual})"
+                )
+        else:
+            report.add_warning("execution_mapping.yaml missing during checksum validation")
+
+        return report
+
+    def validate_all(self) -> Tuple[SchemaValidationReport, SchemaValidationReport, SchemaValidationReport]:
+        questionnaire_report, questionnaire_payload = self.validate_questionnaire()
+        rubric_report = self.validate_rubric(questionnaire_payload)
+        checksum_report = self.validate_metadata_checksums()
+        return questionnaire_report, rubric_report, checksum_report
 
 
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-def example_usage():
-    """Example validation usage."""
+def run() -> int:
     validator = SchemaValidator()
-    
-    # Validate both files
-    q_report, r_report = validator.validate_all(
-        questionnaire_path="cuestionario_FIXED.json",
-        rubric_path="rubric_scoring_FIXED.json"
-    )
-    
-    if not q_report.is_valid:
-        print("\n❌ Questionnaire validation FAILED:")
-        for error in q_report.errors:
-            print(f"  - {error}")
-    
-    if not r_report.is_valid:
-        print("\n❌ Rubric validation FAILED:")
-        for error in r_report.errors:
-            print(f"  - {error}")
+    q_report, r_report, c_report = validator.validate_all()
+
+    failed = False
+    for name, report in (
+        ("Questionnaire", q_report),
+        ("Rubric", r_report),
+        ("Metadata Checksums", c_report),
+    ):
+        if report.errors:
+            failed = True
+            print(f"❌ {name} validation failed:")
+            for error in report.errors:
+                print(f"  - {error}")
+        else:
+            print(f"✅ {name} validation passed")
+        for warning in report.warnings:
+            print(f"⚠️  {name}: {warning}")
+
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    example_usage()
+    raise SystemExit(run())

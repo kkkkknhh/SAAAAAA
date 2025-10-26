@@ -227,7 +227,7 @@ class ExecutionChoreographer:
         # Initialize validation engine
         self.validation_engine = ValidationEngine()
         logger.info("✓ ValidationEngine initialized")
-        
+
         # Execution statistics
         self.stats = {
             "total_methods": 584,
@@ -1760,10 +1760,10 @@ class ExecutionChoreographer:
         """Get execution statistics"""
         integration_rate = (self.stats["methods_initialized"] / self.stats["total_methods"]) * 100
         success_rate = (
-            self.stats["successful_executions"] / 
+            self.stats["successful_executions"] /
             max(1, self.stats["successful_executions"] + self.stats["failed_executions"])
         ) * 100
-        
+
         return {
             "total_methods": self.stats["total_methods"],
             "integration_target": self.stats["integration_target"],
@@ -1773,7 +1773,6 @@ class ExecutionChoreographer:
             "failed_executions": self.stats["failed_executions"],
             "success_rate": f"{success_rate:.1f}%"
         }
-
 
 # ============================================================================
 # EXAMPLE USAGE
@@ -1804,14 +1803,21 @@ def example_usage():
     # Example plan document
     plan_document = """
     PLAN DE DESARROLLO MUNICIPAL 2024-2027
-    
+
     DIAGNÓSTICO TERRITORIAL
     La línea base cuantitativa indica que el municipio cuenta con 45,000 habitantes.
     La magnitud del problema se evidencia en una tasa de pobreza del 42.3%.
     Los recursos disponibles ascienden a $12,500 millones.
-    
+
     ESTRATEGIA DE INTERVENCIÓN
     Se implementarán programas de educación y salud.
+
+    PLANIFICACIÓN OPERATIVA
+    Las actividades incluyen tablas de cronograma con responsables y códigos BPIN.
+    Los productos tendrán indicadores con línea base, metas y fuentes de verificación.
+    Los resultados consideran supuestos críticos y rutas de aprendizaje adaptativo.
+    El impacto proyecta transformaciones estructurales con rutas de maduración.
+    La teoría de cambio plantea grafo causal completo con pilotos de validación.
     """
     
     plan_metadata = {
@@ -1839,7 +1845,7 @@ def example_usage():
         print(f"\nQualitative Note: {result.micro_answer.qualitative_note}")
         print(f"Quantitative Score: {result.micro_answer.quantitative_score:.2f}")
         print(f"Confidence: {result.micro_answer.confidence:.2f}")
-    
+
     # Print statistics
     stats = choreographer.get_statistics()
     print("\n" + "=" * 80)

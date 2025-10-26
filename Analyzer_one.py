@@ -12,6 +12,8 @@ This module implements state-of-the-art techniques for comprehensive municipal p
 Python 3.11+ Compatible Version
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import math
@@ -977,6 +979,231 @@ def example_usage():
             pass
 
 
+@dataclass
+class CanonicalQuestionContract:
+    """Canonical contract linking questionnaire, policy area and evidence."""
+
+    legacy_question_id: str
+    policy_area_id: str
+    dimension_id: str
+    question_number: int
+    expected_elements: List[str]
+    search_patterns: Dict[str, Any]
+    verification_patterns: List[str]
+    evaluation_criteria: Dict[str, Any]
+    question_template: str
+    scoring_modality: str
+    evidence_sources: Dict[str, Any]
+    policy_area_legacy: str
+    dimension_legacy: str
+    canonical_question_id: str = ""
+    contract_hash: str = ""
+
+
+@dataclass
+class EvidenceSegment:
+    """Single segment of text matched against a question contract."""
+
+    segment_index: int
+    segment_text: str
+    segment_hash: str
+    matched_patterns: List[str]
+
+
+class CanonicalQuestionSegmenter:
+    """Deterministic segmenter anchored to canonical questionnaire schemas."""
+
+    def __init__(
+        self,
+        questionnaire_path: str = "questionnaire.json",
+        rubric_path: str = "rubric_scoring_FIXED.json",
+        segmentation_method: str = "paragraph",
+    ) -> None:
+        self.questionnaire_path = Path(questionnaire_path)
+        self.rubric_path = Path(rubric_path)
+        self.segmentation_method = segmentation_method
+
+        (
+            self.contracts,
+            self.questionnaire_metadata,
+            self.rubric_metadata,
+            self.contracts_hash,
+        ) = DocumentProcessor.load_canonical_question_contracts(
+            questionnaire_path=questionnaire_path,
+            rubric_path=rubric_path,
+        )
+
+    def segment_plan(self, plan_text: str) -> Dict[str, Any]:
+        """Segment *plan_text* and emit evidence manifests per canonical contract."""
+
+        normalized_text = plan_text or ""
+        segments = DocumentProcessor.segment_text(
+            normalized_text,
+            method=self.segmentation_method,
+        )
+        normalized_segments = [segment.strip() for segment in segments if segment and segment.strip()]
+
+        matched_contracts = 0
+        question_segments: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+
+        for contract in self.contracts:
+            manifest = self._build_manifest(contract, normalized_segments)
+            if manifest["matched"]:
+                matched_contracts += 1
+
+            key_tuple = (
+                contract.canonical_question_id,
+                contract.policy_area_id,
+                contract.dimension_id,
+            )
+
+            question_segments[key_tuple] = {
+                "legacy_question_id": contract.legacy_question_id,
+                "policy_area_id": contract.policy_area_id,
+                "dimension_id": contract.dimension_id,
+                "policy_area_legacy": contract.policy_area_legacy,
+                "dimension_legacy": contract.dimension_legacy,
+                "question_number": contract.question_number,
+                "question_template": contract.question_template,
+                "scoring_modality": contract.scoring_modality,
+                "evidence_sources": contract.evidence_sources,
+                "contract_hash": contract.contract_hash,
+                "evidence_manifest": manifest,
+            }
+
+        total_contracts = len(self.contracts)
+        metadata = {
+            "questionnaire_version": self.questionnaire_metadata.get("version"),
+            "rubric_version": self.rubric_metadata.get("version"),
+            "total_contracts": total_contracts,
+            "covered_contracts": matched_contracts,
+            "coverage_ratio": (
+                matched_contracts / total_contracts if total_contracts else 0.0
+            ),
+            "total_segments": len(normalized_segments),
+            "input_sha256": hashlib.sha256(normalized_text.encode("utf-8")).hexdigest(),
+            "contracts_sha256": self.contracts_hash,
+            "segmentation_method": self.segmentation_method,
+        }
+
+        question_segment_index = [
+            {
+                "key_tuple": list(key_tuple),
+                "canonical_question_id": key_tuple[0],
+                "policy_area_id": key_tuple[1],
+                "dimension_id": key_tuple[2],
+                "legacy_question_id": payload["legacy_question_id"],
+                "contract_hash": payload["contract_hash"],
+                "evidence_manifest": payload["evidence_manifest"],
+            }
+            for key_tuple, payload in question_segments.items()
+        ]
+
+        return {
+            "metadata": metadata,
+            "question_segments": question_segments,
+            "question_segment_index": question_segment_index,
+        }
+
+    def _build_manifest(
+        self,
+        contract: CanonicalQuestionContract,
+        segments: List[str],
+    ) -> Dict[str, Any]:
+        """Build deterministic evidence manifest for *contract* across *segments*."""
+
+        compiled_patterns: List[Tuple[str, Any]] = []
+        for element, spec in contract.search_patterns.items():
+            pattern = spec.get("pattern") if isinstance(spec, dict) else None
+            if not pattern or not isinstance(pattern, str):
+                continue
+            try:
+                compiled_patterns.append(
+                    (element, re.compile(pattern, flags=re.IGNORECASE | re.MULTILINE))
+                )
+            except re.error:
+                logger.debug(
+                    "Invalid regex pattern skipped",
+                    extra={"question_id": contract.legacy_question_id, "pattern": pattern},
+                )
+
+        for index, pattern in enumerate(contract.verification_patterns):
+            if not pattern or not isinstance(pattern, str):
+                continue
+            try:
+                compiled_patterns.append(
+                    (
+                        f"verification_{index}",
+                        re.compile(pattern, flags=re.IGNORECASE | re.MULTILINE),
+                    )
+                )
+            except re.error:
+                logger.debug(
+                    "Invalid verification pattern skipped",
+                    extra={
+                        "question_id": contract.legacy_question_id,
+                        "pattern_index": index,
+                    },
+                )
+
+        matched_segments: List[EvidenceSegment] = []
+        pattern_hits: Dict[str, int] = {}
+
+        for segment_index, segment_text in enumerate(segments):
+            matched_labels: List[str] = []
+            for label, pattern in compiled_patterns:
+                if pattern.search(segment_text):
+                    matched_labels.append(label)
+
+            if matched_labels:
+                unique_labels = sorted(set(matched_labels))
+                segment_hash = hashlib.sha256(segment_text.encode("utf-8")).hexdigest()
+                matched_segments.append(
+                    EvidenceSegment(
+                        segment_index=segment_index,
+                        segment_text=segment_text,
+                        segment_hash=segment_hash,
+                        matched_patterns=unique_labels,
+                    )
+                )
+
+                for label in unique_labels:
+                    pattern_hits[label] = pattern_hits.get(label, 0) + 1
+
+        manifest_segments = [
+            {
+                "segment_index": segment.segment_index,
+                "segment_text": segment.segment_text,
+                "segment_hash": segment.segment_hash,
+                "matched_patterns": segment.matched_patterns,
+            }
+            for segment in matched_segments
+        ]
+
+        segment_hash_chain = (
+            hashlib.sha256(
+                "".join(segment["segment_hash"] for segment in manifest_segments).encode("utf-8")
+            ).hexdigest()
+            if manifest_segments
+            else "0" * 64
+        )
+
+        return {
+            "matched": bool(manifest_segments),
+            "matched_segment_count": len(manifest_segments),
+            "expected_elements": contract.expected_elements,
+            "search_patterns": contract.search_patterns,
+            "verification_patterns": contract.verification_patterns,
+            "evaluation_criteria": contract.evaluation_criteria,
+            "pattern_hits": pattern_hits,
+            "matched_segments": manifest_segments,
+            "attestation": {
+                "contract_sha256": contract.contract_hash,
+                "segment_hash_chain": segment_hash_chain,
+            },
+        }
+
+
 class DocumentProcessor:
     """Utility class for document processing."""
 
@@ -1057,6 +1284,229 @@ class DocumentProcessor:
 
         else:
             raise ValueError(f"Unknown segmentation method: {method}")
+
+    @staticmethod
+    def load_canonical_question_contracts(
+        questionnaire_path: str = "questionnaire.json",
+        rubric_path: str = "rubric_scoring_FIXED.json",
+    ) -> Tuple[List[CanonicalQuestionContract], Dict[str, Any], Dict[str, Any], str]:
+        """Load canonical question contracts based on questionnaire and rubric."""
+
+        questionnaire_file = Path(questionnaire_path)
+        rubric_file = Path(rubric_path)
+
+        if not questionnaire_file.exists():
+            raise FileNotFoundError(f"Questionnaire file not found: {questionnaire_file}")
+        if not rubric_file.exists():
+            raise FileNotFoundError(f"Rubric file not found: {rubric_file}")
+
+        with questionnaire_file.open("r", encoding="utf-8") as handle:
+            questionnaire_data = json.load(handle)
+        with rubric_file.open("r", encoding="utf-8") as handle:
+            rubric_data = json.load(handle)
+
+        questionnaire_meta = questionnaire_data.get("metadata", {})
+        rubric_meta = rubric_data.get("metadata", {})
+
+        policy_area_mapping = questionnaire_meta.get("policy_area_mapping", {})
+        inverse_policy_area_map = {
+            legacy: canonical
+            for canonical, legacy in policy_area_mapping.items()
+            if isinstance(legacy, str)
+        }
+
+        base_questions = questionnaire_data.get("preguntas_base", [])
+        questionnaire_lookup: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+        for question in base_questions:
+            if not isinstance(question, dict):
+                continue
+            legacy_question_id = question.get("id")
+            if not legacy_question_id:
+                continue
+            legacy_policy_area = (
+                question.get("metadata", {}).get("policy_area")
+                or legacy_question_id.split("-")[0]
+            )
+            dimension_legacy = question.get("dimension") or legacy_question_id.split("-")[1]
+            try:
+                question_number = int(str(question.get("numero")))
+            except (TypeError, ValueError):
+                question_number = 0
+            key = (legacy_policy_area, dimension_legacy, question_number)
+            questionnaire_lookup[key] = question
+
+        rubric_questions = rubric_data.get("questions", [])
+        rubric_lookup: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+        for question in rubric_questions:
+            if not isinstance(question, dict):
+                continue
+            legacy_question_id = question.get("id")
+            if not legacy_question_id:
+                continue
+            legacy_policy_area = question.get("policy_area") or legacy_question_id.split("-")[0]
+            dimension_legacy = question.get("dimension") or legacy_question_id.split("-")[1]
+            try:
+                raw_number = int(str(question.get("question_no")))
+            except (TypeError, ValueError):
+                raw_number = 0
+            normalized_number = ((raw_number - 1) % 5) + 1 if raw_number else 0
+            key = (legacy_policy_area, dimension_legacy, normalized_number)
+            rubric_lookup[key] = question
+
+        common_keys = sorted(set(questionnaire_lookup.keys()) & set(rubric_lookup.keys()))
+        if not common_keys:
+            raise ValueError("No overlapping question definitions between questionnaire and rubric metadata")
+
+        contracts: List[CanonicalQuestionContract] = []
+
+        for key in common_keys:
+            questionnaire_entry = questionnaire_lookup[key]
+            rubric_entry = rubric_lookup[key]
+            legacy_question_id = questionnaire_entry.get("id") or rubric_entry.get("id")
+
+            legacy_policy_area = (
+                questionnaire_entry.get("metadata", {}).get("policy_area")
+                or rubric_entry.get("policy_area", "")
+            )
+            canonical_policy_area = inverse_policy_area_map.get(
+                legacy_policy_area,
+                DocumentProcessor._default_policy_area_id(legacy_policy_area),
+            )
+
+            dimension_legacy = (
+                questionnaire_entry.get("dimension")
+                or rubric_entry.get("dimension", "")
+            )
+            canonical_dimension = DocumentProcessor._to_canonical_dimension_id(dimension_legacy)
+
+            question_number_value = (
+                rubric_entry.get("question_no")
+                if rubric_entry.get("question_no") is not None
+                else questionnaire_entry.get("numero")
+            )
+            try:
+                question_number = int(str(question_number_value).lstrip("Qq"))
+            except (TypeError, ValueError):
+                question_number = 0
+
+            expected_elements = rubric_entry.get("expected_elements", [])
+            if not isinstance(expected_elements, list):
+                expected_elements = []
+
+            search_patterns = rubric_entry.get("search_patterns", {})
+            if not isinstance(search_patterns, dict):
+                search_patterns = {}
+
+            verification_patterns = questionnaire_entry.get("patrones_verificacion", [])
+            if not isinstance(verification_patterns, list):
+                verification_patterns = []
+
+            evaluation_criteria = questionnaire_entry.get("criterios_evaluacion", {})
+            if not isinstance(evaluation_criteria, dict):
+                evaluation_criteria = {}
+
+            evidence_sources = rubric_entry.get("evidence_sources", {})
+            if not isinstance(evidence_sources, dict):
+                evidence_sources = {}
+
+            contract = CanonicalQuestionContract(
+                legacy_question_id=legacy_question_id,
+                policy_area_id=canonical_policy_area,
+                dimension_id=canonical_dimension,
+                question_number=question_number,
+                expected_elements=expected_elements,
+                search_patterns=search_patterns,
+                verification_patterns=verification_patterns,
+                evaluation_criteria=evaluation_criteria,
+                question_template=(
+                    rubric_entry.get("template")
+                    or questionnaire_entry.get("texto_template", "")
+                ),
+                scoring_modality=rubric_entry.get("scoring_modality", ""),
+                evidence_sources=evidence_sources,
+                policy_area_legacy=legacy_policy_area,
+                dimension_legacy=dimension_legacy,
+            )
+
+            contracts.append(contract)
+
+        contracts.sort(
+            key=lambda contract: (
+                contract.policy_area_id,
+                contract.dimension_id,
+                contract.question_number,
+                contract.legacy_question_id,
+            )
+        )
+
+        for index, contract in enumerate(contracts, start=1):
+            canonical_question_id = f"Q{index:03d}"
+            contract.canonical_question_id = canonical_question_id
+            payload = {
+                "canonical_question_id": canonical_question_id,
+                "legacy_question_id": contract.legacy_question_id,
+                "policy_area_id": contract.policy_area_id,
+                "dimension_id": contract.dimension_id,
+                "question_number": contract.question_number,
+                "expected_elements": contract.expected_elements,
+                "search_patterns": contract.search_patterns,
+                "verification_patterns": contract.verification_patterns,
+                "evaluation_criteria": contract.evaluation_criteria,
+                "question_template": contract.question_template,
+                "scoring_modality": contract.scoring_modality,
+                "evidence_sources": contract.evidence_sources,
+            }
+            contract.contract_hash = hashlib.sha256(
+                json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            ).hexdigest()
+
+        contracts_hash = (
+            hashlib.sha256(
+                "".join(contract.contract_hash for contract in contracts).encode("utf-8")
+            ).hexdigest()
+            if contracts
+            else "0" * 64
+        )
+
+        return contracts, questionnaire_meta, rubric_meta, contracts_hash
+
+    @staticmethod
+    def segment_by_canonical_questionnaire(
+        plan_text: str,
+        questionnaire_path: str = "questionnaire.json",
+        rubric_path: str = "rubric_scoring_FIXED.json",
+        segmentation_method: str = "paragraph",
+    ) -> Dict[str, Any]:
+        """Convenience wrapper to segment plan text using canonical contracts."""
+
+        segmenter = CanonicalQuestionSegmenter(
+            questionnaire_path=questionnaire_path,
+            rubric_path=rubric_path,
+            segmentation_method=segmentation_method,
+        )
+        return segmenter.segment_plan(plan_text)
+
+    @staticmethod
+    def _default_policy_area_id(legacy_policy_area: str) -> str:
+        """Convert legacy policy-area code (e.g., P1) into canonical PAxx format."""
+
+        if isinstance(legacy_policy_area, str) and legacy_policy_area.startswith("P"):
+            try:
+                return f"PA{int(legacy_policy_area[1:]):02d}"
+            except ValueError:
+                return legacy_policy_area
+        return legacy_policy_area
+
+    @staticmethod
+    def _to_canonical_dimension_id(dimension_code: str) -> str:
+        """Convert legacy dimension code (e.g., D1) into canonical DIMxx format."""
+
+        if isinstance(dimension_code, str) and dimension_code.startswith("D"):
+            try:
+                return f"DIM{int(dimension_code[1:]):02d}"
+            except ValueError:
+                return dimension_code
+        return dimension_code
 
 
 class ResultsExporter:
