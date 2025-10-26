@@ -4,7 +4,13 @@
   "title": "Rubric Scoring Configuration Schema",
   "description": "Schema for rubric_scoring.json - defines scoring modalities, CHESS phases, MESO clusters, and MACRO weights",
   "type": "object",
-  "required": ["version", "chess_phases", "scoring_modalities", "meso_clusters", "macro_weights"],
+  "required": [
+    "version",
+    "chess_phases",
+    "scoring_modalities",
+    "meso_clusters",
+    "macro_weights"
+  ],
   "properties": {
     "version": {
       "type": "string",
@@ -13,11 +19,19 @@
     },
     "chess_phases": {
       "type": "object",
-      "required": ["opening", "middle_game", "endgame"],
+      "required": [
+        "opening",
+        "middle_game",
+        "endgame"
+      ],
       "properties": {
         "opening": {
           "type": "object",
-          "required": ["description", "parallel_execution", "target_producers"],
+          "required": [
+            "description",
+            "parallel_execution",
+            "target_producers"
+          ],
           "properties": {
             "description": {
               "type": "string"
@@ -36,7 +50,8 @@
                   "semantic_chunking_policy",
                   "teoria_cambio",
                   "contradiction_deteccion",
-                  "financiero_viabilidad_tablas"
+                  "financiero_viabilidad_tablas",
+                  "analyzer_one"
                 ]
               },
               "minItems": 1
@@ -45,27 +60,42 @@
         },
         "middle_game": {
           "type": "object",
-          "required": ["description", "modality_aggregation"],
+          "required": [
+            "description",
+            "modality_aggregation"
+          ],
           "properties": {
             "description": {
               "type": "string"
             },
             "modality_aggregation": {
               "type": "string",
-              "enum": ["weighted_average", "bayesian_fusion", "maximum", "minimum"]
+              "enum": [
+                "weighted_average",
+                "bayesian_fusion",
+                "maximum",
+                "minimum"
+              ]
             }
           }
         },
         "endgame": {
           "type": "object",
-          "required": ["description", "convergence_strategy"],
+          "required": [
+            "description",
+            "convergence_strategy"
+          ],
           "properties": {
             "description": {
               "type": "string"
             },
             "convergence_strategy": {
               "type": "string",
-              "enum": ["micro_meso_macro", "hierarchical", "flat"]
+              "enum": [
+                "micro_meso_macro",
+                "hierarchical",
+                "flat"
+              ]
             }
           }
         }
@@ -73,7 +103,14 @@
     },
     "scoring_modalities": {
       "type": "object",
-      "required": ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"],
+      "required": [
+        "TYPE_A",
+        "TYPE_B",
+        "TYPE_C",
+        "TYPE_D",
+        "TYPE_E",
+        "TYPE_F"
+      ],
       "properties": {
         "TYPE_A": {
           "$ref": "#/definitions/scoring_modality"
@@ -104,7 +141,10 @@
     },
     "macro_weights": {
       "type": "object",
-      "required": ["weights", "normalization"],
+      "required": [
+        "weights",
+        "normalization"
+      ],
       "properties": {
         "weights": {
           "type": "object",
@@ -119,7 +159,11 @@
         },
         "normalization": {
           "type": "string",
-          "enum": ["sum_to_one", "max_one", "none"]
+          "enum": [
+            "sum_to_one",
+            "max_one",
+            "none"
+          ]
         }
       }
     }
@@ -127,7 +171,12 @@
   "definitions": {
     "scoring_modality": {
       "type": "object",
-      "required": ["name", "description", "question_ids", "weight"],
+      "required": [
+        "name",
+        "description",
+        "question_ids",
+        "weight"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -150,13 +199,25 @@
         },
         "aggregation_method": {
           "type": "string",
-          "enum": ["average", "weighted_average", "minimum", "maximum", "bayesian"]
+          "enum": [
+            "average",
+            "weighted_average",
+            "minimum",
+            "maximum",
+            "bayesian"
+          ]
         }
       }
     },
     "meso_cluster": {
       "type": "object",
-      "required": ["cluster_id", "name", "policy_areas", "dimensions", "weight"],
+      "required": [
+        "cluster_id",
+        "name",
+        "policy_areas",
+        "dimensions",
+        "weight"
+      ],
       "properties": {
         "cluster_id": {
           "type": "string",
