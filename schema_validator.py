@@ -75,13 +75,14 @@ class SchemaValidator:
         name: str,
     ) -> None:
         if not jsonschema or not schema:
-            report.add_warning(f"jsonschema missing – skipped schema validation for {name}")
+            report.add_warning(f"jsonschema missing - skipped schema validation for {name}")
             return
         try:
             jsonschema.validate(instance=payload, schema=schema)
-        except Exception as exc:  # pragma: no cover - jsonschema raises specialised errors
-            report.add_error(f"{name} schema violation: {exc}")
-
+        except jsonschema.ValidationError as exc:  # pragma: no cover
+            report.add_error(f"{name} schema violation: {exc.message}")
+        except jsonschema.SchemaError as exc:  # pragma: no cover
+            report.add_error(f"{name} schema invalid: {exc.message}")
     def _load_payload(self, path: Path, report: SchemaValidationReport) -> Optional[Dict[str, Any]]:
         try:
             with path.open("r", encoding="utf-8") as handle:
