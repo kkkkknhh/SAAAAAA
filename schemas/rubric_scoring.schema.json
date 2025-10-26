@@ -1,120 +1,403 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://saaaaaa.policy.analysis/schemas/rubric_scoring.schema.json",
-  "title": "RubricScoring",
-  "description": "Scoring rubrics with weights for Q→PA→CL aggregation",
+  "title": "RubricScoringV2",
   "type": "object",
-  "required": ["metadata", "scoring_modalities", "aggregation_rules"],
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "requires_questionnaire_version",
+    "content_hash",
+    "metadata",
+    "provenance",
+    "changelog",
+    "scoring_modalities",
+    "aggregation",
+    "na_rules",
+    "penalties",
+    "score_bands",
+    "rubric_matrix",
+    "recommendation_rules",
+    "imbalance",
+    "uncertainty",
+    "required_evidence_keys"
+  ],
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "weight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "i18nLabel": {
+      "type": "object",
+      "required": ["default", "keys"],
+      "properties": {
+        "default": {
+          "type": "string",
+          "enum": ["es"]
+        },
+        "keys": {
+          "type": "object",
+          "required": ["label_es", "label_en"],
+          "properties": {
+            "label_es": {
+              "type": "string",
+              "minLength": 1
+            },
+            "label_en": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceKeys": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+(_[a-z]+)*$"
+      }
+    },
+    "rounding": {
+      "type": "object",
+      "required": ["mode", "precision"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["half_up", "bankers", "truncate"]
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        }
+      }
+    }
+  },
   "properties": {
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "requires_questionnaire_version": {
+      "$ref": "#/$defs/semver"
+    },
+    "content_hash": {
+      "$ref": "#/$defs/sha256"
+    },
     "metadata": {
       "type": "object",
-      "required": ["version", "compatible_questionnaire_version"],
+      "required": ["default_language", "rounding", "uncertainty", "tie_breaker_notes"],
+      "additionalProperties": false,
       "properties": {
-        "version": {
+        "default_language": {
           "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          "enum": ["es"]
         },
-        "compatible_questionnaire_version": {
+        "rounding": {
+          "type": "object",
+          "required": ["question", "dimension", "policy_area", "cluster", "macro"],
+          "additionalProperties": false,
+          "properties": {
+            "question": { "$ref": "#/$defs/rounding" },
+            "dimension": { "$ref": "#/$defs/rounding" },
+            "policy_area": { "$ref": "#/$defs/rounding" },
+            "cluster": { "$ref": "#/$defs/rounding" },
+            "macro": { "$ref": "#/$defs/rounding" }
+          }
+        },
+        "uncertainty": {
+          "type": "object",
+          "required": ["method", "alpha", "propagation"],
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["interval", "bootstrap"]
+            },
+            "alpha": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 0.5
+            },
+            "propagation": {
+              "type": "string",
+              "enum": ["weighted", "simple"]
+            },
+            "iterations": {
+              "type": "integer",
+              "minimum": 100
+            }
+          }
+        },
+        "tie_breaker_notes": {
           "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+$",
-          "description": "Compatible questionnaire.json version"
+          "minLength": 10
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["author", "tool", "edited_at"],
+      "additionalProperties": false,
+      "properties": {
+        "author": { "type": "string", "minLength": 3 },
+        "tool": { "type": "string", "minLength": 3 },
+        "edited_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "changelog": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["version", "summary", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "version": { "$ref": "#/$defs/semver" },
+          "summary": { "type": "string", "minLength": 5 },
+          "reason": { "type": "string", "minLength": 5 }
         }
       }
     },
     "scoring_modalities": {
       "type": "object",
-      "description": "Scoring rubrics by TYPE_A through TYPE_F",
+      "minProperties": 1,
       "patternProperties": {
         "^TYPE_[A-F]$": {
           "type": "object",
-          "required": ["name", "description", "score_range"],
+          "required": ["name", "description", "score_range", "rounding", "required_evidence_keys"],
+          "additionalProperties": true,
           "properties": {
-            "name": {"type": "string"},
-            "description": {"type": "string"},
+            "name": { "type": "string", "minLength": 3 },
+            "description": { "type": "string", "minLength": 5 },
             "score_range": {
               "type": "object",
               "required": ["min", "max"],
+              "additionalProperties": false,
               "properties": {
-                "min": {"type": "number"},
-                "max": {"type": "number"}
+                "min": { "type": "number", "minimum": 0 },
+                "max": { "type": "number", "minimum": 0 }
               }
             },
-            "thresholds": {
+            "rounding": { "$ref": "#/$defs/rounding" },
+            "required_evidence_keys": { "$ref": "#/$defs/evidenceKeys" },
+            "expected_elements": { "type": "integer", "minimum": 1 },
+            "conversion_table": {
               "type": "object",
-              "description": "Thresholds for qualitative notes"
+              "patternProperties": {
+                "^\\d+$": { "type": "number", "minimum": 0 }
+              },
+              "additionalProperties": false
+            },
+            "determinism": {
+              "type": "object",
+              "required": ["seed_required", "seed_source"],
+              "additionalProperties": false,
+              "properties": {
+                "seed_required": { "type": "boolean" },
+                "seed_source": { "type": "string", "minLength": 3 }
+              }
             }
           }
         }
       }
     },
-    "aggregation_rules": {
+    "aggregation": {
       "type": "object",
-      "required": ["question_to_policy_area", "policy_area_to_cluster", "cluster_to_macro"],
+      "required": [
+        "dimension_question_weights",
+        "policy_area_dimension_weights",
+        "cluster_policy_area_weights",
+        "macro_cluster_weights"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "question_to_policy_area": {
+        "dimension_question_weights": {
           "type": "object",
-          "description": "Aggregation weights Q→PA by policy area",
+          "patternProperties": {
+            "^DIM0[1-6]$": {
+              "type": "object",
+              "minProperties": 1,
+              "patternProperties": {
+                "^Q\\d{3}$": { "$ref": "#/$defs/weight" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "policy_area_dimension_weights": {
+          "type": "object",
           "patternProperties": {
             "^PA(0[1-9]|10)$": {
               "type": "object",
-              "required": ["method", "weights"],
-              "properties": {
-                "method": {
-                  "type": "string",
-                  "enum": ["weighted_average", "simple_average", "bayesian"]
-                },
-                "weights": {
-                  "type": "object",
-                  "description": "Weights by dimension",
-                  "patternProperties": {
-                    "^DIM0[1-6]$": {"type": "number", "minimum": 0, "maximum": 1}
-                  }
-                }
-              }
+              "minProperties": 6,
+              "maxProperties": 6,
+              "patternProperties": {
+                "^DIM0[1-6]$": { "$ref": "#/$defs/weight" }
+              },
+              "additionalProperties": false
             }
           }
         },
-        "policy_area_to_cluster": {
+        "cluster_policy_area_weights": {
           "type": "object",
-          "description": "Aggregation weights PA→CL by cluster",
           "patternProperties": {
             "^CL0[1-4]$": {
               "type": "object",
-              "required": ["method", "weights"],
+              "minProperties": 1,
+              "patternProperties": {
+                "^PA(0[1-9]|10)$": { "$ref": "#/$defs/weight" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "macro_cluster_weights": {
+          "type": "object",
+          "minProperties": 4,
+          "maxProperties": 4,
+          "patternProperties": {
+            "^CL0[1-4]$": { "$ref": "#/$defs/weight" }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "na_rules": {
+      "type": "object",
+      "required": ["modalities", "policy_areas"],
+      "additionalProperties": false,
+      "properties": {
+        "modalities": {
+          "type": "object",
+          "patternProperties": {
+            "^TYPE_[A-F]$": {
+              "type": "object",
+              "required": ["imputation", "scope", "exclude_from_global"],
+              "additionalProperties": false,
               "properties": {
-                "method": {
+                "imputation": {
                   "type": "string",
-                  "enum": ["weighted_average", "simple_average", "bayesian"]
+                  "enum": ["none", "zero", "mean", "median"]
                 },
-                "weights": {
-                  "type": "object",
-                  "description": "Weights by policy area",
-                  "patternProperties": {
-                    "^PA(0[1-9]|10)$": {"type": "number", "minimum": 0, "maximum": 1}
-                  }
+                "scope": {
+                  "type": "string",
+                  "enum": ["dimension", "policy_area"]
                 },
-                "imbalance_threshold": {
-                  "type": "number",
-                  "minimum": 0,
-                  "description": "Threshold τ for high imbalance detection (max-min)"
+                "exclude_from_global": {
+                  "type": "boolean"
                 }
               }
             }
           }
         },
-        "cluster_to_macro": {
+        "policy_areas": {
           "type": "object",
-          "required": ["method", "weights"],
-          "properties": {
-            "method": {
-              "type": "string",
-              "enum": ["weighted_average", "simple_average", "bayesian"]
-            },
-            "weights": {
+          "patternProperties": {
+            "^PA(0[1-9]|10)$": {
               "type": "object",
-              "description": "Weights by cluster",
-              "patternProperties": {
-                "^CL0[1-4]$": {"type": "number", "minimum": 0, "maximum": 1}
+              "required": ["imputation", "scope", "exclude_from_global"],
+              "additionalProperties": false,
+              "properties": {
+                "imputation": {
+                  "type": "string",
+                  "enum": ["none", "zero", "mean", "median"]
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": ["dimension", "policy_area"]
+                },
+                "exclude_from_global": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "penalties": {
+      "type": "object",
+      "required": ["contradictory_info", "missing_indicator", "OOD_flag"],
+      "additionalProperties": false,
+      "properties": {
+        "contradictory_info": {
+          "type": "object",
+          "required": ["weight"],
+          "additionalProperties": false,
+          "properties": { "weight": { "$ref": "#/$defs/weight" } }
+        },
+        "missing_indicator": {
+          "type": "object",
+          "required": ["weight"],
+          "additionalProperties": false,
+          "properties": { "weight": { "$ref": "#/$defs/weight" } }
+        },
+        "OOD_flag": {
+          "type": "object",
+          "required": ["weight"],
+          "additionalProperties": false,
+          "properties": { "weight": { "$ref": "#/$defs/weight" } }
+        }
+      }
+    },
+    "score_bands": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Z_]+$": {
+          "type": "object",
+          "required": ["min", "max", "description", "recommendation"],
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "number", "minimum": 0 },
+            "max": { "type": "number", "minimum": 0 },
+            "description": { "type": "string", "minLength": 5 },
+            "recommendation": { "type": "string", "minLength": 5 },
+            "color": { "type": "string" },
+            "emoji": { "type": "string" }
+          }
+        }
+      }
+    },
+    "rubric_matrix": {
+      "type": "object",
+      "patternProperties": {
+        "^PA(0[1-9]|10)$": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^DIM0[1-6]$": {
+              "type": "object",
+              "required": ["default_modality", "allowed_modalities", "required_evidence_keys"],
+              "additionalProperties": false,
+              "properties": {
+                "default_modality": {
+                  "type": "string",
+                  "enum": ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"]
+                },
+                "allowed_modalities": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "enum": ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"]
+                  },
+                  "uniqueItems": true
+                },
+                "required_evidence_keys": { "$ref": "#/$defs/evidenceKeys" }
               }
             }
           }
@@ -122,47 +405,86 @@
       }
     },
     "recommendation_rules": {
-      "type": "object",
-      "description": "Computable recommendation grammar",
-      "patternProperties": {
-        "^CL0[1-4]$": {
-          "type": "array",
-          "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["cluster_id", "condition", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": { "type": "string", "pattern": "^CL0[1-4]$" },
+          "condition": {
             "type": "object",
-            "required": ["condition", "action_template"],
+            "required": ["type", "threshold"],
+            "additionalProperties": false,
             "properties": {
-              "condition": {
-                "type": "object",
-                "required": ["type"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["low_score", "high_imbalance", "combined"]
-                  },
-                  "threshold": {"type": "number"},
-                  "weak_policy_area": {"type": "string", "pattern": "^PA(0[1-9]|10)$"}
-                }
+              "type": {
+                "type": "string",
+                "enum": ["low_score", "high_imbalance", "combined"]
               },
-              "action_template": {
-                "type": "object",
-                "required": ["problem", "intervention", "indicator", "responsible", "timeframe"],
-                "properties": {
-                  "problem": {"type": "string"},
-                  "intervention": {"type": "string"},
-                  "indicator": {"type": "string"},
-                  "responsible": {"type": "string"},
-                  "timeframe": {"type": "string"},
-                  "verification_sources": {
-                    "type": "array",
-                    "items": {"type": "string"}
-                  }
-                }
+              "threshold": { "type": "number" },
+              "weak_policy_area": { "type": "string", "pattern": "^PA(0[1-9]|10)$" }
+            }
+          },
+          "action": {
+            "type": "object",
+            "required": ["problem", "intervention", "indicator", "owner", "timeframe"],
+            "additionalProperties": false,
+            "properties": {
+              "problem": { "type": "string", "minLength": 5 },
+              "intervention": { "type": "string", "minLength": 5 },
+              "indicator": { "type": "string", "minLength": 5 },
+              "owner": { "type": "string", "minLength": 3 },
+              "timeframe": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    },
+    "imbalance": {
+      "type": "object",
+      "required": ["method", "gini_formula", "std_dev_formula", "range_formula", "thresholds"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string", "enum": ["gini"] },
+        "gini_formula": { "type": "string", "minLength": 5 },
+        "std_dev_formula": { "type": "string", "minLength": 5 },
+        "range_formula": { "type": "string", "minLength": 5 },
+        "thresholds": {
+          "type": "object",
+          "patternProperties": {
+            "^CL0[1-4]$": {
+              "type": "object",
+              "required": ["gini", "std_dev", "range", "action"],
+              "additionalProperties": false,
+              "properties": {
+                "gini": { "type": "number", "minimum": 0 },
+                "std_dev": { "type": "number", "minimum": 0 },
+                "range": { "type": "number", "minimum": 0 },
+                "action": { "type": "string", "enum": ["penalize", "flag"] }
               }
             }
           }
         }
       }
+    },
+    "uncertainty": {
+      "type": "object",
+      "required": ["method", "alpha", "propagation"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string", "enum": ["interval", "bootstrap"] },
+        "alpha": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 },
+        "propagation": { "type": "string", "enum": ["weighted", "simple"] },
+        "iterations": { "type": "integer", "minimum": 100 }
+      }
+    },
+    "required_evidence_keys": {
+      "type": "object",
+      "minProperties": 10,
+      "patternProperties": {
+        "^PA(0[1-9]|10)$": { "$ref": "#/$defs/evidenceKeys" }
+      }
     }
-  },
-  "additionalProperties": false
+  }
 }

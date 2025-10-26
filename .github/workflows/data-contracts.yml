@@ -1,0 +1,42 @@
+name: data-contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install jsonschema
+
+      - name: Schema validation
+        run: python schema_validator.py
+
+      - name: Cross reference integrity
+        run: python tools/integrity/check_cross_refs.py
+
+      - name: Questionnaire lint
+        run: python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire.schema.json
+
+      - name: Rubric lint
+        run: python tools/lint/json_lint.py rubric_scoring.json --schema schemas/rubric_scoring.schema.json
+
+      - name: Deterministic artifact generation
+        run: |
+          python tools/integrity/dump_artifacts.py artifacts/run1
+          python tools/integrity/dump_artifacts.py artifacts/run2
+          sha256sum artifacts/run1/deterministic_snapshot.json artifacts/run2/deterministic_snapshot.json
+          diff artifacts/run1/deterministic_snapshot.json artifacts/run2/deterministic_snapshot.json
