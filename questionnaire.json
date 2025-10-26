@@ -6,7 +6,7 @@
       "version": "3.0.0"
     }
   ],
-  "content_hash": "ec5f727efd25dae15d2b3ccfa23f78282d16e4f15e8b19c99915400700ab4c6d",
+  "content_hash": "160b14d9d88f138fae31de4defc5c89385b888489de73d362f500248272bd0a9",
   "metadata": {
     "clusters": [
       {
@@ -19392,7 +19392,18 @@
           "lecciones aprendidas en la gestión de centros de detención"
         ]
       },
-      "validation_checks": {}
+      "validation_checks": {
+        "monitoring_keywords": {
+          "minimum_required": 1,
+          "patterns": [
+            "monitoreo",
+            "mecanismos de corrección",
+            "retroalimentación",
+            "aprendizaje"
+          ],
+          "specificity": "MEDIUM"
+        }
+      }
     },
     {
       "cluster_id": "CL04",

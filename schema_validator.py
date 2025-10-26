@@ -12,8 +12,11 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 try:
     import jsonschema
     from jsonschema import ValidationError  # noqa: F401
+    from jsonschema.validators import extend, validator_for
 except ImportError:  # pragma: no cover - jsonschema shipped with repo tooling
     jsonschema = None
+    extend = None
+    validator_for = None
 
 
 ROOT = Path(__file__).resolve().parent
@@ -42,6 +45,47 @@ class SchemaValidationReport:
 
     def add_warning(self, message: str) -> None:
         self.warnings.append(message)
+
+
+def _resolve_json_pointer(instance: Any, pointer: str) -> Any:
+    if pointer == "" or pointer == "/":
+        return instance
+
+    if not pointer.startswith("/"):
+        raise ValueError(f"JSON pointer must start with '/' (got {pointer!r})")
+
+    parts = pointer.lstrip("/").split("/")
+    current = instance
+    for part in parts:
+        token = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, list):
+            index = int(token)
+            current = current[index]
+        elif isinstance(current, dict):
+            current = current[token]
+        else:
+            raise KeyError(token)
+    return current
+
+
+def _const_ref_validator(validator, const_ref_value, instance, schema):
+    if const_ref_value is None:
+        return
+
+    pointer = str(const_ref_value)
+    root = getattr(validator, "root_instance", None)
+    if root is None:
+        return
+
+    try:
+        target = _resolve_json_pointer(root, pointer)
+    except (KeyError, IndexError, ValueError):
+        return
+
+    if instance != target:
+        yield jsonschema.ValidationError(
+            f"Value {instance!r} must match data at pointer '{pointer}', observed {target!r}"
+        )
 
 
 class SchemaValidator:
@@ -74,11 +118,18 @@ class SchemaValidator:
         report: SchemaValidationReport,
         name: str,
     ) -> None:
-        if not jsonschema or not schema:
+        if not schema:
             report.add_warning(f"jsonschema missing - skipped schema validation for {name}")
             return
+        if not jsonschema or not extend or not validator_for:
+            report.add_warning(f"jsonschema missing - skipped schema validation for {name}")
+            return
+
         try:
-            jsonschema.validate(instance=payload, schema=schema)
+            base_cls = validator_for(schema)
+            validator_cls = extend(base_cls, {"constRef": _const_ref_validator})
+            validator = validator_cls(schema)
+            validator.validate(instance=payload)
         except jsonschema.ValidationError as exc:  # pragma: no cover
             report.add_error(f"{name} schema violation: {exc.message}")
         except jsonschema.SchemaError as exc:  # pragma: no cover
@@ -178,16 +229,40 @@ class SchemaValidator:
                 f"rubric_scoring.json content_hash mismatch (expected {expected_hash}, computed {actual_hash})"
             )
 
+        metadata = payload.get("metadata", {})
+        if payload.get("version") and metadata.get("version") and payload["version"] != metadata["version"]:
+            report.add_error(
+                "Rubric metadata.version must match top-level version when both are present"
+            )
+
+        if (
+            payload.get("requires_questionnaire_version")
+            and metadata.get("compatible_questionnaire_version")
+            and payload["requires_questionnaire_version"] != metadata["compatible_questionnaire_version"]
+        ):
+            report.add_error(
+                "Rubric metadata.compatible_questionnaire_version must match requires_questionnaire_version"
+            )
+
+        if (
+            payload.get("aggregation") is not None
+            and payload.get("aggregation_rules") is not None
+            and payload["aggregation"] != payload["aggregation_rules"]
+        ):
+            report.add_error("Rubric aggregation and aggregation_rules must be equivalent when both are provided")
+
         if questionnaire_payload:
             q_version = questionnaire_payload.get("version")
-            r_requires = payload.get("requires_questionnaire_version")
-            if q_version != r_requires:
+            requires_version = payload.get("requires_questionnaire_version") or metadata.get(
+                "compatible_questionnaire_version"
+            )
+            if q_version != requires_version:
                 report.add_error(
-                    f"Version compatibility mismatch: questionnaire {q_version} vs rubric requires {r_requires}"
+                    f"Version compatibility mismatch: questionnaire {q_version} vs rubric requires {requires_version}"
                 )
 
         # Weight validations
-        aggregation = payload.get("aggregation", {})
+        aggregation = payload.get("aggregation") or payload.get("aggregation_rules", {})
         scoring_modalities = payload.get("scoring_modalities", {})
         if "TYPE_F" in scoring_modalities and "determinism" not in scoring_modalities["TYPE_F"]:
             report.add_error("TYPE_F modality must declare determinism metadata")

@@ -108,12 +108,13 @@
           }
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "$comment": "TODO: Harden additionalProperties to false in schema v2 when metadata extensions stabilize."
     },
     "questions": {
       "type": "array",
       "description": "Complete set of 300 questions",
-      "minItems": 1,
+      "minItems": 300,
       "items": {
         "type": "object",
         "required": ["question_id", "policy_area_id", "dimension_id", "question_text", "scoring_modality"],
@@ -169,7 +170,13 @@
           }
         },
         "additionalProperties": true
-      }
+      },
+      "maxItems": 300
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 over canonicalized payload excluding this field"
     }
   },
   "additionalProperties": false
