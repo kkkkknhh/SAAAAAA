@@ -91,8 +91,8 @@ def lint_file(path: Path, schema: Path | None) -> int:
             jsonschema.validate(instance=payload, schema=schema_payload)
         except jsonschema.ValidationError as exc:  # pragma: no cover
             issues = True
-            print(f"❌ {path.name}: schema violation – {exc.message}")
-        except Exception as exc:  # pragma: no cover
+            print(f"❌ {path.name}: schema violation - {exc.message}")
+        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover
             issues = True
             print(f"❌ {path.name}: unable to load schema ({exc})")
     elif schema and not jsonschema:
