@@ -365,7 +365,8 @@ class PolicyAnalysisOrchestrator:
         """
         Load rubric_scoring configuration for weighting and aggregation.
 
-        Includes YAML causal_thresholds and dimension-specific scoring rules.
+        Includes causal_thresholds and dimension-specific scoring rules.
+        Note: Currently expects JSON input; if using YAML, add a YAML loader.
         """
         rubric_path = self.config.rubric_path
         logger.info(f"Loading rubric configuration: {rubric_path}")
