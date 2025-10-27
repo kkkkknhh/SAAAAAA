@@ -1,5 +1,5 @@
 """
-SIN_CARRETA Policy Analysis Pipeline - Choreographer (MICRO Level)
+SIN_CARRETA Policy Analysis Pipeline - ExecutionChoreographer (MICRO Level)
 
 ARCHITECTURAL ROLE:
 - MICRO-level execution engine for individual policy questions
@@ -29,6 +29,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import yaml
 import networkx as nx
+
+# Import from report_assembly
+from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 
 # ========================================
 # IMPORT ALL 11 YAML SPECIALIZED COMPONENTS
@@ -66,16 +69,16 @@ from financiero_viabilidad_tablas import (
     ColombianMunicipalContext
 )
 
-# Producer 6: dereck_beach (placeholder - implement as needed)
-# from dereck_beach import DerickBeachProcessor
+# Producer 6: dereck_beach
+from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference
 
-# Producer 7: embedding_policy (placeholder - implement as needed)
-# from embedding_policy import EmbeddingPolicyEngine
+# Producer 7: embedding_policy
+from embedding_policy import PolicyAnalysisEmbedder
 
-# Producer 8: semantic_chunking_policy (placeholder - implement as needed)
-# from semantic_chunking_policy import SemanticChunkingEngine
+# Producer 8: semantic_chunking_policy
+from embedding_policy import AdvancedSemanticChunker
 
-# Producer 9: report_assembly (placeholder - implement as needed)
+# Producer 9: report_assembly (used separately by Orchestrator)
 # from report_assembly import ReportAssemblyEngine
 
 logger = logging.getLogger(__name__)
@@ -121,38 +124,8 @@ class ExecutionContext:
             )
 
 
-@dataclass
-class MicroLevelAnswer:
-    """
-    Evidence-grounded answer for a single policy question
-    
-    STRUCTURE:
-    - question_id: Unique identifier
-    - dimension: Dimensional code (D1-D6)
-    - policy_area: Policy domain
-    - score: Numerical assessment [0.0, 3.0]
-    - evidence: Complete evidence bundle from dimensional chain
-    - findings: Human-readable key findings
-    - confidence: Bayesian posterior confidence
-    - metadata: Execution metadata
-    """
-    question_id: str
-    dimension: str
-    policy_area: str
-    score: float
-    evidence: Dict[str, Any]
-    findings: List[str]
-    confidence: float
-    metadata: Dict[str, Any]
-    
-    def __post_init__(self):
-        # Validate score range
-        if not (0.0 <= self.score <= 3.0):
-            raise ValueError(f"Score must be in [0.0, 3.0], got: {self.score}")
-        
-        # Validate confidence range
-        if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be in [0.0, 1.0], got: {self.confidence}")
+# Note: MicroLevelAnswer is now imported from report_assembly.py
+# to avoid duplication and maintain single source of truth
 
 
 @dataclass
@@ -202,10 +175,10 @@ class ExecutionResult:
 
 
 # ========================================
-# CHOREOGRAPHER - MICRO LEVEL EXECUTOR
+# EXECUTION CHOREOGRAPHER - MICRO LEVEL EXECUTOR
 # ========================================
 
-class Choreographer:
+class ExecutionChoreographer:
     """
     MICRO-level execution engine for individual policy questions
     
@@ -224,7 +197,7 @@ class Choreographer:
     - Generate executive summaries (Orchestrator's job)
     
     BOUNDARY:
-    Orchestrator → [execute_question] → Choreographer → [MicroLevelAnswer] → Orchestrator
+    Orchestrator → [execute_question] → ExecutionChoreographer → [MicroLevelAnswer] → Orchestrator
     """
     
     def __init__(
@@ -236,7 +209,7 @@ class Choreographer:
         deterministic_context: Dict[str, Any]
     ):
         """
-        Initialize Choreographer with immutable YAML configuration
+        Initialize ExecutionChoreographer with immutable YAML configuration
         
         PARAMETERS:
         - execution_mapping_path: Path to execution_mapping.yaml (dimensional chains)
@@ -251,7 +224,7 @@ class Choreographer:
         - Validation engine ready
         """
         logger.info("=" * 80)
-        logger.info("SIN_CARRETA CHOREOGRAPHER INITIALIZATION")
+        logger.info("SIN_CARRETA EXECUTION CHOREOGRAPHER INITIALIZATION")
         logger.info("=" * 80)
         logger.info(f"Timestamp: {datetime.utcnow().isoformat()}Z")
         logger.info(f"Questionnaire Hash: {questionnaire_hash}")
@@ -292,7 +265,7 @@ class Choreographer:
             )
         
         logger.info(f"✓ Method registry complete: {len(self.CANONICAL_METHODS)} methods")
-        logger.info("✓ Choreographer initialization complete")
+        logger.info("✓ ExecutionChoreographer initialization complete")
         logger.info("=" * 80)
     
     # ========================================
@@ -429,18 +402,42 @@ class Choreographer:
         except Exception as e:
             raise RuntimeError(f"FATAL: Failed to initialize financiero_viabilidad_tablas: {e}")
         
-        # Producers 6-9: Placeholder implementations
-        # TODO: Implement when components are ready
-        logger.info("  [6/9] dereck_beach: PLACEHOLDER (implement when ready)")
-        self._producer_instances['dereck_beach'] = {}
+        # Producer 6: dereck_beach
+        logger.info("  [6/9] Initializing dereck_beach...")
+        try:
+            self._producer_instances['dereck_beach'] = {
+                'CDAFFramework': CDAFFramework(),
+                'CausalExtractor': CausalExtractor(),
+                'BayesianMechanismInference': BayesianMechanismInference()
+            }
+            logger.info("  ✓ CDAFFramework initialized")
+            logger.info("  ✓ CausalExtractor initialized")
+            logger.info("  ✓ BayesianMechanismInference initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize dereck_beach: {e}")
         
-        logger.info("  [7/9] embedding_policy: PLACEHOLDER (implement when ready)")
-        self._producer_instances['embedding_policy'] = {}
+        # Producer 7: embedding_policy
+        logger.info("  [7/9] Initializing embedding_policy...")
+        try:
+            self._producer_instances['embedding_policy'] = {
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder()
+            }
+            logger.info("  ✓ PolicyAnalysisEmbedder initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize embedding_policy: {e}")
         
-        logger.info("  [8/9] semantic_chunking_policy: PLACEHOLDER (implement when ready)")
-        self._producer_instances['semantic_chunking_policy'] = {}
+        # Producer 8: semantic_chunking_policy
+        logger.info("  [8/9] Initializing semantic_chunking_policy...")
+        try:
+            self._producer_instances['semantic_chunking_policy'] = {
+                'AdvancedSemanticChunker': AdvancedSemanticChunker()
+            }
+            logger.info("  ✓ AdvancedSemanticChunker initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize semantic_chunking_policy: {e}")
         
-        logger.info("  [9/9] report_assembly: PLACEHOLDER (implement when ready)")
+        # Producer 9: report_assembly - Keep as empty (ReportAssembler used separately)
+        logger.info("  [9/9] report_assembly: Used separately by Orchestrator")
         self._producer_instances['report_assembly'] = {}
     
     def _validate_component_initialization(self):
@@ -535,7 +532,7 @@ class Choreographer:
     
     def execute_question(
         self,
-        question_context: ExecutionContext,
+        question_context,  # Can be ExecutionContext or Dict
         plan_document: str,
         plan_metadata: Dict[str, Any]
     ) -> ExecutionResult:
@@ -543,14 +540,15 @@ class Choreographer:
         Execute a single policy question using dimensional routing
         
         FLOW:
-        1. Normalize dimension code (D1-D6)
-        2. Route to dimensional execution chain
-        3. Build MicroLevelAnswer from evidence
-        4. Build provenance record
-        5. Return ExecutionResult
+        1. Normalize question context (dict → ExecutionContext if needed)
+        2. Normalize dimension code (D1-D6)
+        3. Route to dimensional execution chain
+        4. Build MicroLevelAnswer from evidence
+        5. Build provenance record
+        6. Return ExecutionResult
         
         PARAMETERS:
-        - question_context: Execution context with question_id, dimension, etc.
+        - question_context: ExecutionContext or dict with question details
         - plan_document: Policy document text
         - plan_metadata: Document metadata
         
@@ -560,41 +558,69 @@ class Choreographer:
         start_time = datetime.utcnow()
         execution_trace = []
         
+        # Convert dict to ExecutionContext if needed
+        if isinstance(question_context, dict):
+            context = ExecutionContext(
+                question_id=question_context.get('canonical_id', question_context.get('question_id', 'UNKNOWN')),
+                dimension=question_context.get('dimension', 'D1'),
+                policy_area=question_context.get('policy_area', 'P0'),
+                questionnaire_hash=self.questionnaire_hash,
+                timestamp=datetime.utcnow().isoformat() + "Z",
+                metadata={
+                    'scoring_modality': question_context.get('scoring_modality', 'TYPE_F'),
+                    'expected_elements': question_context.get('expected_elements', []),
+                    'search_patterns': question_context.get('search_patterns', {}),
+                    'element_weights': question_context.get('element_weights', {}),
+                    'numerical_thresholds': question_context.get('numerical_thresholds', {}),
+                    'validation_rules': question_context.get('validation_rules', {}),
+                    'question_text': question_context.get('question_text', '')
+                }
+            )
+        else:
+            context = question_context
+        
         logger.info("=" * 80)
-        logger.info(f"EXECUTING QUESTION: {question_context.question_id}")
-        logger.info(f"Dimension: {question_context.dimension}")
-        logger.info(f"Policy Area: {question_context.policy_area}")
+        logger.info(f"EXECUTING QUESTION: {context.question_id}")
+        logger.info(f"Dimension: {context.dimension}")
+        logger.info(f"Policy Area: {context.policy_area}")
         logger.info("=" * 80)
         
         try:
             # Step 1: Normalize dimension code
-            dimension = self._normalize_dimension_code(question_context.dimension)
+            dimension = self._normalize_dimension_code(context.dimension)
             logger.info(f"Dimension normalized: {dimension}")
             
             # Step 2: Route to dimensional execution chain
             logger.info(f"Routing to {dimension} execution chain...")
             
             if dimension == DimensionCode.D1_DIAGNOSTICO.value:
-                evidence = self._execute_d1_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d1_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D2_ACTIVIDADES.value:
-                evidence = self._execute_d2_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d2_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D3_PRODUCTOS.value:
-                evidence = self._execute_d3_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d3_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D4_RESULTADOS.value:
-                evidence = self._execute_d4_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d4_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D5_IMPACTOS.value:
-                evidence = self._execute_d5_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d5_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D6_CAUSALIDAD.value:
-                evidence = self._execute_d6_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d6_chain(context, plan_document, execution_trace)
             else:
-                evidence = self._execute_generic_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_generic_chain(context, plan_document, execution_trace)
             
             # Step 3: Build MicroLevelAnswer
             logger.info("Building MicroLevelAnswer from evidence...")
+            
+            # Add execution trace to metadata
+            metadata_with_trace = {
+                **plan_metadata,
+                'execution_trace': execution_trace
+            }
+            
             micro_answer = self._build_micro_answer(
-                question_context,
+                context,
                 evidence,
-                plan_metadata
+                metadata_with_trace
             )
             
             # Step 4: Calculate performance metrics
@@ -607,19 +633,20 @@ class Choreographer:
             
             # Step 5: Build provenance record
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
-            logger.info(f"✓ Question execution complete: {question_context.question_id}")
-            logger.info(f"  Score: {micro_answer.score:.3f}")
+            logger.info(f"✓ Question execution complete: {context.question_id}")
+            logger.info(f"  Score: {micro_answer.quantitative_score:.2f}/3.0")
+            logger.info(f"  Note: {micro_answer.qualitative_note}")
             logger.info(f"  Confidence: {micro_answer.confidence:.3f}")
             logger.info(f"  Execution time: {performance_metrics['execution_time_ms']:.1f}ms")
             logger.info("=" * 80)
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='success',
                 micro_answer=micro_answer,
                 execution_trace=execution_trace,
@@ -629,7 +656,7 @@ class Choreographer:
             )
         
         except Exception as e:
-            logger.error(f"✗ Question execution failed: {question_context.question_id}")
+            logger.error(f"✗ Question execution failed: {context.question_id}")
             logger.error(f"  Error: {str(e)}")
             logger.error("=" * 80)
             
@@ -641,13 +668,13 @@ class Choreographer:
             }
             
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='failure',
                 micro_answer=None,
                 execution_trace=execution_trace,
@@ -1294,250 +1321,29 @@ class Choreographer:
         SCORING LOGIC:
         - D1-D5: Evidence-weighted scoring
         - D6: Causal coherence with Anti-Milagro penalty
+        
+        RETURNS:
+        - MicroLevelAnswer compatible with report_assembly.py
         """
-        # Calculate dimension-specific score
-        score = self._calculate_dimensional_score(context.dimension, evidence)
+        # Calculate dimension-specific score (0.0-1.0)
+        score_normalized = self._calculate_dimensional_score(context.dimension, evidence)
+        
+        # Convert to quantitative_score (0.0-3.0 scale)
+        quantitative_score = score_normalized * 3.0
+        
+        # Determine qualitative_note based on score
+        if quantitative_score >= 2.5:
+            qualitative_note = "EXCELENTE"
+        elif quantitative_score >= 2.0:
+            qualitative_note = "BUENO"
+        elif quantitative_score >= 1.5:
+            qualitative_note = "ACEPTABLE"
+        else:
+            qualitative_note = "INSUFICIENTE"
         
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
-        
-        # Extract confidence from evidence
-        confidence = evidence.get('bayesian_confidence', evidence.get('confidence', 0.5))
-        
-        # Build MicroLevelAnswer
-        return MicroLevelAnswer(
-            question_id=context.question_id,
-            dimension=context.dimension,
-            policy_area=context.policy_area,
-            score=score,
-            evidence=evidence,
-            findings=findings,
-            confidence=confidence,
-            metadata=metadata
-        )
-    
-    def _calculate_dimensional_score(
-        self,
-        dimension: str,
-        evidence: Dict[str, Any]
-    ) -> float:
-        """
-        Calculate dimension-specific score from evidence
-        
-        Maps evidence to 0.0-3.0 scale matching report_assembly expectations
-        """
-        # Extract key metrics by dimension
-        if dimension == "D1":
-            # D1: Diagnóstico - weight quantitative claims + official sources
-            claims = len(evidence.get('quantitative_claims', []))
-            sources = len(evidence.get('official_sources', []))
-            confidence = evidence.get('bayesian_confidence', 0.5)
-            
-            # Score: claims (40%) + sources (30%) + confidence (30%)
-            score = (
-                (min(claims / 5, 1.0) * 1.2) +  # Max 1.2 for claims
-                (min(sources / 3, 1.0) * 0.9) +  # Max 0.9 for sources
-                (confidence * 0.9)                # Max 0.9 for confidence
-            )
-            
-        elif dimension == "D2":
-            # D2: Actividades - weight causal patterns + coherence
-            patterns = len(evidence.get('causal_mechanisms', []))
-            coherence = evidence.get('semantic_coherence', 0.5)
-            
-            score = (
-                (min(patterns / 4, 1.0) * 1.5) +  # Max 1.5 for patterns
-                (coherence * 1.5)                  # Max 1.5 for coherence
-            )
-            
-        elif dimension == "D3":
-            # D3: Productos - weight indicators + feasibility
-            indicators = len(evidence.get('indicators', []))
-            confidence = evidence.get('confidence', 0.5)
-            loss = evidence.get('loss_function', {}).get('score', 1.0)
-            
-            score = (
-                (min(indicators / 3, 1.0) * 1.0) +   # Max 1.0 for indicators
-                (confidence * 1.0) +                   # Max 1.0 for confidence
-                ((1.0 - loss) * 1.0)                   # Max 1.0 for low loss
-            )
-            
-        elif dimension == "D4":
-            # D4: Resultados - weight alignment + assumptions
-            alignment = evidence.get('objective_alignment', 0.5)
-            assumptions = len(evidence.get('assumptions', []))
-            
-            score = (
-                (alignment * 1.8) +                    # Max 1.8 for alignment
-                (min(assumptions / 3, 1.0) * 1.2)      # Max 1.2 for assumptions
-            )
-            
-        elif dimension == "D5":
-            # D5: Impactos - weight alignment + risk coverage
-            alignment = evidence.get('impact_alignment', 0.5)
-            risks = len(evidence.get('systemic_risks', []))
-            entropy = evidence.get('risk_entropy', 0.0)
-            
-            score = (
-                (alignment * 1.2) +                    # Max 1.2 for alignment
-                (min(risks / 3, 1.0) * 0.9) +          # Max 0.9 for risks
-                (min(entropy, 1.0) * 0.9)              # Max 0.9 for entropy
-            )
-            
-        elif dimension == "D6":
-            # D6: Causalidad - weight coherence + anti-milagro + bicameral
-            coherence = evidence.get('causal_coherence', 0.5)
-            anti_miracle = evidence.get('anti_miracle_score', 0.0)
-            specific_recs = len(evidence.get('recommendations_specific', []))
-            structural_recs = len(evidence.get('recommendations_structural', []))
-            
-            score = (
-                (coherence * 1.2) +                              # Max 1.2 for coherence
-                (anti_miracle * 0.6) +                           # Max 0.6 for anti-milagro
-                (min((specific_recs + structural_recs) / 5, 1.0) * 1.2)  # Max 1.2 for recs
-            )
-            
-        else:
-            # Generic fallback
-            score = 1.5  # Neutral score
-        
-        # Clamp to [0.0, 3.0] range
-        return max(0.0, min(3.0, score))
-    
-    def _extract_findings(
-        self,
-        evidence: Dict[str, Any],
-        dimension: str
-    ) -> List[str]:
-        """Extract key findings from evidence bundle"""
-        findings = []
-        
-        # Dimension-specific finding extraction
-        if dimension == "D1":
-            claims = evidence.get('quantitative_claims', [])
-            if claims:
-                findings.append(f"Identificadas {len(claims)} afirmaciones cuantitativas en línea base")
-            
-            sources = evidence.get('official_sources', [])
-            if sources:
-                findings.append(f"Verificadas {len(sources)} fuentes oficiales (DANE/DNP)")
-            
-            inconsistencies = evidence.get('inconsistencies', [])
-            if inconsistencies:
-                findings.append(f"Detectadas {len(inconsistencies)} inconsistencias numéricas")
-                
-        elif dimension == "D2":
-            patterns = evidence.get('causal_mechanisms', [])
-            if patterns:
-                findings.append(f"Identificados {len(patterns)} mecanismos causales explícitos")
-            
-            coherence = evidence.get('semantic_coherence', 0.0)
-            findings.append(f"Coherencia semántica global: {coherence:.2f}")
-            
-        elif dimension == "D3":
-            indicators = evidence.get('indicators', [])
-            if indicators:
-                findings.append(f"Documentados {len(indicators)} indicadores con línea base y meta")
-            
-            sources = evidence.get('verification_sources', [])
-            if sources:
-                findings.append(f"Trazabilidad presupuestal: {len(sources)} fuentes (BPIN/PPI)")
-                
-        elif dimension == "D4":
-            assumptions = evidence.get('assumptions', [])
-            if assumptions:
-                findings.append(f"Explicitados {len(assumptions)} supuestos de la cadena causal")
-            
-            alignment = evidence.get('objective_alignment', 0.0)
-            findings.append(f"Alineación con marcos normativos: {alignment:.1%}")
-            
-        elif dimension == "D5":
-            risks = evidence.get('systemic_risks', [])
-            if risks:
-                findings.append(f"Identificados {len(risks)} riesgos sistémicos")
-            
-            effects = evidence.get('unintended_effects', [])
-            if effects:
-                findings.append(f"Analizados {len(effects)} efectos no deseados potenciales")
-                
-        elif dimension == "D6":
-            coherence = evidence.get('causal_coherence', 0.0)
-            findings.append(f"Coherencia causal estructural: {coherence:.2f}")
-            
-            anti_miracle = evidence.get('anti_miracle_score', 0.0)
-            findings.append(f"Validación Anti-Milagro: {anti_miracle:.1%}")
-            
-            recs = len(evidence.get('recommendations_specific', [])) + len(evidence.get('recommendations_structural', []))
-            if recs:
-                findings.append(f"Generadas {recs} recomendaciones bicamerales")
-        
-        # If no findings extracted, add generic note
-        if not findings:
-            findings.append("Análisis completado sin hallazgos significativos")
-        
-        return findings
-    
-    def _build_provenance_record(
-        self,
-        context: ExecutionContext,
-        execution_trace: List[Dict[str, Any]],
-        metadata: Dict[str, Any]
-    ) -> ProvenanceRecord:
-        """Build complete provenance record for audit trail"""
-        
-        # Generate deterministic execution ID
-        execution_data = f"{context.question_id}:{context.timestamp}:{self.questionnaire_hash}"
-        execution_id = hashlib.sha256(execution_data.encode()).hexdigest()[:16]
-        
-        # Extract methods invoked from trace
-        methods_invoked = [
-            step.get('method', 'UNKNOWN')
-            for step in execution_trace
-        ]
-        
-        # Build confidence scores from trace
-        confidence_scores = {}
-        for step in execution_trace:
-            method = step.get('method', '')
-            if 'confidence' in step:
-                confidence_scores[method] = step['confidence']
-        
-        # Input artifacts
-        input_artifacts = [
-            f"questionnaire:{self.questionnaire_hash}",
-            f"question:{context.question_id}",
-            f"dimension:{context.dimension}",
-            f"policy_area:{context.policy_area}"
-        ]
-        
-        # Output artifacts
-        output_artifacts = [
-            f"execution_trace:{len(execution_trace)}_steps",
-            f"methods_invoked:{len(methods_invoked)}"
-        ]
-        
-        return ProvenanceRecord(
-            execution_id=execution_id,
-            timestamp=datetime.utcnow().isoformat() + 'Z',
-            input_artifacts=input_artifacts,
-            output_artifacts=output_artifacts,
-            methods_invoked=methods_invoked,
-            confidence_scores=confidence_scores,
-            metadata={
-                'questionnaire_hash': self.questionnaire_hash,
-                'deterministic_seed': self.deterministic_context.get('seed'),
-                'execution_environment': metadata
-            }
-        )
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get execution statistics for the Choreographer"""
-        return {
-            'producers_initialized': len([
-                p for p in self._producer_instances.values()
-                if p  # Non-empty dict
-            ]),
-            'methods_registered': len(self.CANONICAL_METHODS),
-            'dimensions_supported': len(DimensionCode),
-            'method_coverage': f"{len(self.CANONICAL_METHODS)/584*100:.1f}%"
-        }
+
+# Backward compatibility alias (deprecated)
+Choreographer = ExecutionChoreographer
+
