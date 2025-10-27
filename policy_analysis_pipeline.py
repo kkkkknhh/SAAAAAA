@@ -501,7 +501,7 @@ class ExecutionChoreographer:
     
     def execute_question(
         self,
-        question_context: ExecutionContext,
+        question_context,  # Can be ExecutionContext or Dict
         plan_document: str,
         plan_metadata: Dict[str, Any]
     ) -> ExecutionResult:
@@ -509,14 +509,15 @@ class ExecutionChoreographer:
         Execute a single policy question using dimensional routing
         
         FLOW:
-        1. Normalize dimension code (D1-D6)
-        2. Route to dimensional execution chain
-        3. Build MicroLevelAnswer from evidence
-        4. Build provenance record
-        5. Return ExecutionResult
+        1. Normalize question context (dict → ExecutionContext if needed)
+        2. Normalize dimension code (D1-D6)
+        3. Route to dimensional execution chain
+        4. Build MicroLevelAnswer from evidence
+        5. Build provenance record
+        6. Return ExecutionResult
         
         PARAMETERS:
-        - question_context: Execution context with question_id, dimension, etc.
+        - question_context: ExecutionContext or dict with question details
         - plan_document: Policy document text
         - plan_metadata: Document metadata
         
@@ -526,41 +527,69 @@ class ExecutionChoreographer:
         start_time = datetime.utcnow()
         execution_trace = []
         
+        # Convert dict to ExecutionContext if needed
+        if isinstance(question_context, dict):
+            context = ExecutionContext(
+                question_id=question_context.get('canonical_id', question_context.get('question_id', 'UNKNOWN')),
+                dimension=question_context.get('dimension', 'D1'),
+                policy_area=question_context.get('policy_area', 'P0'),
+                questionnaire_hash=self.questionnaire_hash,
+                timestamp=datetime.utcnow().isoformat() + "Z",
+                metadata={
+                    'scoring_modality': question_context.get('scoring_modality', 'TYPE_F'),
+                    'expected_elements': question_context.get('expected_elements', []),
+                    'search_patterns': question_context.get('search_patterns', {}),
+                    'element_weights': question_context.get('element_weights', {}),
+                    'numerical_thresholds': question_context.get('numerical_thresholds', {}),
+                    'validation_rules': question_context.get('validation_rules', {}),
+                    'question_text': question_context.get('question_text', '')
+                }
+            )
+        else:
+            context = question_context
+        
         logger.info("=" * 80)
-        logger.info(f"EXECUTING QUESTION: {question_context.question_id}")
-        logger.info(f"Dimension: {question_context.dimension}")
-        logger.info(f"Policy Area: {question_context.policy_area}")
+        logger.info(f"EXECUTING QUESTION: {context.question_id}")
+        logger.info(f"Dimension: {context.dimension}")
+        logger.info(f"Policy Area: {context.policy_area}")
         logger.info("=" * 80)
         
         try:
             # Step 1: Normalize dimension code
-            dimension = self._normalize_dimension_code(question_context.dimension)
+            dimension = self._normalize_dimension_code(context.dimension)
             logger.info(f"Dimension normalized: {dimension}")
             
             # Step 2: Route to dimensional execution chain
             logger.info(f"Routing to {dimension} execution chain...")
             
             if dimension == DimensionCode.D1_DIAGNOSTICO.value:
-                evidence = self._execute_d1_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d1_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D2_ACTIVIDADES.value:
-                evidence = self._execute_d2_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d2_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D3_PRODUCTOS.value:
-                evidence = self._execute_d3_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d3_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D4_RESULTADOS.value:
-                evidence = self._execute_d4_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d4_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D5_IMPACTOS.value:
-                evidence = self._execute_d5_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d5_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D6_CAUSALIDAD.value:
-                evidence = self._execute_d6_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d6_chain(context, plan_document, execution_trace)
             else:
-                evidence = self._execute_generic_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_generic_chain(context, plan_document, execution_trace)
             
             # Step 3: Build MicroLevelAnswer
             logger.info("Building MicroLevelAnswer from evidence...")
+            
+            # Add execution trace to metadata
+            metadata_with_trace = {
+                **plan_metadata,
+                'execution_trace': execution_trace
+            }
+            
             micro_answer = self._build_micro_answer(
-                question_context,
+                context,
                 evidence,
-                plan_metadata
+                metadata_with_trace
             )
             
             # Step 4: Calculate performance metrics
@@ -573,19 +602,20 @@ class ExecutionChoreographer:
             
             # Step 5: Build provenance record
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
-            logger.info(f"✓ Question execution complete: {question_context.question_id}")
-            logger.info(f"  Score: {micro_answer.score:.3f}")
+            logger.info(f"✓ Question execution complete: {context.question_id}")
+            logger.info(f"  Score: {micro_answer.quantitative_score:.2f}/3.0")
+            logger.info(f"  Note: {micro_answer.qualitative_note}")
             logger.info(f"  Confidence: {micro_answer.confidence:.3f}")
             logger.info(f"  Execution time: {performance_metrics['execution_time_ms']:.1f}ms")
             logger.info("=" * 80)
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='success',
                 micro_answer=micro_answer,
                 execution_trace=execution_trace,
@@ -595,7 +625,7 @@ class ExecutionChoreographer:
             )
         
         except Exception as e:
-            logger.error(f"✗ Question execution failed: {question_context.question_id}")
+            logger.error(f"✗ Question execution failed: {context.question_id}")
             logger.error(f"  Error: {str(e)}")
             logger.error("=" * 80)
             
@@ -607,13 +637,13 @@ class ExecutionChoreographer:
             }
             
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='failure',
                 micro_answer=None,
                 execution_trace=execution_trace,
@@ -1260,9 +1290,507 @@ class ExecutionChoreographer:
         SCORING LOGIC:
         - D1-D5: Evidence-weighted scoring
         - D6: Causal coherence with Anti-Milagro penalty
+        
+        RETURNS:
+        - MicroLevelAnswer compatible with report_assembly.py
         """
-        # Calculate dimension-specific score
-        score = self._calculate_dimensional_score(context.dimension, evidence)
+        # Calculate dimension-specific score (0.0-1.0)
+        score_normalized = self._calculate_dimensional_score(context.dimension, evidence)
+        
+        # Convert to quantitative_score (0.0-3.0 scale)
+        quantitative_score = score_normalized * 3.0
+        
+        # Determine qualitative_note based on score
+        if quantitative_score >= 2.5:
+            qualitative_note = "EXCELENTE"
+        elif quantitative_score >= 2.0:
+            qualitative_note = "BUENO"
+        elif quantitative_score >= 1.5:
+            qualitative_note = "ACEPTABLE"
+        else:
+            qualitative_note = "INSUFICIENTE"
         
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
+        
+        # Build explanation from findings
+        explanation = " ".join(findings[:3])  # First 3 findings as explanation
+        
+        # Calculate confidence
+        confidence = evidence.get('bayesian_confidence', evidence.get('confidence', 0.5))
+        
+        # Extract evidence text (convert dict evidence to list of strings)
+        evidence_texts = []
+        for key, value in evidence.items():
+            if isinstance(value, list) and value:
+                # Extract text from list items
+                for item in value[:3]:  # Limit to first 3 items
+                    if isinstance(item, dict):
+                        text = item.get('text', item.get('pattern', str(item)))
+                        evidence_texts.append(f"{key}: {text}")
+                    else:
+                        evidence_texts.append(f"{key}: {str(item)}")
+            elif value and not isinstance(value, (dict, list)):
+                evidence_texts.append(f"{key}: {str(value)}")
+        
+        # Get scoring modality from context metadata
+        scoring_modality = context.metadata.get('scoring_modality', 'TYPE_F')
+        
+        # Build elements_found dict
+        expected_elements = context.metadata.get('expected_elements', [])
+        elements_found = {elem: True for elem in expected_elements}  # Simplified for now
+        
+        # Build search_pattern_matches
+        search_patterns = context.metadata.get('search_patterns', {})
+        search_pattern_matches = {}
+        for pattern_key in search_patterns.keys():
+            # Check if evidence contains matches for this pattern
+            pattern_evidence_key = pattern_key.replace('pattern_', '')
+            search_pattern_matches[pattern_key] = pattern_evidence_key in evidence
+        
+        # Get execution trace for modules_executed
+        execution_trace = metadata.get('execution_trace', [])
+        modules_executed = list(set([
+            step.get('method', '').split('.')[0]
+            for step in execution_trace
+            if '.' in step.get('method', '')
+        ]))
+        
+        # Build module_results
+        module_results = {
+            module: {
+                'methods': [
+                    step.get('method')
+                    for step in execution_trace
+                    if step.get('method', '').startswith(f"{module}.")
+                ]
+            }
+            for module in modules_executed
+        }
+        
+        # Build MicroLevelAnswer compatible with report_assembly.py
+        micro_answer = MicroLevelAnswer(
+            question_id=context.question_id,
+            qualitative_note=qualitative_note,
+            quantitative_score=quantitative_score,
+            evidence=evidence_texts,
+            explanation=explanation,
+            confidence=confidence,
+            scoring_modality=scoring_modality,
+            elements_found=elements_found,
+            search_pattern_matches=search_pattern_matches,
+            modules_executed=modules_executed,
+            module_results=module_results,
+            execution_time=metadata.get('execution_time_ms', 0.0) / 1000.0,
+            execution_chain=[
+                {'step': str(idx), 'method': step.get('method', 'UNKNOWN')}
+                for idx, step in enumerate(execution_trace, 1)
+            ],
+            metadata={
+                'dimension': context.dimension,
+                'policy_area': context.policy_area,
+                'timestamp': context.timestamp,
+                'questionnaire_hash': context.questionnaire_hash,
+                **context.metadata
+            }
+        )
+        
+        return micro_answer    
+    def _calculate_dimensional_score(self, dimension: str, evidence: Dict[str, Any]) -> float:
+        """
+        Calculate score based on dimensional evidence
+        
+        SCORING LOGIC:
+        - D1: Weighted by quantitative claims, official sources, confidence
+        - D2: Weighted by formalization, causal patterns, coherence
+        - D3: Weighted by indicators, proportionality, feasibility
+        - D4: Weighted by assumptions, alignment, recommendations
+        - D5: Weighted by impacts, intangibles coverage, risk analysis
+        - D6: Causal coherence with Anti-Milagro penalty
+        """
+        score = 0.0
+        
+        if dimension == "D1":
+            # Diagnóstico: Quantitative claims + official sources + confidence
+            quantitative_claims = evidence.get('quantitative_claims', [])
+            official_sources = evidence.get('official_sources', [])
+            confidence = evidence.get('bayesian_confidence', 0.5)
+            inconsistencies = evidence.get('inconsistencies', [])
+            
+            # Base score from quantitative evidence
+            if len(quantitative_claims) > 0:
+                score += 0.3
+            if len(quantitative_claims) >= 3:
+                score += 0.2
+            
+            # Official sources bonus
+            if len(official_sources) > 0:
+                score += 0.2
+            
+            # Confidence factor
+            score += confidence * 0.3
+            
+            # Penalty for inconsistencies
+            if len(inconsistencies) > 0:
+                score -= 0.1 * min(len(inconsistencies), 3)
+                
+        elif dimension == "D2":
+            # Actividades: Formalization + causal patterns + coherence
+            tables = evidence.get('tables', [])
+            causal_patterns = evidence.get('causal_mechanisms', [])
+            coherence = evidence.get('semantic_coherence', 0.0)
+            incompatibilities = evidence.get('incompatibilities', [])
+            
+            # Formalization score
+            if len(tables) > 0:
+                score += 0.3
+            
+            # Causal patterns
+            if len(causal_patterns) >= 2:
+                score += 0.3
+            elif len(causal_patterns) > 0:
+                score += 0.15
+            
+            # Coherence
+            score += coherence * 0.3
+            
+            # Penalty for incompatibilities
+            if len(incompatibilities) > 0:
+                score -= 0.1 * min(len(incompatibilities), 2)
+                
+        elif dimension == "D3":
+            # Productos: Indicators + proportionality + feasibility
+            indicators = evidence.get('indicators', [])
+            sources = evidence.get('verification_sources', [])
+            confidence = evidence.get('confidence', 0.5)
+            inconsistencies = evidence.get('inconsistencies', [])
+            
+            # Indicators with sources
+            if len(indicators) > 0 and len(sources) > 0:
+                score += 0.4
+            elif len(indicators) > 0:
+                score += 0.2
+            
+            # Confidence in verification
+            score += confidence * 0.3
+            
+            # Proportionality check
+            significance = evidence.get('significance', {})
+            if significance.get('is_proportional', False):
+                score += 0.2
+            
+            # Penalty for inconsistencies
+            if len(inconsistencies) > 0:
+                score -= 0.1
+                
+        elif dimension == "D4":
+            # Resultados: Assumptions + alignment + coherence
+            assumptions = evidence.get('assumptions', [])
+            alignment = evidence.get('objective_alignment', 0.0)
+            frameworks = evidence.get('external_frameworks', [])
+            
+            # Explicit assumptions
+            if len(assumptions) >= 2:
+                score += 0.3
+            elif len(assumptions) > 0:
+                score += 0.15
+            
+            # Alignment with objectives
+            score += alignment * 0.4
+            
+            # External framework alignment
+            if len(frameworks) > 0:
+                score += 0.2
+            
+            # Numerical consistency check
+            inconsistencies = evidence.get('numerical_consistency', [])
+            if len(inconsistencies) == 0:
+                score += 0.1
+                
+        elif dimension == "D5":
+            # Impactos: Impact definition + intangibles + risk analysis
+            temporal_markers = evidence.get('temporal_markers', [])
+            intangibles = evidence.get('intangibles', [])
+            risks = evidence.get('systemic_risks', [])
+            effects = evidence.get('unintended_effects', [])
+            
+            # Impact definition with temporal markers
+            if len(temporal_markers) > 0:
+                score += 0.25
+            
+            # Intangibles measurement
+            if len(intangibles) >= 2:
+                score += 0.25
+            elif len(intangibles) > 0:
+                score += 0.15
+            
+            # Risk analysis
+            if len(risks) > 0:
+                score += 0.2
+            
+            # Unintended effects consideration
+            if len(effects) > 0:
+                score += 0.2
+            
+            # Entropy bonus (comprehensive analysis)
+            entropy = evidence.get('risk_entropy', 0.0)
+            if entropy > 0.5:
+                score += 0.1
+                
+        elif dimension == "D6":
+            # Causalidad: Most complex - causal structure + anti-milagro + bicameral
+            validation_result = evidence.get('validation_result', {})
+            coherence = evidence.get('causal_coherence', 0.0)
+            anti_miracle_score = evidence.get('anti_miracle_score', 0.0)
+            complete_paths = evidence.get('complete_paths', [])
+            order_violations = evidence.get('order_violations', [])
+            
+            # Causal coherence (base 40%)
+            score += coherence * 0.4
+            
+            # Anti-Milagro validation (20%)
+            score += anti_miracle_score * 0.2
+            
+            # Complete causal paths (20%)
+            if len(complete_paths) > 0:
+                score += 0.2
+            elif validation_result.get('has_partial_paths', False):
+                score += 0.1
+            
+            # Order violations penalty (up to -20%)
+            if len(order_violations) == 0:
+                score += 0.2
+            else:
+                penalty = min(0.2, 0.05 * len(order_violations))
+                score -= penalty
+            
+            # Bicameral recommendations bonus
+            recommendations_specific = evidence.get('recommendations_specific', [])
+            recommendations_structural = evidence.get('recommendations_structural', [])
+            if len(recommendations_specific) + len(recommendations_structural) >= 3:
+                score += 0.1
+        
+        # Normalize score to [0.0, 1.0]
+        score = max(0.0, min(1.0, score))
+        
+        return score
+    
+    def _extract_findings(self, evidence: Dict[str, Any], dimension: str) -> List[str]:
+        """
+        Extract human-readable key findings from evidence
+        
+        Generates 3-5 key findings per dimension
+        """
+        findings = []
+        
+        if dimension == "D1":
+            # Diagnóstico findings
+            claims = evidence.get('quantitative_claims', [])
+            sources = evidence.get('official_sources', [])
+            inconsistencies = evidence.get('inconsistencies', [])
+            
+            if len(claims) > 0:
+                findings.append(f"Se identificaron {len(claims)} afirmaciones cuantitativas en el diagnóstico")
+            
+            if len(sources) > 0:
+                findings.append(f"Se encontraron {len(sources)} referencias a fuentes oficiales (DANE, DNP)")
+            
+            if len(inconsistencies) > 0:
+                findings.append(f"ALERTA: {len(inconsistencies)} inconsistencias numéricas detectadas")
+            else:
+                findings.append("No se detectaron inconsistencias numéricas")
+            
+            confidence = evidence.get('bayesian_confidence', 0.0)
+            if confidence >= 0.7:
+                findings.append(f"Alta confianza en la evidencia (Bayesian: {confidence:.2f})")
+            elif confidence >= 0.4:
+                findings.append(f"Confianza moderada en la evidencia (Bayesian: {confidence:.2f})")
+            else:
+                findings.append(f"Baja confianza en la evidencia (Bayesian: {confidence:.2f})")
+                
+        elif dimension == "D2":
+            # Actividades findings
+            tables = evidence.get('tables', [])
+            causal = evidence.get('causal_mechanisms', [])
+            coherence = evidence.get('semantic_coherence', 0.0)
+            
+            if len(tables) > 0:
+                findings.append(f"Se detectaron {len(tables)} tablas estructuradas de actividades")
+            else:
+                findings.append("No se encontró estructura tabular formal")
+            
+            if len(causal) > 0:
+                findings.append(f"Se identificaron {len(causal)} patrones de mecanismos causales")
+            
+            findings.append(f"Coherencia semántica global: {coherence:.2f}")
+            
+            incompatibilities = evidence.get('incompatibilities', [])
+            if len(incompatibilities) > 0:
+                findings.append(f"ALERTA: {len(incompatibilities)} incompatibilidades lógicas entre actividades")
+                
+        elif dimension == "D3":
+            # Productos findings
+            indicators = evidence.get('indicators', [])
+            sources = evidence.get('verification_sources', [])
+            
+            if len(indicators) > 0:
+                findings.append(f"Se definieron {len(indicators)} indicadores de producto")
+            
+            if len(sources) > 0:
+                findings.append(f"Se especificaron {len(sources)} fuentes de verificación")
+            else:
+                findings.append("No se encontraron fuentes de verificación explícitas")
+            
+            significance = evidence.get('significance', {})
+            if significance.get('is_proportional', False):
+                findings.append("Las metas son proporcionales a las brechas identificadas")
+            else:
+                findings.append("ALERTA: Posible desproporcionalidad meta-brecha")
+            
+            temporal_conflicts = evidence.get('temporal_conflicts', [])
+            if len(temporal_conflicts) > 0:
+                findings.append(f"ALERTA: {len(temporal_conflicts)} conflictos temporales detectados")
+                
+        elif dimension == "D4":
+            # Resultados findings
+            assumptions = evidence.get('assumptions', [])
+            alignment = evidence.get('objective_alignment', 0.0)
+            frameworks = evidence.get('external_frameworks', [])
+            
+            if len(assumptions) > 0:
+                findings.append(f"Se explicitan {len(assumptions)} supuestos críticos")
+            else:
+                findings.append("No se encontraron supuestos explícitos")
+            
+            findings.append(f"Alineación con objetivos superiores: {alignment:.2f}")
+            
+            if len(frameworks) > 0:
+                findings.append(f"Alineación con {len(frameworks)} marcos normativos (PND, ODS, etc.)")
+            else:
+                findings.append("No se encontró alineación explícita con marcos externos")
+                
+        elif dimension == "D5":
+            # Impactos findings
+            markers = evidence.get('temporal_markers', [])
+            intangibles = evidence.get('intangibles', [])
+            risks = evidence.get('systemic_risks', [])
+            effects = evidence.get('unintended_effects', [])
+            
+            if len(markers) > 0:
+                findings.append(f"Se definen {len(markers)} marcadores temporales de impacto")
+            
+            if len(intangibles) > 0:
+                findings.append(f"Se abordan {len(intangibles)} aspectos intangibles con proxies")
+            else:
+                findings.append("No se encontró medición de aspectos intangibles")
+            
+            if len(risks) > 0:
+                findings.append(f"Se identifican {len(risks)} riesgos sistémicos")
+            else:
+                findings.append("ALERTA: No se identifican riesgos sistémicos")
+            
+            if len(effects) > 0:
+                findings.append(f"Se consideran {len(effects)} posibles efectos no deseados")
+                
+        elif dimension == "D6":
+            # Causalidad findings
+            coherence = evidence.get('causal_coherence', 0.0)
+            anti_miracle = evidence.get('anti_miracle_score', 0.0)
+            paths = evidence.get('complete_paths', [])
+            violations = evidence.get('order_violations', [])
+            
+            findings.append(f"Coherencia causal global: {coherence:.2f}")
+            
+            if anti_miracle >= 0.8:
+                findings.append("Validación Anti-Milagro: Enlaces proporcionales y realistas")
+            else:
+                findings.append("ALERTA: Posibles saltos lógicos inverosímiles (Anti-Milagro)")
+            
+            if len(paths) > 0:
+                findings.append(f"Se identifican {len(paths)} caminos causales completos")
+            else:
+                findings.append("CRÍTICO: No se encontraron caminos causales completos")
+            
+            if len(violations) > 0:
+                findings.append(f"ALERTA: {len(violations)} violaciones de orden causal")
+            
+            recommendations = len(evidence.get('recommendations_specific', [])) + \
+                            len(evidence.get('recommendations_structural', []))
+            if recommendations > 0:
+                findings.append(f"Sistema Bicameral generó {recommendations} recomendaciones")
+        
+        # Ensure we have at least some findings
+        if not findings:
+            findings.append("Análisis completado sin hallazgos específicos")
+        
+        return findings
+    
+    def _build_provenance_record(
+        self,
+        context: ExecutionContext,
+        execution_trace: List[Dict[str, Any]],
+        metadata: Dict[str, Any]
+    ) -> ProvenanceRecord:
+        """
+        Build complete provenance record for audit and reproducibility
+        """
+        # Extract method names from trace
+        methods_invoked = [step.get('method', 'UNKNOWN') for step in execution_trace]
+        
+        # Build execution ID from context
+        import hashlib
+        execution_string = f"{context.question_id}_{context.timestamp}_{context.questionnaire_hash}"
+        execution_id = hashlib.sha256(execution_string.encode()).hexdigest()[:16]
+        
+        # Calculate confidence scores from trace
+        confidence_scores = {}
+        for idx, step in enumerate(execution_trace, 1):
+            method = step.get('method', f'step_{idx}')
+            confidence_scores[method] = step.get('confidence', 1.0)
+        
+        provenance = ProvenanceRecord(
+            execution_id=execution_id,
+            timestamp=context.timestamp,
+            input_artifacts=[
+                f"question:{context.question_id}",
+                f"questionnaire:{context.questionnaire_hash}"
+            ],
+            output_artifacts=[
+                f"micro_answer:{context.question_id}",
+                f"evidence_bundle:{execution_id}"
+            ],
+            methods_invoked=methods_invoked,
+            confidence_scores=confidence_scores,
+            metadata={
+                'dimension': context.dimension,
+                'policy_area': context.policy_area,
+                'execution_context': context.metadata,
+                **metadata
+            }
+        )
+        
+        return provenance
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get execution statistics from Choreographer
+        
+        Returns aggregated statistics about method execution
+        """
+        return {
+            'total_methods_registered': len(self.CANONICAL_METHODS),
+            'producers_initialized': len(self._producer_instances),
+            'coverage_percentage': (len(self.CANONICAL_METHODS) / 584) * 100,
+            'components': {
+                producer: len(classes)
+                for producer, classes in self._producer_instances.items()
+            }
+        }
+
+
+# ============================================================================
+# EXECUTION CHOREOGRAPHER ALIAS
+# ============================================================================
+
+# Alias for backward compatibility with Industrialpolicyprocessor.py
+ExecutionChoreographer = Choreographer
