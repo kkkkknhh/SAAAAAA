@@ -751,6 +751,7 @@ class PolicyAnalysisOrchestrator:
             performance_metrics={
                 "total_execution_time": self.stats["execution_time"],
                 "average_time_per_question": self.stats["execution_time"] / max(len(micro_results), 1),
+                "avg_question_time": self.stats["execution_time"] / max(len(micro_results), 1),  # Backward compatibility
                 "questions_per_second": len(micro_results) / max(self.stats["execution_time"], 0.001),
                 "choreographer_stats": self.choreographer.get_statistics()
             },
