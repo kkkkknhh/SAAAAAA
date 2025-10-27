@@ -130,7 +130,7 @@ class MicroLevelAnswer:
     - question_id: Unique identifier
     - dimension: Dimensional code (D1-D6)
     - policy_area: Policy domain
-    - score: Numerical assessment [0.0, 1.0]
+    - score: Numerical assessment [0.0, 3.0]
     - evidence: Complete evidence bundle from dimensional chain
     - findings: Human-readable key findings
     - confidence: Bayesian posterior confidence
@@ -147,8 +147,8 @@ class MicroLevelAnswer:
     
     def __post_init__(self):
         # Validate score range
-        if not (0.0 <= self.score <= 1.0):
-            raise ValueError(f"Score must be in [0.0, 1.0], got: {self.score}")
+        if not (0.0 <= self.score <= 3.0):
+            raise ValueError(f"Score must be in [0.0, 3.0], got: {self.score}")
         
         # Validate confidence range
         if not (0.0 <= self.confidence <= 1.0):
@@ -1300,3 +1300,244 @@ class Choreographer:
         
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
+        
+        # Extract confidence from evidence
+        confidence = evidence.get('bayesian_confidence', evidence.get('confidence', 0.5))
+        
+        # Build MicroLevelAnswer
+        return MicroLevelAnswer(
+            question_id=context.question_id,
+            dimension=context.dimension,
+            policy_area=context.policy_area,
+            score=score,
+            evidence=evidence,
+            findings=findings,
+            confidence=confidence,
+            metadata=metadata
+        )
+    
+    def _calculate_dimensional_score(
+        self,
+        dimension: str,
+        evidence: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate dimension-specific score from evidence
+        
+        Maps evidence to 0.0-3.0 scale matching report_assembly expectations
+        """
+        # Extract key metrics by dimension
+        if dimension == "D1":
+            # D1: Diagnóstico - weight quantitative claims + official sources
+            claims = len(evidence.get('quantitative_claims', []))
+            sources = len(evidence.get('official_sources', []))
+            confidence = evidence.get('bayesian_confidence', 0.5)
+            
+            # Score: claims (40%) + sources (30%) + confidence (30%)
+            score = (
+                (min(claims / 5, 1.0) * 1.2) +  # Max 1.2 for claims
+                (min(sources / 3, 1.0) * 0.9) +  # Max 0.9 for sources
+                (confidence * 0.9)                # Max 0.9 for confidence
+            )
+            
+        elif dimension == "D2":
+            # D2: Actividades - weight causal patterns + coherence
+            patterns = len(evidence.get('causal_mechanisms', []))
+            coherence = evidence.get('semantic_coherence', 0.5)
+            
+            score = (
+                (min(patterns / 4, 1.0) * 1.5) +  # Max 1.5 for patterns
+                (coherence * 1.5)                  # Max 1.5 for coherence
+            )
+            
+        elif dimension == "D3":
+            # D3: Productos - weight indicators + feasibility
+            indicators = len(evidence.get('indicators', []))
+            confidence = evidence.get('confidence', 0.5)
+            loss = evidence.get('loss_function', {}).get('score', 1.0)
+            
+            score = (
+                (min(indicators / 3, 1.0) * 1.0) +   # Max 1.0 for indicators
+                (confidence * 1.0) +                   # Max 1.0 for confidence
+                ((1.0 - loss) * 1.0)                   # Max 1.0 for low loss
+            )
+            
+        elif dimension == "D4":
+            # D4: Resultados - weight alignment + assumptions
+            alignment = evidence.get('objective_alignment', 0.5)
+            assumptions = len(evidence.get('assumptions', []))
+            
+            score = (
+                (alignment * 1.8) +                    # Max 1.8 for alignment
+                (min(assumptions / 3, 1.0) * 1.2)      # Max 1.2 for assumptions
+            )
+            
+        elif dimension == "D5":
+            # D5: Impactos - weight alignment + risk coverage
+            alignment = evidence.get('impact_alignment', 0.5)
+            risks = len(evidence.get('systemic_risks', []))
+            entropy = evidence.get('risk_entropy', 0.0)
+            
+            score = (
+                (alignment * 1.2) +                    # Max 1.2 for alignment
+                (min(risks / 3, 1.0) * 0.9) +          # Max 0.9 for risks
+                (min(entropy, 1.0) * 0.9)              # Max 0.9 for entropy
+            )
+            
+        elif dimension == "D6":
+            # D6: Causalidad - weight coherence + anti-milagro + bicameral
+            coherence = evidence.get('causal_coherence', 0.5)
+            anti_miracle = evidence.get('anti_miracle_score', 0.0)
+            specific_recs = len(evidence.get('recommendations_specific', []))
+            structural_recs = len(evidence.get('recommendations_structural', []))
+            
+            score = (
+                (coherence * 1.2) +                              # Max 1.2 for coherence
+                (anti_miracle * 0.6) +                           # Max 0.6 for anti-milagro
+                (min((specific_recs + structural_recs) / 5, 1.0) * 1.2)  # Max 1.2 for recs
+            )
+            
+        else:
+            # Generic fallback
+            score = 1.5  # Neutral score
+        
+        # Clamp to [0.0, 3.0] range
+        return max(0.0, min(3.0, score))
+    
+    def _extract_findings(
+        self,
+        evidence: Dict[str, Any],
+        dimension: str
+    ) -> List[str]:
+        """Extract key findings from evidence bundle"""
+        findings = []
+        
+        # Dimension-specific finding extraction
+        if dimension == "D1":
+            claims = evidence.get('quantitative_claims', [])
+            if claims:
+                findings.append(f"Identificadas {len(claims)} afirmaciones cuantitativas en línea base")
+            
+            sources = evidence.get('official_sources', [])
+            if sources:
+                findings.append(f"Verificadas {len(sources)} fuentes oficiales (DANE/DNP)")
+            
+            inconsistencies = evidence.get('inconsistencies', [])
+            if inconsistencies:
+                findings.append(f"Detectadas {len(inconsistencies)} inconsistencias numéricas")
+                
+        elif dimension == "D2":
+            patterns = evidence.get('causal_mechanisms', [])
+            if patterns:
+                findings.append(f"Identificados {len(patterns)} mecanismos causales explícitos")
+            
+            coherence = evidence.get('semantic_coherence', 0.0)
+            findings.append(f"Coherencia semántica global: {coherence:.2f}")
+            
+        elif dimension == "D3":
+            indicators = evidence.get('indicators', [])
+            if indicators:
+                findings.append(f"Documentados {len(indicators)} indicadores con línea base y meta")
+            
+            sources = evidence.get('verification_sources', [])
+            if sources:
+                findings.append(f"Trazabilidad presupuestal: {len(sources)} fuentes (BPIN/PPI)")
+                
+        elif dimension == "D4":
+            assumptions = evidence.get('assumptions', [])
+            if assumptions:
+                findings.append(f"Explicitados {len(assumptions)} supuestos de la cadena causal")
+            
+            alignment = evidence.get('objective_alignment', 0.0)
+            findings.append(f"Alineación con marcos normativos: {alignment:.1%}")
+            
+        elif dimension == "D5":
+            risks = evidence.get('systemic_risks', [])
+            if risks:
+                findings.append(f"Identificados {len(risks)} riesgos sistémicos")
+            
+            effects = evidence.get('unintended_effects', [])
+            if effects:
+                findings.append(f"Analizados {len(effects)} efectos no deseados potenciales")
+                
+        elif dimension == "D6":
+            coherence = evidence.get('causal_coherence', 0.0)
+            findings.append(f"Coherencia causal estructural: {coherence:.2f}")
+            
+            anti_miracle = evidence.get('anti_miracle_score', 0.0)
+            findings.append(f"Validación Anti-Milagro: {anti_miracle:.1%}")
+            
+            recs = len(evidence.get('recommendations_specific', [])) + len(evidence.get('recommendations_structural', []))
+            if recs:
+                findings.append(f"Generadas {recs} recomendaciones bicamerales")
+        
+        # If no findings extracted, add generic note
+        if not findings:
+            findings.append("Análisis completado sin hallazgos significativos")
+        
+        return findings
+    
+    def _build_provenance_record(
+        self,
+        context: ExecutionContext,
+        execution_trace: List[Dict[str, Any]],
+        metadata: Dict[str, Any]
+    ) -> ProvenanceRecord:
+        """Build complete provenance record for audit trail"""
+        
+        # Generate deterministic execution ID
+        execution_data = f"{context.question_id}:{context.timestamp}:{self.questionnaire_hash}"
+        execution_id = hashlib.sha256(execution_data.encode()).hexdigest()[:16]
+        
+        # Extract methods invoked from trace
+        methods_invoked = [
+            step.get('method', 'UNKNOWN')
+            for step in execution_trace
+        ]
+        
+        # Build confidence scores from trace
+        confidence_scores = {}
+        for step in execution_trace:
+            method = step.get('method', '')
+            if 'confidence' in step:
+                confidence_scores[method] = step['confidence']
+        
+        # Input artifacts
+        input_artifacts = [
+            f"questionnaire:{self.questionnaire_hash}",
+            f"question:{context.question_id}",
+            f"dimension:{context.dimension}",
+            f"policy_area:{context.policy_area}"
+        ]
+        
+        # Output artifacts
+        output_artifacts = [
+            f"execution_trace:{len(execution_trace)}_steps",
+            f"methods_invoked:{len(methods_invoked)}"
+        ]
+        
+        return ProvenanceRecord(
+            execution_id=execution_id,
+            timestamp=datetime.utcnow().isoformat() + 'Z',
+            input_artifacts=input_artifacts,
+            output_artifacts=output_artifacts,
+            methods_invoked=methods_invoked,
+            confidence_scores=confidence_scores,
+            metadata={
+                'questionnaire_hash': self.questionnaire_hash,
+                'deterministic_seed': self.deterministic_context.get('seed'),
+                'execution_environment': metadata
+            }
+        )
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get execution statistics for the Choreographer"""
+        return {
+            'producers_initialized': len([
+                p for p in self._producer_instances.values()
+                if p  # Non-empty dict
+            ]),
+            'methods_registered': len(self.CANONICAL_METHODS),
+            'dimensions_supported': len(DimensionCode),
+            'method_coverage': f"{len(self.CANONICAL_METHODS)/584*100:.1f}%"
+        }
