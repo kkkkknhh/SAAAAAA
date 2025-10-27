@@ -45,6 +45,7 @@ Python: 3.10+
 
 import argparse
 import hashlib
+import json
 import logging
 import random
 import sys
@@ -55,12 +56,18 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from functools import lru_cache
-from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple, Type
+from pathlib import Path
+from typing import Any, ClassVar, Dict, FrozenSet, List, Optional, Set, Tuple, Type
 
 # --- Dependencias de Terceros ---
 import networkx as nx
 import numpy as np
 import scipy.stats as stats
+
+try:
+    from jsonschema import Draft7Validator
+except ImportError:  # pragma: no cover - jsonschema es opcional
+    Draft7Validator = None
 
 
 # --- Configuración de Logging ---
@@ -136,14 +143,103 @@ class AdvancedGraphNode:
     """Nodo de grafo enriquecido con metadatos y rol semántico."""
 
     name: str
-    dependencies: Set[str]
+    dependencies: Set[str] = field(default_factory=set)
     metadata: Dict[str, Any] = field(default_factory=dict)
     role: str = "variable"
 
+    ALLOWED_ROLES: ClassVar[Set[str]] = {
+        "variable",
+        "insumo",
+        "proceso",
+        "producto",
+        "resultado",
+        "causalidad",
+    }
+
     def __post_init__(self) -> None:
         """Inicializa metadatos por defecto si no son provistos."""
-        if not self.metadata:
-            self.metadata = {"created": datetime.now().isoformat(), "confidence": 1.0}
+        self.name = str(self.name).strip()
+        if not self.name:
+            raise ValueError("AdvancedGraphNode.name must be a non-empty string")
+
+        if not isinstance(self.dependencies, set):
+            self.dependencies = set(self.dependencies or set())
+        self.dependencies = {
+            str(dep).strip() for dep in self.dependencies if str(dep).strip()
+        }
+
+        self.metadata = self._normalize_metadata(self.metadata)
+
+        normalized_role = (self.role or "variable").strip().lower()
+        if normalized_role not in self.ALLOWED_ROLES:
+            raise ValueError(
+                "Invalid role '%s'. Expected one of: %s"
+                % (self.role, ", ".join(sorted(self.ALLOWED_ROLES)))
+            )
+        self.role = normalized_role
+
+    def _normalize_metadata(
+        self, metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Normaliza metadatos garantizando primitivos JSON y valores por defecto."""
+
+        source_metadata = metadata if metadata is not None else self.metadata
+        base_metadata = dict(source_metadata or {})
+        if not base_metadata.get("created"):
+            base_metadata["created"] = datetime.now().isoformat()
+        if "confidence" not in base_metadata or base_metadata["confidence"] is None:
+            base_metadata["confidence"] = 1.0
+
+        normalized: Dict[str, Any] = {}
+        for key, value in base_metadata.items():
+            if key == "confidence":
+                normalized[key] = self._sanitize_confidence(value)
+            elif key == "created":
+                normalized[key] = self._sanitize_created(value)
+            else:
+                normalized[key] = self._sanitize_metadata_value(value)
+        return normalized
+
+    @staticmethod
+    def _sanitize_confidence(value: Any) -> float:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            numeric = 1.0
+        return max(0.0, min(1.0, numeric))
+
+    @staticmethod
+    def _sanitize_created(value: Any) -> str:
+        if isinstance(value, str) and value:
+            return value
+        if hasattr(value, "isoformat"):
+            try:
+                return value.isoformat()
+            except Exception:  # pragma: no cover - fallback defensivo
+                pass
+        return datetime.now().isoformat()
+
+    @staticmethod
+    def _sanitize_metadata_value(value: Any) -> Any:
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if hasattr(value, "isoformat"):
+            try:
+                return value.isoformat()
+            except Exception:  # pragma: no cover - fallback defensivo
+                pass
+        return str(value)
+
+    def to_serializable_dict(self) -> Dict[str, Any]:
+        """Convierte el nodo en un diccionario serializable compatible con JSON Schema."""
+
+        metadata = self._normalize_metadata()
+        return {
+            "name": self.name,
+            "dependencies": sorted(self.dependencies),
+            "metadata": metadata,
+            "role": self.role,
+        }
 
 
 @dataclass
@@ -357,6 +453,10 @@ class AdvancedDAGValidator:
     de modelos causales complejos.
     """
 
+    _NODE_SCHEMA_PATH: Path = Path(__file__).resolve().parent / "schemas" / "teoria_cambio" / "advanced_graph_node.schema.json"
+    _NODE_VALIDATOR: Optional[Any] = None
+    _NODE_VALIDATION_WARNING_EMITTED: bool = False
+
     def __init__(self, graph_type: GraphType = GraphType.CAUSAL_DAG) -> None:
         self.graph_nodes: Dict[str, AdvancedGraphNode] = {}
         self.graph_type: GraphType = graph_type
@@ -367,6 +467,7 @@ class AdvancedDAGValidator:
             "power_threshold": 0.8,
             "convergence_threshold": 1e-5,
         }
+        self._last_serialized_nodes: List[Dict[str, Any]] = []
 
     def add_node(
         self,
@@ -466,6 +567,7 @@ class AdvancedDAGValidator:
         start_time = time.time()
         seed = self._initialize_rng(plan_name)
         if not self.graph_nodes:
+            self._last_serialized_nodes = []
             return self._create_empty_result(
                 plan_name, seed, datetime.now().isoformat()
             )
@@ -483,6 +585,8 @@ class AdvancedDAGValidator:
         sensitivity = self._perform_sensitivity_analysis_internal(
             plan_name, p_value, min(iterations, 200)
         )
+
+        self.export_nodes(validate=True)
 
         return MonteCarloAdvancedResult(
             plan_name=plan_name,
@@ -505,6 +609,80 @@ class AdvancedDAGValidator:
             graph_statistics=self.get_graph_stats(),
             test_parameters={"iterations": iterations, "confidence_level": conf_level},
         )
+
+    @property
+    def last_serialized_nodes(self) -> List[Dict[str, Any]]:
+        """Obtiene la instantánea más reciente de nodos serializados."""
+
+        return [
+            {"name": node["name"], "dependencies": list(node["dependencies"]), "metadata": dict(node["metadata"]), "role": node["role"]}
+            for node in self._last_serialized_nodes
+        ]
+
+    def export_nodes(
+        self, validate: bool = False, schema_path: Optional[Path] = None
+    ) -> List[Dict[str, Any]]:
+        """Serializa los nodos del grafo y opcionalmente valida contra JSON Schema."""
+
+        serialized_nodes = [
+            node.to_serializable_dict()
+            for node in sorted(self.graph_nodes.values(), key=lambda n: n.name)
+        ]
+        self._last_serialized_nodes = serialized_nodes
+
+        if validate:
+            validator = self._get_node_validator(schema_path)
+            if validator is not None:
+                for index, payload in enumerate(serialized_nodes):
+                    errors = list(validator.iter_errors(payload))
+                    if errors:
+                        joined = "; ".join(
+                            (
+                                f"{'/'.join(str(x) for x in error.path)}: {error.message}"
+                                if error.path
+                                else error.message
+                            )
+                            for error in errors
+                        )
+                        raise ValueError(
+                            "AdvancedGraphNode payload at index %d failed schema validation: %s"
+                            % (index, joined)
+                        )
+
+        return serialized_nodes
+
+    @classmethod
+    def _get_node_validator(
+        cls, schema_path: Optional[Path] = None
+    ) -> Optional["Draft7Validator"]:
+        """Obtiene (y cachea) el validador JSON Schema para nodos avanzados."""
+
+        if Draft7Validator is None:
+            if not cls._NODE_VALIDATION_WARNING_EMITTED:
+                LOGGER.warning(
+                    "jsonschema is not installed; skipping AdvancedGraphNode schema validation."
+                )
+                cls._NODE_VALIDATION_WARNING_EMITTED = True
+            return None
+
+        if schema_path is None and cls._NODE_VALIDATOR is not None:
+            return cls._NODE_VALIDATOR
+
+        path = Path(schema_path) if schema_path else cls._NODE_SCHEMA_PATH
+        try:
+            with open(path, "r", encoding="utf-8") as file:
+                schema = json.load(file)
+        except FileNotFoundError:
+            LOGGER.error("Advanced graph node schema file not found at %s", path)
+            return None
+        except json.JSONDecodeError as exc:
+            LOGGER.error("Invalid JSON in advanced graph node schema %s: %s", path, exc)
+            return None
+
+        validator = Draft7Validator(schema)
+        if schema_path is None:
+            cls._NODE_VALIDATOR = validator
+        return validator
 
     def _perform_sensitivity_analysis_internal(
         self, plan_name: str, base_p_value: float, iterations: int
@@ -884,6 +1062,7 @@ def main() -> None:
         result = dag_validator.calculate_acyclicity_pvalue(
             args.plan_name, args.iterations
         )
+        serialized_nodes = dag_validator.last_serialized_nodes
 
         LOGGER.info("\n" + "=" * 80)
         LOGGER.info(
@@ -902,6 +1081,9 @@ def main() -> None:
         )
         LOGGER.info(f"  - Score de Robustez Estructural: {result.robustness_score:.4f}")
         LOGGER.info(f"  - Tiempo de Cómputo: {result.computation_time:.3f}s")
+        LOGGER.info(
+            "  - Nodos validados contra schema: %d", len(serialized_nodes)
+        )
         LOGGER.info("=" * 80)
 
 

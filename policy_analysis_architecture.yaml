@@ -1,0 +1,712 @@
+policy_analysis_architecture:
+  version: "1.0"
+  date: "2025-10-23"
+  utilization_target: "95%"
+  orchestration_flow:
+    description: >-
+      El sistema de Análisis Avanzado de Políticas Municipales opera mediante una
+      orquestación integral que busca una alta utilización del código, delegando
+      tareas críticas a clases especializadas como el PolicyContradictionDetector,
+      el TemporalLogicVerifier y el BayesianConfidenceCalculator. El flujo completo,
+      desde la entrada del input hasta el resumen ejecutivo, se orquesta a través
+      de la PolicyAnalysisPipeline.
+    components:
+      - name: PolicyAnalysisPipeline
+        role: Orquestadora principal del análisis de política.
+        key_methods:
+          - __init__
+          - analyze_text
+      - name: IndustrialPolicyProcessor
+        role: Procesador central que delega tareas críticas a detectores y
+          verificadores especializados.
+        key_methods:
+          - __init__
+          - process
+          - _load_questionnaire
+          - _compile_pattern_registry
+          - _build_point_patterns
+          - _match_patterns_in_sentences
+          - segment_into_sentences
+      - name: PolicyContradictionDetector
+        role: Detector de contradicciones, inconsistencias y conflictos numéricos,
+          temporales y semánticos.
+        key_methods:
+          - __init__
+          - _initialize_pdm_patterns
+          - _extract_quantitative_claims
+          - _parse_number
+          - _extract_resource_mentions
+          - _detect_numerical_inconsistencies
+          - _are_comparable_claims
+          - _calculate_numerical_divergence
+          - _detect_resource_conflicts
+          - _are_conflicting_allocations
+          - _determine_semantic_role
+          - _calculate_graph_fragmentation
+          - _detect_temporal_conflicts
+          - _calculate_confidence_interval
+          - _determine_relation_type
+          - _classify_contradiction
+          - _get_graph_statistics
+          - _calculate_global_semantic_coherence
+          - _build_knowledge_graph
+          - _get_dependency_depth
+          - _calculate_objective_alignment
+          - _extract_temporal_markers
+          - _calculate_contradiction_entropy
+          - _identify_affected_sections
+          - _generate_embeddings
+          - _identify_dependencies
+          - _calculate_syntactic_complexity
+          - _detect_logical_incompatibilities
+          - _has_logical_conflict
+          - _generate_resolution_recommendations
+          - _suggest_resolutions
+          - _get_context_window
+          - _statistical_significance_test
+          - _text_similarity
+      - name: TemporalLogicVerifier
+        role: Verificador especializado en consistencia temporal y cronogramas.
+        key_methods:
+          - verify_temporal_consistency
+          - _build_timeline
+          - _check_deadline_constraints
+          - _classify_temporal_type
+          - _extract_resources
+      - name: BayesianConfidenceCalculator
+        role: Calculadora bayesiana para ponderar la confianza de la evidencia.
+        key_methods:
+          - calculate_posterior
+        parameters:
+          - pattern_specificity
+      - name: SemanticAnalyzer
+        role: Analizador semántico basado en la MunicipalOntology para evaluar
+          complejidad, temas transversales y roles semánticos.
+        key_methods:
+          - init
+          - _calculate_semantic_complexity
+          - _classify_cross_cutting_themes
+      - name: MunicipalOntology
+        role: Ontología central del dominio municipal.
+        key_methods:
+          - init
+      - name: DocumentProcessor
+        role: Cargador de documentos PDF y DOCX.
+        key_methods:
+          - load_pdf
+          - load_docx
+      - name: PDETMunicipalPlanAnalyzer
+        role: Analizador avanzado de planes PDET municipales, tabulados y
+          generador de recomendaciones.
+        key_methods:
+          - analyze_municipal_plan
+          - generate_recommendations
+        detects:
+          - ExtractedTable
+      - name: PerformanceAnalyzer
+        role: Motor para calcular la pérdida operacional y métricas de desempeño.
+        key_methods:
+          - analyze_loss_function
+        description: Función de pérdida operacional para cuantificar la
+          desproporción meta-problema.
+      - name: QualityScore
+        role: Dataclass para encapsular resultados de validación.
+        key_methods:
+          - __init__
+      - name: AdvancedDAGValidator
+        role: Validador estructural avanzado para teorías de cambio.
+        key_methods:
+          - validacion_completa
+          - _validar_orden_causal
+          - _encontrar_caminos_completos
+        outputs:
+          - ValidacionResultado
+      - name: TeoriaCambio
+        role: Motor axiomático para la validación estructural de la teoría de cambio.
+        key_methods:
+          - _generar_sugerencias_internas
+          - _execute_generar_sugerencias_internas
+        description: >-
+          Actúa como motor axiomático que valida la estructura global de la
+          Teoría de Cambio representada como un Grafo Acíclico Dirigido (DAG).
+      - name: CounterfactualScenario
+        role: Generador de escenarios contrafactuales para análisis de efectos no deseados.
+        description: >-
+          Utilizado conceptualmente para contrastar el escenario ideal con
+          escenarios alternativos en la detección lógica de efectos no deseados.
+      - name: PolicyStatement
+        role: Estructura de datos para representar declaraciones de política.
+        description: >-
+          Utilizado en la construcción del grafo de conocimiento y análisis causal.
+      - name: ContradictionEvidence
+        role: Estructura de datos para contradicciones detectadas.
+        properties:
+          - contradiction_type
+        types:
+          - NUMERICAL_INCONSISTENCY
+          - TEMPORAL_CONFLICT
+      - name: PolicyDimension
+        role: Contextualizador para análisis de coherencia semántica.
+        description: >-
+          Utilizado para contextualizar el análisis de coherencia global
+          en relación con las dimensiones de política.
+    supporting_assets:
+      - question_bank: 300
+      - questionnaire_source: questionnaire.json
+      - ontology_source: MunicipalOntology
+      - patterns_verificacion: "Taxonomía de verificación transformada en regex"
+      - models:
+          transformers: "Cargados por PolicyContradictionDetector"
+          spacy: es_core_news_lg
+  phase_0_inicializacion_y_carga:
+    scope: "Común a las 300 preguntas"
+    steps:
+      - name: Carga del Documento
+        actions:
+          - DocumentProcessor.load_pdf: >-
+              Incorpora el texto bruto del documento municipal (input primario).
+          - DocumentProcessor.load_docx: >-
+              Alternativa para documentos DOCX.
+      - name: Configuración Inicial
+        actions:
+          - PolicyAnalysisPipeline.__init__: >-
+              Orquestador principal que inicializa el IndustrialPolicyProcessor.
+          - IndustrialPolicyProcessor.__init__: >-
+              Instancia el procesador de texto y el puntuador, ejecuta
+              _load_questionnaire para cargar la estructura de las 300 preguntas.
+      - name: Preparación Semántica
+        actions:
+          - MunicipalOntology.init: >-
+              Inicializa la ontología del dominio.
+          - SemanticAnalyzer.init: >-
+              Prepara el analizador semántico usando la ontología.
+      - name: Optimización de Patrones
+        actions:
+          - IndustrialPolicyProcessor._compile_pattern_registry: >-
+              Transforma la patterns_verificacion (taxonomía de verificación)
+              en expresiones regulares optimizadas.
+          - IndustrialPolicyProcessor._build_point_patterns: >-
+              Optimiza patrones específicos para puntuación.
+      - name: Configuración del Detector
+        actions:
+          - PolicyContradictionDetector.init: >-
+              Inicializa el detector de inconsistencias, incluyendo la carga de
+              modelos transformer y el modelo spacy (es_core_news_lg).
+          - PolicyContradictionDetector._initialize_pdm_patterns: >-
+              Carga patrones específicos de los PDMs colombianos.
+  dimensiones:
+    - id: D1
+      nombre: "Diagnóstico y Consistencia Inicial"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Verificar la línea base, las brechas, los recursos y la capacidad
+        institucional.
+      subdimension:
+        - pregunta: D1-Q1
+          tema: "Líneas Base y Brechas Cuantificadas"
+          cadena_metodos:
+            - IndustrialPolicyProcessor.process: >-
+                Segmenta el texto con segment_into_sentences.
+            - PolicyContradictionDetector._extract_quantitative_claims: >-
+                Busca patrones numéricos y cuantificaciones de brechas
+                (patrón: \d+%.*población.*sin).
+            - PolicyContradictionDetector._parse_number: >-
+                Normaliza las cifras encontradas.
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de fuentes oficiales (DANE, DNP).
+            - SemanticAnalyzer._calculate_semantic_complexity: >-
+                Evalúa la complejidad sintáctica del diagnóstico.
+            - BayesianConfidenceCalculator.calculate_posterior: >-
+                Calcula la confianza de la evidencia frente a la
+                probabilidad previa.
+        - pregunta: D1-Q2
+          tema: "Normalización y Fuentes"
+          cadena_metodos:
+            - PolicyContradictionDetector._parse_number: >-
+                Normaliza cifras.
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Verifica presencia de fuentes oficiales.
+        - pregunta: D1-Q3
+          tema: "Asignación de Recursos"
+          cadena_metodos:
+            - PolicyContradictionDetector._extract_resource_mentions: >-
+                Extrae montos monetarios (COP, millones).
+            - PolicyContradictionDetector._detect_numerical_inconsistencies: >-
+                Compara magnitud de recursos con costos estimados.
+            - PolicyContradictionDetector._are_comparable_claims: >-
+                Verifica comparabilidad de claims.
+            - PolicyContradictionDetector._calculate_numerical_divergence: >-
+                Calcula divergencia numérica.
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Verifica suficiencia (patrón: suficiente para).
+            - PolicyContradictionDetector._detect_resource_conflicts: >-
+                Chequea conflictos con el presupuesto total.
+            - PolicyContradictionDetector._are_conflicting_allocations: >-
+                Verifica conflictos de asignación.
+        - pregunta: D1-Q4
+          tema: "Capacidad Institucional"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de capacidad (talento humano, procesos,
+                gobernanza, cuellos de botella).
+            - PolicyContradictionDetector._determine_semantic_role: >-
+                Clasifica el rol de la oración (capacidad existente vs. necesidad).
+            - PolicyContradictionDetector._calculate_graph_fragmentation: >-
+                Mide complejidad estructural en el grafo de actores,
+                indicando problemas de coordinación/articulación.
+        - pregunta: D1-Q5
+          tema: "Restricciones Temporales"
+          cadena_metodos:
+            - PolicyContradictionDetector._detect_temporal_conflicts: >-
+                Utiliza TemporalLogicVerifier.verify_temporal_consistency
+                para chequear consistencia del plazo de implementación.
+            - PolicyContradictionDetector._calculate_confidence_interval: >-
+                Calcula intervalo de confianza del 95% para penalizar
+                el score por restricciones no mitigadas.
+    - id: D2
+      nombre: "Diseño de Actividades y Coherencia"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Validar la estructura formal, la causalidad y la coherencia interna
+        de las actividades.
+      subdimension:
+        - pregunta: D2-Q1
+          tema: "Formato Tabular y Trazabilidad"
+          cadena_metodos:
+            - PDETMunicipalPlanAnalyzer.analyze_municipal_plan: >-
+                Detecta tablas estructuradas (ExtractedTable).
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de formalización (tabla, columna costo, BPIN).
+            - PolicyContradictionDetector._detect_temporal_conflicts: >-
+                Utiliza TemporalLogicVerifier._build_timeline para asegurar
+                trazabilidad de cronogramas.
+        - pregunta: D2-Q2
+          tema: "Causalidad de Actividades"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de mecanismo causal (porque, genera) y
+                población objetivo.
+            - PolicyContradictionDetector._determine_relation_type: >-
+                Establece relación causal Actividad-Diagnóstico
+                (patrón: para abordar la causa relacionada con).
+        - pregunta: D2-Q3
+          tema: "Clasificación Temática"
+          cadena_metodos:
+            - SemanticAnalyzer._classify_cross_cutting_themes: >-
+                Asegura clasificación de temas transversales (género).
+        - pregunta: D2-Q4
+          tema: "Riesgos y Mitigación"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Detecta patrones de cuellos_botella y conflictos_actividades.
+            - PolicyContradictionDetector._detect_logical_incompatibilities: >-
+                Identifica conflictos lógicos entre actividades.
+            - PolicyContradictionDetector._has_logical_conflict: >-
+                Verifica existencia de conflicto lógico.
+        - pregunta: D2-Q5
+          tema: "Coherencia Estratégica"
+          cadena_metodos:
+            - PolicyContradictionDetector._calculate_global_semantic_coherence: >-
+                Mide coherencia entre PolicyStatements utilizando Embeddings.
+            - PolicyContradictionDetector._text_similarity: >-
+                Calcula similitud textual.
+            - PolicyContradictionDetector._build_knowledge_graph: >-
+                Construye el grafo de conocimiento para visualizar
+                dependencias, complementariedades y secuenciación.
+            - PolicyContradictionDetector._get_dependency_depth: >-
+                Evalúa complejidad de la estructura relacional.
+    - id: D3
+      nombre: "Productos y Factibilidad Operativa"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Verificar la medibilidad, trazabilidad y realismo de los productos.
+      subdimension:
+        - pregunta: D3-Q1
+          tema: "Indicadores y Fuentes"
+          cadena_metodos:
+            - PolicyContradictionDetector._extract_quantitative_claims: >-
+                Extrae valores de Línea Base y Meta.
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca fuente de verificación y trazabilidad presupuestal
+                (BPIN, PPI).
+            - BayesianConfidenceCalculator.calculate_posterior: >-
+                Asigna confianza usando el parámetro pattern_specificity
+                de la fuente de verificación.
+        - pregunta: D3-Q2
+          tema: "Proporcionalidad Meta/Problema"
+          cadena_metodos:
+            - PolicyContradictionDetector._detect_numerical_inconsistencies: >-
+                Compara la meta con la brecha de D1.
+            - PolicyContradictionDetector._statistical_significance_test: >-
+                Realiza Test de proporcionalidad interna.
+            - PerformanceAnalyzer.analyze_loss_function: >-
+                Inyecta Función de pérdida operacional para cuantificar
+                la penalización por desproporcionalidad.
+        - pregunta: D3-Q4
+          tema: "Factibilidad Temporal"
+          cadena_metodos:
+            - PolicyContradictionDetector._detect_temporal_conflicts: >-
+                Utiliza TemporalLogicVerifier para verificar plazo.
+            - TemporalLogicVerifier._check_deadline_constraints: >-
+                Verifica restricciones de plazo.
+            - TemporalLogicVerifier._classify_temporal_type: >-
+                Clasifica si el plazo es realista para la complejidad.
+            - PolicyContradictionDetector._detect_resource_conflicts: >-
+                Verifica suficiencia de recursos.
+        - pregunta: D3-Q5
+          tema: "Eslabón Causal Producto-Resultado"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de mecanismo causal explícito (porque,
+                lo cual contribuirá a, mediador/eslabón).
+            - PolicyContradictionDetector._determine_relation_type: >-
+                Clasifica la fuerza de la relación causal entre
+                PolicyStatement de producto y resultado.
+    - id: D4
+      nombre: "Resultados, Supuestos y Alineación"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Evaluar la solidez de la cadena causal y la coherencia externa.
+      subdimension:
+        - pregunta: D4-Q2
+          tema: "Cadena Causal y Supuestos"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de supuesto, condición habilitante y
+                si se cumple.
+            - PolicyContradictionDetector._build_knowledge_graph: >-
+                Visualiza la conexión Producto→Resultado, marcando
+                supuestos como aristas críticas.
+            - PolicyContradictionDetector._determine_semantic_role: >-
+                Valida que las oraciones sean supuestos y no
+                declaraciones de intención.
+        - pregunta: D4-Q3
+          tema: "Justificación de Ambición"
+          cadena_metodos:
+            - PolicyContradictionDetector._detect_numerical_inconsistencies: >-
+                Revisa coherencia entre inversión (D1-Q3) y meta ambiciosa.
+            - PolicyContradictionDetector._calculate_objective_alignment: >-
+                Compara la ambición con objetivos superiores o benchmarks.
+            - PDETMunicipalPlanAnalyzer.generate_recommendations: >-
+                Sugiere mejoras cuando la validación falla.
+        - pregunta: D4-Q5
+          tema: "Alineación Externa"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de marcos normativos (PND, ODS, Acuerdo de Paz).
+            - PolicyContradictionDetector._calculate_global_semantic_coherence: >-
+                Mide coherencia semántica con los embeddings de los marcos
+                normativos, contextualizado por el PolicyDimension.
+    - id: D5
+      nombre: "Impactos y Riesgos Sistémicos"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Evaluar la visión a largo plazo y la vulnerabilidad.
+      subdimension:
+        - pregunta: D5-Q1
+          tema: "Definición de Impactos y Rezagos"
+          cadena_metodos:
+            - PolicyContradictionDetector._extract_temporal_markers: >-
+                Busca el tiempo de maduración y rezago.
+            - TemporalLogicVerifier._extract_resources: >-
+                Reutilizado para identificar factores de transmisión.
+            - PolicyContradictionDetector._calculate_objective_alignment: >-
+                Evalúa alineación del impacto con la visión estratégica.
+        - pregunta: D5-Q2_Q3
+          tema: "Medición de Intangibles"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de índice de, proxy, medición indirecta
+                y limitación.
+            - PolicyContradictionDetector._classify_contradiction: >-
+                Pondera la probabilidad de una afirmación engañosa si
+                faltan las limitaciones.
+            - PolicyContradictionDetector._get_graph_statistics: >-
+                Mide densidad de conexiones del nodo de impacto.
+        - pregunta: D5-Q4
+          tema: "Riesgos Sistémicos"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de riesgo sistémico, ruptura mecanismo
+                y vulnerabilidad.
+            - PolicyContradictionDetector._detect_logical_incompatibilities: >-
+                Verifica incompatibilidad de la estrategia con los riesgos.
+            - PolicyContradictionDetector._calculate_contradiction_entropy: >-
+                Mide la distribución de tipos de riesgos, donde una
+                entropía alta indica un análisis más completo.
+        - pregunta: D5-Q5
+          tema: "Efectos No Deseados"
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones de efecto no deseado, hipótesis límite
+                y trade-off.
+            - CounterfactualScenario: >-
+                Uso conceptual para contrastar el escenario ideal con
+                escenarios alternativos para la detección lógica de
+                efectos no deseados.
+    - id: D6
+      nombre: "Coherencia Causal (Teoría de Cambio)"
+      preguntas: "Q1 a Q5"
+      objetivo: >-
+        Es el corazón del análisis causal. Integra PolicyContradictionDetector
+        y AdvancedDAGValidator para validar la estructura causal completa.
+      subdimension:
+        - pregunta: D6-Q1
+          tema: "Estructura Causal"
+          cadena_metodos:
+            - PolicyContradictionDetector._build_knowledge_graph: >-
+                Genera un nx.DiGraph de PolicyStatements.
+            - AdvancedDAGValidator.validacion_completa: >-
+                Orquesta la validación estructural.
+            - AdvancedDAGValidator._validar_orden_causal: >-
+                Detecta violaciones de orden (ej. Resultado precede a Actividad).
+            - AdvancedDAGValidator._encontrar_caminos_completos: >-
+                Asegura la ruta completa Causa→...→Impacto, exponiendo
+                Saltos lógicos.
+          validacion_output:
+            - ValidacionResultado:
+                - categorias_faltantes
+                - violaciones_orden
+                - caminos_completos
+        - pregunta: D6-Q2
+          tema: "Proporcionalidad y Continuidad (Anti-Milagro)"
+          descripcion: >-
+            Verificación específica para evitar el "Milagro de Implementación"
+            mediante tres categorías de patrones de verificación
+            (verificacion_proporcionalidad_enlaces).
+          patrones_verificacion:
+            - categoria: enlaces_proporcionales
+              patrones:
+                - proporcional a
+                - acorde con
+                - razonable
+                - realista
+            - categoria: sin_saltos
+              patrones:
+                - sin saltos
+                - gradual
+                - incremental
+                - paso a paso
+            - categoria: no_milagros
+              patrones:
+                - factible
+                - posible
+                - alcanzable
+                - sin suponer
+          cadena_metodos:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca patrones lingüísticos específicos que confirmen o
+                nieguen la proporcionalidad de los enlaces causales.
+                Confirma ausencia de saltos y proporcionalidad.
+            - PolicyContradictionDetector._calculate_syntactic_complexity: >-
+                Evalúa claridad de la teoría de cambio.
+          penalizacion: >-
+            Si se detectan "Saltos lógicos inverosímiles evidentes"
+            (criterio: min_score: 0.0), el texto no contiene suficientes
+            patrones de proporcionalidad y continuidad, indicando un
+            diseño defectuoso en la lógica causal.
+        - pregunta: D6-Q3_Q4
+          tema: "Inconsistencias y Adaptación"
+          descripcion: >-
+            Mecanismo bicameral que combina detección local de fallas con
+            análisis estructural global del grafo causal.
+          ruta_1_deteccion_especifica:
+            nombre: "Ruta de Detección Específica por Contradicción"
+            responsable: PolicyContradictionDetector
+            descripcion: >-
+              Se enfoca en resolver incoherencias localizadas mediante
+              pattern matching y comparación semántica.
+            flujo:
+              - PolicyContradictionDetector._detect_logical_incompatibilities: >-
+                  Identifica fallos estructurales o contradicciones directas.
+              - ContradictionEvidence: >-
+                  Contiene contradiction_type específico
+                  (NUMERICAL_INCONSISTENCY o TEMPORAL_CONFLICT).
+              - PolicyContradictionDetector._generate_resolution_recommendations: >-
+                  Genera recomendaciones basadas en la contradicción detectada.
+              - PolicyContradictionDetector._suggest_resolutions: >-
+                  Sub-método que proporciona resoluciones específicas por tipo.
+                  Ejemplo: Si TEMPORAL_CONFLICT → "Revisar cronograma maestro",
+                  "Validar secuencia lógica", "Ajustar plazos según capacidad".
+          ruta_2_inferencia_estructural:
+            nombre: "Ruta de Inferencia Estructural por el Motor Axiomático"
+            responsable: TeoriaCambio
+            descripcion: >-
+              Se activa cuando la estructura global de la Teoría de Cambio
+              (DAG) está comprometida. TeoriaCambio actúa como Motor Axiomático.
+            flujo:
+              - AdvancedDAGValidator.validacion_completa: >-
+                  Valida el grafo generado por _build_knowledge_graph.
+              - AdvancedDAGValidator._validar_orden_causal: >-
+                  Detecta violaciones de orden.
+              - AdvancedDAGValidator._encontrar_caminos_completos: >-
+                  Verifica integridad de rutas causales.
+              - ValidacionResultado: >-
+                  Encapsula fallas estructurales (categorias_faltantes,
+                  violaciones_orden, caminos_completos incompletos).
+              - TeoriaCambio._execute_generar_sugerencias_internas: >-
+                  Wrapper que invoca el método estático.
+              - TeoriaCambio._generar_sugerencias_internas: >-
+                  Genera recomendaciones basadas en fallas globales.
+                  Ejemplos:
+                  - Si categorias_faltantes → "Integridad estructural
+                    comprometida. Incorporar: [nombres de categorías faltantes]."
+                  - Si violaciones_orden → "Corregir [número] violaciones de
+                    secuencia causal para restaurar coherencia lógica."
+                  - Si no hay rutas completas → "La teoría es incompleta.
+                    Establecer al menos un camino causal de INSUMOS a CAUSALIDAD."
+          conclusion: >-
+            La coexistencia de PolicyContradictionDetector._suggest_resolutions
+            y TeoriaCambio._generar_sugerencias_internas confirma que las
+            sugerencias provienen tanto del detector de contradicciones como
+            del validador causal estructural. Este enfoque bicameral es una
+            característica avanzada de la Dimensión D6.
+          cadena_metodos_adicionales:
+            - IndustrialPolicyProcessor._match_patterns_in_sentences: >-
+                Busca piloto, prueba, validación, mecanismos de corrección
+                y aprendizaje.
+        - pregunta: D6-Q5
+          tema: "Contextualización y Enfoque Diferencial"
+          cadena_metodos:
+            - PolicyContradictionDetector._generate_embeddings: >-
+                Compara declaraciones con embeddings canónicos de vulnerabilidad.
+            - SemanticAnalyzer._classify_cross_cutting_themes: >-
+                Verifica correspondencia con temas transversales relevantes.
+            - PolicyContradictionDetector._identify_dependencies: >-
+                Detecta dependencias respecto a variables contextuales
+                o diferenciales.
+  modulos_transversales_y_rendimiento:
+    objetivos: >-
+      Garantizar la integración de métricas de rendimiento y metaanálisis para
+      alcanzar el 95% de utilización de funciones.
+    requisitos:
+      - PerformanceAnalyzer: >-
+          Debe instanciarse para calcular pérdida operacional.
+      - PolicyContradictionDetector._calculate_global_semantic_coherence: >-
+          Uso constante a través de las dimensiones.
+      - PolicyContradictionDetector._calculate_objective_alignment: >-
+          Uso constante para evaluar alineación con objetivos superiores.
+      - QualityScore: >-
+          Encapsula resultados de validación.
+    gestion_resultados_y_reporte:
+      consolidacion:
+        metodo: _construct_evidence_bundle
+        descripcion: >-
+          Serializa la evidencia encontrada tras el análisis.
+      resumen_ejecutivo:
+        responsable: MunicipalAnalyzer._generate_summary
+        insumos:
+          - semantic_cube
+          - performance_analysis (PerformanceAnalyzer)
+          - critical_diagnosis (PolicyContradictionDetector)
+        descripcion: >-
+          Genera un informe final integrando evidencia, análisis semántico
+          y hallazgos críticos.
+  patrones_clave_por_dimension:
+    D1:
+      - "\d+%.*población.*sin"
+      - fuentes: DANE, DNP
+      - suficiente para
+      - talento humano
+      - procesos
+      - gobernanza
+      - cuellos de botella
+    D2:
+      - tabla
+      - columna costo
+      - BPIN
+      - porque
+      - genera
+      - para abordar la causa relacionada con
+      - cuellos_botella
+      - conflictos_actividades
+    D3:
+      - Línea Base
+      - Meta
+      - BPIN
+      - PPI
+      - porque
+      - lo cual contribuirá a
+      - mediador/eslabón
+    D4:
+      - supuesto
+      - condición habilitante
+      - si se cumple
+      - marcos_normativos: PND, ODS, Acuerdo de Paz
+    D5:
+      - índice de
+      - proxy
+      - medición indirecta
+      - limitación
+      - riesgo sistémico
+      - ruptura mecanismo
+      - vulnerabilidad
+      - efecto no deseado
+      - hipótesis límite
+      - trade-off
+    D6:
+      - proporcional a
+      - acorde con
+      - razonable
+      - realista
+      - sin saltos
+      - gradual
+      - incremental
+      - paso a paso
+      - factible
+      - posible
+      - alcanzable
+      - sin suponer
+      - piloto
+      - prueba
+      - validación
+      - mecanismos de corrección
+      - aprendizaje
+  caracteristicas_avanzadas:
+    bicameral_resolution_system:
+      descripcion: >-
+        Sistema dual para generación de recomendaciones que combina detección
+        local (PolicyContradictionDetector) con validación estructural global
+        (TeoriaCambio).
+      aplicable_a: D6-Q3, D6-Q4
+    anti_miracle_validation:
+      descripcion: >-
+        Verificación específica para evitar el "Milagro de Implementación"
+        mediante patrones lingüísticos de proporcionalidad, continuidad y realismo.
+      aplicable_a: D6-Q2
+      penalizacion_minima: 0.0
+    bayesian_confidence_weighting:
+      descripcion: >-
+        Cálculo de confianza posterior usando parámetros de especificidad
+        del patrón de verificación.
+      aplicable_a: Todas las dimensiones
+      nivel_confianza: 95%
+    dag_structural_validation:
+      descripcion: >-
+        Validación completa de la teoría de cambio como Grafo Acíclico Dirigido,
+        incluyendo orden causal, rutas completas y categorías requeridas.
+      grafo_tipo: nx.DiGraph
+      validaciones:
+        - orden_causal
+        - caminos_completos
+        - categorias_faltantes
+      aplicable_a: D6
+    semantic_coherence_analysis:
+      descripcion: >-
+        Análisis de coherencia global usando embeddings y similitud textual
+        entre PolicyStatements.
+      tecnicas:
+        - embeddings
+        - text_similarity
+        - graph_statistics
+      aplicable_a: D2, D4, D6
+    temporal_logic_verification:
+      descripcion: >-
+        Verificación de consistencia temporal, construcción de líneas de tiempo
+        y validación de restricciones de plazo.
+      aplicable_a: D1, D2, D3
+    entropy_based_coverage:
+      descripcion: >-
+        Medición de la distribución de tipos de riesgos o contradicciones,
+        donde entropía alta indica análisis más completo.
+      aplicable_a: D5-Q4

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Integration Tests - Validation Engine + Choreographer
-=====================================================
+Integration Tests - Validation Engine + ExecutionChoreographer
+================================================================
 
-Tests the integration of validation_engine.py with choreographer.py
+Tests the integration of validation_engine.py with policy_analysis_pipeline.py
 including pre-step validation hooks and expected_elements verification.
 
 Author: Integration Team - Agent 3
@@ -383,14 +383,14 @@ class TestValidationEngine:
 # INTEGRATION TESTS WITH CHOREOGRAPHER
 # ============================================================================
 
-class TestChoreographerIntegration:
-    """Test integration with Choreographer."""
+class TestExecutionChoreographerIntegration:
+    """Test integration with ExecutionChoreographer."""
 
     def test_validation_engine_initialized_in_choreographer(self):
-        """Test that ValidationEngine is initialized in Choreographer."""
+        """Test that ValidationEngine is initialized in ExecutionChoreographer."""
         # Import here to avoid circular dependencies
         try:
-            from choreographer import ExecutionChoreographer
+            from policy_analysis_pipeline import ExecutionChoreographer
             
             choreographer = ExecutionChoreographer()
             
@@ -399,12 +399,12 @@ class TestChoreographerIntegration:
             assert isinstance(choreographer.validation_engine, ValidationEngine)
             
         except Exception as e:
-            pytest.skip(f"Choreographer initialization failed: {e}")
+            pytest.skip(f"ExecutionChoreographer initialization failed: {e}")
 
     def test_pre_step_validation_hook_exists(self):
         """Test that pre-step validation hook exists in _execute_pipeline."""
         try:
-            from choreographer import ExecutionChoreographer
+            from policy_analysis_pipeline import ExecutionChoreographer
             import inspect
             
             # Get source code of _execute_pipeline
@@ -416,7 +416,7 @@ class TestChoreographerIntegration:
             assert "validate_producer_availability" in source
             
         except Exception as e:
-            pytest.skip(f"Could not inspect Choreographer: {e}")
+            pytest.skip(f"Could not inspect ExecutionChoreographer: {e}")
 
 
 # ============================================================================

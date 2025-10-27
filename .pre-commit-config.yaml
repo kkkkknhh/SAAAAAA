@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: schema-validator
+        name: Schema Validator
+        entry: python schema_validator.py
+        language: system
+        pass_filenames: false
+      - id: cross-reference-check
+        name: Cross Reference Integrity
+        entry: python tools/integrity/check_cross_refs.py
+        language: system
+        pass_filenames: false
+      - id: questionnaire-json-lint
+        name: Questionnaire JSON Lint
+        entry: python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire.schema.json
+        language: system
+        pass_filenames: false
+      - id: rubric-json-lint
+        name: Rubric JSON Lint
+        entry: python tools/lint/json_lint.py rubric_scoring.json --schema schemas/rubric_scoring.schema.json
+        language: system
+        pass_filenames: false

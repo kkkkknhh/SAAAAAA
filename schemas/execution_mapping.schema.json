@@ -1,115 +1,272 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://pdm-evaluator.local/schemas/execution_mapping/v2.0.0",
+  "$id": "https://pdm-evaluator.local/schemas/execution_mapping/v3.0.0",
   "title": "Execution Mapping Schema",
-  "description": "Schema for execution_mapping.yaml - defines question execution chains",
+  "description": "Schema for execution_mapping.yaml - declarative execution plan for questionnaire processing",
   "type": "object",
-  "required": ["version", "chains"],
+  "required": [
+    "version",
+    "metadata",
+    "modules",
+    "dimensions",
+    "scoring_modalities",
+    "thresholds",
+    "provenance",
+    "observability"
+  ],
+  "additionalProperties": false,
   "properties": {
     "version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semantic version (MAJOR.MINOR.PATCH)"
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
-    "compatible_with": {
+    "metadata": {
       "type": "object",
+      "required": [
+        "generated",
+        "standard",
+        "policy",
+        "hermetic",
+        "description"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "orchestrator": {
-          "type": "string",
-          "pattern": "^[><=]{0,2}\\d+\\.\\d+\\.\\d+$"
+        "generated": {
+          "type": "string"
         },
-        "choreographer": {
-          "type": "string",
-          "pattern": "^[><=]{0,2}\\d+\\.\\d+\\.\\d+$"
+        "standard": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "hermetic": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
         }
       }
     },
-    "chains": {
+    "modules": {
       "type": "object",
-      "patternProperties": {
-        "^P[1-9][0-9]?-D[1-6]-Q\\d{3}$": {
-          "$ref": "#/definitions/execution_chain"
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  "definitions": {
-    "execution_chain": {
-      "type": "object",
-      "required": ["chain"],
-      "properties": {
-        "chain": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/execution_step"
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "file",
+          "class",
+          "methods",
+          "provides"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string"
           },
-          "minItems": 1
-        },
-        "preconditions": {
-          "type": "array",
-          "items": {
+          "class": {
             "type": "string"
+          },
+          "methods": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "provides": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
           }
-        },
-        "expected_elements": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "timeout_seconds": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 3600
         }
       }
     },
-    "execution_step": {
+    "dimensions": {
       "type": "object",
-      "required": ["module", "method"],
-      "properties": {
-        "module": {
-          "type": "string",
-          "enum": [
-            "dereck_beach",
-            "policy_processor",
-            "embedding_policy",
-            "semantic_chunking_policy",
-            "teoria_cambio",
-            "contradiction_deteccion",
-            "financiero_viabilidad_tablas",
-            "report_assembly",
-            "analyzer_one"
-          ]
-        },
-        "method": {
-          "type": "string",
-          "pattern": "^[a-z_][a-z0-9_]*$"
-        },
-        "parameters": {
+      "minProperties": 6,
+      "patternProperties": {
+        "^D[1-6]_[A-Za-z]+$": {
           "type": "object",
-          "additionalProperties": true
-        },
-        "required_context": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "expected_output_schema": {
-          "type": "object",
+          "required": [
+            "description",
+            "typical_chains"
+          ],
+          "additionalProperties": false,
           "properties": {
-            "type": {
+            "description": {
               "type": "string"
             },
-            "required_fields": {
+            "typical_chains": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "sequence",
+                  "indicators"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sequence": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "module",
+                        "method"
+                      ],
+                      "properties": {
+                        "module": {
+                          "type": "string"
+                        },
+                        "method": {
+                          "type": "string"
+                        },
+                        "inputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "indicators": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scoring_modalities": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^TYPE_[A-Z_]+$": {
+          "type": "object",
+          "required": [
+            "description",
+            "modules",
+            "primary_method",
+            "applicable_to"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "modules": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "primary_method": {
+              "type": "string"
+            },
+            "applicable_to": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^D[1-6]$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-ZÁÉÍÓÚ]+$": {
+          "type": "object",
+          "required": [
+            "score_min",
+            "requirements"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "score_min": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "requirements": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             }
           }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "capture_intermediate",
+        "lineage_tracking",
+        "metadata_versioning",
+        "audit_trail"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "capture_intermediate": {
+          "type": "boolean"
+        },
+        "lineage_tracking": {
+          "type": "boolean"
+        },
+        "metadata_versioning": {
+          "type": "boolean"
+        },
+        "audit_trail": {
+          "type": "boolean"
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "required": [
+        "metrics_export",
+        "logging_level",
+        "trace_execution",
+        "performance_monitoring"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "metrics_export": {
+          "type": "boolean"
+        },
+        "logging_level": {
+          "type": "string"
+        },
+        "trace_execution": {
+          "type": "boolean"
+        },
+        "performance_monitoring": {
+          "type": "boolean"
         }
       }
     }
