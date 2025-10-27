@@ -329,7 +329,7 @@ class PolicyAnalysisOrchestrator:
         logger.info(f"✓ Orchestrator initialized in {time.time() - self.start_time:.2f}s")
         logger.info(f"✓ Loaded {len(self.all_questions)} questions from canonical truth model")
         logger.info(f"✓ Defined {len(self.clusters)} MESO clusters")
-        logger.info(f"✓ Choreographer contains 11/11 YAML components")
+        logger.info("✓ Choreographer contains 11/11 YAML components")
         logger.info("=" * 80)
 
     # ========================================================================
