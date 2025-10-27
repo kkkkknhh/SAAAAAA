@@ -1,5 +1,5 @@
 """
-SIN_CARRETA Policy Analysis Pipeline - Choreographer (MICRO Level)
+SIN_CARRETA Policy Analysis Pipeline - ExecutionChoreographer (MICRO Level)
 
 ARCHITECTURAL ROLE:
 - MICRO-level execution engine for individual policy questions
