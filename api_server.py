@@ -46,6 +46,7 @@ import jwt
 # Import orchestrator components
 from orchestrator import PolicyAnalysisOrchestrator, OrchestratorConfig
 from report_assembly import MicroLevelAnswer
+from recommendation_engine import load_recommendation_engine
 
 # Configure logging
 logging.basicConfig(
@@ -425,6 +426,14 @@ class DataService:
 # Initialize data service
 data_service = DataService()
 
+# Initialize recommendation engine
+recommendation_engine = None
+try:
+    recommendation_engine = load_recommendation_engine()
+    logger.info("Recommendation engine initialized successfully")
+except Exception as e:
+    logger.warning(f"Failed to initialize recommendation engine: {e}")
+
 
 # ============================================================================
 # API ENDPOINTS
@@ -684,6 +693,261 @@ def handle_exception(e):
         'error': 'Internal server error',
         'message': str(e)
     }), 500
+
+
+# ============================================================================
+# RECOMMENDATION ENDPOINTS
+# ============================================================================
+
+@app.route('/api/v1/recommendations/micro', methods=['POST'])
+@rate_limit
+def generate_micro_recommendations():
+    """
+    Generate MICRO-level recommendations
+    
+    Request Body:
+        {
+            "scores": {
+                "PA01-DIM01": 1.2,
+                "PA02-DIM02": 1.5,
+                ...
+            },
+            "context": {}  // Optional
+        }
+    
+    Returns:
+        RecommendationSet with MICRO recommendations
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        data = request.get_json()
+        scores = data.get('scores', {})
+        context = data.get('context', {})
+        
+        if not scores:
+            return jsonify({'error': 'Missing scores'}), 400
+        
+        rec_set = recommendation_engine.generate_micro_recommendations(scores, context)
+        
+        return jsonify({
+            'status': 'success',
+            'data': rec_set.to_dict(),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to generate MICRO recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/recommendations/meso', methods=['POST'])
+@rate_limit
+def generate_meso_recommendations():
+    """
+    Generate MESO-level recommendations
+    
+    Request Body:
+        {
+            "cluster_data": {
+                "CL01": {"score": 72.0, "variance": 0.25, "weak_pa": "PA02"},
+                ...
+            },
+            "context": {}  // Optional
+        }
+    
+    Returns:
+        RecommendationSet with MESO recommendations
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        data = request.get_json()
+        cluster_data = data.get('cluster_data', {})
+        context = data.get('context', {})
+        
+        if not cluster_data:
+            return jsonify({'error': 'Missing cluster_data'}), 400
+        
+        rec_set = recommendation_engine.generate_meso_recommendations(cluster_data, context)
+        
+        return jsonify({
+            'status': 'success',
+            'data': rec_set.to_dict(),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to generate MESO recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/recommendations/macro', methods=['POST'])
+@rate_limit
+def generate_macro_recommendations():
+    """
+    Generate MACRO-level recommendations
+    
+    Request Body:
+        {
+            "macro_data": {
+                "macro_band": "SATISFACTORIO",
+                "clusters_below_target": ["CL02", "CL03"],
+                "variance_alert": "MODERADA",
+                "priority_micro_gaps": ["PA01-DIM05", "PA04-DIM04"]
+            },
+            "context": {}  // Optional
+        }
+    
+    Returns:
+        RecommendationSet with MACRO recommendations
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        data = request.get_json()
+        macro_data = data.get('macro_data', {})
+        context = data.get('context', {})
+        
+        if not macro_data:
+            return jsonify({'error': 'Missing macro_data'}), 400
+        
+        rec_set = recommendation_engine.generate_macro_recommendations(macro_data, context)
+        
+        return jsonify({
+            'status': 'success',
+            'data': rec_set.to_dict(),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to generate MACRO recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/recommendations/all', methods=['POST'])
+@rate_limit
+def generate_all_recommendations():
+    """
+    Generate recommendations at all levels (MICRO, MESO, MACRO)
+    
+    Request Body:
+        {
+            "micro_scores": {...},
+            "cluster_data": {...},
+            "macro_data": {...},
+            "context": {}  // Optional
+        }
+    
+    Returns:
+        Dictionary with MICRO, MESO, and MACRO recommendation sets
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        data = request.get_json()
+        micro_scores = data.get('micro_scores', {})
+        cluster_data = data.get('cluster_data', {})
+        macro_data = data.get('macro_data', {})
+        context = data.get('context', {})
+        
+        all_recs = recommendation_engine.generate_all_recommendations(
+            micro_scores, cluster_data, macro_data, context
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'MICRO': all_recs['MICRO'].to_dict(),
+                'MESO': all_recs['MESO'].to_dict(),
+                'MACRO': all_recs['MACRO'].to_dict()
+            },
+            'summary': {
+                'MICRO': {
+                    'total_rules': all_recs['MICRO'].total_rules_evaluated,
+                    'matched': all_recs['MICRO'].rules_matched
+                },
+                'MESO': {
+                    'total_rules': all_recs['MESO'].total_rules_evaluated,
+                    'matched': all_recs['MESO'].rules_matched
+                },
+                'MACRO': {
+                    'total_rules': all_recs['MACRO'].total_rules_evaluated,
+                    'matched': all_recs['MACRO'].rules_matched
+                }
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to generate all recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/recommendations/rules/info', methods=['GET'])
+@rate_limit
+@cached(ttl=600)
+def get_rules_info():
+    """
+    Get information about loaded recommendation rules
+    
+    Returns:
+        Statistics about loaded rules
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'version': recommendation_engine.rules.get('version'),
+                'total_rules': len(recommendation_engine.rules.get('rules', [])),
+                'by_level': {
+                    'MICRO': len(recommendation_engine.rules_by_level['MICRO']),
+                    'MESO': len(recommendation_engine.rules_by_level['MESO']),
+                    'MACRO': len(recommendation_engine.rules_by_level['MACRO'])
+                },
+                'rules_path': str(recommendation_engine.rules_path),
+                'schema_path': str(recommendation_engine.schema_path)
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to get rules info: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/recommendations/reload', methods=['POST'])
+@require_auth
+def reload_rules():
+    """
+    Reload recommendation rules from disk (admin only)
+    
+    Returns:
+        Success status
+    """
+    if not recommendation_engine:
+        return jsonify({'error': 'Recommendation engine not available'}), 503
+    
+    try:
+        recommendation_engine.reload_rules()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Rules reloaded successfully',
+            'total_rules': len(recommendation_engine.rules.get('rules', [])),
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to reload rules: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================================================
