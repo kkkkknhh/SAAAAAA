@@ -1,5 +1,5 @@
 """
-SIN_CARRETA Policy Analysis Pipeline - Choreographer (MICRO Level)
+SIN_CARRETA Policy Analysis Pipeline - ExecutionChoreographer (MICRO Level)
 
 ARCHITECTURAL ROLE:
 - MICRO-level execution engine for individual policy questions
@@ -78,8 +78,8 @@ from financiero_viabilidad_tablas import (
 # Producer 8: semantic_chunking_policy (placeholder - implement as needed)
 # from semantic_chunking_policy import SemanticChunkingEngine
 
-# Producer 9: report_assembly (placeholder - implement as needed)
-# from report_assembly import ReportAssemblyEngine
+# Producer 9: report_assembly
+from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 
 logger = logging.getLogger(__name__)
 
@@ -508,7 +508,7 @@ class ExecutionChoreographer:
     
     def execute_question(
         self,
-        question_context: ExecutionContext,
+        question_context,  # Can be ExecutionContext or Dict
         plan_document: str,
         plan_metadata: Dict[str, Any]
     ) -> ExecutionResult:
@@ -516,14 +516,15 @@ class ExecutionChoreographer:
         Execute a single policy question using dimensional routing
         
         FLOW:
-        1. Normalize dimension code (D1-D6)
-        2. Route to dimensional execution chain
-        3. Build MicroLevelAnswer from evidence
-        4. Build provenance record
-        5. Return ExecutionResult
+        1. Normalize question context (dict → ExecutionContext if needed)
+        2. Normalize dimension code (D1-D6)
+        3. Route to dimensional execution chain
+        4. Build MicroLevelAnswer from evidence
+        5. Build provenance record
+        6. Return ExecutionResult
         
         PARAMETERS:
-        - question_context: Execution context with question_id, dimension, etc.
+        - question_context: ExecutionContext or dict with question details
         - plan_document: Policy document text
         - plan_metadata: Document metadata
         
@@ -533,41 +534,69 @@ class ExecutionChoreographer:
         start_time = datetime.utcnow()
         execution_trace = []
         
+        # Convert dict to ExecutionContext if needed
+        if isinstance(question_context, dict):
+            context = ExecutionContext(
+                question_id=question_context.get('canonical_id', question_context.get('question_id', 'UNKNOWN')),
+                dimension=question_context.get('dimension', 'D1'),
+                policy_area=question_context.get('policy_area', 'P0'),
+                questionnaire_hash=self.questionnaire_hash,
+                timestamp=datetime.utcnow().isoformat() + "Z",
+                metadata={
+                    'scoring_modality': question_context.get('scoring_modality', 'TYPE_F'),
+                    'expected_elements': question_context.get('expected_elements', []),
+                    'search_patterns': question_context.get('search_patterns', {}),
+                    'element_weights': question_context.get('element_weights', {}),
+                    'numerical_thresholds': question_context.get('numerical_thresholds', {}),
+                    'validation_rules': question_context.get('validation_rules', {}),
+                    'question_text': question_context.get('question_text', '')
+                }
+            )
+        else:
+            context = question_context
+        
         logger.info("=" * 80)
-        logger.info(f"EXECUTING QUESTION: {question_context.question_id}")
-        logger.info(f"Dimension: {question_context.dimension}")
-        logger.info(f"Policy Area: {question_context.policy_area}")
+        logger.info(f"EXECUTING QUESTION: {context.question_id}")
+        logger.info(f"Dimension: {context.dimension}")
+        logger.info(f"Policy Area: {context.policy_area}")
         logger.info("=" * 80)
         
         try:
             # Step 1: Normalize dimension code
-            dimension = self._normalize_dimension_code(question_context.dimension)
+            dimension = self._normalize_dimension_code(context.dimension)
             logger.info(f"Dimension normalized: {dimension}")
             
             # Step 2: Route to dimensional execution chain
             logger.info(f"Routing to {dimension} execution chain...")
             
             if dimension == DimensionCode.D1_DIAGNOSTICO.value:
-                evidence = self._execute_d1_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d1_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D2_ACTIVIDADES.value:
-                evidence = self._execute_d2_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d2_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D3_PRODUCTOS.value:
-                evidence = self._execute_d3_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d3_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D4_RESULTADOS.value:
-                evidence = self._execute_d4_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d4_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D5_IMPACTOS.value:
-                evidence = self._execute_d5_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d5_chain(context, plan_document, execution_trace)
             elif dimension == DimensionCode.D6_CAUSALIDAD.value:
-                evidence = self._execute_d6_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_d6_chain(context, plan_document, execution_trace)
             else:
-                evidence = self._execute_generic_chain(question_context, plan_document, execution_trace)
+                evidence = self._execute_generic_chain(context, plan_document, execution_trace)
             
             # Step 3: Build MicroLevelAnswer
             logger.info("Building MicroLevelAnswer from evidence...")
+            
+            # Add execution trace to metadata
+            metadata_with_trace = {
+                **plan_metadata,
+                'execution_trace': execution_trace
+            }
+            
             micro_answer = self._build_micro_answer(
-                question_context,
+                context,
                 evidence,
-                plan_metadata
+                metadata_with_trace
             )
             
             # Step 4: Calculate performance metrics
@@ -580,19 +609,20 @@ class ExecutionChoreographer:
             
             # Step 5: Build provenance record
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
-            logger.info(f"✓ Question execution complete: {question_context.question_id}")
-            logger.info(f"  Score: {micro_answer.score:.3f}")
+            logger.info(f"✓ Question execution complete: {context.question_id}")
+            logger.info(f"  Score: {micro_answer.quantitative_score:.2f}/3.0")
+            logger.info(f"  Note: {micro_answer.qualitative_note}")
             logger.info(f"  Confidence: {micro_answer.confidence:.3f}")
             logger.info(f"  Execution time: {performance_metrics['execution_time_ms']:.1f}ms")
             logger.info("=" * 80)
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='success',
                 micro_answer=micro_answer,
                 execution_trace=execution_trace,
@@ -602,7 +632,7 @@ class ExecutionChoreographer:
             )
         
         except Exception as e:
-            logger.error(f"✗ Question execution failed: {question_context.question_id}")
+            logger.error(f"✗ Question execution failed: {context.question_id}")
             logger.error(f"  Error: {str(e)}")
             logger.error("=" * 80)
             
@@ -614,13 +644,13 @@ class ExecutionChoreographer:
             }
             
             provenance = self._build_provenance_record(
-                question_context,
+                context,
                 execution_trace,
                 plan_metadata
             )
             
             return ExecutionResult(
-                question_id=question_context.question_id,
+                question_id=context.question_id,
                 status='failure',
                 micro_answer=None,
                 execution_trace=execution_trace,
@@ -1267,9 +1297,25 @@ class ExecutionChoreographer:
         SCORING LOGIC:
         - D1-D5: Evidence-weighted scoring
         - D6: Causal coherence with Anti-Milagro penalty
+        
+        RETURNS:
+        - MicroLevelAnswer compatible with report_assembly.py
         """
-        # Calculate dimension-specific score
-        score = self._calculate_dimensional_score(context.dimension, evidence)
+        # Calculate dimension-specific score (0.0-1.0)
+        score_normalized = self._calculate_dimensional_score(context.dimension, evidence)
+        
+        # Convert to quantitative_score (0.0-3.0 scale)
+        quantitative_score = score_normalized * 3.0
+        
+        # Determine qualitative_note based on score
+        if quantitative_score >= 2.5:
+            qualitative_note = "EXCELENTE"
+        elif quantitative_score >= 2.0:
+            qualitative_note = "BUENO"
+        elif quantitative_score >= 1.5:
+            qualitative_note = "ACEPTABLE"
+        else:
+            qualitative_note = "INSUFICIENTE"
         
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
