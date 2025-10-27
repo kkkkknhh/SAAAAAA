@@ -69,17 +69,17 @@ from financiero_viabilidad_tablas import (
     ColombianMunicipalContext
 )
 
-# Producer 6: dereck_beach (placeholder - implement as needed)
-# from dereck_beach import DerickBeachProcessor
+# Producer 6: dereck_beach
+from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference
 
-# Producer 7: embedding_policy (placeholder - implement as needed)
-# from embedding_policy import EmbeddingPolicyEngine
+# Producer 7: embedding_policy
+from embedding_policy import PolicyAnalysisEmbedder
 
-# Producer 8: semantic_chunking_policy (placeholder - implement as needed)
-# from semantic_chunking_policy import SemanticChunkingEngine
+# Producer 8: semantic_chunking_policy
+from embedding_policy import AdvancedSemanticChunker
 
-# Producer 9: report_assembly
-from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
+# Producer 9: report_assembly (used separately by Orchestrator)
+# from report_assembly import ReportAssemblyEngine
 
 logger = logging.getLogger(__name__)
 
@@ -402,18 +402,42 @@ class ExecutionChoreographer:
         except Exception as e:
             raise RuntimeError(f"FATAL: Failed to initialize financiero_viabilidad_tablas: {e}")
         
-        # Producers 6-9: Placeholder implementations
-        # TODO: Implement when components are ready
-        logger.info("  [6/9] dereck_beach: PLACEHOLDER (implement when ready)")
-        self._producer_instances['dereck_beach'] = {}
+        # Producer 6: dereck_beach
+        logger.info("  [6/9] Initializing dereck_beach...")
+        try:
+            self._producer_instances['dereck_beach'] = {
+                'CDAFFramework': CDAFFramework(),
+                'CausalExtractor': CausalExtractor(),
+                'BayesianMechanismInference': BayesianMechanismInference()
+            }
+            logger.info("  ✓ CDAFFramework initialized")
+            logger.info("  ✓ CausalExtractor initialized")
+            logger.info("  ✓ BayesianMechanismInference initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize dereck_beach: {e}")
         
-        logger.info("  [7/9] embedding_policy: PLACEHOLDER (implement when ready)")
-        self._producer_instances['embedding_policy'] = {}
+        # Producer 7: embedding_policy
+        logger.info("  [7/9] Initializing embedding_policy...")
+        try:
+            self._producer_instances['embedding_policy'] = {
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder()
+            }
+            logger.info("  ✓ PolicyAnalysisEmbedder initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize embedding_policy: {e}")
         
-        logger.info("  [8/9] semantic_chunking_policy: PLACEHOLDER (implement when ready)")
-        self._producer_instances['semantic_chunking_policy'] = {}
+        # Producer 8: semantic_chunking_policy
+        logger.info("  [8/9] Initializing semantic_chunking_policy...")
+        try:
+            self._producer_instances['semantic_chunking_policy'] = {
+                'AdvancedSemanticChunker': AdvancedSemanticChunker()
+            }
+            logger.info("  ✓ AdvancedSemanticChunker initialized")
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Failed to initialize semantic_chunking_policy: {e}")
         
-        logger.info("  [9/9] report_assembly: PLACEHOLDER (implement when ready)")
+        # Producer 9: report_assembly - Keep as empty (ReportAssembler used separately)
+        logger.info("  [9/9] report_assembly: Used separately by Orchestrator")
         self._producer_instances['report_assembly'] = {}
     
     def _validate_component_initialization(self):
