@@ -30,6 +30,9 @@ from enum import Enum
 import yaml
 import networkx as nx
 
+# Import from report_assembly
+from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
+
 # ========================================
 # IMPORT ALL 11 YAML SPECIALIZED COMPONENTS
 # ========================================
@@ -121,38 +124,8 @@ class ExecutionContext:
             )
 
 
-@dataclass
-class MicroLevelAnswer:
-    """
-    Evidence-grounded answer for a single policy question
-    
-    STRUCTURE:
-    - question_id: Unique identifier
-    - dimension: Dimensional code (D1-D6)
-    - policy_area: Policy domain
-    - score: Numerical assessment [0.0, 1.0]
-    - evidence: Complete evidence bundle from dimensional chain
-    - findings: Human-readable key findings
-    - confidence: Bayesian posterior confidence
-    - metadata: Execution metadata
-    """
-    question_id: str
-    dimension: str
-    policy_area: str
-    score: float
-    evidence: Dict[str, Any]
-    findings: List[str]
-    confidence: float
-    metadata: Dict[str, Any]
-    
-    def __post_init__(self):
-        # Validate score range
-        if not (0.0 <= self.score <= 1.0):
-            raise ValueError(f"Score must be in [0.0, 1.0], got: {self.score}")
-        
-        # Validate confidence range
-        if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be in [0.0, 1.0], got: {self.confidence}")
+# Note: MicroLevelAnswer is now imported from report_assembly.py
+# to avoid duplication and maintain single source of truth
 
 
 @dataclass
@@ -202,10 +175,10 @@ class ExecutionResult:
 
 
 # ========================================
-# CHOREOGRAPHER - MICRO LEVEL EXECUTOR
+# EXECUTION CHOREOGRAPHER - MICRO LEVEL EXECUTOR
 # ========================================
 
-class Choreographer:
+class ExecutionChoreographer:
     """
     MICRO-level execution engine for individual policy questions
     
@@ -224,7 +197,7 @@ class Choreographer:
     - Generate executive summaries (Orchestrator's job)
     
     BOUNDARY:
-    Orchestrator → [execute_question] → Choreographer → [MicroLevelAnswer] → Orchestrator
+    Orchestrator → [execute_question] → ExecutionChoreographer → [MicroLevelAnswer] → Orchestrator
     """
     
     def __init__(
@@ -236,7 +209,7 @@ class Choreographer:
         deterministic_context: Dict[str, Any]
     ):
         """
-        Initialize Choreographer with immutable YAML configuration
+        Initialize ExecutionChoreographer with immutable YAML configuration
         
         PARAMETERS:
         - execution_mapping_path: Path to execution_mapping.yaml (dimensional chains)
@@ -251,7 +224,7 @@ class Choreographer:
         - Validation engine ready
         """
         logger.info("=" * 80)
-        logger.info("SIN_CARRETA CHOREOGRAPHER INITIALIZATION")
+        logger.info("SIN_CARRETA EXECUTION CHOREOGRAPHER INITIALIZATION")
         logger.info("=" * 80)
         logger.info(f"Timestamp: {datetime.utcnow().isoformat()}Z")
         logger.info(f"Questionnaire Hash: {questionnaire_hash}")
@@ -292,7 +265,7 @@ class Choreographer:
             )
         
         logger.info(f"✓ Method registry complete: {len(self.CANONICAL_METHODS)} methods")
-        logger.info("✓ Choreographer initialization complete")
+        logger.info("✓ ExecutionChoreographer initialization complete")
         logger.info("=" * 80)
     
     # ========================================
@@ -1300,3 +1273,7 @@ class Choreographer:
         
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
+
+# Backward compatibility alias (deprecated)
+Choreographer = ExecutionChoreographer
+
