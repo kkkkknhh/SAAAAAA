@@ -751,7 +751,9 @@ class PolicyAnalysisOrchestrator:
             performance_metrics={
                 "total_execution_time": self.stats["execution_time"],
                 "average_time_per_question": self.stats["execution_time"] / max(len(micro_results), 1),
-                "avg_question_time": self.stats["execution_time"] / max(len(micro_results), 1),  # Backward compatibility
+                # NOTE: "avg_question_time" is retained for backward compatibility with legacy consumers (e.g., PolicyDashboard v2, DataSyncService).
+                #       Remove this field after all downstream systems migrate to "average_time_per_question" (target: Q1 2026).
+                "avg_question_time": self.stats["execution_time"] / max(len(micro_results), 1),
                 "questions_per_second": len(micro_results) / max(self.stats["execution_time"], 0.001),
                 "choreographer_stats": self.choreographer.get_statistics()
             },
