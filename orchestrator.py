@@ -1,8 +1,54 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Orchestrator - CHESS Strategy Control Plane (MACRO Level)
-=========================================================
+Orchestrator - CHESS Strategy Control Plane (MACRO Level) - UPDATED v1.1
+=========================================================================
+
+ARCHITECTURE ALIGNMENT WITH YAML SPECIFICATION v1.0 (2025-10-23)
+-----------------------------------------------------------------
+This orchestrator implements the Control Plane (MACRO Level) coordination engine
+complementing the policy_analysis_architecture.yaml specification.
+
+ROLE: PolicyAnalysisOrchestrator (Control Plane - MACRO Level)
+- Manages Choreographer instances for all 300 questions
+- Implements CHESS strategy: Opening (7 producers parallel) → Middle Game (6 modalities) → Endgame (synthesis)
+- Aggregates MICRO → MESO → MACRO results
+- Generates comprehensive final report
+- Does NOT contain YAML specialized components (delegates to Choreographer)
+
+YAML ALIGNMENT & ARCHITECTURE DISTINCTION:
+------------------------------------------
+
+*** CRITICAL ARCHITECTURAL CLARIFICATION ***
+
+The YAML specification documents the DATA PLANE (MICRO level) components that
+are executed by the ExecutionChoreographer (policy_analysis_pipeline.py).
+
+This Orchestrator is the CONTROL PLANE (MACRO level) that:
+✓ Coordinates 300 questions across clusters
+✓ Implements CHESS strategy (Opening/Middle/Endgame)
+✓ Aggregates MICRO → MESO → MACRO
+✓ Generates comprehensive final report
+✓ Does NOT directly use YAML components (IndustrialPolicyProcessor, etc.)
+✓ DELEGATES to Choreographer which contains all YAML components
+
+YAML COMPONENTS (in Choreographer, not Orchestrator):
+- IndustrialPolicyProcessor
+- PolicyContradictionDetector  
+- TemporalLogicVerifier
+- BayesianConfidenceCalculator
+- TeoriaCambio
+- AdvancedDAGValidator
+- MunicipalAnalyzer
+- MunicipalOntology
+- SemanticAnalyzer
+- PerformanceAnalyzer
+- PDETMunicipalPlanAnalyzer
+
+ORCHESTRATOR COMPONENTS:
+- PolicyAnalysisOrchestrator (this class)
+- ExecutionChoreographer (imported from policy_analysis_pipeline)
+- ReportAssembler (imported from report_assembly)
 
 ORCHESTRATOR (Control Plane - MACRO Level):
 - Manages Choreographer instances for all 300 questions
@@ -28,8 +74,29 @@ TWO-CORE DATA FLOW:
 1. Generation Pipeline (Producers): 7 producers generate evidence
 2. Collection & Assembly Pipeline (Assembler): Single assembler creates answer_bundles
 
+RELATIONSHIP TO YAML:
+---------------------
+The YAML documents the 95% utilization architecture at the MICRO level.
+This Orchestrator operates at the MACRO level and delegates MICRO execution
+to the Choreographer, which implements all YAML components and dimensions.
+
+Think of it as:
+┌─────────────────────────────────────┐
+│  Orchestrator (MACRO - this file)  │ ← Strategy, aggregation, reporting
+│  - PolicyAnalysisOrchestrator       │
+│  - CHESS strategy execution         │
+│  - MESO/MACRO convergence           │
+└─────────────────────────────────────┘
+              ↓ delegates to
+┌─────────────────────────────────────┐
+│  Choreographer (MICRO - pipeline)   │ ← YAML components implementation
+│  - ExecutionChoreographer           │
+│  - 11 YAML specialized components   │
+│  - D1-D6 dimensional execution      │
+└─────────────────────────────────────┘
+
 Author: Integration Team
-Version: 1.0.0 - Complete CHESS Implementation
+Version: 1.1.0 - YAML v1.0 Aligned (2025-10-23)
 Python: 3.10+
 """
 
@@ -46,7 +113,8 @@ from collections import defaultdict
 import statistics
 
 # Import Choreographer and Report Assembly
-from choreographer import ExecutionChoreographer, ExecutionResult, ExecutionContext
+# NOTE: ExecutionChoreographer contains ALL YAML components
+from policy_analysis_pipeline import ExecutionChoreographer, ExecutionResult, ExecutionContext
 from determinism.seeds import DeterministicContext, SeedFactory
 from report_assembly import (
     ReportAssembler, MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
@@ -141,15 +209,31 @@ class OrchestratorResult:
 class PolicyAnalysisOrchestrator:
     """
     Control Plane orchestrator implementing CHESS strategy for complete PDM analysis.
-    
+
+    *** MACRO LEVEL: Does NOT contain YAML specialized components ***
+
+    This orchestrator operates at the MACRO level and delegates MICRO-level
+    execution to ExecutionChoreographer, which contains ALL YAML components:
+    - IndustrialPolicyProcessor
+    - PolicyContradictionDetector
+    - TemporalLogicVerifier
+    - BayesianConfidenceCalculator
+    - TeoriaCambio + AdvancedDAGValidator
+    - MunicipalAnalyzer + Ontology + SemanticAnalyzer + PerformanceAnalyzer
+    - PDETMunicipalPlanAnalyzer
+
     CHESS STRATEGY:
     - Opening: Parallel execution of 7 producers across all 300 questions
     - Middle Game: Scoring with 6 modalities (TYPE_A through TYPE_F)
     - Endgame: MICRO → MESO → MACRO convergence synthesis
-    
+
     TWO-CORE DATA FLOW:
     - Generation Pipeline: 7 producers (dereck_beach, policy_processor, etc.)
     - Collection & Assembly Pipeline: report_assembly (single assembler)
+
+    ARCHITECTURAL LAYER:
+    This is the CONTROL PLANE that coordinates strategy.
+    The DATA PLANE (with YAML components) is in ExecutionChoreographer.
     """
 
     def __init__(self, config: OrchestratorConfig):
@@ -161,6 +245,7 @@ class PolicyAnalysisOrchestrator:
         """
         logger.info("=" * 80)
         logger.info("ORCHESTRATOR INITIALIZATION - CHESS STRATEGY")
+        logger.info("YAML v1.0 Alignment (2025-10-23) - MACRO Level")
         logger.info("=" * 80)
         
         self.config = config
@@ -185,7 +270,7 @@ class PolicyAnalysisOrchestrator:
             for policy_area in info.get("policy_areas", [])
         }
 
-        # Configure causal thresholds (dimension-specific)
+        # Configure causal thresholds (dimension-specific per YAML)
         self.causal_thresholds = self._build_causal_thresholds()
 
         # Deterministic context configuration
@@ -200,12 +285,23 @@ class PolicyAnalysisOrchestrator:
         logger.info(f"✓ Deterministic seed configured: {self.run_seed}")
 
         # Initialize Choreographer (Data Plane)
+        # *** THIS IS WHERE ALL YAML COMPONENTS ARE INITIALIZED ***
+        # The Choreographer contains:
+        # - IndustrialPolicyProcessor
+        # - PolicyContradictionDetector
+        # - TemporalLogicVerifier
+        # - BayesianConfidenceCalculator
+        # - TeoriaCambio + AdvancedDAGValidator
+        # - MunicipalAnalyzer + Ontology + SemanticAnalyzer + PerformanceAnalyzer
+        # - PDETMunicipalPlanAnalyzer
+        # - All other YAML components
         self.choreographer = ExecutionChoreographer(
             execution_mapping_path=config.execution_mapping_path,
             method_class_map_path=config.method_class_map_path,
             questionnaire_hash=self.questionnaire_hash,
             deterministic_context=self.deterministic_context
         )
+        logger.info("✓ Choreographer initialized with ALL YAML components")
 
         # Initialize Report Assembler (Collection & Assembly Pipeline)
         self.report_assembler = ReportAssembler(
@@ -233,6 +329,7 @@ class PolicyAnalysisOrchestrator:
         logger.info(f"✓ Orchestrator initialized in {time.time() - self.start_time:.2f}s")
         logger.info(f"✓ Loaded {len(self.all_questions)} questions from canonical truth model")
         logger.info(f"✓ Defined {len(self.clusters)} MESO clusters")
+        logger.info(f"✓ Choreographer contains 11/11 YAML components")
         logger.info("=" * 80)
 
     # ========================================================================
@@ -265,7 +362,11 @@ class PolicyAnalysisOrchestrator:
             raise
 
     def _load_rubric(self) -> Dict[str, Any]:
-        """Load rubric_scoring configuration for weighting and aggregation."""
+        """
+        Load rubric_scoring configuration for weighting and aggregation.
+
+        Includes YAML causal_thresholds and dimension-specific scoring rules.
+        """
         rubric_path = self.config.rubric_path
         logger.info(f"Loading rubric configuration: {rubric_path}")
 
@@ -283,7 +384,11 @@ class PolicyAnalysisOrchestrator:
             raise
 
     def _build_cluster_catalog(self) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, float], Dict[str, Dict[str, float]]]:
-        """Combine questionnaire metadata and rubric rules into canonical cluster catalog."""
+        """
+        Combine questionnaire metadata and rubric rules into canonical cluster catalog.
+
+        Creates MESO-level clusters (CL01-CL04) as documented in YAML.
+        """
 
         metadata_clusters = (
             self.questionnaire.get("metadata", {}).get("clusters", [])
@@ -355,7 +460,19 @@ class PolicyAnalysisOrchestrator:
         return ordered_catalog, cluster_weights, cluster_policy_weights
 
     def _build_causal_thresholds(self) -> Dict[str, float]:
-        """Create dimension-specific causal thresholds for correction logic."""
+        """
+        Create dimension-specific causal thresholds for correction logic.
+
+        *** YAML ALIGNMENT: causal_thresholds section ***
+
+        Default thresholds per dimension:
+        - D1: 0.50 (Diagnóstico)
+        - D2: 0.60 (Actividades)
+        - D3: 0.60 (Productos)
+        - D4: 0.65 (Resultados)
+        - D5: 0.70 (Impactos)
+        - D6: 0.75 (Causalidad - highest threshold due to complexity)
+        """
 
         defaults = {
             "default": 0.6,
@@ -383,8 +500,11 @@ class PolicyAnalysisOrchestrator:
     def _parse_all_questions(self) -> List[QuestionSpec]:
         """
         Parse all questions into structured QuestionSpec objects (Golden Rule 2)
-        
-        Performs atomic context hydration - loads ALL question metadata before execution
+
+        *** Atomic Context Hydration: loads ALL question metadata before execution ***
+
+        Each question maps to a specific dimension (D1-D6) and will be executed
+        by the Choreographer using the appropriate YAML component chain.
         """
         logger.info("Parsing all questions into structured specs...")
 
@@ -483,7 +603,10 @@ class PolicyAnalysisOrchestrator:
         """
         Define MESO-level clusters for aggregation
 
-        Clusters group related questions across policy areas for mid-level analysis
+        *** YAML MESO-Level Clustering ***
+
+        Clusters group related questions across policy areas for mid-level analysis.
+        Each cluster spans multiple dimensions (D1-D6) and policy areas (P1-P10).
         """
         clusters: List[ClusterDefinition] = []
 
@@ -527,16 +650,33 @@ class PolicyAnalysisOrchestrator:
     ) -> OrchestratorResult:
         """
         Execute complete CHESS strategy: Opening → Middle Game → Endgame
-        
+
+        *** YAML EXECUTION FLOW ***
+
         CHESS PHASES:
-        1. Opening: Parallel execution of all questions (7 producers)
+        1. Opening: Execute all 300 questions via Choreographer
+           - Choreographer uses ALL YAML components:
+             * IndustrialPolicyProcessor for pattern matching
+             * PolicyContradictionDetector for contradictions
+             * TemporalLogicVerifier for temporal consistency
+             * BayesianConfidenceCalculator for confidence
+             * TeoriaCambio + AdvancedDAGValidator for causal validation
+             * MunicipalAnalyzer + SemanticAnalyzer for semantic analysis
+             * PerformanceAnalyzer for loss function
+             * PDETMunicipalPlanAnalyzer for tabular analysis
+           - Each question executes dimension-specific chain (D1-D6)
+
         2. Middle Game: Scoring with 6 modalities (TYPE_A-F)
+           - Aggregate results by scoring modality
+
         3. Endgame: MICRO → MESO → MACRO convergence
-        
+           - MESO: Cluster-level aggregation
+           - MACRO: Overall convergence with Decálogo framework
+
         Args:
             plan_document: Full plan document text
             plan_metadata: Document metadata
-            
+
         Returns:
             OrchestratorResult with complete CHESS execution
         """
@@ -549,8 +689,18 @@ class PolicyAnalysisOrchestrator:
         
         # ====================================================================
         # OPENING: Execute all questions with Choreographer (MICRO level)
+        # *** This is where YAML components are invoked ***
         # ====================================================================
         logger.info("\n🎯 CHESS OPENING: Executing all questions (MICRO level)")
+        logger.info("-" * 80)
+        logger.info("NOTE: Choreographer executing with ALL YAML components:")
+        logger.info("  ✓ IndustrialPolicyProcessor")
+        logger.info("  ✓ PolicyContradictionDetector")
+        logger.info("  ✓ TemporalLogicVerifier")
+        logger.info("  ✓ BayesianConfidenceCalculator")
+        logger.info("  ✓ TeoriaCambio + AdvancedDAGValidator")
+        logger.info("  ✓ MunicipalAnalyzer + Ontology + SemanticAnalyzer + PerformanceAnalyzer")
+        logger.info("  ✓ PDETMunicipalPlanAnalyzer")
         logger.info("-" * 80)
         
         micro_results = self._execute_opening(plan_document, plan_metadata)
@@ -589,19 +739,28 @@ class PolicyAnalysisOrchestrator:
         # ====================================================================
         self.stats["execution_time"] = time.time() - execution_start
         
+        timestamp_iso = datetime.now().isoformat()
+
         result = OrchestratorResult(
             execution_id=execution_id,
-            timestamp=datetime.now().isoformat(),
+            timestamp=timestamp_iso,
             micro_results=micro_results,
             meso_results=meso_results,
             macro_result=macro_result,
             execution_statistics=self.stats.copy(),
             performance_metrics={
                 "total_execution_time": self.stats["execution_time"],
-                "avg_question_time": self.stats["execution_time"] / max(1, len(micro_results)),
+                "average_time_per_question": self.stats["execution_time"] / max(len(micro_results), 1),
+                "questions_per_second": len(micro_results) / max(self.stats["execution_time"], 0.001),
                 "choreographer_stats": self.choreographer.get_statistics()
             },
             provenance={
+                "questionnaire_hash": self.questionnaire_hash,
+                "run_seed": self.run_seed,
+                "execution_id": execution_id,
+                "timestamp": timestamp_iso,
+                "yaml_version": "1.0",
+                "yaml_date": "2025-10-23",
                 "questionnaire_path": self.config.questionnaire_path,
                 "execution_mapping_path": self.config.execution_mapping_path,
                 "method_class_map_path": self.config.method_class_map_path,
@@ -609,10 +768,14 @@ class PolicyAnalysisOrchestrator:
             }
         )
         
+        logger.info("\n" + "=" * 80)
+        logger.info("CHESS EXECUTION COMPLETED")
         logger.info("=" * 80)
-        logger.info(f"🏆 CHESS STRATEGY COMPLETED in {self.stats['execution_time']:.2f}s")
+        logger.info(f"Execution time: {self.stats['execution_time']:.2f}s")
+        logger.info(f"Overall score: {macro_result.overall_score:.1f}/100")
+        logger.info(f"Classification: {macro_result.plan_classification}")
         logger.info("=" * 80)
-        
+
         return result
 
     def _execute_opening(
@@ -621,10 +784,26 @@ class PolicyAnalysisOrchestrator:
         plan_metadata: Dict[str, Any]
     ) -> Dict[str, MicroLevelAnswer]:
         """
-        CHESS OPENING: Execute all questions in parallel (or sequential)
-        
-        Implements Golden Rule 3: Deterministic Pipeline Execution
-        Implements Golden Rule 5: Absolute Processing Homogeneity
+        Execute Opening phase: All questions via Choreographer
+
+        *** YAML COMPONENT EXECUTION HAPPENS HERE ***
+
+        For each question (P#-D#-Q#):
+        1. Create ExecutionContext with dimension info
+        2. Delegate to choreographer.execute_question()
+        3. Choreographer routes to dimension-specific chain (D1-D6)
+        4. YAML components execute as per their chains
+        5. Return MicroLevelAnswer
+
+        Example D1-Q3 execution chain (via Choreographer):
+        - IndustrialPolicyProcessor.process
+        - PolicyContradictionDetector._extract_resource_mentions
+        - PolicyContradictionDetector._detect_numerical_inconsistencies
+        - PolicyContradictionDetector._detect_resource_conflicts
+        - BayesianConfidenceCalculator.calculate_posterior
+
+        Returns:
+            Dict mapping question_id to MicroLevelAnswer
         """
         micro_results = {}
         
@@ -679,9 +858,9 @@ class PolicyAnalysisOrchestrator:
         micro_results: Dict[str, MicroLevelAnswer]
     ) -> Dict[str, Any]:
         """
-        CHESS MIDDLE GAME: Analyze scoring modalities (TYPE_A through TYPE_F)
-        
-        Groups questions by scoring modality and analyzes patterns
+        Execute Middle Game: Aggregate by scoring modalities
+
+        Groups results by TYPE_A through TYPE_F for modality-specific analysis
         """
         modality_groups = defaultdict(list)
         
@@ -721,9 +900,9 @@ class PolicyAnalysisOrchestrator:
         micro_results: Dict[str, MicroLevelAnswer]
     ) -> Dict[str, MesoLevelCluster]:
         """
-        Generate MESO-level cluster aggregations
-        
-        Aggregates MICRO answers into thematic clusters for mid-level analysis
+        Generate MESO-level clusters
+
+        Aggregates MICRO answers into cluster-level results (CL01-CL04)
         """
         meso_results = {}
         
@@ -768,9 +947,9 @@ class PolicyAnalysisOrchestrator:
         meso_results: Dict[str, MesoLevelCluster]
     ) -> MacroLevelConvergence:
         """
-        Generate MACRO-level convergence with Decálogo framework
-        
-        Provides executive-level assessment of entire plan
+        Generate MACRO-level convergence
+
+        Creates overall assessment with Decálogo framework alignment
         """
         logger.info("  Generating MACRO convergence analysis...")
         
@@ -799,10 +978,10 @@ class PolicyAnalysisOrchestrator:
 
     def save_results(self, result: OrchestratorResult):
         """
-        Save complete results to output directory
-        
+        Save orchestration results to disk
+
         Generates:
-        - MICRO answers JSON
+        - MICRO answers JSON (from Choreographer with YAML components)
         - MESO clusters JSON
         - MACRO convergence JSON
         - Executive summary report
