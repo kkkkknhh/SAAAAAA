@@ -634,23 +634,24 @@ class PolicyAnalysisOrchestrator:
             logger.info(f"  [{idx}/{total_questions}] Executing {question_spec.canonical_id}")
             
             try:
-                # Convert QuestionSpec to dict for Choreographer
-                question_dict = {
-                    "canonical_id": question_spec.canonical_id,
-                    "policy_area": question_spec.policy_area,
-                    "dimension": question_spec.dimension,
-                    "question_text": question_spec.question_text,
-                    "scoring_modality": question_spec.scoring_modality,
-                    "expected_elements": question_spec.expected_elements,
-                    "search_patterns": question_spec.search_patterns,
-                    "element_weights": question_spec.element_weights,
-                    "numerical_thresholds": question_spec.numerical_thresholds,
-                    "validation_rules": question_spec.validation_rules
-                }
+                # Create ExecutionContext object
+                execution_context = ExecutionContext(
+                    question_id=question_spec.canonical_id,
+                    dimension=question_spec.dimension,
+                    policy_area=question_spec.policy_area,
+                    questionnaire_hash=self.questionnaire_hash,
+                    timestamp=datetime.utcnow().isoformat() + 'Z',
+                    metadata={
+                        'question_text': question_spec.question_text,
+                        'scoring_modality': question_spec.scoring_modality,
+                        'expected_elements': question_spec.expected_elements,
+                        'cluster_id': question_spec.cluster_id
+                    }
+                )
                 
                 # Execute via Choreographer
                 result = self.choreographer.execute_question(
-                    question_dict,
+                    execution_context,
                     plan_document,
                     plan_metadata
                 )
