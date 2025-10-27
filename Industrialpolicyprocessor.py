@@ -204,7 +204,8 @@ class PolicyAnalysisOrchestrator:
             execution_mapping_path=config.execution_mapping_path,
             method_class_map_path=config.method_class_map_path,
             questionnaire_hash=self.questionnaire_hash,
-            deterministic_context=self.deterministic_context
+            deterministic_context=self.deterministic_context,
+            config_path=None
         )
 
         # Initialize Report Assembler (Collection & Assembly Pipeline)
