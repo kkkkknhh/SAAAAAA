@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Orchestrator - CHESS Strategy Control Plane (MACRO Level) - UPDATED v1.1
+Orchestrator - CHESS Strategy Control Plane (MACRO Level)
 =========================================================================
 
 ARCHITECTURE ALIGNMENT WITH YAML SPECIFICATION v1.0 (2025-10-23)
