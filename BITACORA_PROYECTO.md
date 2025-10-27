@@ -448,4 +448,37 @@ Ambos archivos tienen 380.4KB de tamaño y parecen ser copias.
 
 ---
 
---
+
+ARCHIVOS EN LA VITACORA:
+(venv) ➜  ~ cd ~/DEREK-BEACH
+(venv) ➜  DEREK-BEACH git:(master) ✗ la
+total 1.5M
+-rw-r--r-- 1 recovered recovered  52K Oct 22 21:54 .coverage
+drwxrwxr-x 8 recovered recovered 4.0K Oct 22 23:46 .git
+-rw-rw-r-- 1 recovered recovered  175 Oct 22 20:01 .gitignore
+drwxrwxr-x 3 recovered recovered 4.0K Oct 22 21:53 .pytest_cache
+-rw-rw-r-- 1 recovered recovered 4.6K Oct 23 03:29 AUDIT_REPORT.json
+-rw-rw-r-- 1 recovered recovered 4.8K Oct 22 22:58 BLOQUE2_STATUS.md
+-rw-rw-r-- 1 recovered recovered 4.4K Oct 22 20:08 README.md
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 21:54 __pycache__
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 20:02 artifacts
+-rw-rw-r-- 1 recovered recovered  12K Oct 22 20:21 contract_enforcement.py
+drwxrwxr-x 6 recovered recovered 4.0K Oct 22 20:02 controls
+-rw-rw-r-- 1 recovered recovered  48K Oct 22 21:54 coverage.json
+-rw-r--r-- 1 recovered recovered 815K Oct 22 22:39 cuestionario_FIXED.json
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 20:02 docs
+-rw-r--r-- 1 recovered recovered  15K Oct 22 22:44 execution_mapping.yaml
+-rw-rw-r-- 1 recovered recovered  11K Oct 22 20:06 metadata_loader.py
+-rw-rw-r-- 1 recovered recovered  529 Oct 22 20:44 requirements.txt
+-rw-rw-r-- 1 recovered recovered  12K Oct 22 20:17 resilience_manager.py
+-rw-r--r-- 1 recovered recovered 379K Oct 22 22:44 rubric_scoring_FIXED.json
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 20:02 rules
+drwxrwxr-x 4 recovered recovered 4.0K Oct 22 20:02 run
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 20:05 schemas
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 20:06 scripts
+-rw-rw-r-- 1 recovered recovered 6.2K Oct 22 20:06 seed_factory.py
+-rw-rw-r-- 1 recovered recovered 9.0K Oct 22 20:11 state_store.py
+drwxrwxr-x 3 recovered recovered 4.0K Oct 23 03:28 tests
+drwxrwxr-x 2 recovered recovered 4.0K Oct 22 23:25 validation
+-rw-rw-r-- 1 recovered recovered 9.9K Oct 22 20:12 validation_engine.py
+(venv) ➜  DEREK-BEACH git:(master) ✗ 
