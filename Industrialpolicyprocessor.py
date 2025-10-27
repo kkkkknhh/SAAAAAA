@@ -46,7 +46,7 @@ from collections import defaultdict
 import statistics
 
 # Import Choreographer and Report Assembly
-from choreographer import ExecutionChoreographer, ExecutionResult, ExecutionContext
+from policy_analysis_pipeline import ExecutionChoreographer, ExecutionResult, ExecutionContext
 from determinism.seeds import DeterministicContext, SeedFactory
 from report_assembly import (
     ReportAssembler, MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
