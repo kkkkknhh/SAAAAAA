@@ -100,12 +100,12 @@ class WiringAuditor:
                     self.report.add_pass()
                 else:
                     self.report.add_violation(AuditViolation(
-                        severity="WARNING", domain="Wiring", component="Choreographer",
+                        severity="WARNING", domain="Wiring", component="ExecutionChoreographer",
                         violation_type="MISSING_PRODUCER", description=f"Missing {producer}"
                     ))
         except Exception as e:
             self.report.add_violation(AuditViolation(
-                severity="ERROR", domain="Wiring", component="Choreographer",
+                severity="ERROR", domain="Wiring", component="ExecutionChoreographer",
                 violation_type="LOAD_FAILURE", description=str(e)
             ))
     
@@ -172,11 +172,11 @@ class ChoreographyAuditor:
     
     def _audit_context_propagation(self):
         try:
-            path = self.project_root / "choreographer.py"
+            path = self.project_root / "policy_analysis_pipeline.py"
             if not path.exists():
                 self.report.add_violation(AuditViolation(
-                    severity="CRITICAL", domain="Choreography", component="Choreographer",
-                    violation_type="MISSING_FILE", description="choreographer.py not found"
+                    severity="CRITICAL", domain="Choreography", component="ExecutionChoreographer",
+                    violation_type="MISSING_FILE", description="policy_analysis_pipeline.py not found"
                 ))
                 return
             source = path.read_text()
@@ -185,12 +185,12 @@ class ChoreographyAuditor:
                 self.report.add_pass()
             else:
                 self.report.add_violation(AuditViolation(
-                    severity="WARNING", domain="Choreography", component="Choreographer",
+                    severity="WARNING", domain="Choreography", component="ExecutionChoreographer",
                     violation_type="MISSING_CONTEXT", description="No context propagation found"
                 ))
         except Exception as e:
             self.report.add_violation(AuditViolation(
-                severity="ERROR", domain="Choreography", component="Choreographer",
+                severity="ERROR", domain="Choreography", component="ExecutionChoreographer",
                 violation_type="AUDIT_FAILURE", description=str(e)
             ))
     
@@ -218,7 +218,7 @@ class ChoreographyAuditor:
                     self.report.add_pass()
                 else:
                     self.report.add_violation(AuditViolation(
-                        severity="ERROR", domain="Choreography", component="Choreographer",
+                        severity="ERROR", domain="Choreography", component="ExecutionChoreographer",
                         violation_type="NO_ROUTING_METHOD", description="Missing routing method"
                     ))
         except Exception:
