@@ -1,5 +1,5 @@
 """
-SIN_CARRETA Policy Analysis Pipeline - Choreographer (MICRO Level)
+SIN_CARRETA Policy Analysis Pipeline - ExecutionChoreographer (MICRO Level)
 
 ARCHITECTURAL ROLE:
 - MICRO-level execution engine for individual policy questions
@@ -76,8 +76,7 @@ from financiero_viabilidad_tablas import (
 # from semantic_chunking_policy import SemanticChunkingEngine
 
 # Producer 9: report_assembly
-# Import MicroLevelAnswer from report_assembly (canonical definition)
-from report_assembly import MicroLevelAnswer
+from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +171,7 @@ class ExecutionResult:
 # CHOREOGRAPHER - MICRO LEVEL EXECUTOR
 # ========================================
 
-class Choreographer:
+class ExecutionChoreographer:
     """
     MICRO-level execution engine for individual policy questions
     
@@ -191,7 +190,7 @@ class Choreographer:
     - Generate executive summaries (Orchestrator's job)
     
     BOUNDARY:
-    Orchestrator → [execute_question] → Choreographer → [MicroLevelAnswer] → Orchestrator
+    Orchestrator → [execute_question] → ExecutionChoreographer → [MicroLevelAnswer] → Orchestrator
     """
     
     def __init__(
