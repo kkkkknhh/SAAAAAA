@@ -150,10 +150,10 @@ def count_methods(file_path: Path) -> Dict[str, int]:
     return stats
 
 def validate_choreographer() -> bool:
-    """Validate Choreographer implementation"""
-    print_header("VALIDATING CHOREOGRAPHER")
+    """Validate ExecutionChoreographer implementation"""
+    print_header("VALIDATING EXECUTION CHOREOGRAPHER")
     
-    file_path = Path("choreographer.py")
+    file_path = Path("policy_analysis_pipeline.py")
     
     if not file_path.exists():
         print_error(f"{file_path} not found")
@@ -322,14 +322,14 @@ def main():
     print(f"\n{Colors.BOLD}{Colors.BLUE}")
     print("╔════════════════════════════════════════════════════════════════════════════╗")
     print("║                   SYSTEM VALIDATION - COMPREHENSIVE QA                     ║")
-    print("║                    Choreographer + Orchestrator + 9 Producers              ║")
+    print("║            ExecutionChoreographer + Orchestrator + 9 Producers             ║")
     print("╚════════════════════════════════════════════════════════════════════════════╝")
     print(Colors.RESET)
     
     results = []
     
-    # Validate Choreographer
-    results.append(("Choreographer", validate_choreographer()))
+    # Validate ExecutionChoreographer
+    results.append(("ExecutionChoreographer", validate_choreographer()))
     
     # Validate Orchestrator
     results.append(("Orchestrator", validate_orchestrator()))
