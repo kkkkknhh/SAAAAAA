@@ -14,7 +14,11 @@ Python: 3.10+
 
 import pytest
 import ast
+from pathlib import Path
 
+
+# Get the repository root directory
+REPO_ROOT = Path(__file__).parent.parent
 
 # ============================================================================
 # TEST: Choreographer Initialization Signature
@@ -26,7 +30,8 @@ class TestChoreographerInitialization:
     def test_choreographer_accepts_five_parameters(self):
         """Test that ExecutionChoreographer.__init__ accepts all 5 parameters including config_path."""
         # Read the source file and parse it
-        with open('/home/runner/work/SAAAAAA/SAAAAAA/policy_analysis_pipeline.py', 'r') as f:
+        policy_pipeline_path = REPO_ROOT / 'policy_analysis_pipeline.py'
+        with open(policy_pipeline_path, 'r') as f:
             source = f.read()
         
         # Parse the file
@@ -70,7 +75,8 @@ class TestChoreographerInitialization:
     def test_orchestrator_passes_config_path_to_choreographer(self):
         """Test that Orchestrator passes config_path parameter to ExecutionChoreographer."""
         # Read the Orchestrator source file
-        with open('/home/runner/work/SAAAAAA/SAAAAAA/Industrialpolicyprocessor.py', 'r') as f:
+        orchestrator_path = REPO_ROOT / 'Industrialpolicyprocessor.py'
+        with open(orchestrator_path, 'r') as f:
             source = f.read()
         
         # Parse the file
