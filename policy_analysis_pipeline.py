@@ -75,8 +75,8 @@ from financiero_viabilidad_tablas import (
 # Producer 8: semantic_chunking_policy (placeholder - implement as needed)
 # from semantic_chunking_policy import SemanticChunkingEngine
 
-# Producer 9: report_assembly (placeholder - implement as needed)
-# from report_assembly import ReportAssemblyEngine
+# Producer 9: report_assembly
+from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 
 logger = logging.getLogger(__name__)
 
@@ -119,40 +119,6 @@ class ExecutionContext:
                 f"Invalid dimension code: {self.dimension}. "
                 f"Must be one of: {[d.value for d in DimensionCode]}"
             )
-
-
-@dataclass
-class MicroLevelAnswer:
-    """
-    Evidence-grounded answer for a single policy question
-    
-    STRUCTURE:
-    - question_id: Unique identifier
-    - dimension: Dimensional code (D1-D6)
-    - policy_area: Policy domain
-    - score: Numerical assessment [0.0, 1.0]
-    - evidence: Complete evidence bundle from dimensional chain
-    - findings: Human-readable key findings
-    - confidence: Bayesian posterior confidence
-    - metadata: Execution metadata
-    """
-    question_id: str
-    dimension: str
-    policy_area: str
-    score: float
-    evidence: Dict[str, Any]
-    findings: List[str]
-    confidence: float
-    metadata: Dict[str, Any]
-    
-    def __post_init__(self):
-        # Validate score range
-        if not (0.0 <= self.score <= 1.0):
-            raise ValueError(f"Score must be in [0.0, 1.0], got: {self.score}")
-        
-        # Validate confidence range
-        if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be in [0.0, 1.0], got: {self.confidence}")
 
 
 @dataclass
@@ -205,7 +171,7 @@ class ExecutionResult:
 # CHOREOGRAPHER - MICRO LEVEL EXECUTOR
 # ========================================
 
-class Choreographer:
+class ExecutionChoreographer:
     """
     MICRO-level execution engine for individual policy questions
     
@@ -224,7 +190,7 @@ class Choreographer:
     - Generate executive summaries (Orchestrator's job)
     
     BOUNDARY:
-    Orchestrator → [execute_question] → Choreographer → [MicroLevelAnswer] → Orchestrator
+    Orchestrator → [execute_question] → ExecutionChoreographer → [MicroLevelAnswer] → Orchestrator
     """
     
     def __init__(
