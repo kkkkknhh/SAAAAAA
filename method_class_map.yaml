@@ -411,7 +411,7 @@ class_module_map:
     - _add_node_to_graph
     - _extract_causal_links
     - _build_type_hierarchy
-    - _extract_goal_text
+    - _parse_goal_context
     - _classify_goal_type
     - _extract_numerical_data
     - _identify_responsible_entity
