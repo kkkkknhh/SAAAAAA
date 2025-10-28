@@ -116,7 +116,7 @@ def test_compose_cluster_posterior_handles_negative_weights():
 
 
 def test_compose_cluster_posterior_handles_zero_total_weight():
-    """Test that zero total weight (e.g., negatives canceling positives) falls back to uniform."""
+    """Test that weights summing to zero before clamping are handled gracefully."""
     micro_posteriors = [0.6, 0.8, 0.7]
     weights = [0.5, -0.5, 0.0]  # sum to zero before clamping
     
@@ -124,11 +124,10 @@ def test_compose_cluster_posterior_handles_zero_total_weight():
         micro_posteriors, weighting_trace=weights
     )
     
-    # After clamping to non-negative, weights become [0.5, 0.0, 0.0]
-    # which sums to 0.5 (not zero), so normalized to [1.0, 0.0, 0.0]
-    # This prevents the negative from canceling the positive
+    # Clamping converts weights to [0.5, 0.0, 0.0] (sum=0.5).
+    # After normalization: [1.0, 0.0, 0.0], so only first posterior counts.
     assert payload["prior_meso"] > 0
-    # With normalized weights [1.0, 0.0, 0.0], prior_meso should be 0.6
+    # With normalized weights [1.0, 0.0, 0.0], prior_meso equals first posterior
     assert math.isclose(payload["prior_meso"], 0.6, rel_tol=1e-5)
     assert payload["posterior_meso"] > 0
     assert payload["uncertainty_index"] >= 0
