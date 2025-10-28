@@ -1342,13 +1342,14 @@ class ExecutionChoreographer:
         quantitative_score = score_normalized * 3.0
         
         # Determine qualitative_note based on score
-        if quantitative_score >= 2.5:
+        # Using standardized thresholds: 85% (2.55), 70% (2.10), 55% (1.65) of 3.0
+        if quantitative_score >= 2.55:  # 85% of 3.0
             qualitative_note = "EXCELENTE"
-        elif quantitative_score >= 2.0:
+        elif quantitative_score >= 2.10:  # 70% of 3.0
             qualitative_note = "BUENO"
-        elif quantitative_score >= 1.5:
+        elif quantitative_score >= 1.65:  # 55% of 3.0
             qualitative_note = "ACEPTABLE"
-        else:
+        else:  # Below 55%
             qualitative_note = "INSUFICIENTE"
         
         # Extract key findings
