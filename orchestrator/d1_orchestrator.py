@@ -28,6 +28,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+from orchestrator.choreographer_dispatch import (
+    ChoreographerDispatcher,
+    InvocationContext,
+    get_global_dispatcher,
+)
+from orchestrator.evidence_registry import get_global_registry
+
 logger = logging.getLogger(__name__)
 
 
@@ -234,16 +241,39 @@ class D1QuestionOrchestrator:
         ],
     }
     
-    def __init__(self, canonical_registry: Optional[Dict[str, Callable]] = None):
+    def __init__(
+        self,
+        canonical_registry: Optional[Dict[str, Callable]] = None,
+        enable_choreographer: bool = True,
+        enable_evidence: bool = True,
+    ):
         """Initialize orchestrator with canonical method registry.
         
         Args:
             canonical_registry: Optional pre-built registry. If None, will attempt
                 to build from canonical_registry module.
+            enable_choreographer: Use choreographer dispatch for method invocation
+            enable_evidence: Enable evidence recording
         """
         self.registry = canonical_registry or {}
         self.method_contracts: Dict[str, MethodContract] = {}
         self._build_method_contracts()
+        
+        # Choreographer dispatch integration
+        self.enable_choreographer = enable_choreographer
+        self.enable_evidence = enable_evidence
+        
+        if enable_choreographer:
+            self.dispatcher = get_global_dispatcher()
+            logger.info("D1Orchestrator: Choreographer dispatch enabled")
+        else:
+            self.dispatcher = None
+        
+        if enable_evidence:
+            self.evidence_registry = get_global_registry()
+            logger.info("D1Orchestrator: Evidence recording enabled")
+        else:
+            self.evidence_registry = None
     
     def _build_method_contracts(self) -> None:
         """Build method contracts from specifications."""
@@ -412,11 +442,40 @@ class D1QuestionOrchestrator:
             return trace
         
         try:
-            # Attempt to call the method
-            # Note: This is a simplified invocation. Real implementation would need
-            # sophisticated argument binding based on method signature inspection
-            result = self._invoke_method(contract.callable_ref, context)
-            trace.finalize(success=True, result=result)
+            # Use choreographer dispatch if enabled
+            if self.enable_choreographer and self.dispatcher:
+                # Create invocation context
+                inv_context = InvocationContext(
+                    text=context.get("text"),
+                    data=context.get("data"),
+                    question_id=question.value,
+                    extra_kwargs=context,
+                )
+                
+                # Invoke via dispatcher (includes QMCM interception)
+                inv_result = self.dispatcher.invoke_method(method_name, inv_context)
+                
+                if inv_result.success:
+                    result = inv_result.result
+                    
+                    # Record evidence if enabled
+                    if self.enable_evidence and self.evidence_registry:
+                        self.evidence_registry.record_evidence(
+                            evidence_type="method_result",
+                            payload={"result": str(result)[:1000]},  # Truncate for storage
+                            source_method=method_name,
+                            question_id=question.value,
+                            execution_time_ms=inv_result.execution_time_ms,
+                        )
+                    
+                    trace.finalize(success=True, result=result)
+                else:
+                    trace.finalize(success=False, error=inv_result.error)
+            else:
+                # Fallback to direct invocation
+                result = self._invoke_method(contract.callable_ref, context)
+                trace.finalize(success=True, result=result)
+                
         except Exception as exc:
             trace.finalize(success=False, error=exc)
             logger.exception(f"Method {method_name} raised exception")
