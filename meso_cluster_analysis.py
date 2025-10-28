@@ -200,7 +200,7 @@ class MetricViolation:
     entity_misalignment: bool = False
     out_of_range: bool = False
 
-    def to_flag_dict(self) -> Dict[str, bool]:
+    def to_flag_dict(self) -> Dict[str, object]:
         return {
             "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
