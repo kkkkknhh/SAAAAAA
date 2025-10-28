@@ -23,7 +23,7 @@ def test_invalid_contract_reports_error(tmp_path: Path) -> None:
     invalid_dir = tmp_path / "contracts"
     invalid_dir.mkdir()
     malformed = invalid_dir / "broken.json"
-    malformed.write_text("{" , encoding="utf-8")
+    malformed.write_text("{", encoding="utf-8")
 
     loader = JSONContractLoader(base_path=invalid_dir)
     report = loader.load_directory(Path("."))
