@@ -42,7 +42,7 @@ print(f"Score: {score} ({producer.classify_score(score)})")
 
 ## API Reference
 
-### MICRO Level Methods (11 methods)
+### MICRO Level Methods (14 methods)
 
 #### Production
 - `produce_micro_answer(question_spec, execution_results, plan_text)` → `Dict`
