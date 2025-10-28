@@ -1283,7 +1283,8 @@ class ExecutionChoreographer:
         statements_d6_prelim = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
         detector._build_knowledge_graph(statements_d6_prelim)
         graph = detector.knowledge_graph
-        evidence['knowledge_graph'] = graph
+        graph_stats = detector._get_graph_statistics()
+        evidence['knowledge_graph'] = graph_stats
         
         # Step 2: Validate with AdvancedDAGValidator
         trace.append({'step': 2, 'method': 'AdvancedDAGValidator.validacion_completa'})
