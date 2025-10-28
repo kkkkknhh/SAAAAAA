@@ -1278,7 +1278,11 @@ class ExecutionChoreographer:
         
         # Step 1: Build knowledge graph
         trace.append({'step': 1, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
-        graph = detector._build_knowledge_graph(document)
+        # Extract policy statements for D6
+        # PolicyDimension imported at top
+        statements_d6_prelim = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
+        detector._build_knowledge_graph(statements_d6_prelim)
+        graph = detector.knowledge_graph
         evidence['knowledge_graph'] = graph
         
         # Step 2: Validate with AdvancedDAGValidator
