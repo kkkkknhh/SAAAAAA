@@ -764,6 +764,26 @@ class PolicyAnalysisOrchestrator:
         
         return meso_results
 
+    def _calculate_dimension_expected_counts(self) -> Dict[str, int]:
+        """
+        Calculate expected question counts per dimension from all_questions.
+        
+        Returns:
+            Dict mapping dimension IDs (e.g., "D1", "DIM01") to expected question counts
+        """
+        dimension_counts = defaultdict(int)
+        
+        for question in self.all_questions:
+            # Normalize dimension ID (e.g., "DIM01" -> "D1")
+            dim = question.dimension
+            if dim.startswith("DIM"):
+                # Convert "DIM01" -> "D1"
+                dim_num = int(dim.replace("DIM", ""))
+                dim = f"D{dim_num}"
+            dimension_counts[dim] += 1
+        
+        return dict(dimension_counts)
+
     def _generate_macro_convergence(
         self,
         micro_results: Dict[str, MicroLevelAnswer],
@@ -779,13 +799,17 @@ class PolicyAnalysisOrchestrator:
         # Aggregate all MICRO answers
         all_answers = list(micro_results.values())
         
+        # Calculate dimension expected counts
+        dimension_expected_counts = self._calculate_dimension_expected_counts()
+        
         # Use ReportAssembler to generate MACRO convergence
         macro_convergence = self.report_assembler.generate_macro_convergence(
             micro_answers=all_answers,
             meso_clusters=list(meso_results.values()),
             plan_metadata={
                 "total_questions": len(self.all_questions),
-                "answered_questions": len(micro_results)
+                "answered_questions": len(micro_results),
+                "dimension_expected_counts": dimension_expected_counts
             }
         )
         
