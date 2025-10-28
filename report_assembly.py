@@ -77,7 +77,6 @@ class MesoLevelCluster:
     cluster_description: str  # Human-readable description
     policy_areas: List[str]  # Policy areas included (e.g., [P1, P2, P3])
     avg_score: float  # 0-100 percentage score
-    policy_area_scores: Dict[str, float] = field(default_factory=dict)
     dimension_scores: Dict[str, float]  # D1: 75.0, D2: 65.0, etc. (percentages)
     strengths: List[str]  # Identified strengths
     weaknesses: List[str]  # Identified weaknesses
@@ -85,6 +84,7 @@ class MesoLevelCluster:
     question_coverage: float  # Percentage of questions answered
     total_questions: int  # Total questions in cluster
     answered_questions: int  # Number of questions answered
+    policy_area_scores: Dict[str, float] = field(default_factory=dict)
     evidence_quality: Dict[str, float] = field(default_factory=dict)
     
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -1977,6 +1977,448 @@ class ReportAssembler:
 
         logger.info(f"Report exported successfully: {output_path}")
 
+    # ========================================================================
+    # REGISTRY EXPOSURE - Public API Methods
+    # ========================================================================
+
+    def validate_micro_answer_schema(self, answer_data: Dict[str, Any]) -> bool:
+        """Validate MICRO answer against JSON schema"""
+        from pathlib import Path
+        import jsonschema
+        
+        schema_path = Path(__file__).parent / "schemas" / "report_assembly" / "micro_answer.schema.json"
+        if not schema_path.exists():
+            logger.warning(f"Schema not found: {schema_path}")
+            return False
+        
+        schema = json.loads(schema_path.read_text())
+        try:
+            jsonschema.validate(instance=answer_data, schema=schema)
+            return True
+        except jsonschema.ValidationError as e:
+            logger.error(f"Schema validation failed: {e}")
+            return False
+
+    def validate_meso_cluster_schema(self, cluster_data: Dict[str, Any]) -> bool:
+        """Validate MESO cluster against JSON schema"""
+        from pathlib import Path
+        import jsonschema
+        
+        schema_path = Path(__file__).parent / "schemas" / "report_assembly" / "meso_cluster.schema.json"
+        if not schema_path.exists():
+            logger.warning(f"Schema not found: {schema_path}")
+            return False
+        
+        schema = json.loads(schema_path.read_text())
+        try:
+            jsonschema.validate(instance=cluster_data, schema=schema)
+            return True
+        except jsonschema.ValidationError as e:
+            logger.error(f"Schema validation failed: {e}")
+            return False
+
+    def validate_macro_convergence_schema(self, convergence_data: Dict[str, Any]) -> bool:
+        """Validate MACRO convergence against JSON schema"""
+        from pathlib import Path
+        import jsonschema
+        
+        schema_path = Path(__file__).parent / "schemas" / "report_assembly" / "macro_convergence.schema.json"
+        if not schema_path.exists():
+            logger.warning(f"Schema not found: {schema_path}")
+            return False
+        
+        schema = json.loads(schema_path.read_text())
+        try:
+            jsonschema.validate(instance=convergence_data, schema=schema)
+            return True
+        except jsonschema.ValidationError as e:
+            logger.error(f"Schema validation failed: {e}")
+            return False
+
+
+# ============================================================================
+# PRODUCER CLASS - Registry Exposure
+# ============================================================================
+
+class ReportAssemblyProducer:
+    """
+    Producer wrapper for ReportAssembler with public API for registry exposure
+    
+    Provides 40+ public methods for orchestrator integration without
+    exposing internal implementation details or summarization logic.
+    
+    Version: 1.0.0
+    Producer Type: Report Assembly / Aggregation
+    """
+    
+    def __init__(
+            self,
+            dimension_descriptions: Optional[Dict[str, str]] = None,
+            cluster_weights: Optional[Dict[str, float]] = None,
+            cluster_policy_weights: Optional[Dict[str, Dict[str, float]]] = None,
+            causal_thresholds: Optional[Dict[str, float]] = None
+    ):
+        """Initialize producer with optional configuration"""
+        self.assembler = ReportAssembler(
+            dimension_descriptions=dimension_descriptions,
+            cluster_weights=cluster_weights,
+            cluster_policy_weights=cluster_policy_weights,
+            causal_thresholds=causal_thresholds
+        )
+        logger.info("ReportAssemblyProducer initialized")
+    
+    # ========================================================================
+    # MICRO LEVEL API - Question Analysis
+    # ========================================================================
+    
+    def produce_micro_answer(
+            self,
+            question_spec: Any,
+            execution_results: Dict[str, Any],
+            plan_text: str
+    ) -> Dict[str, Any]:
+        """
+        Produce MICRO-level answer for a single question
+        
+        Returns: Serializable dictionary with complete answer
+        """
+        answer = self.assembler.generate_micro_answer(
+            question_spec, execution_results, plan_text
+        )
+        return asdict(answer)
+    
+    def get_micro_answer_score(self, answer: MicroLevelAnswer) -> float:
+        """Extract quantitative score from MICRO answer"""
+        return answer.quantitative_score
+    
+    def get_micro_answer_qualitative(self, answer: MicroLevelAnswer) -> str:
+        """Extract qualitative classification from MICRO answer"""
+        return answer.qualitative_note
+    
+    def get_micro_answer_evidence(self, answer: MicroLevelAnswer) -> List[str]:
+        """Extract evidence excerpts from MICRO answer"""
+        return answer.evidence
+    
+    def get_micro_answer_confidence(self, answer: MicroLevelAnswer) -> float:
+        """Extract confidence score from MICRO answer"""
+        return answer.confidence
+    
+    def get_micro_answer_modules(self, answer: MicroLevelAnswer) -> List[str]:
+        """Extract list of executed modules from MICRO answer"""
+        return answer.modules_executed
+    
+    def get_micro_answer_execution_time(self, answer: MicroLevelAnswer) -> float:
+        """Extract execution time from MICRO answer"""
+        return answer.execution_time
+    
+    def get_micro_answer_elements_found(self, answer: MicroLevelAnswer) -> Dict[str, bool]:
+        """Extract detected elements from MICRO answer"""
+        return answer.elements_found
+    
+    def count_micro_evidence_excerpts(self, answer: MicroLevelAnswer) -> int:
+        """Count evidence excerpts in MICRO answer"""
+        return len(answer.evidence)
+    
+    def is_micro_answer_excellent(self, answer: MicroLevelAnswer) -> bool:
+        """Check if MICRO answer is classified as EXCELENTE"""
+        return answer.qualitative_note == "EXCELENTE"
+    
+    def is_micro_answer_passing(self, answer: MicroLevelAnswer) -> bool:
+        """Check if MICRO answer meets minimum passing threshold"""
+        return answer.quantitative_score >= 1.65  # ACEPTABLE threshold
+    
+    # ========================================================================
+    # MESO LEVEL API - Cluster Aggregation
+    # ========================================================================
+    
+    def produce_meso_cluster(
+            self,
+            cluster_name: str,
+            cluster_description: str,
+            micro_answers: List[Dict[str, Any]],
+            cluster_definition: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Produce MESO-level cluster aggregation
+        
+        Returns: Serializable dictionary with cluster analysis
+        """
+        # Convert dicts to MicroLevelAnswer objects
+        answer_objects = [
+            MicroLevelAnswer(**answer) for answer in micro_answers
+        ]
+        
+        cluster = self.assembler.generate_meso_cluster(
+            cluster_name, cluster_description, answer_objects, cluster_definition
+        )
+        return asdict(cluster)
+    
+    def get_meso_cluster_score(self, cluster: MesoLevelCluster) -> float:
+        """Extract average score from MESO cluster"""
+        return cluster.avg_score
+    
+    def get_meso_cluster_policy_areas(self, cluster: MesoLevelCluster) -> List[str]:
+        """Extract policy areas from MESO cluster"""
+        return cluster.policy_areas
+    
+    def get_meso_cluster_dimension_scores(self, cluster: MesoLevelCluster) -> Dict[str, float]:
+        """Extract dimension scores from MESO cluster"""
+        return cluster.dimension_scores
+    
+    def get_meso_cluster_strengths(self, cluster: MesoLevelCluster) -> List[str]:
+        """Extract identified strengths from MESO cluster"""
+        return cluster.strengths
+    
+    def get_meso_cluster_weaknesses(self, cluster: MesoLevelCluster) -> List[str]:
+        """Extract identified weaknesses from MESO cluster"""
+        return cluster.weaknesses
+    
+    def get_meso_cluster_recommendations(self, cluster: MesoLevelCluster) -> List[str]:
+        """Extract recommendations from MESO cluster"""
+        return cluster.recommendations
+    
+    def get_meso_cluster_coverage(self, cluster: MesoLevelCluster) -> float:
+        """Extract question coverage percentage from MESO cluster"""
+        return cluster.question_coverage
+    
+    def get_meso_cluster_question_counts(self, cluster: MesoLevelCluster) -> Tuple[int, int]:
+        """Extract total and answered question counts from MESO cluster"""
+        return cluster.total_questions, cluster.answered_questions
+    
+    def count_meso_strengths(self, cluster: MesoLevelCluster) -> int:
+        """Count strengths identified in MESO cluster"""
+        return len(cluster.strengths)
+    
+    def count_meso_weaknesses(self, cluster: MesoLevelCluster) -> int:
+        """Count weaknesses identified in MESO cluster"""
+        return len(cluster.weaknesses)
+    
+    def is_meso_cluster_excellent(self, cluster: MesoLevelCluster) -> bool:
+        """Check if MESO cluster score is in EXCELENTE range"""
+        return cluster.avg_score >= 85
+    
+    def is_meso_cluster_passing(self, cluster: MesoLevelCluster) -> bool:
+        """Check if MESO cluster meets minimum passing threshold"""
+        return cluster.avg_score >= 55  # SATISFACTORIO threshold
+    
+    # ========================================================================
+    # MACRO LEVEL API - Convergence Analysis
+    # ========================================================================
+    
+    def produce_macro_convergence(
+            self,
+            all_micro_answers: List[Dict[str, Any]],
+            all_meso_clusters: List[Dict[str, Any]],
+            plan_metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Produce MACRO-level convergence analysis
+        
+        Returns: Serializable dictionary with executive summary
+        """
+        # Convert dicts to objects
+        answer_objects = [
+            MicroLevelAnswer(**answer) for answer in all_micro_answers
+        ]
+        cluster_objects = [
+            MesoLevelCluster(**cluster) for cluster in all_meso_clusters
+        ]
+        
+        convergence = self.assembler.generate_macro_convergence(
+            answer_objects, cluster_objects, plan_metadata
+        )
+        return asdict(convergence)
+    
+    def get_macro_overall_score(self, convergence: MacroLevelConvergence) -> float:
+        """Extract overall score from MACRO convergence"""
+        return convergence.overall_score
+    
+    def get_macro_dimension_convergence(self, convergence: MacroLevelConvergence) -> Dict[str, float]:
+        """Extract dimension convergence scores from MACRO"""
+        return convergence.convergence_by_dimension
+    
+    def get_macro_policy_convergence(self, convergence: MacroLevelConvergence) -> Dict[str, float]:
+        """Extract policy area convergence scores from MACRO"""
+        return convergence.convergence_by_policy_area
+    
+    def get_macro_gap_analysis(self, convergence: MacroLevelConvergence) -> Dict[str, Any]:
+        """Extract gap analysis from MACRO convergence"""
+        return convergence.gap_analysis
+    
+    def get_macro_agenda_alignment(self, convergence: MacroLevelConvergence) -> float:
+        """Extract agenda alignment score from MACRO"""
+        return convergence.agenda_alignment
+    
+    def get_macro_critical_gaps(self, convergence: MacroLevelConvergence) -> List[str]:
+        """Extract critical gaps list from MACRO"""
+        return convergence.critical_gaps
+    
+    def get_macro_strategic_recommendations(self, convergence: MacroLevelConvergence) -> List[str]:
+        """Extract strategic recommendations from MACRO"""
+        return convergence.strategic_recommendations
+    
+    def get_macro_classification(self, convergence: MacroLevelConvergence) -> str:
+        """Extract plan classification from MACRO"""
+        return convergence.plan_classification
+    
+    def get_macro_evidence_synthesis(self, convergence: MacroLevelConvergence) -> Dict[str, Any]:
+        """Extract evidence synthesis from MACRO"""
+        return convergence.evidence_synthesis
+    
+    def get_macro_implementation_roadmap(self, convergence: MacroLevelConvergence) -> List[Dict[str, Any]]:
+        """Extract implementation roadmap from MACRO"""
+        return convergence.implementation_roadmap
+    
+    def get_macro_score_distribution(self, convergence: MacroLevelConvergence) -> Dict[str, int]:
+        """Extract score distribution from MACRO"""
+        return convergence.score_distribution
+    
+    def get_macro_confidence_metrics(self, convergence: MacroLevelConvergence) -> Dict[str, float]:
+        """Extract confidence metrics from MACRO"""
+        return convergence.confidence_metrics
+    
+    def count_macro_critical_gaps(self, convergence: MacroLevelConvergence) -> int:
+        """Count critical gaps in MACRO convergence"""
+        return len(convergence.critical_gaps)
+    
+    def count_macro_strategic_recommendations(self, convergence: MacroLevelConvergence) -> int:
+        """Count strategic recommendations in MACRO"""
+        return len(convergence.strategic_recommendations)
+    
+    def is_macro_excellent(self, convergence: MacroLevelConvergence) -> bool:
+        """Check if MACRO overall score is in EXCELENTE range"""
+        return convergence.overall_score >= 85
+    
+    def is_macro_passing(self, convergence: MacroLevelConvergence) -> bool:
+        """Check if MACRO meets minimum passing threshold"""
+        return convergence.overall_score >= 55
+    
+    # ========================================================================
+    # SCORING UTILITIES API
+    # ========================================================================
+    
+    def convert_score_to_percentage(self, score: float) -> float:
+        """Convert 0-3 score to 0-100 percentage"""
+        return (score / 3.0) * 100
+    
+    def convert_percentage_to_score(self, percentage: float) -> float:
+        """Convert 0-100 percentage to 0-3 score"""
+        return (percentage / 100.0) * 3.0
+    
+    def classify_score(self, score: float) -> str:
+        """Classify a 0-3 score into qualitative level"""
+        return self.assembler._score_to_qualitative_question(score)
+    
+    def classify_percentage(self, percentage: float) -> str:
+        """Classify a 0-100 percentage into qualitative level"""
+        for level, (min_pct, max_pct) in self.assembler.rubric_levels.items():
+            if min_pct <= percentage <= max_pct:
+                return level
+        return "DEFICIENTE"
+    
+    def get_rubric_threshold(self, level: str) -> Tuple[float, float]:
+        """Get percentage threshold range for a rubric level"""
+        return self.assembler.rubric_levels.get(level, (0, 0))
+    
+    def get_question_rubric_threshold(self, level: str) -> Tuple[float, float]:
+        """Get 0-3 score threshold range for question-level rubric"""
+        return self.assembler.question_rubric.get(level, (0, 0))
+    
+    # ========================================================================
+    # CONFIGURATION API
+    # ========================================================================
+    
+    def get_dimension_description(self, dimension: str) -> str:
+        """Get description for a dimension (D1-D6)"""
+        return self.assembler.dimension_descriptions.get(dimension, "")
+    
+    def list_dimensions(self) -> List[str]:
+        """List all dimensions"""
+        return list(self.assembler.dimension_descriptions.keys())
+    
+    def list_rubric_levels(self) -> List[str]:
+        """List all rubric levels"""
+        return list(self.assembler.rubric_levels.keys())
+    
+    def get_causal_threshold(self, dimension: str) -> float:
+        """Get causal coherence threshold for a dimension"""
+        return self.assembler.causal_thresholds.get(
+            dimension,
+            self.assembler.causal_thresholds.get('default', 0.6)
+        )
+    
+    def get_cluster_weight(self, cluster_id: str) -> Optional[float]:
+        """Get weight for a cluster in macro aggregation"""
+        return self.assembler.cluster_weights.get(cluster_id)
+    
+    def get_cluster_policy_weights(self, cluster_id: str) -> Optional[Dict[str, float]]:
+        """Get policy area weights for a cluster"""
+        return self.assembler.cluster_policy_weights.get(cluster_id)
+    
+    # ========================================================================
+    # EXPORT API
+    # ========================================================================
+    
+    def export_complete_report(
+            self,
+            micro_answers: List[Dict[str, Any]],
+            meso_clusters: List[Dict[str, Any]],
+            macro_convergence: Dict[str, Any],
+            output_path: str
+    ) -> None:
+        """Export complete report to JSON file"""
+        # Convert dicts to objects
+        answer_objects = [MicroLevelAnswer(**answer) for answer in micro_answers]
+        cluster_objects = [MesoLevelCluster(**cluster) for cluster in meso_clusters]
+        convergence_object = MacroLevelConvergence(**macro_convergence)
+        
+        self.assembler.export_report(
+            answer_objects,
+            cluster_objects,
+            convergence_object,
+            Path(output_path)
+        )
+    
+    def serialize_micro_answer(self, answer: MicroLevelAnswer) -> Dict[str, Any]:
+        """Serialize MICRO answer to dictionary"""
+        return asdict(answer)
+    
+    def serialize_meso_cluster(self, cluster: MesoLevelCluster) -> Dict[str, Any]:
+        """Serialize MESO cluster to dictionary"""
+        return asdict(cluster)
+    
+    def serialize_macro_convergence(self, convergence: MacroLevelConvergence) -> Dict[str, Any]:
+        """Serialize MACRO convergence to dictionary"""
+        return asdict(convergence)
+    
+    def deserialize_micro_answer(self, data: Dict[str, Any]) -> MicroLevelAnswer:
+        """Deserialize dictionary to MICRO answer"""
+        return MicroLevelAnswer(**data)
+    
+    def deserialize_meso_cluster(self, data: Dict[str, Any]) -> MesoLevelCluster:
+        """Deserialize dictionary to MESO cluster"""
+        return MesoLevelCluster(**data)
+    
+    def deserialize_macro_convergence(self, data: Dict[str, Any]) -> MacroLevelConvergence:
+        """Deserialize dictionary to MACRO convergence"""
+        return MacroLevelConvergence(**data)
+    
+    # ========================================================================
+    # SCHEMA VALIDATION API
+    # ========================================================================
+    
+    def validate_micro_answer(self, answer_data: Dict[str, Any]) -> bool:
+        """Validate MICRO answer against JSON schema"""
+        return self.assembler.validate_micro_answer_schema(answer_data)
+    
+    def validate_meso_cluster(self, cluster_data: Dict[str, Any]) -> bool:
+        """Validate MESO cluster against JSON schema"""
+        return self.assembler.validate_meso_cluster_schema(cluster_data)
+    
+    def validate_macro_convergence(self, convergence_data: Dict[str, Any]) -> bool:
+        """Validate MACRO convergence against JSON schema"""
+        return self.assembler.validate_macro_convergence_schema(convergence_data)
+
 
 # ============================================================================
 # USAGE EXAMPLE
@@ -1984,16 +2426,22 @@ class ReportAssembler:
 
 if __name__ == "__main__":
     # Example usage
-    assembler = ReportAssembler()
+    producer = ReportAssemblyProducer()
     
     print("=" * 80)
-    print("REPORT ASSEMBLER - COMPLETE IMPLEMENTATION")
+    print("REPORT ASSEMBLY PRODUCER - REGISTRY EXPOSURE")
     print("=" * 80)
     print("\nCapabilities:")
     print("  - MICRO level: Question-by-question analysis")
     print("  - MESO level: Cluster aggregation")
     print("  - MACRO level: Overall convergence")
     print("\nRubric Levels:")
-    for level, (min_s, max_s) in assembler.rubric_levels.items():
+    for level in producer.list_rubric_levels():
+        min_s, max_s = producer.get_rubric_threshold(level)
         print(f"  {level}: {min_s}-{max_s}%")
+    print("\nDimensions:")
+    for dim in producer.list_dimensions():
+        desc = producer.get_dimension_description(dim)
+        print(f"  {dim}: {desc[:60]}...")
+    print("=" * 80)
     print("=" * 80)
