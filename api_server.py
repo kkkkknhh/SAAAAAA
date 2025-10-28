@@ -34,7 +34,7 @@ import logging
 import hashlib
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import Flask, request, jsonify, Response
@@ -112,8 +112,8 @@ def generate_jwt_token(client_id: str) -> str:
     """Generate JWT token for client authentication"""
     payload = {
         'client_id': client_id,
-        'exp': datetime.utcnow() + timedelta(hours=APIConfig.JWT_EXPIRATION_HOURS),
-        'iat': datetime.utcnow()
+        'exp': datetime.now(timezone.utc) + timedelta(hours=APIConfig.JWT_EXPIRATION_HOURS),
+        'iat': datetime.now(timezone.utc)
     }
     return jwt.encode(payload, APIConfig.JWT_SECRET, algorithm=APIConfig.JWT_ALGORITHM)
 
