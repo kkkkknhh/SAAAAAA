@@ -1,10 +1,14 @@
 import math
 
+import pytest
+
 from meso_cluster_analysis import (
     analyze_policy_dispersion,
     calibrate_against_peers,
     compose_cluster_posterior,
     reconcile_cross_metrics,
+    _gini,
+    _tukey_bounds,
 )
 
 
@@ -114,68 +118,67 @@ def test_calibrate_against_peers_detects_outliers_and_positions():
     assert len(narrative.splitlines()) >= 6
 
 
-def test_compose_cluster_posterior_handles_negative_weights():
-    """Test that negative weights are clamped to zero and uniform fallback is applied."""
-    micro_posteriors = [0.6, 0.8, 0.7]
-    weights = [-0.2, 0.5, -0.3]  # negative weights that should be clamped
-    
-    payload, explanation = compose_cluster_posterior(
-        micro_posteriors, weighting_trace=weights
-    )
-    
-    # Should not raise ZeroDivisionError
-    assert payload["prior_meso"] > 0
-    assert payload["posterior_meso"] > 0
-    assert payload["uncertainty_index"] >= 0
-    assert "posterior" in explanation
+def test_gini_rejects_negative_values():
+    with pytest.raises(ValueError):
+        _gini([0.5, -0.2, 0.7])
 
 
-def test_compose_cluster_posterior_handles_zero_total_weight():
-    """Test that weights summing to zero before clamping are handled gracefully."""
-    micro_posteriors = [0.6, 0.8, 0.7]
-    weights = [0.5, -0.5, 0.0]  # sum to zero before clamping
-    
-    payload, explanation = compose_cluster_posterior(
-        micro_posteriors, weighting_trace=weights
-    )
-    
-    # Clamping converts weights to [0.5, 0.0, 0.0] (sum=0.5).
-    # After normalization: [1.0, 0.0, 0.0], so only first posterior counts.
-    assert payload["prior_meso"] > 0
-    # With normalized weights [1.0, 0.0, 0.0], prior_meso equals first posterior
-    assert math.isclose(payload["prior_meso"], 0.6, rel_tol=1e-5)
-    assert payload["posterior_meso"] > 0
-    assert payload["uncertainty_index"] >= 0
+def test_tukey_bounds_are_order_invariant():
+    lower, upper = _tukey_bounds(80, 20)
+    assert lower < upper
+    expected_lower, expected_upper = _tukey_bounds(20, 80)
+    assert math.isclose(lower, expected_lower)
+    assert math.isclose(upper, expected_upper)
 
 
-def test_compose_cluster_posterior_handles_all_negative_weights():
-    """Test that all-negative weights fall back to uniform."""
-    micro_posteriors = [0.6, 0.8, 0.7]
-    weights = [-1.0, -2.0, -0.5]  # all negative
-    
-    payload, explanation = compose_cluster_posterior(
-        micro_posteriors, weighting_trace=weights
-    )
-    
-    # After clamping to zero, total is 0, should fall back to uniform
-    assert payload["prior_meso"] > 0
-    assert math.isclose(payload["prior_meso"], 0.7, rel_tol=1e-5)
-    assert payload["posterior_meso"] > 0
+def test_reconcile_cross_metrics_handles_non_convertible_units():
+    aggregated_metrics = [
+        {"metric_id": "m_nc", "value": 10, "unit": "litros", "period": "2023", "entity": "X"}
+    ]
+    macro_reference = {
+        "metrics": {
+            "m_nc": {
+                "unit": "kg",
+                "period": "2023",
+                "entities": ["X"],
+                "range": (0, 100),
+            }
+        },
+        "unit_crosswalk": {},
+    }
+
+    result = reconcile_cross_metrics(aggregated_metrics, macro_reference)
+
+    assert result["violations"]
+    violation = result["violations"][0]
+    assert violation["metric_id"] == "m_nc"
+    assert violation["unit_mismatch"] is True
+    assert violation["out_of_range"] is False
 
 
-def test_compose_cluster_posterior_handles_all_zero_weights_after_clamping():
-    """Test that weights that become all zero after clamping fall back to uniform."""
-    micro_posteriors = [0.6, 0.8, 0.7]
-    weights = [-1.0, 0.0, -0.5]  # all non-positive, become [0.0, 0.0, 0.0]
-    
-    payload, explanation = compose_cluster_posterior(
-        micro_posteriors, weighting_trace=weights
-    )
-    
-    # After clamping to [0.0, 0.0, 0.0], total is 0, should fall back to uniform
-    assert payload["prior_meso"] > 0
-    # With uniform weights, prior_meso should be (0.6 + 0.8 + 0.7) / 3 = 0.7
-    assert math.isclose(payload["prior_meso"], 0.7, rel_tol=1e-5)
-    assert payload["posterior_meso"] > 0
+def test_reconcile_cross_metrics_respects_range_boundaries():
+    aggregated_metrics = [
+        {"metric_id": "m_range", "value": 100.0, "unit": "kg", "period": "2023", "entity": "A"}
+    ]
+    macro_reference = {
+        "metrics": {
+            "m_range": {
+                "unit": "kg",
+                "period": "2023",
+                "entities": ["A"],
+                "range": (0.0, 100.0),
+            }
+        }
+    }
 
+    result = reconcile_cross_metrics(aggregated_metrics, macro_reference)
+
+    assert result["violations"] == []
+    validated = result["metrics_validated"][0]
+    assert math.isclose(validated["value"], 100.0)
+
+
+def test_compose_cluster_posterior_rejects_negative_weights():
+    with pytest.raises(ValueError):
+        compose_cluster_posterior([0.4, 0.6], weighting_trace=[0.5, -0.1])
 

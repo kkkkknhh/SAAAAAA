@@ -65,9 +65,16 @@ def _gini(values: Iterable[float]) -> float:
     seq = sorted(_to_float_sequence(values))
     if not seq:
         return 0.0
+    if any(v < 0 for v in seq):
+        raise ValueError("Gini coefficient is undefined for negative values")
     if all(v == 0 for v in seq):
         return 0.0
     total = sum(seq)
+    if total == 0:
+        # Non-negative numbers can only sum to zero if they are all zero, which is
+        # handled above. Guard against floating point artefacts that leave a
+        # near-zero denominator.
+        return 0.0
     n = len(seq)
     weighted_sum = 0.0
     for i, value in enumerate(seq, start=1):
@@ -77,8 +84,9 @@ def _gini(values: Iterable[float]) -> float:
 
 
 def _tukey_bounds(p25: float, p75: float) -> Tuple[float, float]:
-    iqr = p75 - p25
-    return (p25 - 1.5 * iqr, p75 + 1.5 * iqr)
+    lower_quartile, upper_quartile = sorted((float(p25), float(p75)))
+    iqr = upper_quartile - lower_quartile
+    return (lower_quartile - 1.5 * iqr, upper_quartile + 1.5 * iqr)
 
 
 def analyze_policy_dispersion(
@@ -255,11 +263,14 @@ def reconcile_cross_metrics(
         reconciled_value = value
         reconciled_unit = unit
 
+        conversion_failed = False
+
         if expected_unit and unit and unit != expected_unit:
             try:
                 reconciled_value, reconciled_unit = _convert_unit(value, unit, expected_unit, crosswalk)
             except ValueError:
                 violation.unit_mismatch = True
+                conversion_failed = True
 
         if expected_period and period and period != expected_period:
             violation.stale_period = True
@@ -267,9 +278,9 @@ def reconcile_cross_metrics(
         if expected_entities and entity and entity not in expected_entities:
             violation.entity_misalignment = True
 
-        if lower_bound is not None and reconciled_value < float(lower_bound):
+        if not conversion_failed and lower_bound is not None and reconciled_value < float(lower_bound):
             violation.out_of_range = True
-        if upper_bound is not None and reconciled_value > float(upper_bound):
+        if not conversion_failed and upper_bound is not None and reconciled_value > float(upper_bound):
             violation.out_of_range = True
 
         validated_metrics.append(
@@ -322,15 +333,16 @@ def compose_cluster_posterior(
         weights = _to_float_sequence(weighting_trace)
         if len(weights) != len(posts):
             raise ValueError("weighting_trace must match micro_posteriors length")
+        if any(w < 0 for w in weights):
+            raise ValueError("weighting_trace values must be non-negative")
     if all(w == 0 for w in weights):
         weights = [1.0] * len(posts)
 
     # Prevent degenerate/negative totals; fallback to uniform if needed.
     weights = [max(0.0, float(w)) for w in weights]
     total_weight = sum(weights)
-    if total_weight == 0.0:
-        weights = [1.0] * len(posts)
-        total_weight = float(len(posts))
+    if total_weight == 0:
+        raise ValueError("At least one weight must be positive")
     normalised_weights = [w / total_weight for w in weights]
     prior_meso = float(sum(p * w for p, w in zip(posts, normalised_weights, strict=True)))
 
