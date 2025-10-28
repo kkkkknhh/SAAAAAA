@@ -23,7 +23,7 @@ LAST UPDATED: 2025-10-27
 import logging
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -237,7 +237,7 @@ class ExecutionChoreographer:
         logger.info("=" * 80)
         logger.info("SIN_CARRETA EXECUTION CHOREOGRAPHER INITIALIZATION")
         logger.info("=" * 80)
-        logger.info(f"Timestamp: {datetime.utcnow().isoformat()}Z")
+        logger.info(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
         logger.info(f"Questionnaire Hash: {questionnaire_hash}")
         logger.info(f"Prime Directive: NO GRACEFUL DEGRADATION")
         
@@ -601,7 +601,7 @@ class ExecutionChoreographer:
         RETURNS:
         - ExecutionResult with MicroLevelAnswer and complete provenance
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         execution_trace = []
         
         # Convert dict to ExecutionContext if needed
@@ -611,7 +611,7 @@ class ExecutionChoreographer:
                 dimension=question_context.get('dimension', 'D1'),
                 policy_area=question_context.get('policy_area', 'P0'),
                 questionnaire_hash=self.questionnaire_hash,
-                timestamp=datetime.utcnow().isoformat() + "Z",
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={
                     'scoring_modality': question_context.get('scoring_modality', 'TYPE_F'),
                     'expected_elements': question_context.get('expected_elements', []),
@@ -670,7 +670,7 @@ class ExecutionChoreographer:
             )
             
             # Step 4: Calculate performance metrics
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             performance_metrics = {
                 'execution_time_ms': (end_time - start_time).total_seconds() * 1000,
                 'methods_invoked': len(execution_trace),
@@ -706,7 +706,7 @@ class ExecutionChoreographer:
             logger.error(f"  Error: {str(e)}")
             logger.error("=" * 80)
             
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             performance_metrics = {
                 'execution_time_ms': (end_time - start_time).total_seconds() * 1000,
                 'methods_invoked': len(execution_trace),

@@ -243,10 +243,10 @@ class MetadataLoader:
     
     def _log_error(self, rule_id: str, file_path: str, **kwargs):
         """Structured error logging"""
-        import datetime
+        from datetime import datetime, timezone
         
         log_entry = {
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "ERROR",
             "rule_id": rule_id,
             "file_path": file_path,
