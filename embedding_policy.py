@@ -1380,6 +1380,230 @@ def create_policy_embedder(
 
 
 # ============================================================================
+# PRODUCER CLASS - Registry Exposure
+# ============================================================================
+
+
+class EmbeddingPolicyProducer:
+    """
+    Producer wrapper for embedding policy analysis with registry exposure
+    
+    Provides public API methods for orchestrator integration without exposing
+    internal implementation details or summarization logic.
+    
+    Version: 1.0.0
+    Producer Type: Embedding / Semantic Search
+    """
+    
+    def __init__(
+        self,
+        config: PolicyEmbeddingConfig | None = None,
+        model_tier: Literal["fast", "balanced", "accurate"] = "balanced",
+        retry_handler=None
+    ):
+        """Initialize producer with optional configuration"""
+        if config is None:
+            self.embedder = create_policy_embedder(model_tier)
+        else:
+            self.embedder = PolicyAnalysisEmbedder(config, retry_handler=retry_handler)
+        
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.info("EmbeddingPolicyProducer initialized")
+    
+    # ========================================================================
+    # DOCUMENT PROCESSING API
+    # ========================================================================
+    
+    def process_document(
+        self,
+        document_text: str,
+        document_metadata: dict[str, Any]
+    ) -> list[SemanticChunk]:
+        """Process document into semantic chunks with embeddings"""
+        return self.embedder.process_document(document_text, document_metadata)
+    
+    def get_chunk_count(self, chunks: list[SemanticChunk]) -> int:
+        """Get number of chunks"""
+        return len(chunks)
+    
+    def get_chunk_text(self, chunk: SemanticChunk) -> str:
+        """Extract text from chunk"""
+        return chunk["content"]
+    
+    def get_chunk_embedding(self, chunk: SemanticChunk) -> NDArray[np.float32]:
+        """Extract embedding from chunk"""
+        return chunk["embedding"]
+    
+    def get_chunk_metadata(self, chunk: SemanticChunk) -> dict[str, Any]:
+        """Extract metadata from chunk"""
+        return chunk["metadata"]
+    
+    def get_chunk_pdq_context(self, chunk: SemanticChunk) -> PDQIdentifier | None:
+        """Extract P-D-Q context from chunk"""
+        return chunk["pdq_context"]
+    
+    # ========================================================================
+    # SEMANTIC SEARCH API
+    # ========================================================================
+    
+    def semantic_search(
+        self,
+        query: str,
+        document_chunks: list[SemanticChunk],
+        pdq_filter: PDQIdentifier | None = None,
+        use_reranking: bool = True
+    ) -> list[tuple[SemanticChunk, float]]:
+        """Advanced semantic search with reranking"""
+        return self.embedder.semantic_search(
+            query, document_chunks, pdq_filter, use_reranking
+        )
+    
+    def get_search_result_chunk(
+        self, result: tuple[SemanticChunk, float]
+    ) -> SemanticChunk:
+        """Extract chunk from search result"""
+        return result[0]
+    
+    def get_search_result_score(
+        self, result: tuple[SemanticChunk, float]
+    ) -> float:
+        """Extract relevance score from search result"""
+        return result[1]
+    
+    # ========================================================================
+    # P-D-Q ANALYSIS API
+    # ========================================================================
+    
+    def generate_pdq_report(
+        self,
+        document_chunks: list[SemanticChunk],
+        target_pdq: PDQIdentifier
+    ) -> dict[str, Any]:
+        """Generate comprehensive analytical report for P-D-Q question"""
+        return self.embedder.generate_pdq_report(document_chunks, target_pdq)
+    
+    def get_pdq_evidence_count(self, report: dict[str, Any]) -> int:
+        """Extract evidence count from P-D-Q report"""
+        return report.get("evidence_count", 0)
+    
+    def get_pdq_numerical_evaluation(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Extract numerical evaluation from P-D-Q report"""
+        return report.get("numerical_evaluation", {})
+    
+    def get_pdq_evidence_passages(self, report: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract evidence passages from P-D-Q report"""
+        return report.get("evidence_passages", [])
+    
+    def get_pdq_confidence(self, report: dict[str, Any]) -> float:
+        """Extract confidence from P-D-Q report"""
+        return report.get("confidence", 0.0)
+    
+    # ========================================================================
+    # BAYESIAN NUMERICAL ANALYSIS API
+    # ========================================================================
+    
+    def evaluate_numerical_consistency(
+        self,
+        chunks: list[SemanticChunk],
+        pdq_context: PDQIdentifier
+    ) -> BayesianEvaluation:
+        """Evaluate numerical consistency with Bayesian analysis"""
+        return self.embedder.evaluate_policy_numerical_consistency(
+            chunks, pdq_context
+        )
+    
+    def get_point_estimate(self, evaluation: BayesianEvaluation) -> float:
+        """Extract point estimate from Bayesian evaluation"""
+        return evaluation["point_estimate"]
+    
+    def get_credible_interval(
+        self, evaluation: BayesianEvaluation
+    ) -> tuple[float, float]:
+        """Extract 95% credible interval from Bayesian evaluation"""
+        return evaluation["credible_interval_95"]
+    
+    def get_evidence_strength(
+        self, evaluation: BayesianEvaluation
+    ) -> Literal["weak", "moderate", "strong", "very_strong"]:
+        """Extract evidence strength classification"""
+        return evaluation["evidence_strength"]
+    
+    def get_numerical_coherence(self, evaluation: BayesianEvaluation) -> float:
+        """Extract numerical coherence score"""
+        return evaluation["numerical_coherence"]
+    
+    # ========================================================================
+    # POLICY COMPARISON API
+    # ========================================================================
+    
+    def compare_policy_interventions(
+        self,
+        intervention_a_chunks: list[SemanticChunk],
+        intervention_b_chunks: list[SemanticChunk],
+        pdq_context: PDQIdentifier
+    ) -> dict[str, Any]:
+        """Bayesian comparison of two policy interventions"""
+        return self.embedder.compare_policy_interventions(
+            intervention_a_chunks, intervention_b_chunks, pdq_context
+        )
+    
+    def get_comparison_probability(self, comparison: dict[str, Any]) -> float:
+        """Extract probability that A is better than B"""
+        return comparison.get("probability_a_better", 0.5)
+    
+    def get_comparison_bayes_factor(self, comparison: dict[str, Any]) -> float:
+        """Extract Bayes factor from comparison"""
+        return comparison.get("bayes_factor", 1.0)
+    
+    def get_comparison_difference_mean(self, comparison: dict[str, Any]) -> float:
+        """Extract mean difference from comparison"""
+        return comparison.get("difference_mean", 0.0)
+    
+    # ========================================================================
+    # UTILITY API
+    # ========================================================================
+    
+    def get_diagnostics(self) -> dict[str, Any]:
+        """Get system diagnostics and performance metrics"""
+        return self.embedder.get_diagnostics()
+    
+    def get_config(self) -> PolicyEmbeddingConfig:
+        """Get current configuration"""
+        return self.embedder.config
+    
+    def list_policy_domains(self) -> list[PolicyDomain]:
+        """List all policy domains"""
+        return list(PolicyDomain)
+    
+    def list_analytical_dimensions(self) -> list[AnalyticalDimension]:
+        """List all analytical dimensions"""
+        return list(AnalyticalDimension)
+    
+    def get_policy_domain_description(self, domain: PolicyDomain) -> str:
+        """Get description for policy domain"""
+        return domain.value
+    
+    def get_analytical_dimension_description(self, dimension: AnalyticalDimension) -> str:
+        """Get description for analytical dimension"""
+        return dimension.value
+    
+    def create_pdq_identifier(
+        self,
+        policy: str,
+        dimension: str,
+        question: int
+    ) -> PDQIdentifier:
+        """Create P-D-Q identifier"""
+        return PDQIdentifier(
+            question_unique_id=f"{policy}-{dimension}-Q{question}",
+            policy=policy,
+            dimension=dimension,
+            question=question,
+            rubric_key=f"{dimension}-Q{question}"
+        )
+
+
+# ============================================================================
 # COMPREHENSIVE EXAMPLE - Production Usage
 # ============================================================================
 
