@@ -85,7 +85,7 @@ def analyze_policy_dispersion(
     policy_area_scores: Mapping[str, float],
     peer_dispersion_stats: Mapping[str, float],
     thresholds: Mapping[str, float],
-) -> Tuple[Dict[str, float], str]:
+) -> Tuple[Dict[str, object], str]:
     """Evaluate intra-cluster dispersion and recommend a penalty.
 
     Parameters
@@ -101,7 +101,7 @@ def analyze_policy_dispersion(
 
     Returns
     -------
-    Tuple[Dict[str, float], str]
+    Tuple[Dict[str, object], str]
         A tuple of the JSON-friendly payload and the five-to-six line narrative.
     """
 
@@ -156,9 +156,10 @@ def analyze_policy_dispersion(
     if values:
         q1 = float(_percentile(values, 25))
         normalised_values = [max(v, q1) for v in values]
-        norm_cv = _safe_std(normalised_values) / _safe_mean(normalised_values)
+        norm_mean = _safe_mean(normalised_values)
+        norm_cv = _safe_std(normalised_values) / norm_mean if norm_mean else 0.0
         norm_gap = float(max(normalised_values) - min(normalised_values))
-        mean_uplift = _safe_mean(normalised_values) - mean_score
+        mean_uplift = norm_mean - mean_score
     else:
         norm_cv = 0.0
         norm_gap = 0.0
@@ -199,8 +200,9 @@ class MetricViolation:
     entity_misalignment: bool = False
     out_of_range: bool = False
 
-    def to_flag_dict(self) -> Dict[str, bool]:
+    def to_flag_dict(self) -> Dict[str, object]:
         return {
+            "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
             "stale_period": self.stale_period,
             "entity_misalignment": self.entity_misalignment,
@@ -376,7 +378,12 @@ def calibrate_against_peers(
     area_positions: Dict[str, str] = {}
     outliers: Dict[str, bool] = {}
     dispersion_values = _to_float_sequence(policy_area_scores.values())
-    cluster_cv = _safe_std(dispersion_values) / _safe_mean(dispersion_values) if dispersion_values else 0.0
+    if dispersion_values:
+        cluster_mean = _safe_mean(dispersion_values)
+        cluster_std = _safe_std(dispersion_values)
+        cluster_cv = cluster_std / cluster_mean if cluster_mean else 0.0
+    else:
+        cluster_cv = 0.0
 
     for area, score in policy_area_scores.items():
         peers = peer_context.get(area, {})

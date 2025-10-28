@@ -543,6 +543,14 @@ class PolicyAnalysisOrchestrator:
         """
         execution_start = time.time()
         execution_id = self._generate_execution_id()
+
+        normalized_metadata: Dict[str, Any] = dict(plan_metadata or {})
+        if (
+            "pdf_path" not in normalized_metadata
+            and isinstance(self.config.plan_document_path, str)
+            and self.config.plan_document_path
+        ):
+            normalized_metadata["pdf_path"] = self.config.plan_document_path
         
         logger.info("=" * 80)
         logger.info("CHESS STRATEGY EXECUTION - OPENING → MIDDLE GAME → ENDGAME")
@@ -554,7 +562,7 @@ class PolicyAnalysisOrchestrator:
         logger.info("\n🎯 CHESS OPENING: Executing all questions (MICRO level)")
         logger.info("-" * 80)
         
-        micro_results = self._execute_opening(plan_document, plan_metadata)
+        micro_results = self._execute_opening(plan_document, normalized_metadata)
         
         logger.info(f"✓ Opening completed: {len(micro_results)} questions executed")
         logger.info(f"✓ Success rate: {self.stats['questions_succeeded']}/{self.stats['total_questions']}")
@@ -606,7 +614,7 @@ class PolicyAnalysisOrchestrator:
                 "questionnaire_path": self.config.questionnaire_path,
                 "execution_mapping_path": self.config.execution_mapping_path,
                 "method_class_map_path": self.config.method_class_map_path,
-                "plan_metadata": plan_metadata
+                "plan_metadata": normalized_metadata
             }
         )
         
@@ -649,7 +657,11 @@ class PolicyAnalysisOrchestrator:
                         'cluster_id': question_spec.cluster_id
                     }
                 )
-                
+
+                pdf_path = plan_metadata.get('pdf_path') if isinstance(plan_metadata, dict) else None
+                if pdf_path:
+                    execution_context.metadata.setdefault('pdf_path', pdf_path)
+
                 # Execute via Choreographer
                 result = self.choreographer.execute_question(
                     execution_context,
