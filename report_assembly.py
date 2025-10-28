@@ -1725,7 +1725,8 @@ class ReportAssembler:
                 convergence_by_policy_area,
                 missing_clusters,
                 critical_gaps,
-                confidence_metrics
+                confidence_metrics,
+                plan_metadata
             )
 
         metadata = {
@@ -2145,7 +2146,8 @@ class ReportAssembler:
             convergence_by_policy_area: Dict[str, float],
             missing_clusters: List[str],
             critical_gaps: List[str],
-            confidence_metrics: Dict[str, float]
+            confidence_metrics: Dict[str, float],
+            plan_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Apply all 5 macro-level analysis prompts
@@ -2160,7 +2162,7 @@ class ReportAssembler:
         logger.info("Applying macro prompts for enhanced analysis")
         
         # Calculate dimension and policy area coverage
-        dimension_coverage = self._calculate_dimension_coverage(all_micro_answers)
+        dimension_coverage = self._calculate_dimension_coverage(all_micro_answers, plan_metadata)
         policy_area_coverage = self._calculate_policy_area_coverage(all_micro_answers)
         
         # Extract micro claims for contradiction scanning
@@ -2228,10 +2230,20 @@ class ReportAssembler:
     
     def _calculate_dimension_coverage(
             self,
-            all_micro_answers: List[MicroLevelAnswer]
+            all_micro_answers: List[MicroLevelAnswer],
+            plan_metadata: Dict[str, Any]
     ) -> Dict[str, float]:
-        """Calculate coverage percentage by dimension"""
-        total_by_dim = defaultdict(int)
+        """
+        Calculate coverage percentage by dimension
+        
+        Coverage is calculated as: answered_questions / expected_questions_for_dimension
+        If dimension_expected_counts is not provided in plan_metadata, falls back to
+        calculating based on the questions present in all_micro_answers.
+        """
+        # Get expected counts from plan_metadata if available
+        dimension_expected_counts = plan_metadata.get("dimension_expected_counts", {})
+        
+        # Count answered questions by dimension
         answered_by_dim = defaultdict(int)
         
         for answer in all_micro_answers:
@@ -2239,13 +2251,35 @@ class ReportAssembler:
             parts = answer.question_id.split("-")
             if len(parts) >= 2:
                 dim = parts[1]
-                total_by_dim[dim] += 1
+                # Normalize dimension ID (e.g., "DIM01" -> "D1")
+                if dim.startswith("DIM"):
+                    dim_num = int(dim.replace("DIM", ""))
+                    dim = f"D{dim_num}"
                 if answer.quantitative_score > 0:
                     answered_by_dim[dim] += 1
         
         coverage = {}
-        for dim in total_by_dim:
-            coverage[dim] = answered_by_dim[dim] / total_by_dim[dim] if total_by_dim[dim] > 0 else 0.0
+        
+        if dimension_expected_counts:
+            # Use expected counts from metadata for accurate coverage calculation
+            for dim, expected_count in dimension_expected_counts.items():
+                answered_count = answered_by_dim.get(dim, 0)
+                coverage[dim] = answered_count / expected_count if expected_count > 0 else 0.0
+        else:
+            # Fallback: calculate based on questions present in answers
+            # This is less accurate when not all questions are answered
+            total_by_dim = defaultdict(int)
+            for answer in all_micro_answers:
+                parts = answer.question_id.split("-")
+                if len(parts) >= 2:
+                    dim = parts[1]
+                    if dim.startswith("DIM"):
+                        dim_num = int(dim.replace("DIM", ""))
+                        dim = f"D{dim_num}"
+                    total_by_dim[dim] += 1
+            
+            for dim in total_by_dim:
+                coverage[dim] = answered_by_dim[dim] / total_by_dim[dim] if total_by_dim[dim] > 0 else 0.0
         
         return coverage
     

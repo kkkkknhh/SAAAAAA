@@ -2019,6 +2019,15 @@ class PDETMunicipalPlanAnalyzer:
     # PIPELINE PRINCIPAL
     # ========================================================================
 
+    def analyze_municipal_plan_sync(self, pdf_path: str, output_dir: Optional[str] = None) -> Dict[str, Any]:
+        """Synchronous wrapper for analyze_municipal_plan."""
+
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(self.analyze_municipal_plan(pdf_path, output_dir))
+        finally:
+            loop.close()
+
     async def analyze_municipal_plan(self, pdf_path: str, output_dir: Optional[str] = None) -> Dict[str, Any]:
         """
         Pipeline completo de análisis
