@@ -132,7 +132,7 @@ print(f"Score: {score} ({producer.classify_score(score)})")
 
 ---
 
-### MACRO Level Methods (17 methods)
+### MACRO Level Methods (20 methods)
 
 #### Production
 - `produce_macro_convergence(all_micro_answers, all_meso_clusters, plan_metadata)` → `Dict`
