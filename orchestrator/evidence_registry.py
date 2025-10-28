@@ -1,17 +1,31 @@
 """
-Evidence Registry: Append-Only JSONL Store with Hash Indexing and Provenance DAG Export
+Evidence Registry: Append-Only JSONL Store with Hash Chain and Provenance DAG Export
 
 This module implements a comprehensive evidence tracking system that:
 1. Stores all evidence in append-only JSONL format for immutability
 2. Maintains hash-based indexing for fast evidence lookup
-3. Exports provenance DAG showing evidence lineage and dependencies
-4. Provides cryptographic verification of evidence integrity
+3. Implements blockchain-style hash chaining for ledger integrity
+4. Exports provenance DAG showing evidence lineage and dependencies
+5. Provides cryptographic verification of evidence integrity
 
 Architecture:
 - JSONL Storage: One JSON object per line, append-only for audit trail
 - Hash Index: SHA-256 hashes for content-addressable storage
+- Hash Chain: Each entry links to previous via previous_hash and entry_hash
 - Provenance DAG: Directed acyclic graph of evidence dependencies
-- Verification: Cryptographic chain-of-custody validation
+- Verification: Cryptographic chain-of-custody validation with chain linkage checks
+
+Hash Chain Security:
+The registry implements a blockchain-style hash chain where each entry contains:
+- content_hash: SHA-256 of the payload (for content verification)
+- previous_hash: Hash of the previous entry's entry_hash (creates the chain)
+- entry_hash: SHA-256 of (content_hash + previous_hash + metadata)
+
+This ensures that:
+1. Any tampering with payload is detected via content_hash mismatch
+2. Any tampering with previous_hash is detected via chain verification
+3. Entries cannot be reordered without breaking the chain
+4. The entire ledger history can be cryptographically verified
 """
 
 from __future__ import annotations
@@ -32,14 +46,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvidenceRecord:
     """
-    Immutable evidence record with provenance metadata.
+    Immutable evidence record with provenance metadata and hash chain linkage.
     
     Each evidence record captures:
     - Unique identifier (hash-based)
     - Evidence payload (method result, analysis output, etc.)
     - Provenance metadata (source, dependencies, lineage)
     - Temporal metadata (timestamp, execution time)
-    - Verification data (hash, signature)
+    - Verification data (content hash, chain hashes)
+    
+    Hash Chain Fields:
+    - content_hash: SHA-256 of payload (verifies content integrity)
+    - previous_hash: entry_hash of previous record (creates chain linkage)
+    - entry_hash: SHA-256 of (content + previous_hash + metadata) (unique entry ID)
+    
+    The hash chain ensures that:
+    1. Tampering with payload breaks content_hash
+    2. Tampering with previous_hash breaks chain verification
+    3. Entire ledger history is cryptographically verifiable
     """
     
     # Identification
@@ -61,14 +85,18 @@ class EvidenceRecord:
     
     # Verification
     content_hash: Optional[str] = None  # Hash of payload for verification
+    previous_hash: Optional[str] = None  # Hash of previous entry in chain (for ledger integrity)
+    entry_hash: Optional[str] = None  # Hash of this entire entry including previous_hash
     
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def __post_init__(self):
-        """Generate content hash if not provided."""
+        """Generate content hash and entry hash if not provided."""
         if self.content_hash is None:
             self.content_hash = self._compute_content_hash()
+        if self.entry_hash is None:
+            self.entry_hash = self._compute_entry_hash()
     
     def _compute_content_hash(self) -> str:
         """
@@ -84,15 +112,53 @@ class EvidenceRecord:
         hash_obj = hashlib.sha256(payload_json.encode('utf-8'))
         return hash_obj.hexdigest()
     
-    def verify_integrity(self) -> bool:
+    def _compute_entry_hash(self) -> str:
         """
-        Verify evidence integrity by recomputing hash.
+        Compute SHA-256 hash of the entire entry including previous_hash.
+        This creates the hash chain linking entries together.
         
         Returns:
-            True if hash matches, False otherwise
+            Hex digest of SHA-256 hash
         """
-        current_hash = self._compute_content_hash()
-        return current_hash == self.content_hash
+        # Combine content hash with previous hash to create chain
+        # Use empty string for first entry (no predecessor)
+        chain_data = {
+            'content_hash': self.content_hash,
+            'previous_hash': self.previous_hash if self.previous_hash is not None else '',
+            'evidence_type': self.evidence_type,
+            'timestamp': self.timestamp,
+        }
+        chain_json = json.dumps(chain_data, sort_keys=True, separators=(',', ':'))
+        hash_obj = hashlib.sha256(chain_json.encode('utf-8'))
+        return hash_obj.hexdigest()
+    
+    def verify_integrity(self, previous_record: Optional['EvidenceRecord'] = None) -> bool:
+        """
+        Verify evidence integrity by recomputing hashes and checking chain linkage.
+        
+        Args:
+            previous_record: The record that should precede this one in the chain
+        
+        Returns:
+            True if all integrity checks pass, False otherwise
+        """
+        # Verify content hash matches
+        current_content_hash = self._compute_content_hash()
+        if current_content_hash != self.content_hash:
+            return False
+        
+        # Verify entry hash matches
+        current_entry_hash = self._compute_entry_hash()
+        if current_entry_hash != self.entry_hash:
+            return False
+        
+        # If previous record is provided, verify the chain linkage
+        if previous_record is not None:
+            # Verify that our previous_hash matches the actual hash of the previous record
+            if self.previous_hash != previous_record.entry_hash:
+                return False
+        
+        return True
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -332,6 +398,9 @@ class EvidenceRegistry:
         # Provenance DAG
         self.dag = ProvenanceDAG() if enable_dag else None
         
+        # Track the last entry in the ledger chain for hash chaining
+        self.last_entry: Optional[EvidenceRecord] = None
+        
         # Load existing evidence
         self._load_from_storage()
         
@@ -396,6 +465,9 @@ class EvidenceRegistry:
         if self.enable_dag and self.dag:
             self.dag.add_evidence(evidence)
         
+        # Update last entry for hash chaining
+        self.last_entry = evidence
+        
         # Persist to storage
         if persist:
             self._append_to_storage(evidence)
@@ -447,6 +519,9 @@ class EvidenceRegistry:
         Returns:
             Evidence ID (hash)
         """
+        # Determine previous_hash from last entry in the chain
+        previous_hash = self.last_entry.entry_hash if self.last_entry else None
+        
         # Create evidence record
         evidence = EvidenceRecord(
             evidence_id="",  # Will be set by hash
@@ -458,6 +533,7 @@ class EvidenceRegistry:
             document_id=document_id,
             execution_time_ms=execution_time_ms,
             metadata=metadata or {},
+            previous_hash=previous_hash,
         )
         
         # Set evidence_id to content hash
@@ -502,12 +578,13 @@ class EvidenceRegistry:
         evidence_ids = self.question_index.get(question_id, [])
         return [self.hash_index[eid] for eid in evidence_ids if eid in self.hash_index]
     
-    def verify_evidence(self, evidence_id: str) -> bool:
+    def verify_evidence(self, evidence_id: str, verify_chain: bool = True) -> bool:
         """
-        Verify evidence integrity.
+        Verify evidence integrity and optionally chain linkage.
         
         Args:
             evidence_id: Evidence hash
+            verify_chain: If True, verify chain linkage with previous entry
             
         Returns:
             True if evidence is valid
@@ -516,7 +593,61 @@ class EvidenceRegistry:
         if evidence is None:
             return False
         
-        return evidence.verify_integrity()
+        # Get previous record if chain verification is requested
+        previous_record = None
+        if verify_chain and evidence.previous_hash:
+            # Find the record with entry_hash matching our previous_hash
+            for record in self.hash_index.values():
+                if record.entry_hash == evidence.previous_hash:
+                    previous_record = record
+                    break
+        
+        return evidence.verify_integrity(previous_record=previous_record)
+    
+    def verify_chain_integrity(self) -> Tuple[bool, List[str]]:
+        """
+        Verify the integrity of the entire evidence chain.
+        
+        Returns:
+            Tuple of (is_valid, list of errors)
+        """
+        errors = []
+        
+        # Build the chain by reading from storage in order
+        if not self.storage_path.exists():
+            return True, []  # Empty chain is valid
+        
+        try:
+            previous_record = None
+            with open(self.storage_path, 'r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    try:
+                        data = json.loads(line.strip())
+                        evidence = EvidenceRecord.from_dict(data)
+                        
+                        # Verify the record's integrity
+                        if not evidence.verify_integrity(previous_record=previous_record):
+                            if previous_record and evidence.previous_hash != previous_record.entry_hash:
+                                errors.append(
+                                    f"Line {line_num}: Chain broken - previous_hash mismatch. "
+                                    f"Expected {previous_record.entry_hash}, got {evidence.previous_hash}"
+                                )
+                            else:
+                                errors.append(
+                                    f"Line {line_num}: Hash integrity check failed for evidence {evidence.evidence_id}"
+                                )
+                        
+                        previous_record = evidence
+                        
+                    except json.JSONDecodeError as e:
+                        errors.append(f"Line {line_num}: JSON parsing error - {e}")
+                    except Exception as e:
+                        errors.append(f"Line {line_num}: Verification error - {e}")
+            
+            return len(errors) == 0, errors
+            
+        except Exception as e:
+            return False, [f"Failed to verify chain: {e}"]
     
     def get_provenance(self, evidence_id: str) -> Optional[Dict[str, Any]]:
         """
