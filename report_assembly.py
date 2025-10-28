@@ -26,7 +26,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
-from collections import defaultdict
+from collections import Counter, defaultdict
 import statistics
 import re
 from datetime import datetime
@@ -179,9 +179,10 @@ class ReportAssembler:
         self.cluster_policy_weights = cluster_policy_weights or {}
         self.causal_thresholds = causal_thresholds or {
             "default": 0.6,
+            "D3": 0.6,
             "D4": 0.65,
             "D5": 0.7,
-            "D6": 0.75
+            "D6": 0.75,
         }
 
         # Initialize macro prompts orchestrator if available
@@ -1183,6 +1184,20 @@ class ReportAssembler:
         avg_score_raw = statistics.mean(scores) if scores else 0.0
         avg_score_pct = (avg_score_raw / 3.0) * 100  # Convert to percentage
 
+        coefficient_variation = self._calculate_coefficient_of_variation(scores)
+        dispersion_class = self._classify_dispersion(
+            coefficient_variation, len(scores)
+        )
+        cluster_confidence = (
+            statistics.mean(answer.confidence for answer in micro_answers)
+            if micro_answers
+            else 0.0
+        )
+        adjusted_confidence = self._apply_dispersion_adjustment(
+            cluster_confidence, coefficient_variation
+        )
+        probative_summary = self._summarize_probative_tests(micro_answers)
+
         policy_area_scores = self._calculate_policy_area_scores(micro_answers)
         avg_score_pct, weighting_trace = self._apply_policy_weighting(
             cluster_name,
@@ -1211,8 +1226,15 @@ class ReportAssembler:
             weaknesses
         )
 
+        if dispersion_class == "volatile":
+            recommendations.append(
+                "Uniformar la ejecución para reducir la alta dispersión entre preguntas del clúster."
+            )
+
         # Calculate evidence quality
         evidence_quality = self._assess_evidence_quality(micro_answers)
+        evidence_quality["dispersion_adjusted_confidence"] = adjusted_confidence
+        evidence_quality["coefficient_of_variation"] = coefficient_variation
 
         return MesoLevelCluster(
             cluster_name=cluster_name,
@@ -1233,7 +1255,14 @@ class ReportAssembler:
                 "score_distribution": self._calculate_score_distribution(micro_answers),
                 "weighting_trace": weighting_trace,
                 "policy_weights": cluster_definition.get("policy_weights", {}),
-                "macro_weight": cluster_definition.get("macro_weight")
+                "macro_weight": cluster_definition.get("macro_weight"),
+                "dispersion": {
+                    "coefficient_of_variation": coefficient_variation,
+                    "classification": dispersion_class,
+                    "adjusted_confidence": adjusted_confidence,
+                },
+                "probative_tests": probative_summary,
+                "cluster_confidence": cluster_confidence,
             }
         )
 
@@ -1312,6 +1341,128 @@ class ReportAssembler:
 
         weighted_score = weighted_sum / used_weight
         return weighted_score, trace
+
+    def _calculate_coefficient_of_variation(self, scores: List[float]) -> float:
+        """Calculate coefficient of variation for dispersion-aware scoring."""
+
+        if not scores or len(scores) < 2:
+            return 0.0
+
+        mean = statistics.mean(scores)
+        if mean == 0:
+            return 0.0
+
+        return abs(statistics.stdev(scores) / mean)
+
+    def _classify_dispersion(self, cv: float, sample_size: int) -> str:
+        """Classify dispersion profile using coefficient of variation."""
+
+        if sample_size <= 1:
+            return "singleton"
+        if cv < 0.1:
+            return "compact"
+        if cv < 0.25:
+            return "balanced"
+        return "volatile"
+
+    def _apply_dispersion_adjustment(
+        self, base_confidence: float, cv: float
+    ) -> float:
+        """Adjust cluster confidence based on dispersion."""
+
+        penalty = min(cv, 1.0) * 0.5
+        adjusted = base_confidence * (1 - penalty)
+        return max(0.0, min(1.0, adjusted))
+
+    def _summarize_probative_tests(
+        self, answers: List[MicroLevelAnswer]
+    ) -> Dict[str, Any]:
+        """Aggregate probative taxonomy distribution across answers."""
+
+        distribution = Counter()
+        for answer in answers:
+            classification = (
+                answer.metadata.get("probative_test")
+                if answer.metadata
+                else None
+            )
+            distribution[classification or "unknown"] += 1
+
+        total = sum(distribution.values()) or 1
+        proportions = {
+            key: value / total for key, value in distribution.items()
+        }
+        return {"counts": dict(distribution), "proportions": proportions}
+
+    def _calculate_dimension_coverage_index(
+        self,
+        all_micro_answers: List[MicroLevelAnswer],
+        plan_metadata: Dict[str, Any],
+    ) -> Dict[str, float]:
+        """Calculate coverage ratios per dimension for gating."""
+
+        counts = Counter()
+        for answer in all_micro_answers:
+            dimension = answer.metadata.get("dimension") if answer.metadata else None
+            if not dimension:
+                continue
+            counts[dimension] += 1
+
+        expected_counts = plan_metadata.get("dimension_expected_counts", {})
+        total_answers = len(all_micro_answers) or 1
+        coverage: Dict[str, float] = {}
+
+        for dimension, count in counts.items():
+            expected = expected_counts.get(dimension)
+            if expected:
+                coverage[dimension] = min(1.0, count / expected)
+            else:
+                coverage[dimension] = count / total_answers
+
+        return coverage
+
+    def _validate_macro_gating(
+        self,
+        all_micro_answers: List[MicroLevelAnswer],
+        coverage_index: Dict[str, float],
+    ) -> Dict[str, Any]:
+        """Validate macro gating constraints (coverage + causal integrity)."""
+
+        issues: List[str] = []
+        required_dimensions = ["D3", "D6"]
+
+        for dimension in required_dimensions:
+            threshold = self.causal_thresholds.get(
+                dimension, self.causal_thresholds.get("default", 0.6)
+            )
+            coverage = coverage_index.get(dimension, 0.0)
+            if coverage < threshold:
+                issues.append(
+                    f"Cobertura {dimension}={coverage:.2f} por debajo del umbral {threshold:.2f}"
+                )
+
+        for answer in all_micro_answers:
+            dimension = answer.metadata.get("dimension") if answer.metadata else None
+            if dimension != "D6":
+                continue
+            if answer.metadata.get("causal_path_status") != "verified":
+                issues.append(
+                    f"Ruta causal con contradicciones en {answer.question_id}"
+                )
+
+        if issues:
+            raise ValueError(
+                "MACRO convergence gated: " + "; ".join(sorted(set(issues)))
+            )
+
+        return {
+            "status": "passed",
+            "thresholds": {
+                dim: self.causal_thresholds.get(dim, self.causal_thresholds.get("default", 0.6))
+                for dim in required_dimensions
+            },
+            "coverage_index": coverage_index,
+        }
 
     def _identify_strengths(
             self,
@@ -1574,7 +1725,8 @@ class ReportAssembler:
                 convergence_by_policy_area,
                 missing_clusters,
                 critical_gaps,
-                confidence_metrics
+                confidence_metrics,
+                plan_metadata
             )
 
         metadata = {
@@ -1994,7 +2146,8 @@ class ReportAssembler:
             convergence_by_policy_area: Dict[str, float],
             missing_clusters: List[str],
             critical_gaps: List[str],
-            confidence_metrics: Dict[str, float]
+            confidence_metrics: Dict[str, float],
+            plan_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Apply all 5 macro-level analysis prompts
@@ -2009,7 +2162,7 @@ class ReportAssembler:
         logger.info("Applying macro prompts for enhanced analysis")
         
         # Calculate dimension and policy area coverage
-        dimension_coverage = self._calculate_dimension_coverage(all_micro_answers)
+        dimension_coverage = self._calculate_dimension_coverage(all_micro_answers, plan_metadata)
         policy_area_coverage = self._calculate_policy_area_coverage(all_micro_answers)
         
         # Extract micro claims for contradiction scanning
@@ -2077,10 +2230,20 @@ class ReportAssembler:
     
     def _calculate_dimension_coverage(
             self,
-            all_micro_answers: List[MicroLevelAnswer]
+            all_micro_answers: List[MicroLevelAnswer],
+            plan_metadata: Dict[str, Any]
     ) -> Dict[str, float]:
-        """Calculate coverage percentage by dimension"""
-        total_by_dim = defaultdict(int)
+        """
+        Calculate coverage percentage by dimension
+        
+        Coverage is calculated as: answered_questions / expected_questions_for_dimension
+        If dimension_expected_counts is not provided in plan_metadata, falls back to
+        calculating based on the questions present in all_micro_answers.
+        """
+        # Get expected counts from plan_metadata if available
+        dimension_expected_counts = plan_metadata.get("dimension_expected_counts", {})
+        
+        # Count answered questions by dimension
         answered_by_dim = defaultdict(int)
         
         for answer in all_micro_answers:
@@ -2088,13 +2251,35 @@ class ReportAssembler:
             parts = answer.question_id.split("-")
             if len(parts) >= 2:
                 dim = parts[1]
-                total_by_dim[dim] += 1
+                # Normalize dimension ID (e.g., "DIM01" -> "D1")
+                if dim.startswith("DIM"):
+                    dim_num = int(dim.replace("DIM", ""))
+                    dim = f"D{dim_num}"
                 if answer.quantitative_score > 0:
                     answered_by_dim[dim] += 1
         
         coverage = {}
-        for dim in total_by_dim:
-            coverage[dim] = answered_by_dim[dim] / total_by_dim[dim] if total_by_dim[dim] > 0 else 0.0
+        
+        if dimension_expected_counts:
+            # Use expected counts from metadata for accurate coverage calculation
+            for dim, expected_count in dimension_expected_counts.items():
+                answered_count = answered_by_dim.get(dim, 0)
+                coverage[dim] = answered_count / expected_count if expected_count > 0 else 0.0
+        else:
+            # Fallback: calculate based on questions present in answers
+            # This is less accurate when not all questions are answered
+            total_by_dim = defaultdict(int)
+            for answer in all_micro_answers:
+                parts = answer.question_id.split("-")
+                if len(parts) >= 2:
+                    dim = parts[1]
+                    if dim.startswith("DIM"):
+                        dim_num = int(dim.replace("DIM", ""))
+                        dim = f"D{dim_num}"
+                    total_by_dim[dim] += 1
+            
+            for dim in total_by_dim:
+                coverage[dim] = answered_by_dim[dim] / total_by_dim[dim] if total_by_dim[dim] > 0 else 0.0
         
         return coverage
     
