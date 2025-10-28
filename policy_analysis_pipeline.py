@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 import yaml
 import networkx as nx
+import spacy
+from pathlib import Path
 
 # Import from report_assembly
 from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
@@ -76,7 +78,7 @@ from financiero_viabilidad_tablas import (
 )
 
 # Producer 6: dereck_beach
-from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference
+from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference, ConfigLoader
 
 # Producer 7: embedding_policy
 from embedding_policy import PolicyAnalysisEmbedder
@@ -433,10 +435,26 @@ class ExecutionChoreographer:
         # Producer 6: dereck_beach
         logger.info("  [6/9] Initializing dereck_beach...")
         try:
+            # Create ConfigLoader for dereck_beach components
+            config_path = Path("config.yaml")
+            dereck_config = ConfigLoader(config_path)
+            
+            # Load spacy model for NLP processing
+            try:
+                nlp_model = spacy.load("es_dep_news_trf")
+            except OSError:
+                logger.warning("es_dep_news_trf not found, trying es_core_news_sm")
+                try:
+                    nlp_model = spacy.load("es_core_news_sm")
+                except OSError:
+                    logger.warning("No Spanish model found, using blank Spanish model")
+                    nlp_model = spacy.blank("es")
+            
+            # Initialize dereck_beach components with required parameters
             self._producer_instances['dereck_beach'] = {
-                'CDAFFramework': CDAFFramework(),
-                'CausalExtractor': CausalExtractor(),
-                'BayesianMechanismInference': BayesianMechanismInference()
+                'CDAFFramework': CDAFFramework(config_path, Path("output"), "INFO"),
+                'CausalExtractor': CausalExtractor(dereck_config, nlp_model),
+                'BayesianMechanismInference': BayesianMechanismInference(dereck_config, nlp_model)
             }
             logger.info("  ✓ CDAFFramework initialized")
             logger.info("  ✓ CausalExtractor initialized")
@@ -756,13 +774,16 @@ class ExecutionChoreographer:
         analyzer = self._get_producer_instance('Analyzer_one', 'SemanticAnalyzer')
         
         # Step 1: Segment document
-        trace.append({'step': 1, 'method': 'IndustrialPolicyProcessor.segment_into_sentences'})
-        sentences = processor.segment_into_sentences(document)
+        trace.append({'step': 1, 'method': 'IndustrialPolicyProcessor.text_processor.segment_into_sentences'})
+        sentences = processor.text_processor.segment_into_sentences(document)
         evidence['sentences'] = sentences
         
         # Step 2: Extract quantitative claims (brechas)
         trace.append({'step': 2, 'method': 'PolicyContradictionDetector._extract_quantitative_claims'})
-        quantitative_claims = detector._extract_quantitative_claims(sentences)
+        quantitative_claims = []
+        for sentence in sentences:
+            claims = detector._extract_quantitative_claims(sentence)
+            quantitative_claims.extend(claims)
         evidence['quantitative_claims'] = quantitative_claims
         
         # Step 3: Parse numbers
@@ -773,9 +794,12 @@ class ExecutionChoreographer:
         
         # Step 4: Match patterns for official sources
         trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        patterns_found = processor._match_patterns_in_sentences(
-            sentences,
-            patterns=['DANE', 'DNP', 'fuente oficial', 'según datos de']
+        import re
+        pattern_strings = ['DANE', 'DNP', 'fuente oficial', 'según datos de']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        patterns_found, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['official_sources'] = patterns_found
         
