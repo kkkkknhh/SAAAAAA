@@ -1,0 +1,685 @@
+metadata:
+  generated: '2025-10-22'
+  purpose: Canonical class-to-module mapping for orchestrator registry
+  source: COMPLETE_METHOD_CLASS_MAP.json
+  total_classes: 81
+  total_methods: 416
+class_module_map:
+  CausalDimension:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods: []
+  ProcessorConfig:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - from_legacy
+    - validate
+  BayesianEvidenceScorer:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - __init__
+    - compute_evidence_score
+    - _calculate_shannon_entropy
+  PolicyTextProcessor:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - __init__
+    - normalize_unicode
+    - segment_into_sentences
+    - extract_contextual_window
+    - compile_pattern
+  EvidenceBundle:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - to_dict
+  IndustrialPolicyProcessor:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - __init__
+    - _load_questionnaire
+    - _compile_pattern_registry
+    - _build_point_patterns
+    - process
+    - _match_patterns_in_sentences
+    - _compute_evidence_confidence
+    - _construct_evidence_bundle
+    - _extract_point_evidence
+    - _analyze_causal_dimensions
+    - _extract_metadata
+    - _compute_avg_confidence
+    - _empty_result
+    - export_results
+  AdvancedTextSanitizer:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - __init__
+    - sanitize
+    - _protect_structure
+    - _restore_structure
+  ResilientFileHandler:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - read_text
+    - write_text
+  PolicyAnalysisPipeline:
+    module: policy_processor
+    file: policy_processor.py
+    methods:
+    - __init__
+    - analyze_file
+  PolicyDomain:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods: []
+  AnalyticalDimension:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods: []
+  ChunkingConfig:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods: []
+  AdvancedSemanticChunker:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods:
+    - __init__
+    - chunk_document
+    - _normalize_text
+    - _recursive_split
+    - _find_sentence_boundary
+    - _extract_sections
+    - _extract_tables
+    - _extract_lists
+    - _infer_pdq_context
+    - _contains_table
+    - _contains_list
+    - _find_section
+  BayesianNumericalAnalyzer:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods:
+    - __init__
+    - evaluate_policy_metric
+    - _beta_binomial_posterior
+    - _normal_normal_posterior
+    - _classify_evidence_strength
+    - _compute_coherence
+    - _null_evaluation
+    - compare_policies
+  PolicyCrossEncoderReranker:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods:
+    - __init__
+    - rerank
+  PolicyEmbeddingConfig:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods: []
+  PolicyAnalysisEmbedder:
+    module: embedding_policy
+    file: embedding_policy.py
+    methods:
+    - __init__
+    - process_document
+    - semantic_search
+    - evaluate_policy_numerical_consistency
+    - compare_policy_interventions
+    - _embed_texts
+    - _filter_by_pdq
+    - _extract_numerical_values
+    - _apply_mmr
+    - _calculate_mmr_score
+  PDMSection:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods: []
+  SemanticConfig:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods: []
+  SemanticProcessor:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods:
+    - __init__
+    - _lazy_load
+    - chunk_text
+    - _detect_pdm_structure
+    - _detect_table
+    - _detect_numerical_data
+    - _embed_batch
+    - embed_single
+  BayesianEvidenceIntegrator:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods:
+    - __init__
+    - integrate_evidence
+    - _similarity_to_probability
+    - _compute_reliability_weights
+    - _null_evidence
+    - causal_strength
+  PolicyDocumentAnalyzer:
+    module: semantic_chunking_policy
+    file: semantic_chunking_policy.py
+    methods:
+    - __init__
+    - _init_dimension_embeddings
+    - analyze
+    - _extract_key_excerpts
+  CategoriaCausal:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  GraphType:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  ValidacionResultado:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  ValidationMetric:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  AdvancedGraphNode:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  MonteCarloAdvancedResult:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods: []
+  TeoriaCambio:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods:
+    - __init__
+    - _es_conexion_valida
+    - construir_grafo_causal
+    - validacion_completa
+    - _extraer_categorias
+    - _validar_orden_causal
+    - _encontrar_caminos_completos
+    - _generar_sugerencias_internas
+  AdvancedDAGValidator:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods:
+    - __init__
+    - add_node
+    - add_edge
+    - _initialize_rng
+    - _is_acyclic
+    - _generate_subgraph
+    - calculate_acyclicity_pvalue
+    - _perform_sensitivity_analysis_internal
+    - _calculate_confidence_interval
+    - _calculate_statistical_power
+    - _calculate_bayesian_posterior
+    - _calculate_node_importance
+    - get_graph_stats
+    - _create_empty_result
+  IndustrialGradeValidator:
+    module: teoria_cambio
+    file: teoria_cambio.py
+    methods:
+    - __init__
+    - execute_suite
+    - validate_engine_readiness
+    - validate_causal_categories
+    - validate_connection_matrix
+    - run_performance_benchmarks
+    - _benchmark_operation
+    - _log_metric
+  ContradictionType:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods: []
+  PolicyDimension:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods: []
+  PolicyStatement:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods: []
+  ContradictionEvidence:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods: []
+  BayesianConfidenceCalculator:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods:
+    - __init__
+    - calculate_posterior
+  TemporalLogicVerifier:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods:
+    - __init__
+    - verify_temporal_consistency
+    - _build_timeline
+    - _parse_temporal_marker
+    - _has_temporal_conflict
+    - _are_mutually_exclusive
+    - _extract_resources
+    - _check_deadline_constraints
+    - _should_precede
+    - _classify_temporal_type
+  PolicyContradictionDetector:
+    module: contradiction_deteccion
+    file: contradiction_deteccion.py
+    methods:
+    - __init__
+    - _initialize_pdm_patterns
+    - detect
+    - _extract_policy_statements
+    - _generate_embeddings
+    - _build_knowledge_graph
+    - _detect_semantic_contradictions
+    - _detect_numerical_inconsistencies
+    - _detect_temporal_conflicts
+    - _detect_logical_incompatibilities
+    - _detect_resource_conflicts
+    - _calculate_coherence_metrics
+    - _calculate_global_semantic_coherence
+    - _calculate_objective_alignment
+    - _calculate_graph_fragmentation
+    - _calculate_contradiction_entropy
+    - _calculate_syntactic_complexity
+    - _get_dependency_depth
+    - _calculate_confidence_interval
+    - _generate_resolution_recommendations
+    - _extract_temporal_markers
+    - _extract_quantitative_claims
+    - _determine_semantic_role
+    - _identify_dependencies
+    - _get_context_window
+    - _calculate_similarity
+    - _determine_relation_type
+    - _classify_contradiction
+    - _get_domain_weight
+    - _calculate_severity
+    - _suggest_resolutions
+    - _are_comparable_claims
+    - _calculate_numerical_divergence
+    - _statistical_significance_test
+    - _has_logical_conflict
+    - _extract_resource_mentions
+    - _are_conflicting_allocations
+    - _serialize_contradiction
+    - _get_graph_statistics
+    - _identify_affected_sections
+  BeachEvidentialTest:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - classify_test
+    - apply_test_logic
+  CDAFException:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - _format_message
+    - to_dict
+  CDAFValidationError:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  CDAFProcessingError:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  CDAFBayesianError:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  CDAFConfigError:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  BayesianThresholdsConfig:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  MechanismTypeConfig:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - check_sum_to_one
+  PerformanceConfig:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  SelfReflectionConfig:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  CDAFConfigSchema:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  MetaNode:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods: []
+  ConfigLoader:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - _load_config
+    - _load_default_config
+    - _validate_config
+    - get
+    - get_bayesian_threshold
+    - get_mechanism_prior
+    - get_performance_setting
+    - update_priors_from_feedback
+    - _save_prior_history
+    - _load_uncertainty_history
+    - check_uncertainty_reduction_criterion
+  PDFProcessor:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - load_document
+    - extract_text
+    - extract_tables
+    - extract_sections
+  CausalExtractor:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - extract_causal_hierarchy
+    - _extract_goals
+    - _add_node_to_graph
+    - _extract_causal_links
+    - _build_type_hierarchy
+    - _extract_goal_text
+    - _classify_goal_type
+    - _extract_numerical_data
+    - _identify_responsible_entity
+    - _extract_entity_activities
+    - _extract_contextual_risks
+    - _extract_causal_justifications
+    - _calculate_confidence
+  MechanismPartExtractor:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - extract_entity_activity
+    - _find_subject_entity
+    - _find_action_verb
+    - _validate_entity_activity
+    - _calculate_ea_confidence
+  BayesianMechanismInference:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - infer_mechanisms
+    - _build_transition_matrix
+    - _calculate_type_transition_prior
+    - _infer_activity_sequence
+    - _test_necessity
+    - _test_sufficiency
+    - _classify_mechanism_type
+    - _aggregate_bayesian_confidence
+  CausalInferenceSetup:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - classify_goal_dynamics
+    - identify_failure_points
+    - assign_probative_value
+    - _get_dynamics_pattern
+  OperationalizationAuditor:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - audit_evidence_traceability
+    - bayesian_counterfactual_audit
+    - _audit_systemic_risk
+    - _perform_counterfactual_budget_check
+    - _generate_optimal_remediations
+  FinancialAuditor:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - trace_financial_allocation
+    - _match_goal_to_budget
+    - _calculate_sufficiency
+    - _detect_allocation_gaps
+  CDAFFramework:
+    module: dereck_beach
+    file: dereck_beach.py
+    methods:
+    - __init__
+    - process_document
+    - _validate_dnp_compliance
+    - _generate_extraction_report
+    - _generate_causal_model_json
+    - _generate_dnp_compliance_report
+    - _audit_causal_coherence
+  ColombianMunicipalContext:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  CausalNode:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  CausalEdge:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  CausalDAG:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  CausalEffect:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  CounterfactualScenario:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  ExtractedTable:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  FinancialIndicator:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  ResponsibleEntity:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  QualityScore:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods: []
+  PDETMunicipalPlanAnalyzer:
+    module: financiero_viabilidad_tablas
+    file: financiero_viabilidad_tablas.py
+    methods:
+    - __init__
+    - _get_spanish_stopwords
+    - extract_tables
+    - _clean_dataframe
+    - _is_likely_header
+    - _deduplicate_tables
+    - _reconstruct_fragmented_tables
+    - _classify_tables
+    - analyze_financial_feasibility
+    - _extract_financial_amounts
+    - _identify_funding_source
+    - _extract_from_budget_table
+    - _analyze_funding_sources
+    - _assess_financial_sustainability
+    - _bayesian_risk_inference
+    - _interpret_risk
+    - _indicator_to_dict
+    - identify_responsible_entities
+    - _extract_entities_ner
+    - _extract_entities_syntax
+    - _classify_entity_type
+    - _extract_from_responsibility_tables
+    - _consolidate_entities
+    - _score_entity_specificity
+    - construct_causal_dag
+    - _identify_causal_nodes
+    - _identify_causal_edges
+    - _find_semantic_mentions
+    - _extract_budget_for_pillar
+    - _find_outcome_mentions
+    - _find_mediator_mentions
+    - _estimate_causal_edge_probability
+    - _break_cycles
+    - estimate_causal_effects
+    - _find_all_paths
+    - _estimate_direct_effect
+    - _estimate_mediated_effect
+    - _estimate_total_effect
+    - _bayesian_effect_inference
+    - generate_counterfactual_scenarios
+    - _identify_intervention_targets
+    - _simulate_intervention
+    - _generate_scenario_narrative
+    - sensitivity_analysis
+    - _identify_confounders
+    - _vary_confounder_strength
+    - analyze_municipal_plan
+  MicroLevelAnswer:
+    module: report_assembly
+    file: report_assembly.py
+    methods: []
+  MesoLevelCluster:
+    module: report_assembly
+    file: report_assembly.py
+    methods: []
+  MacroLevelConvergence:
+    module: report_assembly
+    file: report_assembly.py
+    methods: []
+  ReportAssembler:
+    module: report_assembly
+    file: report_assembly.py
+    methods:
+    - __init__
+    - generate_micro_answer
+    - _apply_scoring_modality
+    - _score_type_a
+    - _score_type_b
+    - _score_type_c
+    - _score_type_d
+    - _score_type_e
+    - _score_type_f
+    - _evaluate_condition
+    - _score_default
+    - _extract_numerical_value
+    - _extract_pattern_matches
+    - _score_to_qualitative_question
+    - _extract_evidence_excerpts
+    - _find_context_around
+    - _calculate_confidence
+    - _generate_explanation
+    - _summarize_module_data
+    - generate_meso_cluster
+    - _aggregate_micro_scores
+    - _calculate_dimension_scores
+    - _identify_strengths_weaknesses
+    - _generate_cluster_recommendations
+    - _score_to_qualitative_overall
+    - generate_macro_convergence
+    - _calculate_convergence_by_dimension
+    - _calculate_convergence_by_policy
+    - _perform_gap_analysis
+    - _identify_critical_gaps
+    - _generate_strategic_recommendations
+    - _generate_implementation_roadmap
+    - _calculate_score_distribution
+    - _calculate_confidence_metrics
+    - _synthesize_evidence
+    - save_micro_report
+    - save_meso_report
+    - save_macro_report
+    - save_complete_report
+    - _convert_to_serializable
+  ValueChainLink:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods: []
+  MunicipalOntology:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - __init__
+  SemanticAnalyzer:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - __init__
+    - extract_semantic_cube
+    - _empty_semantic_cube
+    - _vectorize_segments
+    - _process_segment
+    - _classify_value_chain_link
+    - _classify_policy_domain
+    - _classify_cross_cutting_themes
+    - _calculate_semantic_complexity
+  PerformanceAnalyzer:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - __init__
+    - analyze_performance
+    - _calculate_throughput_metrics
+    - _detect_bottlenecks
+    - _calculate_loss_functions
+    - _generate_recommendations
+  TextMiningEngine:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - __init__
+    - diagnose_critical_links
+    - _identify_critical_links
+    - _analyze_link_text
+    - _assess_risks
+    - _generate_interventions
+  MunicipalAnalyzer:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - __init__
+    - analyze_document
+    - _load_document
+    - _generate_summary
+  DocumentProcessor:
+    module: Analyzer_one
+    file: Analyzer_one.py
+    methods:
+    - load_pdf
