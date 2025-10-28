@@ -98,3 +98,10 @@ def test_calibrate_against_peers_detects_outliers_and_positions():
     assert len(payload["outliers"]) == len(scores)
     assert len(narrative.splitlines()) >= 6
 
+
+def test_calibrate_against_peers_handles_zero_mean_scores():
+    scores = {"salud": 0.0, "educacion": 0.0, "vivienda": 0.0}
+    narrative = calibrate_against_peers(scores, peer_context={})[1]
+
+    assert "CV (~0.00)" in narrative
+
