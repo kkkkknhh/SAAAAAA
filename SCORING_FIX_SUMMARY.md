@@ -25,9 +25,8 @@ return "INSUFICIENTE"
 
 This pattern was fragile because:
 1. If tuples were accidentally reversed (max, min), all range checks would fail
-2. Dictionary iteration order dependency (though Python 3.7+ maintains insertion order)
-3. Less explicit than threshold-based comparisons
-4. When no match was found, it defaulted to "INSUFICIENTE"
+2. Less explicit than threshold-based comparisons  
+3. When no match was found, it defaulted to "INSUFICIENTE"
 
 ## Solution
 
@@ -122,7 +121,7 @@ python3 tests/test_scoring_integration.py
 
 Expected output: All tests should pass with the critical bug case showing:
 ```
-Score: 2.85/3.0 (raw: 0.95 = 95.0%)
+Score: 2.85/3.0 (95.0%)
 Result: EXCELENTE
 Status: ✓ FIXED
 ```
