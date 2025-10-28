@@ -1,6 +1,18 @@
 """Orchestrator utilities with contract validation on import."""
 
 from .canonical_registry import CANONICAL_METHODS
+from .evidence_registry import (
+    EvidenceRecord,
+    EvidenceRegistry,
+    ProvenanceDAG,
+    ProvenanceNode,
+    get_global_registry,
+)
+from .contract_loader import (
+    JSONContractLoader,
+    LoadError,
+    LoadResult,
+)
 
 try:
     from .d1_orchestrator import (
@@ -27,7 +39,17 @@ try:  # pragma: no cover - executed at import time
 except Exception as exc:  # pragma: no cover - validation failure path
     raise
 
-__all__ = ["CANONICAL_METHODS"]
+__all__ = [
+    "CANONICAL_METHODS",
+    "EvidenceRecord",
+    "EvidenceRegistry",
+    "ProvenanceDAG",
+    "ProvenanceNode",
+    "get_global_registry",
+    "JSONContractLoader",
+    "LoadError",
+    "LoadResult",
+]
 
 if _D1_AVAILABLE:
     __all__.extend([
