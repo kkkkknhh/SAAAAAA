@@ -1,0 +1,149 @@
+name: D2 Method Concurrence Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'policy_processor.py'
+      - 'financiero_viabilidad_tablas.py'
+      - 'contradiction_deteccion.py'
+      - 'semantic_chunking_policy.py'
+      - 'dereck_beach.py'
+      - 'teoria_cambio.py'
+      - 'Analyzer_one.py'
+      - 'embedding_policy.py'
+      - 'orchestrator/d2_activities_orchestrator.py'
+      - 'scripts/validate_d2_concurrence.py'
+      - '.github/workflows/d2_concurrence.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'policy_processor.py'
+      - 'financiero_viabilidad_tablas.py'
+      - 'contradiction_deteccion.py'
+      - 'semantic_chunking_policy.py'
+      - 'dereck_beach.py'
+      - 'teoria_cambio.py'
+      - 'Analyzer_one.py'
+      - 'embedding_policy.py'
+      - 'orchestrator/d2_activities_orchestrator.py'
+      - 'scripts/validate_d2_concurrence.py'
+      - '.github/workflows/d2_concurrence.yml'
+
+jobs:
+  validate-d2-strict:
+    name: Validate D2 Method Concurrence (Strict)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements_atroz.txt ]; then
+          pip install -r requirements_atroz.txt
+        else
+          echo "Warning: requirements_atroz.txt not found"
+        fi
+    
+    - name: Run D2 validation (strict mode)
+      id: validate
+      run: |
+        python scripts/validate_d2_concurrence.py \
+          --strict \
+          --output d2_validation_report.json \
+          --summary
+      continue-on-error: true
+    
+    - name: Upload validation report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: d2-validation-report
+        path: d2_validation_report.json
+    
+    - name: Check validation result
+      if: steps.validate.outcome != 'success'
+      run: |
+        echo "❌ D2 Method Concurrence Validation FAILED"
+        echo "One or more required methods are missing or unresolvable."
+        echo "Review the validation report artifact for details."
+        exit 1
+
+  validate-d2-non-strict:
+    name: Validate D2 Method Concurrence (Non-Strict)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements_atroz.txt ]; then
+          pip install -r requirements_atroz.txt
+        else
+          echo "Warning: requirements_atroz.txt not found"
+        fi
+    
+    - name: Run D2 validation (non-strict mode, 95% threshold)
+      id: validate
+      run: |
+        python scripts/validate_d2_concurrence.py \
+          --fail-threshold 0.95 \
+          --output d2_validation_report_nonstrict.json \
+          --summary
+      continue-on-error: true
+    
+    - name: Upload validation report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: d2-validation-report-nonstrict
+        path: d2_validation_report_nonstrict.json
+    
+    - name: Check validation result
+      if: steps.validate.outcome != 'success'
+      run: |
+        echo "⚠️ D2 Method Concurrence Validation below 95% threshold"
+        echo "Review the validation report artifact for details."
+        exit 1
+
+  test-d2-orchestrator:
+    name: Test D2 Orchestrator
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements_atroz.txt ]; then
+          pip install -r requirements_atroz.txt
+        else
+          echo "Warning: requirements_atroz.txt not found"
+        fi
+    
+    - name: Run D2 orchestrator tests
+      run: |
+        python tests/test_d2_orchestrator.py
