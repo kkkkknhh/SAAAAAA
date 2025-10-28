@@ -1,17 +1,31 @@
 """
-Evidence Registry: Append-Only JSONL Store with Hash Indexing and Provenance DAG Export
+Evidence Registry: Append-Only JSONL Store with Hash Chain and Provenance DAG Export
 
 This module implements a comprehensive evidence tracking system that:
 1. Stores all evidence in append-only JSONL format for immutability
 2. Maintains hash-based indexing for fast evidence lookup
-3. Exports provenance DAG showing evidence lineage and dependencies
-4. Provides cryptographic verification of evidence integrity
+3. Implements blockchain-style hash chaining for ledger integrity
+4. Exports provenance DAG showing evidence lineage and dependencies
+5. Provides cryptographic verification of evidence integrity
 
 Architecture:
 - JSONL Storage: One JSON object per line, append-only for audit trail
 - Hash Index: SHA-256 hashes for content-addressable storage
+- Hash Chain: Each entry links to previous via previous_hash and entry_hash
 - Provenance DAG: Directed acyclic graph of evidence dependencies
-- Verification: Cryptographic chain-of-custody validation
+- Verification: Cryptographic chain-of-custody validation with chain linkage checks
+
+Hash Chain Security:
+The registry implements a blockchain-style hash chain where each entry contains:
+- content_hash: SHA-256 of the payload (for content verification)
+- previous_hash: Hash of the previous entry's entry_hash (creates the chain)
+- entry_hash: SHA-256 of (content_hash + previous_hash + metadata)
+
+This ensures that:
+1. Any tampering with payload is detected via content_hash mismatch
+2. Any tampering with previous_hash is detected via chain verification
+3. Entries cannot be reordered without breaking the chain
+4. The entire ledger history can be cryptographically verified
 """
 
 from __future__ import annotations
@@ -32,14 +46,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvidenceRecord:
     """
-    Immutable evidence record with provenance metadata.
+    Immutable evidence record with provenance metadata and hash chain linkage.
     
     Each evidence record captures:
     - Unique identifier (hash-based)
     - Evidence payload (method result, analysis output, etc.)
     - Provenance metadata (source, dependencies, lineage)
     - Temporal metadata (timestamp, execution time)
-    - Verification data (hash, signature)
+    - Verification data (content hash, chain hashes)
+    
+    Hash Chain Fields:
+    - content_hash: SHA-256 of payload (verifies content integrity)
+    - previous_hash: entry_hash of previous record (creates chain linkage)
+    - entry_hash: SHA-256 of (content + previous_hash + metadata) (unique entry ID)
+    
+    The hash chain ensures that:
+    1. Tampering with payload breaks content_hash
+    2. Tampering with previous_hash breaks chain verification
+    3. Entire ledger history is cryptographically verifiable
     """
     
     # Identification
