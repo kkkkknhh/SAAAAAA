@@ -15,7 +15,7 @@
   - MICRO level: 14 methods (produce, getters, counters, validators)
   - MESO level: 16 methods (produce, getters, counters, validators)
   - MACRO level: 20 methods (produce, getters, counters, validators)
-  - Scoring utilities: 12 methods (conversion, classification, thresholds)
+  - Scoring utilities: 6 methods (conversion, classification, thresholds)
   - Configuration: 10 methods (dimensions, rubrics, weights)
   - Serialization: 7 methods (serialize/deserialize)
   - Validation: 3 methods (schema validation)
