@@ -1195,10 +1195,13 @@ class ExecutionChoreographer:
         
         # Step 6: Get graph statistics
         trace.append({'step': 6, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
-        graph = detector._build_knowledge_graph(document)
+        # Extract policy statements for D5
+        # PolicyDimension imported at top
+        statements_d5_prelim = detector._extract_policy_statements(document, PolicyDimension.TERRITORIAL)
+        detector._build_knowledge_graph(statements_d5_prelim)
         
         trace.append({'step': 7, 'method': 'PolicyContradictionDetector._get_graph_statistics'})
-        graph_stats = detector._get_graph_statistics(graph)
+        graph_stats = detector._get_graph_statistics()
         evidence['graph_statistics'] = graph_stats
         
         # Step 8: Match systemic risk patterns
