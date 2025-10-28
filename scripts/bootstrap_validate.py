@@ -20,7 +20,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from textwrap import dedent
 from typing import Dict, Optional
@@ -96,7 +96,7 @@ def load_plan_metadata(metadata_path: Optional[Path], plan_path: Path) -> Dict:
     return {
         "source_path": str(plan_path.resolve()),
         "plan_name": plan_path.stem,
-        "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
 
