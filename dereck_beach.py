@@ -5539,5 +5539,281 @@ Configuración:
     return 0 if success else 1
 
 
+# ============================================================================
+# PRODUCER CLASS - Registry Exposure
+# ============================================================================
+
+
+class DerekBeachProducer:
+    """
+    Producer wrapper for Derek Beach causal analysis with registry exposure
+    
+    Provides public API methods for orchestrator integration without exposing
+    internal implementation details or summarization logic.
+    
+    Version: 1.0.0
+    Producer Type: Causal Mechanism Analysis
+    """
+    
+    def __init__(self):
+        """Initialize producer"""
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info("DerekBeachProducer initialized")
+    
+    # ========================================================================
+    # EVIDENTIAL TESTS API
+    # ========================================================================
+    
+    def classify_test_type(self, necessity: float, sufficiency: float) -> TestType:
+        """Classify evidential test type based on necessity and sufficiency"""
+        return BeachEvidentialTest.classify_test(necessity, sufficiency)
+    
+    def apply_test_logic(
+        self,
+        test_type: TestType,
+        evidence_found: bool,
+        prior: float,
+        bayes_factor: float
+    ) -> Tuple[float, str]:
+        """Apply Beach test-specific logic to Bayesian updating"""
+        return BeachEvidentialTest.apply_test_logic(
+            test_type, evidence_found, prior, bayes_factor
+        )
+    
+    def is_hoop_test(self, test_type: TestType) -> bool:
+        """Check if test is hoop test"""
+        return test_type == "hoop_test"
+    
+    def is_smoking_gun(self, test_type: TestType) -> bool:
+        """Check if test is smoking gun"""
+        return test_type == "smoking_gun"
+    
+    def is_doubly_decisive(self, test_type: TestType) -> bool:
+        """Check if test is doubly decisive"""
+        return test_type == "doubly_decisive"
+    
+    def is_straw_in_wind(self, test_type: TestType) -> bool:
+        """Check if test is straw in wind"""
+        return test_type == "straw_in_wind"
+    
+    # ========================================================================
+    # HIERARCHICAL GENERATIVE MODEL API
+    # ========================================================================
+    
+    def create_hierarchical_model(
+        self,
+        mechanism_priors: Optional[Dict[str, float]] = None
+    ) -> HierarchicalGenerativeModel:
+        """Create hierarchical generative model"""
+        return HierarchicalGenerativeModel(mechanism_priors)
+    
+    def infer_mechanism_posterior(
+        self,
+        model: HierarchicalGenerativeModel,
+        observations: Dict[str, Any],
+        n_iter: int = 500,
+        burn_in: int = 100,
+        n_chains: int = 2
+    ) -> Dict[str, Any]:
+        """Infer mechanism posterior using MCMC"""
+        return model.infer_mechanism_posterior(
+            observations, n_iter, burn_in, n_chains
+        )
+    
+    def get_type_posterior(self, inference: Dict[str, Any]) -> Dict[str, float]:
+        """Extract type posterior from inference"""
+        return inference.get("type_posterior", {})
+    
+    def get_sequence_mode(self, inference: Dict[str, Any]) -> str:
+        """Extract sequence mode from inference"""
+        return inference.get("sequence_mode", "")
+    
+    def get_coherence_score(self, inference: Dict[str, Any]) -> float:
+        """Extract coherence score from inference"""
+        return inference.get("coherence_score", 0.0)
+    
+    def get_r_hat(self, inference: Dict[str, Any]) -> float:
+        """Extract R-hat convergence diagnostic"""
+        return inference.get("R_hat", 1.0)
+    
+    def get_ess(self, inference: Dict[str, Any]) -> float:
+        """Extract effective sample size"""
+        return inference.get("ESS", 0.0)
+    
+    def is_inference_uncertain(self, inference: Dict[str, Any]) -> bool:
+        """Check if inference has high uncertainty"""
+        return inference.get("is_uncertain", False)
+    
+    # ========================================================================
+    # POSTERIOR PREDICTIVE CHECKS API
+    # ========================================================================
+    
+    def posterior_predictive_check(
+        self,
+        model: HierarchicalGenerativeModel,
+        posterior_samples: List[Dict[str, Any]],
+        observed_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Run posterior predictive checks"""
+        return model.posterior_predictive_check(posterior_samples, observed_data)
+    
+    def get_ppd_p_value(self, ppc: Dict[str, Any]) -> float:
+        """Extract posterior predictive p-value"""
+        return ppc.get("ppd_p_value", 0.0)
+    
+    def get_ablation_curve(self, ppc: Dict[str, Any]) -> Dict[str, float]:
+        """Extract ablation curve from PPC"""
+        return ppc.get("ablation_curve", {})
+    
+    def get_ppc_recommendation(self, ppc: Dict[str, Any]) -> str:
+        """Extract recommendation from PPC"""
+        return ppc.get("recommendation", "")
+    
+    # ========================================================================
+    # CONDITIONAL INDEPENDENCE API
+    # ========================================================================
+    
+    def verify_conditional_independence(
+        self,
+        model: HierarchicalGenerativeModel,
+        dag: nx.DiGraph,
+        independence_tests: Optional[List[Tuple[str, str, List[str]]]] = None
+    ) -> Dict[str, Any]:
+        """Verify conditional independencies in DAG"""
+        return model.verify_conditional_independence(dag, independence_tests)
+    
+    def get_independence_tests(self, verification: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract independence tests from verification"""
+        return verification.get("independence_tests", [])
+    
+    def get_delta_waic(self, verification: Dict[str, Any]) -> float:
+        """Extract delta WAIC from verification"""
+        return verification.get("delta_waic", 0.0)
+    
+    def get_model_preference(self, verification: Dict[str, Any]) -> str:
+        """Extract model preference from verification"""
+        return verification.get("model_preference", "inconclusive")
+    
+    # ========================================================================
+    # COUNTERFACTUAL AUDITOR API
+    # ========================================================================
+    
+    def create_auditor(self) -> BayesianCounterfactualAuditor:
+        """Create Bayesian counterfactual auditor"""
+        return BayesianCounterfactualAuditor()
+    
+    def construct_scm(
+        self,
+        auditor: BayesianCounterfactualAuditor,
+        dag: nx.DiGraph,
+        structural_equations: Optional[Dict[str, callable]] = None
+    ) -> Dict[str, Any]:
+        """Construct structural causal model"""
+        return auditor.construct_scm(dag, structural_equations)
+    
+    def counterfactual_query(
+        self,
+        auditor: BayesianCounterfactualAuditor,
+        intervention: Dict[str, float],
+        target: str,
+        evidence: Optional[Dict[str, float]] = None
+    ) -> Dict[str, Any]:
+        """Execute counterfactual query"""
+        return auditor.counterfactual_query(intervention, target, evidence)
+    
+    def get_causal_effect(self, query: Dict[str, Any]) -> float:
+        """Extract causal effect from query"""
+        return query.get("causal_effect", 0.0)
+    
+    def is_sufficient(self, query: Dict[str, Any]) -> bool:
+        """Check if mechanism is sufficient"""
+        return query.get("is_sufficient", False)
+    
+    def is_necessary(self, query: Dict[str, Any]) -> bool:
+        """Check if mechanism is necessary"""
+        return query.get("is_necessary", False)
+    
+    def is_effect_stable(self, query: Dict[str, Any]) -> bool:
+        """Check if effect is stable"""
+        return query.get("effect_stable", False)
+    
+    # ========================================================================
+    # RISK AGGREGATION API
+    # ========================================================================
+    
+    def aggregate_risk(
+        self,
+        auditor: BayesianCounterfactualAuditor,
+        omission_score: float,
+        insufficiency_score: float,
+        unnecessity_score: float,
+        causal_effect: float,
+        feasibility: float = 0.8,
+        cost: float = 1.0
+    ) -> Dict[str, Any]:
+        """Aggregate risk and calculate priority"""
+        return auditor.aggregate_risk_and_prioritize(
+            omission_score,
+            insufficiency_score,
+            unnecessity_score,
+            causal_effect,
+            feasibility,
+            cost
+        )
+    
+    def get_risk_score(self, aggregation: Dict[str, Any]) -> float:
+        """Extract risk score from aggregation"""
+        return aggregation.get("risk_score", 0.0)
+    
+    def get_success_probability(self, aggregation: Dict[str, Any]) -> Dict[str, float]:
+        """Extract success probability from aggregation"""
+        return aggregation.get("success_probability", {})
+    
+    def get_priority(self, aggregation: Dict[str, Any]) -> float:
+        """Extract priority from aggregation"""
+        return aggregation.get("priority", 0.0)
+    
+    def get_recommendations(self, aggregation: Dict[str, Any]) -> List[str]:
+        """Extract recommendations from aggregation"""
+        return aggregation.get("recommendations", [])
+    
+    # ========================================================================
+    # REFUTATION API
+    # ========================================================================
+    
+    def refutation_checks(
+        self,
+        auditor: BayesianCounterfactualAuditor,
+        dag: nx.DiGraph,
+        target: str,
+        treatment: str,
+        confounders: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Execute refutation and sanity checks"""
+        return auditor.refutation_and_sanity_checks(
+            dag, target, treatment, confounders
+        )
+    
+    def get_negative_controls(self, refutation: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract negative controls from refutation"""
+        return refutation.get("negative_controls", {})
+    
+    def get_placebo_effect(self, refutation: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract placebo effect from refutation"""
+        return refutation.get("placebo_effect", {})
+    
+    def get_sanity_violations(self, refutation: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract sanity violations from refutation"""
+        return refutation.get("sanity_violations", [])
+    
+    def all_checks_passed(self, refutation: Dict[str, Any]) -> bool:
+        """Check if all refutation checks passed"""
+        return refutation.get("all_checks_passed", False)
+    
+    def get_refutation_recommendation(self, refutation: Dict[str, Any]) -> str:
+        """Extract recommendation from refutation"""
+        return refutation.get("recommendation", "")
+
+
 if __name__ == "__main__":
     sys.exit(main())
