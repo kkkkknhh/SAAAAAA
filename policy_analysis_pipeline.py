@@ -23,14 +23,18 @@ LAST UPDATED: 2025-10-27
 import logging
 import hashlib
 import json
+import time
+import statistics
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 import yaml
 import networkx as nx
 import spacy
 from pathlib import Path
+
+from qmcm_hooks import get_global_recorder
 
 # Import from report_assembly
 from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
@@ -185,6 +189,66 @@ class ExecutionResult:
     error: Optional[Dict[str, Any]] = None
 
 
+@dataclass
+class MethodContract:
+    """Deterministic contract describing a registered method."""
+
+    canonical_name: str
+    producer: str
+    class_name: str
+    method_name: str
+    module_name: str
+    callable_ref: Callable[..., Any]
+    verified: bool = False
+
+
+class RegistryProxy:
+    """Proxy object that dispatches calls through the canonical registry."""
+
+    def __init__(
+        self,
+        choreographer: "ExecutionChoreographer",
+        producer: str,
+        class_name: str,
+        instance: Any,
+    ) -> None:
+        self._choreographer = choreographer
+        self._producer = producer
+        self._class_name = class_name
+        self._instance = instance
+
+    def __getattr__(self, item: str) -> Any:
+        attribute = getattr(self._instance, item)
+
+        if callable(attribute):
+            fq_name = self._choreographer._build_fully_qualified_name(
+                self._producer, self._class_name, attribute.__name__
+            )
+
+            def _wrapped(*args, **kwargs):
+                return self._choreographer._dispatch_method(
+                    fq_name, *args, **kwargs
+                )
+
+            return _wrapped
+
+        if self._choreographer._should_proxy_attribute(attribute, self._producer):
+            return RegistryProxy(
+                self._choreographer,
+                self._producer,
+                attribute.__class__.__name__,
+                attribute,
+            )
+
+        return attribute
+
+    def __repr__(self) -> str:  # pragma: no cover - repr not critical to tests
+        return (
+            f"RegistryProxy(producer={self._producer}, "
+            f"class_name={self._class_name}, instance={self._instance!r})"
+        )
+
+
 # ========================================
 # EXECUTION CHOREOGRAPHER - MICRO LEVEL EXECUTOR
 # ========================================
@@ -266,6 +330,7 @@ class ExecutionChoreographer:
         # Build method registry (584 methods, 95% target = 555 methods)
         logger.info("Building method registry (target: 555/584 methods)...")
         self.CANONICAL_METHODS = {}
+        self.method_contracts: Dict[str, MethodContract] = {}
         self._build_method_registry()
         
         # Log coverage (relaxed requirement for development)
@@ -527,35 +592,137 @@ class ExecutionChoreographer:
     # ========================================
     
     def _build_method_registry(self):
-        """
-        Build dispatch registry mapping fully-qualified method names to callables
-        
-        TARGET: 584 methods across 9 producers
-        GOAL: 95% integration (555 methods minimum)
-        
-        POST-CONDITIONS:
-        - self.CANONICAL_METHODS contains ≥555 entries
-        - All entries are callable
-        - All keys follow pattern: 'producer.Class.method'
-        """
+        """Build deterministic dispatch registry with contract validation."""
+
+        self.CANONICAL_METHODS.clear()
+        self.method_contracts.clear()
+
+        visited_instances: set[int] = set()
+
         for producer_name, producer_dict in self._producer_instances.items():
             for class_name, instance in producer_dict.items():
-                # Get all public methods (exclude private methods starting with '_')
-                methods = [
-                    m for m in dir(instance)
-                    if callable(getattr(instance, m)) and not m.startswith('__')
-                ]
-                
-                for method_name in methods:
-                    # Build fully-qualified name
-                    fq_name = f"{producer_name}.{class_name}.{method_name}"
-                    
-                    # Store callable
-                    self.CANONICAL_METHODS[fq_name] = getattr(instance, method_name)
-        
+                self._register_instance_methods(
+                    producer_name, class_name, instance, visited_instances
+                )
+
         logger.info(f"✓ Registered {len(self.CANONICAL_METHODS)} methods")
-        logger.info(f"  Target: 555 methods (95% of 584)")
+        logger.info("  Target: 555 methods (95% of 584)")
         logger.info(f"  Coverage: {len(self.CANONICAL_METHODS)/584*100:.1f}%")
+
+    def _register_instance_methods(
+        self,
+        producer_name: str,
+        class_name: str,
+        instance: Any,
+        visited_instances: set[int],
+    ) -> None:
+        """Register all callable methods for *instance* (including nested components)."""
+
+        instance_id = id(instance)
+        if instance_id in visited_instances:
+            return
+
+        visited_instances.add(instance_id)
+
+        module_name = getattr(instance.__class__, "__module__", "")
+
+        for attribute_name in dir(instance):
+            if attribute_name.startswith("__"):
+                continue
+
+            attribute = getattr(instance, attribute_name)
+
+            if callable(attribute):
+                fq_name = self._build_fully_qualified_name(
+                    producer_name, class_name, attribute.__name__
+                )
+                self.CANONICAL_METHODS[fq_name] = attribute
+                self.method_contracts[fq_name] = MethodContract(
+                    canonical_name=fq_name,
+                    producer=producer_name,
+                    class_name=class_name,
+                    method_name=attribute.__name__,
+                    module_name=module_name,
+                    callable_ref=attribute,
+                    verified=True,
+                )
+            elif self._should_proxy_attribute(attribute, producer_name):
+                nested_class_name = attribute.__class__.__name__
+                self._register_instance_methods(
+                    producer_name,
+                    nested_class_name,
+                    attribute,
+                    visited_instances,
+                )
+
+    def _build_fully_qualified_name(
+        self, producer_name: str, class_name: str, method_name: str
+    ) -> str:
+        """Construct fully-qualified method name for registry lookup."""
+
+        return f"{producer_name}.{class_name}.{method_name}"
+
+    def _should_proxy_attribute(self, attribute: Any, producer_name: str) -> bool:
+        """Determine whether *attribute* should be proxied for registry dispatch."""
+
+        if attribute is None:
+            return False
+
+        primitive_types = (str, bytes, bytearray, int, float, bool, complex)
+        if isinstance(attribute, primitive_types):
+            return False
+        if isinstance(attribute, (list, tuple, set, dict)):
+            return False
+
+        module_name = getattr(attribute.__class__, "__module__", "")
+        if not module_name:
+            return False
+
+        normalized_producer = producer_name.replace("_", "")
+        normalized_module = module_name.replace("_", "")
+
+        return normalized_producer.lower() in normalized_module.lower()
+
+    def _dispatch_method(self, fq_name: str, *args, **kwargs):
+        """Dispatch method call through deterministic registry with QMCM recording."""
+
+        if fq_name not in self.CANONICAL_METHODS:
+            raise KeyError(f"Method not registered in canonical registry: {fq_name}")
+
+        contract = self.method_contracts.get(fq_name)
+        if not contract or not contract.verified or contract.callable_ref is None:
+            raise RuntimeError(
+                f"Contract validation missing for method: {fq_name}. "
+                "Registry dispatch aborted."
+            )
+
+        recorder = get_global_recorder()
+        start_time = time.time()
+        result = None
+        status = "success"
+
+        try:
+            result = contract.callable_ref(*args, **kwargs)
+            return result
+        except Exception:
+            status = "error"
+            raise
+        finally:
+            execution_time_ms = (time.time() - start_time) * 1000
+            input_types: Dict[str, str] = {}
+            for index, argument in enumerate(args, start=1):
+                input_types[f"arg{index}"] = type(argument).__name__
+            for keyword, value in kwargs.items():
+                input_types[keyword] = type(value).__name__
+
+            output_type = type(result).__name__ if status == "success" else "NoneType"
+            recorder.record_call(
+                method_name=fq_name,
+                input_types=input_types,
+                output_type=output_type,
+                execution_status=status,
+                execution_time_ms=execution_time_ms,
+            )
     
     def _get_producer_instance(self, producer_name: str, class_name: str) -> Any:
         """
@@ -570,7 +737,8 @@ class ExecutionChoreographer:
         if class_name not in self._producer_instances[producer_name]:
             raise KeyError(f"Class not found: {producer_name}.{class_name}")
         
-        return self._producer_instances[producer_name][class_name]
+        instance = self._producer_instances[producer_name][class_name]
+        return RegistryProxy(self, producer_name, class_name, instance)
     
     # ========================================
     # QUESTION EXECUTION - CORE RESPONSIBILITY
@@ -774,12 +942,12 @@ class ExecutionChoreographer:
         analyzer = self._get_producer_instance('Analyzer_one', 'SemanticAnalyzer')
         
         # Step 1: Segment document
-        trace.append({'step': 1, 'method': 'IndustrialPolicyProcessor.text_processor.segment_into_sentences'})
+        trace.append({'step': 1, 'method': 'policy_processor.PolicyTextProcessor.segment_into_sentences'})
         sentences = processor.text_processor.segment_into_sentences(document)
         evidence['sentences'] = sentences
         
         # Step 2: Extract quantitative claims (brechas)
-        trace.append({'step': 2, 'method': 'PolicyContradictionDetector._extract_quantitative_claims'})
+        trace.append({'step': 2, 'method': 'contradiction_deteccion.PolicyContradictionDetector._extract_quantitative_claims'})
         quantitative_claims = []
         for sentence in sentences:
             claims = detector._extract_quantitative_claims(sentence)
@@ -787,13 +955,13 @@ class ExecutionChoreographer:
         evidence['quantitative_claims'] = quantitative_claims
         
         # Step 3: Parse numbers
-        trace.append({'step': 3, 'method': 'PolicyContradictionDetector._parse_number'})
+        trace.append({'step': 3, 'method': 'contradiction_deteccion.PolicyContradictionDetector._parse_number'})
         for claim in quantitative_claims:
             parsed = detector._parse_number(claim.get('text', ''))
             claim['normalized_value'] = parsed
         
         # Step 4: Match patterns for official sources
-        trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 4, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         import re
         pattern_strings = ['DANE', 'DNP', 'fuente oficial', 'según datos de']
         compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
@@ -804,12 +972,12 @@ class ExecutionChoreographer:
         evidence['official_sources'] = patterns_found
         
         # Step 5: Calculate semantic complexity
-        trace.append({'step': 5, 'method': 'SemanticAnalyzer._calculate_semantic_complexity'})
+        trace.append({'step': 5, 'method': 'Analyzer_one.SemanticAnalyzer._calculate_semantic_complexity'})
         complexity = analyzer._calculate_semantic_complexity(document)
         evidence['semantic_complexity'] = complexity
         
         # Step 6: Calculate Bayesian confidence
-        trace.append({'step': 6, 'method': 'BayesianConfidenceCalculator.calculate_posterior'})
+        trace.append({'step': 6, 'method': 'contradiction_deteccion.BayesianConfidenceCalculator.calculate_posterior'})
         # Calculate evidence strength from quantitative claims
         evidence_strength = min(1.0, len(quantitative_claims) / 10.0) if quantitative_claims else 0.01
         confidence = calculator.calculate_posterior(
@@ -820,12 +988,12 @@ class ExecutionChoreographer:
         evidence['bayesian_confidence'] = confidence
         
         # Step 7: Extract resource mentions
-        trace.append({'step': 7, 'method': 'PolicyContradictionDetector._extract_resource_mentions'})
+        trace.append({'step': 7, 'method': 'contradiction_deteccion.PolicyContradictionDetector._extract_resource_mentions'})
         resources = detector._extract_resource_mentions(document)
         evidence['resources'] = resources
         
         # Step 8: Detect numerical inconsistencies
-        trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
+        trace.append({'step': 8, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Need to extract policy statements first to detect inconsistencies
         # PolicyDimension imported at top
         statements = detector._extract_policy_statements(document, PolicyDimension.DIAGNOSTICO)
@@ -833,25 +1001,25 @@ class ExecutionChoreographer:
         evidence['inconsistencies'] = inconsistencies
         
         # Step 9: Detect resource conflicts
-        trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_resource_conflicts'})
+        trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_resource_conflicts'})
         # Reuse statements from step 8
         conflicts = detector._detect_resource_conflicts(statements)
         evidence['conflicts'] = conflicts
         
         # Step 10: Calculate graph fragmentation (capacity)
-        trace.append({'step': 10, 'method': 'PolicyContradictionDetector._calculate_graph_fragmentation'})
+        trace.append({'step': 10, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_graph_fragmentation'})
         fragmentation = detector._calculate_graph_fragmentation()
         evidence['capacity_fragmentation'] = fragmentation
         
         # Step 11: Verify temporal consistency
-        trace.append({'step': 11, 'method': 'TemporalLogicVerifier.verify_temporal_consistency'})
+        trace.append({'step': 11, 'method': 'contradiction_deteccion.TemporalLogicVerifier.verify_temporal_consistency'})
         # Reuse statements from step 8
         is_consistent, conflicts_list = verifier.verify_temporal_consistency(statements)
         temporal_consistency = {'is_consistent': is_consistent, 'conflicts': conflicts_list}
         evidence['temporal_consistency'] = temporal_consistency
         
         # Step 12: Calculate confidence interval
-        trace.append({'step': 12, 'method': 'PolicyContradictionDetector._calculate_confidence_interval'})
+        trace.append({'step': 12, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_confidence_interval'})
         # Calculate confidence interval with proper parameters
         n_observations = len(statements) if statements else 1
         confidence_interval = detector._calculate_confidence_interval(
@@ -889,12 +1057,12 @@ class ExecutionChoreographer:
         analyzer = self._get_producer_instance('Analyzer_one', 'SemanticAnalyzer')
         
         # Step 1: Analyze tabular structure
-        trace.append({'step': 1, 'method': 'PDETMunicipalPlanAnalyzer.analyze_municipal_plan'})
+        trace.append({'step': 1, 'method': 'financiero_viabilidad_tablas.PDETMunicipalPlanAnalyzer.analyze_municipal_plan'})
         tables = plan_analyzer.analyze_municipal_plan(document)
         evidence['tables'] = tables
         
         # Step 2: Match formalization patterns
-        trace.append({'step': 2, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 2, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         formalization_patterns = processor._match_patterns_in_sentences(
             document,
             patterns=['tabla', 'columna costo', 'BPIN', 'PPI']
@@ -902,12 +1070,12 @@ class ExecutionChoreographer:
         evidence['formalization'] = formalization_patterns
         
         # Step 3: Build timeline for traceability
-        trace.append({'step': 3, 'method': 'TemporalLogicVerifier._build_timeline'})
+        trace.append({'step': 3, 'method': 'contradiction_deteccion.TemporalLogicVerifier._build_timeline'})
         timeline = verifier._build_timeline(document)
         evidence['timeline'] = timeline
         
         # Step 4: Match causal mechanism patterns
-        trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 4, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         causal_patterns = processor._match_patterns_in_sentences(
             document,
             patterns=['porque', 'genera', 'población objetivo', 'lo cual contribuye a']
@@ -915,17 +1083,17 @@ class ExecutionChoreographer:
         evidence['causal_mechanisms'] = causal_patterns
         
         # Step 5: Determine relation type
-        trace.append({'step': 5, 'method': 'PolicyContradictionDetector._determine_relation_type'})
+        trace.append({'step': 5, 'method': 'contradiction_deteccion.PolicyContradictionDetector._determine_relation_type'})
         relations = detector._determine_relation_type(causal_patterns)
         evidence['relations'] = relations
         
         # Step 6: Classify cross-cutting themes
-        trace.append({'step': 6, 'method': 'SemanticAnalyzer._classify_cross_cutting_themes'})
+        trace.append({'step': 6, 'method': 'Analyzer_one.SemanticAnalyzer._classify_cross_cutting_themes'})
         themes = analyzer._classify_cross_cutting_themes(document)
         evidence['cross_cutting_themes'] = themes
         
         # Step 7: Detect logical incompatibilities
-        trace.append({'step': 7, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
+        trace.append({'step': 7, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D2
         # PolicyDimension imported at top
         statements_d2 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
@@ -935,17 +1103,17 @@ class ExecutionChoreographer:
         evidence['incompatibilities'] = incompatibilities
         
         # Step 8: Get knowledge graph statistics
-        trace.append({'step': 8, 'method': 'PolicyContradictionDetector._get_graph_statistics'})
+        trace.append({'step': 8, 'method': 'contradiction_deteccion.PolicyContradictionDetector._get_graph_statistics'})
         graph_stats = detector._get_graph_statistics()
         evidence['knowledge_graph'] = graph_stats
         
         # Step 9: Calculate global semantic coherence
-        trace.append({'step': 9, 'method': 'PolicyContradictionDetector._calculate_global_semantic_coherence'})
+        trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_global_semantic_coherence'})
         coherence = detector._calculate_global_semantic_coherence(graph)
         evidence['semantic_coherence'] = coherence
         
         # Step 10: Get dependency depth
-        trace.append({'step': 10, 'method': 'PolicyContradictionDetector._get_dependency_depth'})
+        trace.append({'step': 10, 'method': 'contradiction_deteccion.PolicyContradictionDetector._get_dependency_depth'})
         depth = detector._get_dependency_depth(graph)
         evidence['dependency_depth'] = depth
         
@@ -977,12 +1145,12 @@ class ExecutionChoreographer:
         perf_analyzer = self._get_producer_instance('Analyzer_one', 'PerformanceAnalyzer')
         
         # Step 1: Extract quantitative claims
-        trace.append({'step': 1, 'method': 'PolicyContradictionDetector._extract_quantitative_claims'})
+        trace.append({'step': 1, 'method': 'contradiction_deteccion.PolicyContradictionDetector._extract_quantitative_claims'})
         claims = detector._extract_quantitative_claims(document)
         evidence['indicators'] = claims
         
         # Step 2: Match verification sources
-        trace.append({'step': 2, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 2, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         sources = processor._match_patterns_in_sentences(
             document,
             patterns=['BPIN', 'PPI', 'fuente verificación', 'verificable en']
@@ -990,7 +1158,7 @@ class ExecutionChoreographer:
         evidence['verification_sources'] = sources
         
         # Step 3: Calculate Bayesian confidence
-        trace.append({'step': 3, 'method': 'BayesianConfidenceCalculator.calculate_posterior'})
+        trace.append({'step': 3, 'method': 'contradiction_deteccion.BayesianConfidenceCalculator.calculate_posterior'})
         # Calculate evidence strength from sources found
         evidence_strength = 0.8 if sources else 0.3
         confidence = calculator.calculate_posterior(
@@ -1001,7 +1169,7 @@ class ExecutionChoreographer:
         evidence['confidence'] = confidence
         
         # Step 4: Detect numerical inconsistencies
-        trace.append({'step': 4, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
+        trace.append({'step': 4, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Extract policy statements first
         # PolicyDimension imported at top
         statements_d3 = detector._extract_policy_statements(document, PolicyDimension.PROGRAMATICO)
@@ -1009,7 +1177,7 @@ class ExecutionChoreographer:
         evidence['inconsistencies'] = inconsistencies
         
         # Step 5: Statistical significance test
-        trace.append({'step': 5, 'method': 'PolicyContradictionDetector._statistical_significance_test'})
+        trace.append({'step': 5, 'method': 'contradiction_deteccion.PolicyContradictionDetector._statistical_significance_test'})
         # Test requires two claims to compare - if we have claims, compare first two
         significance = []
         if statements_d3 and len(statements_d3) >= 2:
@@ -1022,19 +1190,19 @@ class ExecutionChoreographer:
         evidence['significance'] = significance
         
         # Step 6: Inject loss function
-        trace.append({'step': 6, 'method': 'PerformanceAnalyzer.analyze_loss_function'})
+        trace.append({'step': 6, 'method': 'Analyzer_one.PerformanceAnalyzer.analyze_loss_function'})
         loss = perf_analyzer.analyze_loss_function(claims, inconsistencies)
         evidence['loss_function'] = loss
         
         # Step 7: Detect temporal conflicts
-        trace.append({'step': 7, 'method': 'TemporalLogicVerifier._check_deadline_constraints'})
+        trace.append({'step': 7, 'method': 'contradiction_deteccion.TemporalLogicVerifier._check_deadline_constraints'})
         # Build timeline from statements
         timeline = verifier._build_timeline(statements_d3)
         temporal_conflicts = verifier._check_deadline_constraints(timeline)
         evidence['temporal_conflicts'] = temporal_conflicts
         
         # Step 8: Classify temporal type
-        trace.append({'step': 8, 'method': 'TemporalLogicVerifier._classify_temporal_type'})
+        trace.append({'step': 8, 'method': 'contradiction_deteccion.TemporalLogicVerifier._classify_temporal_type'})
         # Extract a temporal marker from document to classify
         temporal_markers = []
         for stmt in statements_d3:
@@ -1046,13 +1214,13 @@ class ExecutionChoreographer:
         evidence['temporal_type'] = temporal_type
         
         # Step 9: Detect resource conflicts
-        trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_resource_conflicts'})
+        trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_resource_conflicts'})
         # Reuse statements from earlier steps
         resource_conflicts = detector._detect_resource_conflicts(statements_d3)
         evidence['resource_conflicts'] = resource_conflicts
         
         # Step 10: Determine relation type (Producto→Resultado)
-        trace.append({'step': 10, 'method': 'PolicyContradictionDetector._determine_relation_type'})
+        trace.append({'step': 10, 'method': 'contradiction_deteccion.PolicyContradictionDetector._determine_relation_type'})
         # Determine relation type between first two statements if available
         relation_type = 'related'  # default
         if len(statements_d3) >= 2:
@@ -1084,7 +1252,7 @@ class ExecutionChoreographer:
         plan_analyzer = self._get_producer_instance('financiero_viabilidad_tablas', 'PDETMunicipalPlanAnalyzer')
         
         # Step 1: Match assumption patterns
-        trace.append({'step': 1, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 1, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         assumptions = processor._match_patterns_in_sentences(
             document,
             patterns=['supuesto', 'condición habilitante', 'si se cumple', 'si... entonces']
@@ -1092,7 +1260,7 @@ class ExecutionChoreographer:
         evidence['assumptions'] = assumptions
         
         # Step 2: Build knowledge graph
-        trace.append({'step': 2, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
+        trace.append({'step': 2, 'method': 'contradiction_deteccion.PolicyContradictionDetector._build_knowledge_graph'})
         # Need to extract policy statements first
         # PolicyDimension imported at top
         statements_d4_prelim = detector._extract_policy_statements(document[:MAX_TEXT_LENGTH_FOR_NLP], PolicyDimension.SEGUIMIENTO)
@@ -1101,7 +1269,7 @@ class ExecutionChoreographer:
         evidence['knowledge_graph'] = graph_stats
         
         # Step 3: Determine semantic role
-        trace.append({'step': 3, 'method': 'PolicyContradictionDetector._determine_semantic_role'})
+        trace.append({'step': 3, 'method': 'contradiction_deteccion.PolicyContradictionDetector._determine_semantic_role'})
         # Need to process document with spaCy to get sentences
         doc_nlp = detector.nlp(document[:MAX_TEXT_LENGTH_FOR_NLP])  # Limit text to avoid memory issues
         roles = []
@@ -1112,10 +1280,10 @@ class ExecutionChoreographer:
         evidence['semantic_roles'] = roles
         
         # Step 4: Detect numerical inconsistencies
-        trace.append({'step': 4, 'method': 'PolicyContradictionDetector._extract_quantitative_claims'})
+        trace.append({'step': 4, 'method': 'contradiction_deteccion.PolicyContradictionDetector._extract_quantitative_claims'})
         claims = detector._extract_quantitative_claims(document)
         
-        trace.append({'step': 5, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
+        trace.append({'step': 5, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Extract policy statements for D4
         # PolicyDimension imported at top
         statements_d4 = detector._extract_policy_statements(document, PolicyDimension.SEGUIMIENTO)
@@ -1123,17 +1291,17 @@ class ExecutionChoreographer:
         evidence['numerical_consistency'] = inconsistencies
         
         # Step 6: Calculate objective alignment
-        trace.append({'step': 6, 'method': 'PolicyContradictionDetector._calculate_objective_alignment'})
+        trace.append({'step': 6, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_objective_alignment'})
         alignment = detector._calculate_objective_alignment(document, benchmarks={})
         evidence['objective_alignment'] = alignment
         
         # Step 7: Generate recommendations
-        trace.append({'step': 7, 'method': 'PDETMunicipalPlanAnalyzer.generate_recommendations'})
+        trace.append({'step': 7, 'method': 'financiero_viabilidad_tablas.PDETMunicipalPlanAnalyzer.generate_recommendations'})
         recommendations = plan_analyzer.generate_recommendations(document)
         evidence['recommendations'] = recommendations
         
         # Step 8: Match external framework patterns
-        trace.append({'step': 8, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 8, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         frameworks = processor._match_patterns_in_sentences(
             document,
             patterns=['PND', 'ODS', 'Acuerdo de Paz', 'marco normativo']
@@ -1166,22 +1334,22 @@ class ExecutionChoreographer:
         verifier = self._get_producer_instance('contradiction_deteccion', 'TemporalLogicVerifier')
         
         # Step 1: Extract temporal markers
-        trace.append({'step': 1, 'method': 'PolicyContradictionDetector._extract_temporal_markers'})
+        trace.append({'step': 1, 'method': 'contradiction_deteccion.PolicyContradictionDetector._extract_temporal_markers'})
         temporal_markers = detector._extract_temporal_markers(document)
         evidence['temporal_markers'] = temporal_markers
         
         # Step 2: Extract transmission factors
-        trace.append({'step': 2, 'method': 'TemporalLogicVerifier._extract_resources'})
+        trace.append({'step': 2, 'method': 'contradiction_deteccion.TemporalLogicVerifier._extract_resources'})
         factors = verifier._extract_resources(document)
         evidence['transmission_factors'] = factors
         
         # Step 3: Calculate objective alignment
-        trace.append({'step': 3, 'method': 'PolicyContradictionDetector._calculate_objective_alignment'})
+        trace.append({'step': 3, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_objective_alignment'})
         alignment = detector._calculate_objective_alignment(document)
         evidence['impact_alignment'] = alignment
         
         # Step 4: Match intangible measurement patterns
-        trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 4, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         intangibles = processor._match_patterns_in_sentences(
             document,
             patterns=['índice de', 'proxy', 'medición indirecta', 'limitación']
@@ -1189,20 +1357,20 @@ class ExecutionChoreographer:
         evidence['intangibles'] = intangibles
         
         # Step 5: Classify contradictions
-        trace.append({'step': 5, 'method': 'PolicyContradictionDetector._classify_contradiction'})
+        trace.append({'step': 5, 'method': 'contradiction_deteccion.PolicyContradictionDetector._classify_contradiction'})
         contradictions = detector._classify_contradiction(intangibles)
         evidence['contradictions'] = contradictions
         
         # Step 6: Get graph statistics
-        trace.append({'step': 6, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
+        trace.append({'step': 6, 'method': 'contradiction_deteccion.PolicyContradictionDetector._build_knowledge_graph'})
         graph = detector._build_knowledge_graph(document)
         
-        trace.append({'step': 7, 'method': 'PolicyContradictionDetector._get_graph_statistics'})
+        trace.append({'step': 7, 'method': 'contradiction_deteccion.PolicyContradictionDetector._get_graph_statistics'})
         graph_stats = detector._get_graph_statistics(graph)
         evidence['graph_statistics'] = graph_stats
         
         # Step 8: Match systemic risk patterns
-        trace.append({'step': 8, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 8, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         risks = processor._match_patterns_in_sentences(
             document,
             patterns=['riesgo sistémico', 'ruptura mecanismo', 'vulnerabilidad']
@@ -1210,7 +1378,7 @@ class ExecutionChoreographer:
         evidence['systemic_risks'] = risks
         
         # Step 9: Detect logical incompatibilities
-        trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
+        trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D5
         # PolicyDimension imported at top
         statements_d5 = detector._extract_policy_statements(document, PolicyDimension.TERRITORIAL)
@@ -1219,12 +1387,12 @@ class ExecutionChoreographer:
         evidence['incompatibilities'] = incompatibilities
         
         # Step 10: Calculate contradiction entropy
-        trace.append({'step': 10, 'method': 'PolicyContradictionDetector._calculate_contradiction_entropy'})
+        trace.append({'step': 10, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_contradiction_entropy'})
         entropy = detector._calculate_contradiction_entropy(contradictions)
         evidence['risk_entropy'] = entropy
         
         # Step 11: Match unintended effects patterns
-        trace.append({'step': 11, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 11, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         effects = processor._match_patterns_in_sentences(
             document,
             patterns=['efecto no deseado', 'hipótesis límite', 'trade-off']
@@ -1274,22 +1442,22 @@ class ExecutionChoreographer:
         logger.info("  [D6-Q1] Validating causal structure...")
         
         # Step 1: Build knowledge graph
-        trace.append({'step': 1, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
+        trace.append({'step': 1, 'method': 'contradiction_deteccion.PolicyContradictionDetector._build_knowledge_graph'})
         graph = detector._build_knowledge_graph(document)
         evidence['knowledge_graph'] = graph
         
         # Step 2: Validate with AdvancedDAGValidator
-        trace.append({'step': 2, 'method': 'AdvancedDAGValidator.validacion_completa'})
+        trace.append({'step': 2, 'method': 'teoria_cambio.AdvancedDAGValidator.validacion_completa'})
         validation_result = validator.validacion_completa(graph)
         evidence['validation_result'] = validation_result
         
         # Step 3: Validate causal order
-        trace.append({'step': 3, 'method': 'AdvancedDAGValidator._validar_orden_causal'})
+        trace.append({'step': 3, 'method': 'teoria_cambio.AdvancedDAGValidator._validar_orden_causal'})
         order_violations = validator._validar_orden_causal(graph)
         evidence['order_violations'] = order_violations
         
         # Step 4: Find complete paths
-        trace.append({'step': 4, 'method': 'AdvancedDAGValidator._encontrar_caminos_completos'})
+        trace.append({'step': 4, 'method': 'teoria_cambio.AdvancedDAGValidator._encontrar_caminos_completos'})
         complete_paths = validator._encontrar_caminos_completos(graph)
         evidence['complete_paths'] = complete_paths
         
@@ -1299,7 +1467,7 @@ class ExecutionChoreographer:
         logger.info("  [D6-Q2] Validating Anti-Milagro (no implementation miracles)...")
         
         # Step 5: Match proportionality patterns
-        trace.append({'step': 5, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 5, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         proportionality_patterns = processor._match_patterns_in_sentences(
             document,
             patterns=[
@@ -1314,7 +1482,7 @@ class ExecutionChoreographer:
         evidence['proportionality_patterns'] = proportionality_patterns
         
         # Step 6: Calculate syntactic complexity
-        trace.append({'step': 6, 'method': 'PolicyContradictionDetector._calculate_syntactic_complexity'})
+        trace.append({'step': 6, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_syntactic_complexity'})
         complexity = detector._calculate_syntactic_complexity(document)
         evidence['syntactic_complexity'] = complexity
         
@@ -1332,7 +1500,7 @@ class ExecutionChoreographer:
         logger.info("    Ruta 1: Specific contradiction-type resolution...")
         
         # Step 8: Detect logical incompatibilities
-        trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
+        trace.append({'step': 8, 'method': 'contradiction_deteccion.PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D6
         # PolicyDimension imported at top
         statements_d6 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
@@ -1341,7 +1509,7 @@ class ExecutionChoreographer:
         evidence['incompatibilities'] = incompatibilities
         
         # Step 9: Generate resolution recommendations (type-specific)
-        trace.append({'step': 9, 'method': 'PolicyContradictionDetector._generate_resolution_recommendations'})
+        trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._generate_resolution_recommendations'})
         recommendations_route1 = detector._generate_resolution_recommendations(incompatibilities)
         evidence['recommendations_specific'] = recommendations_route1
         logger.info(f"    Ruta 1 complete: {len(recommendations_route1)} specific recommendations")
@@ -1350,13 +1518,13 @@ class ExecutionChoreographer:
         logger.info("    Ruta 2: Structural axiom-based inference...")
         
         # Step 10: Execute TeoriaCambio structural suggestions
-        trace.append({'step': 10, 'method': 'TeoriaCambio._execute_generar_sugerencias_internas'})
+        trace.append({'step': 10, 'method': 'teoria_cambio.TeoriaCambio._execute_generar_sugerencias_internas'})
         recommendations_route2 = teoria._execute_generar_sugerencias_internas(validation_result)
         evidence['recommendations_structural'] = recommendations_route2
         logger.info(f"    Ruta 2 complete: {len(recommendations_route2)} structural recommendations")
         
         # Step 11: Match adaptation patterns
-        trace.append({'step': 11, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
+        trace.append({'step': 11, 'method': 'policy_processor.IndustrialPolicyProcessor._match_patterns_in_sentences'})
         adaptation_patterns = processor._match_patterns_in_sentences(
             document,
             patterns=['piloto', 'prueba', 'validación', 'aprendizaje', 'mecanismos de corrección']
@@ -1369,22 +1537,22 @@ class ExecutionChoreographer:
         logger.info("  [D6-Q5] Analyzing differential approach...")
         
         # Step 12: Generate embeddings
-        trace.append({'step': 12, 'method': 'PolicyContradictionDetector._generate_embeddings'})
+        trace.append({'step': 12, 'method': 'contradiction_deteccion.PolicyContradictionDetector._generate_embeddings'})
         embeddings = detector._generate_embeddings(document)
         evidence['embeddings'] = embeddings
         
         # Step 13: Classify cross-cutting themes
-        trace.append({'step': 13, 'method': 'SemanticAnalyzer._classify_cross_cutting_themes'})
+        trace.append({'step': 13, 'method': 'Analyzer_one.SemanticAnalyzer._classify_cross_cutting_themes'})
         themes = analyzer._classify_cross_cutting_themes(document)
         evidence['cross_cutting_themes'] = themes
         
         # Step 14: Identify dependencies
-        trace.append({'step': 14, 'method': 'PolicyContradictionDetector._identify_dependencies'})
+        trace.append({'step': 14, 'method': 'contradiction_deteccion.PolicyContradictionDetector._identify_dependencies'})
         dependencies = detector._identify_dependencies(document)
         evidence['dependencies'] = dependencies
         
         # Step 15: Calculate final coherence score
-        trace.append({'step': 15, 'method': 'PolicyContradictionDetector._calculate_global_semantic_coherence'})
+        trace.append({'step': 15, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_global_semantic_coherence'})
         coherence = detector._calculate_global_semantic_coherence(graph)
         evidence['causal_coherence'] = coherence
         
@@ -1429,20 +1597,20 @@ class ExecutionChoreographer:
     ) -> MicroLevelAnswer:
         """
         Build MicroLevelAnswer from dimensional evidence
-        
+
         SCORING LOGIC:
         - D1-D5: Evidence-weighted scoring
         - D6: Causal coherence with Anti-Milagro penalty
-        
+
         RETURNS:
         - MicroLevelAnswer compatible with report_assembly.py
         """
         # Calculate dimension-specific score (0.0-1.0)
         score_normalized = self._calculate_dimensional_score(context.dimension, evidence)
-        
+
         # Convert to quantitative_score (0.0-3.0 scale)
         quantitative_score = score_normalized * 3.0
-        
+
         # Determine qualitative_note based on score
         # Using standardized thresholds: 85% (2.55), 70% (2.10), 55% (1.65) of 3.0
         if quantitative_score >= 2.55:  # 85% of 3.0
@@ -1453,9 +1621,361 @@ class ExecutionChoreographer:
             qualitative_note = "ACEPTABLE"
         else:  # Below 55%
             qualitative_note = "INSUFICIENTE"
-        
+
         # Extract key findings
         findings = self._extract_findings(evidence, context.dimension)
+
+        base_confidence = self._infer_confidence(evidence)
+        numeric_reconciled = self._is_numeric_reconciled(evidence)
+        causal_path_status = self._detect_contradictions(evidence)
+        probative_test = self._classify_probative_test(
+            context.dimension,
+            base_confidence,
+            numeric_reconciled,
+            causal_path_status,
+        )
+        confidence = self._apply_reconciliation_constraints(
+            base_confidence, numeric_reconciled, probative_test
+        )
+
+        evidence_texts = self._extract_evidence_texts(evidence)
+        explanation = self._generate_explanation(
+            context,
+            findings,
+            probative_test,
+            confidence,
+            causal_path_status,
+            numeric_reconciled,
+        )
+
+        execution_trace = metadata.get("execution_trace", [])
+        modules_executed = self._derive_modules_executed(execution_trace)
+        module_results = self._derive_module_results(evidence)
+        execution_time = metadata.get("execution_time_ms")
+        if execution_time is None:
+            execution_time = metadata.get("performance_metrics", {}).get(
+                "execution_time_ms", 0.0
+            )
+        execution_time_seconds = float(execution_time) / 1000.0 if execution_time else 0.0
+
+        elements_found = self._derive_elements_found(context.metadata, evidence)
+        search_pattern_matches = self._derive_search_pattern_matches(evidence)
+
+        enriched_metadata = {
+            **metadata,
+            "dimension": context.dimension,
+            "policy_area": context.policy_area,
+            "probative_test": probative_test,
+            "numeric_reconciliation": "reconciled"
+            if numeric_reconciled
+            else "unreconciled",
+            "causal_path_status": causal_path_status,
+            "findings": findings,
+        }
+
+        return MicroLevelAnswer(
+            question_id=context.question_id,
+            qualitative_note=qualitative_note,
+            quantitative_score=quantitative_score,
+            evidence=evidence_texts,
+            explanation=explanation,
+            confidence=confidence,
+            scoring_modality=context.metadata.get("scoring_modality", "TYPE_F"),
+            elements_found=elements_found,
+            search_pattern_matches=search_pattern_matches,
+            modules_executed=modules_executed,
+            module_results=module_results,
+            execution_time=execution_time_seconds,
+            execution_chain=execution_trace,
+            metadata=enriched_metadata,
+        )
+
+    def _infer_confidence(self, evidence: Dict[str, Any]) -> float:
+        """Infer base confidence from evidence bundle."""
+
+        candidates: List[float] = []
+        for key in (
+            "confidence",
+            "bayesian_confidence",
+            "confidence_score",
+            "causal_coherence",
+            "anti_miracle_score",
+        ):
+            value = evidence.get(key)
+            if isinstance(value, (int, float)):
+                candidates.append(float(value))
+
+        interval = evidence.get("confidence_interval")
+        if (
+            isinstance(interval, (list, tuple))
+            and len(interval) == 2
+            and all(isinstance(v, (int, float)) for v in interval)
+        ):
+            candidates.append(statistics.mean(interval))
+
+        if not candidates:
+            return 0.5
+
+        return max(0.0, min(1.0, statistics.mean(candidates)))
+
+    def _is_numeric_reconciled(self, evidence: Dict[str, Any]) -> bool:
+        """Detect whether numeric outputs have been reconciled."""
+
+        reconciliation_keys = (
+            "inconsistencies",
+            "resource_conflicts",
+            "temporal_conflicts",
+            "unintended_effects",
+            "risk_entropy",
+        )
+
+        for key in reconciliation_keys:
+            value = evidence.get(key)
+            if value:
+                if isinstance(value, (list, tuple, set)):
+                    if len(value) > 0:
+                        return False
+                elif isinstance(value, dict):
+                    if any(value.values()):
+                        return False
+                else:
+                    return False
+
+        return True
+
+    def _detect_contradictions(self, evidence: Dict[str, Any]) -> str:
+        """Assess causal path integrity across evidence."""
+
+        contradiction_keys = (
+            "incompatibilities",
+            "contradictions",
+            "causal_conflicts",
+            "order_violations",
+        )
+
+        for key in contradiction_keys:
+            value = evidence.get(key)
+            if value:
+                if isinstance(value, (list, tuple)) and len(value) == 0:
+                    continue
+                return "contradiction"
+
+        return "verified"
+
+    def _classify_probative_test(
+        self,
+        dimension: str,
+        confidence: float,
+        numeric_reconciled: bool,
+        causal_path_status: str,
+    ) -> str:
+        """Classify evidence strength using probative test taxonomy."""
+
+        if not numeric_reconciled or causal_path_status != "verified":
+            return "Straw-in-Wind"
+
+        if confidence >= 0.85:
+            return "Doubly-Decisive"
+        if confidence >= 0.7:
+            return "Smoking-Gun"
+        if confidence >= 0.55:
+            return "Hoop"
+        return "Straw-in-Wind"
+
+    def _apply_reconciliation_constraints(
+        self, confidence: float, numeric_reconciled: bool, classification: str
+    ) -> float:
+        """Apply reconciliation governance rules to posterior confidence."""
+
+        if not numeric_reconciled or classification == "Straw-in-Wind":
+            return min(confidence, 0.4)
+        return max(0.0, min(1.0, confidence))
+
+    def _extract_evidence_texts(self, evidence: Dict[str, Any]) -> List[str]:
+        """Extract textual evidence snippets from evidence payload."""
+
+        snippets: List[str] = []
+        for value in evidence.values():
+            if isinstance(value, str):
+                snippets.append(value)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    if isinstance(item, str):
+                        snippets.append(item)
+            if len(snippets) >= 10:
+                break
+        return snippets
+
+    def _generate_explanation(
+        self,
+        context: ExecutionContext,
+        findings: List[str],
+        probative_test: str,
+        confidence: float,
+        causal_path_status: str,
+        numeric_reconciled: bool,
+    ) -> str:
+        """Generate standardized explanation string for micro answer."""
+
+        reconciliation_note = (
+            "reconciled series"
+            if numeric_reconciled
+            else "unreconciled numeric discrepancies"
+        )
+        causal_note = (
+            "causal path validated" if causal_path_status == "verified" else "causal conflicts detected"
+        )
+        findings_excerpt = "; ".join(findings[:3]) if findings else "sin hallazgos destacados"
+
+        return (
+            f"La pregunta {context.question_id} en la dimensión {context.dimension} "
+            f"se apoya en {findings_excerpt}. La evidencia se clasifica como "
+            f"{probative_test} con una confianza ajustada de {confidence:.2f}, "
+            f"{causal_note} y {reconciliation_note}."
+        )
+
+    def _derive_modules_executed(
+        self, execution_trace: List[Dict[str, Any]]
+    ) -> List[str]:
+        """Derive executed modules from execution trace."""
+
+        modules: List[str] = []
+        for entry in execution_trace:
+            method = entry.get("method")
+            if not method:
+                continue
+            parts = method.split(".")
+            if len(parts) >= 2:
+                module_name = ".".join(parts[:2])
+                if module_name not in modules:
+                    modules.append(module_name)
+        return modules
+
+    def _derive_module_results(self, evidence: Dict[str, Any]) -> Dict[str, Any]:
+        """Summarize evidence for module result payload."""
+
+        summarized: Dict[str, Any] = {}
+        for key, value in evidence.items():
+            if isinstance(value, (str, int, float, bool)):
+                summarized[key] = value
+            elif isinstance(value, (list, tuple, set)):
+                summarized[key] = {
+                    "count": len(value),
+                    "preview": list(value)[:3],
+                }
+            elif isinstance(value, dict):
+                summarized[key] = {
+                    "keys": list(value.keys()),
+                    "size": len(value),
+                }
+            else:
+                summarized[key] = type(value).__name__
+        return {"dimensional_evidence": summarized}
+
+    def _derive_elements_found(
+        self, context_metadata: Dict[str, Any], evidence: Dict[str, Any]
+    ) -> Dict[str, bool]:
+        """Mark expected elements detected in evidence."""
+
+        expected = context_metadata.get("expected_elements", [])
+        if not expected:
+            return {}
+
+        evidence_text = json.dumps(evidence, default=str).lower()
+        results: Dict[str, bool] = {}
+        for element in expected:
+            if isinstance(element, str):
+                results[element] = element.lower() in evidence_text
+        return results
+
+    def _derive_search_pattern_matches(
+        self, evidence: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Extract pattern match metadata from evidence payload."""
+
+        matches: Dict[str, Any] = {}
+        for key, value in evidence.items():
+            if "pattern" in key or "match" in key:
+                matches[key] = value
+        return matches
+
+    def _calculate_dimensional_score(
+        self, dimension: str, evidence: Dict[str, Any]
+    ) -> float:
+        """Calculate normalized score using evidence indicators."""
+
+        score_components: List[float] = []
+        scalar_keys = [
+            "causal_coherence",
+            "confidence",
+            "bayesian_confidence",
+            "anti_miracle_score",
+        ]
+        for key in scalar_keys:
+            value = evidence.get(key)
+            if isinstance(value, (int, float)):
+                score_components.append(float(value))
+
+        if not score_components:
+            list_indicators = [
+                "recommendations_specific",
+                "recommendations_structural",
+                "official_sources",
+                "verification_sources",
+            ]
+            for key in list_indicators:
+                value = evidence.get(key)
+                if isinstance(value, (list, tuple, set)) and value:
+                    score_components.append(0.65)
+
+        if not score_components:
+            return 0.45
+
+        score = statistics.mean(score_components)
+        if dimension == DimensionCode.D6_CAUSALIDAD.value:
+            anti_miracle = evidence.get("anti_miracle_score", 0.0)
+            score = (score + anti_miracle) / 2 if anti_miracle else score
+
+        return max(0.0, min(1.0, score))
+
+    def _extract_findings(
+        self, evidence: Dict[str, Any], dimension: str
+    ) -> List[str]:
+        """Extract concise findings from evidence bundle."""
+
+        findings: List[str] = []
+        key_metrics = (
+            "causal_coherence",
+            "anti_miracle_score",
+            "confidence",
+            "bayesian_confidence",
+        )
+        for metric in key_metrics:
+            value = evidence.get(metric)
+            if isinstance(value, (int, float)):
+                findings.append(f"{metric}: {value:.2f}")
+
+        if dimension == DimensionCode.D6_CAUSALIDAD.value and evidence.get(
+            "recommendations_structural"
+        ):
+            findings.append(
+                f"{len(evidence['recommendations_structural'])} recomendaciones estructurales"
+            )
+
+        if not findings:
+            highlighted_keys = [
+                key
+                for key in (
+                    "official_sources",
+                    "cross_cutting_themes",
+                    "knowledge_graph",
+                    "adaptation_patterns",
+                )
+                if evidence.get(key)
+            ]
+            findings = [f"Evidencia en {key}" for key in highlighted_keys[:3]]
+
+        return findings
 
 # Backward compatibility alias (deprecated)
 Choreographer = ExecutionChoreographer
