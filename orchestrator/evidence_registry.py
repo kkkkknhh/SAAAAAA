@@ -37,7 +37,7 @@ import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -688,8 +688,16 @@ class EvidenceRegistry:
         # Determine previous_hash from last entry in the chain
         previous_hash = self.last_entry.entry_hash if self.last_entry else None
         
-        # Create evidence record using factory method for proper validation
-        evidence = EvidenceRecord.create(
+        # Normalize metadata and ensure recorded_at timestamp
+        metadata_dict: Dict[str, Any] = dict(metadata) if metadata else {}
+        metadata_dict.setdefault(
+            "recorded_at",
+            datetime.now(timezone.utc).isoformat(),
+        )
+
+        # Create evidence record
+        evidence = EvidenceRecord(
+            evidence_id="",  # Will be set by hash
             evidence_type=evidence_type,
             payload=payload,
             source_method=source_method,
@@ -697,7 +705,7 @@ class EvidenceRegistry:
             question_id=question_id,
             document_id=document_id,
             execution_time_ms=execution_time_ms,
-            metadata=metadata,
+            metadata=metadata_dict,
             previous_hash=previous_hash,
         )
         
