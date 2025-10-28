@@ -261,7 +261,7 @@ print(f"Score: {score} ({producer.classify_score(score)})")
 
 ---
 
-### Schema Validation Methods (4 methods)
+### Schema Validation Methods (3 methods)
 
 - `validate_micro_answer(answer_data: Dict)` → `bool`
   - Validate MICRO answer against JSON schema
