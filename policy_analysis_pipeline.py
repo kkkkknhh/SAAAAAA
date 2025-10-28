@@ -895,9 +895,13 @@ class ExecutionChoreographer:
         
         # Step 2: Match formalization patterns
         trace.append({'step': 2, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        formalization_patterns = processor._match_patterns_in_sentences(
-            document,
-            patterns=['tabla', 'columna costo', 'BPIN', 'PPI']
+        import re
+        pattern_strings = ['tabla', 'columna costo', 'BPIN', 'PPI']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        formalization_patterns, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['formalization'] = formalization_patterns
         
@@ -908,9 +912,13 @@ class ExecutionChoreographer:
         
         # Step 4: Match causal mechanism patterns
         trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        causal_patterns = processor._match_patterns_in_sentences(
-            document,
-            patterns=['porque', 'genera', 'población objetivo', 'lo cual contribuye a']
+        import re
+        pattern_strings = ['porque', 'genera', 'población objetivo', 'lo cual contribuye a']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        causal_patterns, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['causal_mechanisms'] = causal_patterns
         
@@ -983,9 +991,13 @@ class ExecutionChoreographer:
         
         # Step 2: Match verification sources
         trace.append({'step': 2, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        sources = processor._match_patterns_in_sentences(
-            document,
-            patterns=['BPIN', 'PPI', 'fuente verificación', 'verificable en']
+        import re
+        pattern_strings = ['BPIN', 'PPI', 'fuente verificación', 'verificable en']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        sources, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['verification_sources'] = sources
         
@@ -1085,9 +1097,13 @@ class ExecutionChoreographer:
         
         # Step 1: Match assumption patterns
         trace.append({'step': 1, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        assumptions = processor._match_patterns_in_sentences(
-            document,
-            patterns=['supuesto', 'condición habilitante', 'si se cumple', 'si... entonces']
+        import re
+        pattern_strings = ['supuesto', 'condición habilitante', 'si se cumple', 'si... entonces']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        assumptions, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['assumptions'] = assumptions
         
@@ -1134,9 +1150,13 @@ class ExecutionChoreographer:
         
         # Step 8: Match external framework patterns
         trace.append({'step': 8, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        frameworks = processor._match_patterns_in_sentences(
-            document,
-            patterns=['PND', 'ODS', 'Acuerdo de Paz', 'marco normativo']
+        import re
+        pattern_strings = ['PND', 'ODS', 'Acuerdo de Paz', 'marco normativo']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        frameworks, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['external_frameworks'] = frameworks
         
@@ -1182,9 +1202,13 @@ class ExecutionChoreographer:
         
         # Step 4: Match intangible measurement patterns
         trace.append({'step': 4, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        intangibles = processor._match_patterns_in_sentences(
-            document,
-            patterns=['índice de', 'proxy', 'medición indirecta', 'limitación']
+        import re
+        pattern_strings = ['índice de', 'proxy', 'medición indirecta', 'limitación']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        intangibles, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['intangibles'] = intangibles
         
@@ -1203,9 +1227,13 @@ class ExecutionChoreographer:
         
         # Step 8: Match systemic risk patterns
         trace.append({'step': 8, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        risks = processor._match_patterns_in_sentences(
-            document,
-            patterns=['riesgo sistémico', 'ruptura mecanismo', 'vulnerabilidad']
+        import re
+        pattern_strings = ['riesgo sistémico', 'ruptura mecanismo', 'vulnerabilidad']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        risks, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['systemic_risks'] = risks
         
@@ -1225,9 +1253,13 @@ class ExecutionChoreographer:
         
         # Step 11: Match unintended effects patterns
         trace.append({'step': 11, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        effects = processor._match_patterns_in_sentences(
-            document,
-            patterns=['efecto no deseado', 'hipótesis límite', 'trade-off']
+        import re
+        pattern_strings = ['efecto no deseado', 'hipótesis límite', 'trade-off']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        effects, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['unintended_effects'] = effects
         
@@ -1300,16 +1332,20 @@ class ExecutionChoreographer:
         
         # Step 5: Match proportionality patterns
         trace.append({'step': 5, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        proportionality_patterns = processor._match_patterns_in_sentences(
-            document,
-            patterns=[
-                # enlaces_proporcionales
-                'proporcional a', 'acorde con', 'razonable', 'realista',
-                # sin_saltos
-                'sin saltos', 'gradual', 'incremental', 'paso a paso',
-                # no_milagros
-                'factible', 'posible', 'alcanzable', 'sin suponer'
-            ]
+        import re
+        pattern_strings = [
+            # enlaces_proporcionales
+            'proporcional a', 'acorde con', 'razonable', 'realista',
+            # sin_saltos
+            'sin saltos', 'gradual', 'incremental', 'paso a paso',
+            # no_milagros
+            'factible', 'posible', 'alcanzable', 'sin suponer'
+        ]
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        proportionality_patterns, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['proportionality_patterns'] = proportionality_patterns
         
@@ -1357,9 +1393,13 @@ class ExecutionChoreographer:
         
         # Step 11: Match adaptation patterns
         trace.append({'step': 11, 'method': 'IndustrialPolicyProcessor._match_patterns_in_sentences'})
-        adaptation_patterns = processor._match_patterns_in_sentences(
-            document,
-            patterns=['piloto', 'prueba', 'validación', 'aprendizaje', 'mecanismos de corrección']
+        import re
+        pattern_strings = ['piloto', 'prueba', 'validación', 'aprendizaje', 'mecanismos de corrección']
+        compiled_patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+        sentences = processor.text_processor.segment_into_sentences(document)
+        adaptation_patterns, positions = processor._match_patterns_in_sentences(
+            compiled_patterns,
+            sentences
         )
         evidence['adaptation_patterns'] = adaptation_patterns
         
