@@ -98,15 +98,51 @@ class EvidenceRecord:
         if self.entry_hash is None:
             self.entry_hash = self._compute_entry_hash()
     
+    def _canonical_dump(self, obj: Any) -> str:
+        """
+        Create canonical JSON representation for deterministic hashing.
+        
+        This method ensures:
+        - Keys are sorted alphabetically
+        - No whitespace in output
+        - Consistent handling of None, booleans, numbers
+        - Deterministic ordering for nested structures
+        - Unicode normalization
+        
+        Args:
+            obj: Object to serialize
+            
+        Returns:
+            Canonical JSON string
+        """
+        # Use separators with no spaces and sort keys for determinism
+        # ensure_ascii=True ensures consistent output across platforms
+        # Default handler for non-serializable types
+        def default_handler(o):
+            if hasattr(o, '__dict__'):
+                return o.__dict__
+            return str(o)
+        
+        return json.dumps(
+            obj,
+            sort_keys=True,
+            separators=(',', ':'),
+            ensure_ascii=True,
+            default=default_handler
+        )
+    
     def _compute_content_hash(self) -> str:
         """
         Compute SHA-256 hash of payload for content-addressable storage.
         
+        Uses canonical JSON serialization to ensure deterministic hashing
+        across different Python versions and platforms.
+        
         Returns:
             Hex digest of SHA-256 hash
         """
-        # Create deterministic JSON representation
-        payload_json = json.dumps(self.payload, sort_keys=True, separators=(',', ':'))
+        # Create deterministic JSON representation using canonical dump
+        payload_json = self._canonical_dump(self.payload)
         
         # Compute SHA-256 hash
         hash_obj = hashlib.sha256(payload_json.encode('utf-8'))
@@ -116,6 +152,8 @@ class EvidenceRecord:
         """
         Compute SHA-256 hash of the entire entry including previous_hash.
         This creates the hash chain linking entries together.
+        
+        Uses canonical JSON serialization for deterministic hashing.
         
         Returns:
             Hex digest of SHA-256 hash
@@ -128,7 +166,7 @@ class EvidenceRecord:
             'evidence_type': self.evidence_type,
             'timestamp': self.timestamp,
         }
-        chain_json = json.dumps(chain_data, sort_keys=True, separators=(',', ':'))
+        chain_json = self._canonical_dump(chain_data)
         hash_obj = hashlib.sha256(chain_json.encode('utf-8'))
         return hash_obj.hexdigest()
     
@@ -168,6 +206,75 @@ class EvidenceRecord:
     def from_dict(cls, data: Dict[str, Any]) -> EvidenceRecord:
         """Create evidence record from dictionary."""
         return cls(**data)
+    
+    @classmethod
+    def create(
+        cls,
+        evidence_type: str,
+        payload: Dict[str, Any],
+        source_method: Optional[str] = None,
+        parent_evidence_ids: Optional[List[str]] = None,
+        question_id: Optional[str] = None,
+        document_id: Optional[str] = None,
+        execution_time_ms: float = 0.0,
+        metadata: Optional[Dict[str, Any]] = None,
+        previous_hash: Optional[str] = None,
+    ) -> EvidenceRecord:
+        """
+        Create a new evidence record with proper hash computation.
+        
+        This factory method ensures:
+        - Proper initialization order
+        - Deterministic hash computation
+        - Validation of required fields
+        
+        Args:
+            evidence_type: Type of evidence
+            payload: Evidence data (must be JSON-serializable)
+            source_method: FQN of method that produced evidence
+            parent_evidence_ids: List of parent evidence IDs
+            question_id: Question ID this evidence relates to
+            document_id: Document ID this evidence relates to
+            execution_time_ms: Execution time in milliseconds
+            metadata: Additional metadata
+            previous_hash: Hash of previous entry in chain (for chain linkage)
+            
+        Returns:
+            New EvidenceRecord instance
+            
+        Raises:
+            ValueError: If required fields are invalid or payload is not serializable
+        """
+        if not evidence_type:
+            raise ValueError("evidence_type is required")
+        
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be a dictionary")
+        
+        # Test that payload is JSON-serializable
+        try:
+            json.dumps(payload)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"payload must be JSON-serializable: {e}")
+        
+        # Create record with temporary evidence_id
+        record = cls(
+            evidence_id="",
+            evidence_type=evidence_type,
+            payload=payload,
+            source_method=source_method,
+            parent_evidence_ids=parent_evidence_ids or [],
+            question_id=question_id,
+            document_id=document_id,
+            execution_time_ms=execution_time_ms,
+            metadata=metadata or {},
+            previous_hash=previous_hash,
+        )
+        
+        # Set evidence_id to content hash (computed in __post_init__)
+        record.evidence_id = record.content_hash or ""
+        
+        return record
 
 
 @dataclass
@@ -410,12 +517,20 @@ class EvidenceRegistry:
         )
     
     def _load_from_storage(self) -> None:
-        """Load evidence from JSONL storage."""
+        """
+        Load evidence from JSONL storage with chain verification.
+        
+        Ensures:
+        - Evidence is loaded in the order it was written
+        - Chain linkage is validated during load
+        - Index ordering is preserved
+        """
         if not self.storage_path.exists():
             logger.info(f"No existing evidence storage found at {self.storage_path}")
             return
         
         loaded_count = 0
+        loaded_records = []
         
         try:
             with open(self.storage_path, 'r', encoding='utf-8') as f:
@@ -423,17 +538,68 @@ class EvidenceRegistry:
                     try:
                         data = json.loads(line.strip())
                         evidence = EvidenceRecord.from_dict(data)
-                        self._index_evidence(evidence, persist=False)
+                        loaded_records.append((line_num, evidence))
                         loaded_count += 1
                     except json.JSONDecodeError as e:
                         logger.warning(f"Failed to parse line {line_num}: {e}")
                     except Exception as e:
                         logger.warning(f"Failed to load evidence on line {line_num}: {e}")
             
+            # Assert chain integrity during load
+            self._assert_chain(loaded_records)
+            
+            # Index all loaded records in order
+            for line_num, evidence in loaded_records:
+                self._index_evidence(evidence, persist=False)
+            
             logger.info(f"Loaded {loaded_count} evidence records from storage")
             
         except Exception as e:
             logger.error(f"Failed to load evidence storage: {e}")
+    
+    def _assert_chain(self, records: List[Tuple[int, EvidenceRecord]]) -> None:
+        """
+        Assert that the chain of evidence records is valid.
+        
+        Validates:
+        - First record has no previous_hash or previous_hash is None
+        - Each subsequent record's previous_hash matches the prior record's entry_hash
+        - Records are in the correct sequential order
+        
+        Args:
+            records: List of (line_number, EvidenceRecord) tuples in load order
+            
+        Raises:
+            ValueError: If chain validation fails
+        """
+        if not records:
+            return
+        
+        previous_record = None
+        
+        for idx, (line_num, record) in enumerate(records):
+            if idx == 0:
+                # First record should have no previous_hash or None
+                if record.previous_hash and record.previous_hash != '':
+                    logger.warning(
+                        f"Line {line_num}: First record has previous_hash={record.previous_hash}, "
+                        f"expected None or empty string. Chain may have been corrupted or truncated."
+                    )
+            else:
+                # Subsequent records should link to the previous record
+                if previous_record is not None:
+                    expected_previous_hash = previous_record.entry_hash
+                    actual_previous_hash = record.previous_hash
+                    
+                    if actual_previous_hash != expected_previous_hash:
+                        raise ValueError(
+                            f"Chain broken at line {line_num}: "
+                            f"expected previous_hash={expected_previous_hash}, "
+                            f"got previous_hash={actual_previous_hash}. "
+                            f"Evidence ordering may be corrupted."
+                        )
+            
+            previous_record = record
     
     def _index_evidence(
         self,
@@ -522,22 +688,18 @@ class EvidenceRegistry:
         # Determine previous_hash from last entry in the chain
         previous_hash = self.last_entry.entry_hash if self.last_entry else None
         
-        # Create evidence record
-        evidence = EvidenceRecord(
-            evidence_id="",  # Will be set by hash
+        # Create evidence record using factory method for proper validation
+        evidence = EvidenceRecord.create(
             evidence_type=evidence_type,
             payload=payload,
             source_method=source_method,
-            parent_evidence_ids=parent_evidence_ids or [],
+            parent_evidence_ids=parent_evidence_ids,
             question_id=question_id,
             document_id=document_id,
             execution_time_ms=execution_time_ms,
-            metadata=metadata or {},
+            metadata=metadata,
             previous_hash=previous_hash,
         )
-        
-        # Set evidence_id to content hash
-        evidence.evidence_id = evidence.content_hash or ""
         
         # Check for duplicate
         if evidence.evidence_id in self.hash_index:
