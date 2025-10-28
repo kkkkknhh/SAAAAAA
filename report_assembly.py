@@ -921,12 +921,20 @@ class ReportAssembler:
         """
         Map quantitative score (0-3) to qualitative level
         
-        Uses question_rubric thresholds
+        Uses question_rubric thresholds with >= comparisons from high to low.
+        This ensures highest scores are matched first, preventing incorrect
+        assignment to lower rubrics.
         """
-        for level, (min_score, max_score) in self.question_rubric.items():
-            if min_score <= score <= max_score:
-                return level
-        return "INSUFICIENTE"
+        # Check from highest to lowest to ensure correct assignment
+        # Score thresholds: 85% (2.55), 70% (2.10), 55% (1.65) of 3.0
+        if score >= 2.55:  # 85% of 3.0
+            return "EXCELENTE"
+        elif score >= 2.10:  # 70% of 3.0
+            return "BUENO"
+        elif score >= 1.65:  # 55% of 3.0
+            return "ACEPTABLE"
+        else:  # Below 55%
+            return "INSUFICIENTE"
 
     def _extract_evidence_excerpts(
             self,
@@ -1847,11 +1855,22 @@ class ReportAssembler:
         return recommendations[:10]  # Top 10 recommendations
 
     def _classify_plan(self, overall_score: float) -> str:
-        """Classify plan using rubric levels"""
-        for level, (min_score, max_score) in self.rubric_levels.items():
-            if min_score <= overall_score <= max_score:
-                return level
-        return "DEFICIENTE"
+        """
+        Classify plan using rubric levels (percentage scale 0-100)
+        
+        Uses >= comparisons from high to low to ensure correct assignment.
+        """
+        # Check from highest to lowest percentage
+        if overall_score >= 85:
+            return "EXCELENTE"
+        elif overall_score >= 70:
+            return "BUENO"
+        elif overall_score >= 55:
+            return "SATISFACTORIO"
+        elif overall_score >= 40:
+            return "INSUFICIENTE"
+        else:
+            return "DEFICIENTE"
 
     def _synthesize_evidence(
             self,
