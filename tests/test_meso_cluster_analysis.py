@@ -98,3 +98,70 @@ def test_calibrate_against_peers_detects_outliers_and_positions():
     assert len(payload["outliers"]) == len(scores)
     assert len(narrative.splitlines()) >= 6
 
+
+def test_compose_cluster_posterior_handles_negative_weights():
+    """Test that negative weights are clamped to zero and uniform fallback is applied."""
+    micro_posteriors = [0.6, 0.8, 0.7]
+    weights = [-0.2, 0.5, -0.3]  # negative weights that should be clamped
+    
+    payload, explanation = compose_cluster_posterior(
+        micro_posteriors, weighting_trace=weights
+    )
+    
+    # Should not raise ZeroDivisionError
+    assert payload["prior_meso"] > 0
+    assert payload["posterior_meso"] > 0
+    assert payload["uncertainty_index"] >= 0
+    assert "posterior" in explanation
+
+
+def test_compose_cluster_posterior_handles_zero_total_weight():
+    """Test that zero total weight (e.g., negatives canceling positives) falls back to uniform."""
+    micro_posteriors = [0.6, 0.8, 0.7]
+    weights = [0.5, -0.5, 0.0]  # sum to zero before clamping
+    
+    payload, explanation = compose_cluster_posterior(
+        micro_posteriors, weighting_trace=weights
+    )
+    
+    # After clamping to non-negative, weights become [0.5, 0.0, 0.0]
+    # which sums to 0.5 (not zero), so normalized to [1.0, 0.0, 0.0]
+    # This prevents the negative from canceling the positive
+    assert payload["prior_meso"] > 0
+    # With normalized weights [1.0, 0.0, 0.0], prior_meso should be 0.6
+    assert math.isclose(payload["prior_meso"], 0.6, rel_tol=1e-5)
+    assert payload["posterior_meso"] > 0
+    assert payload["uncertainty_index"] >= 0
+
+
+def test_compose_cluster_posterior_handles_all_negative_weights():
+    """Test that all-negative weights fall back to uniform."""
+    micro_posteriors = [0.6, 0.8, 0.7]
+    weights = [-1.0, -2.0, -0.5]  # all negative
+    
+    payload, explanation = compose_cluster_posterior(
+        micro_posteriors, weighting_trace=weights
+    )
+    
+    # After clamping to zero, total is 0, should fall back to uniform
+    assert payload["prior_meso"] > 0
+    assert math.isclose(payload["prior_meso"], 0.7, rel_tol=1e-5)
+    assert payload["posterior_meso"] > 0
+
+
+def test_compose_cluster_posterior_handles_all_zero_weights_after_clamping():
+    """Test that weights that become all zero after clamping fall back to uniform."""
+    micro_posteriors = [0.6, 0.8, 0.7]
+    weights = [-1.0, 0.0, -0.5]  # all non-positive, become [0.0, 0.0, 0.0]
+    
+    payload, explanation = compose_cluster_posterior(
+        micro_posteriors, weighting_trace=weights
+    )
+    
+    # After clamping to [0.0, 0.0, 0.0], total is 0, should fall back to uniform
+    assert payload["prior_meso"] > 0
+    # With uniform weights, prior_meso should be (0.6 + 0.8 + 0.7) / 3 = 0.7
+    assert math.isclose(payload["prior_meso"], 0.7, rel_tol=1e-5)
+    assert payload["posterior_meso"] > 0
+
+
