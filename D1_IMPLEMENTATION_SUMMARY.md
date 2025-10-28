@@ -79,11 +79,11 @@ Successfully implemented strict method concurrence enforcement for D1 (Diagnóst
 
 | Question | Methods | Files Involved |
 |----------|---------|----------------|
-| D1-Q1: Líneas Base y Brechas | 18 | policy_processor (6), contradiction_deteccion (8), Analyzer_one (2), embedding_policy (2) |
-| D1-Q2: Normalización y Fuentes | 12 | policy_processor (4), contradiction_deteccion (6), embedding_policy (2) |
-| D1-Q3: Asignación de Recursos | 22 | policy_processor (5), contradiction_deteccion (10), financiero_viabilidad_tablas (5), embedding_policy (2) |
-| D1-Q4: Capacidad Institucional | 16 | policy_processor (4), contradiction_deteccion (7), Analyzer_one (3), financiero_viabilidad_tablas (2) |
-| D1-Q5: Restricciones Temporales | 14 | policy_processor (3), contradiction_deteccion (9), Analyzer_one (2) |
+| D1-Q1: Líneas Base y Brechas | 18 | policy_processor (6), contradiction_detección (8), Analyzer_one (2), embedding_policy (2) |
+| D1-Q2: Normalización y Fuentes | 12 | policy_processor (4), contradiction_detección (6), embedding_policy (2) |
+| D1-Q3: Asignación de Recursos | 22 | policy_processor (5), contradiction_detección (10), financiero_viabilidad_tablas (5), embedding_policy (2) |
+| D1-Q4: Capacidad Institucional | 16 | policy_processor (4), contradiction_detección (7), Analyzer_one (3), financiero_viabilidad_tablas (2) |
+| D1-Q5: Restricciones Temporales | 14 | policy_processor (3), contradiction_detección (9), Analyzer_one (2) |
 | **TOTAL** | **82** | **4 Core Arsenal files** |
 
 ## SIN_CARRETA Doctrine Compliance
