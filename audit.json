@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": 1761645860.9467878,
+    "generated_at": 1761646891.715198,
     "registry_version": "1.0.0",
     "sources": [
       "question_component_map.json",
@@ -13,8 +13,8 @@
     "total_methods_in_codebase": 416,
     "declared_in_metadata": 124,
     "successfully_resolved": 18,
-    "coverage_percentage": 14.516129032258066,
-    "resolution_rate": 4.326923076923077
+    "coverage_percentage": 14.52,
+    "resolution_rate": 4.33
   },
   "validation": {
     "provisional": {
