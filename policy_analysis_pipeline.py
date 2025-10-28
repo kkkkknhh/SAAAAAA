@@ -44,7 +44,8 @@ from policy_processor import IndustrialPolicyProcessor
 from contradiction_deteccion import (
     PolicyContradictionDetector,
     TemporalLogicVerifier,
-    BayesianConfidenceCalculator
+    BayesianConfidenceCalculator,
+    PolicyDimension
 )
 
 # Producer 3: teoria_cambio
@@ -82,6 +83,9 @@ from embedding_policy import AdvancedSemanticChunker
 # from report_assembly import ReportAssemblyEngine
 
 logger = logging.getLogger(__name__)
+
+# Constants
+MAX_TEXT_LENGTH_FOR_NLP = 5000  # Maximum text length to avoid memory issues with spaCy
 
 
 # ========================================
@@ -785,7 +789,7 @@ class ExecutionChoreographer:
         # Step 8: Detect numerical inconsistencies
         trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Need to extract policy statements first to detect inconsistencies
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements = detector._extract_policy_statements(document, PolicyDimension.DIAGNOSTICO)
         inconsistencies = detector._detect_numerical_inconsistencies(statements)
         evidence['inconsistencies'] = inconsistencies
@@ -885,7 +889,7 @@ class ExecutionChoreographer:
         # Step 7: Detect logical incompatibilities
         trace.append({'step': 7, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D2
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements_d2 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
         # Build knowledge graph first (required for logical incompatibilities detection)
         detector._build_knowledge_graph(statements_d2)
@@ -961,7 +965,7 @@ class ExecutionChoreographer:
         # Step 4: Detect numerical inconsistencies
         trace.append({'step': 4, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Extract policy statements first
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements_d3 = detector._extract_policy_statements(document, PolicyDimension.PROGRAMATICO)
         inconsistencies = detector._detect_numerical_inconsistencies(statements_d3)
         evidence['inconsistencies'] = inconsistencies
@@ -998,7 +1002,9 @@ class ExecutionChoreographer:
         for stmt in statements_d3:
             if stmt.temporal_markers:
                 temporal_markers.extend(stmt.temporal_markers)
-        temporal_type = verifier._classify_temporal_type(temporal_markers[0]) if temporal_markers else 'unspecified'
+        # Filter out empty/None markers and get first valid one
+        valid_markers = [m for m in temporal_markers if m and isinstance(m, str)]
+        temporal_type = verifier._classify_temporal_type(valid_markers[0]) if valid_markers else 'unspecified'
         evidence['temporal_type'] = temporal_type
         
         # Step 9: Detect resource conflicts
@@ -1050,8 +1056,8 @@ class ExecutionChoreographer:
         # Step 2: Build knowledge graph
         trace.append({'step': 2, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
         # Need to extract policy statements first
-        from contradiction_deteccion import PolicyDimension
-        statements_d4_prelim = detector._extract_policy_statements(document[:5000], PolicyDimension.SEGUIMIENTO)
+        # PolicyDimension imported at top
+        statements_d4_prelim = detector._extract_policy_statements(document[:MAX_TEXT_LENGTH_FOR_NLP], PolicyDimension.SEGUIMIENTO)
         detector._build_knowledge_graph(statements_d4_prelim)
         graph_stats = detector._get_graph_statistics()
         evidence['knowledge_graph'] = graph_stats
@@ -1059,7 +1065,7 @@ class ExecutionChoreographer:
         # Step 3: Determine semantic role
         trace.append({'step': 3, 'method': 'PolicyContradictionDetector._determine_semantic_role'})
         # Need to process document with spaCy to get sentences
-        doc_nlp = detector.nlp(document[:5000])  # Limit text to avoid memory issues
+        doc_nlp = detector.nlp(document[:MAX_TEXT_LENGTH_FOR_NLP])  # Limit text to avoid memory issues
         roles = []
         for sent in doc_nlp.sents:
             role = detector._determine_semantic_role(sent)
@@ -1073,7 +1079,7 @@ class ExecutionChoreographer:
         
         trace.append({'step': 5, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
         # Extract policy statements for D4
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements_d4 = detector._extract_policy_statements(document, PolicyDimension.SEGUIMIENTO)
         inconsistencies = detector._detect_numerical_inconsistencies(statements_d4)
         evidence['numerical_consistency'] = inconsistencies
@@ -1168,7 +1174,7 @@ class ExecutionChoreographer:
         # Step 9: Detect logical incompatibilities
         trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D5
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements_d5 = detector._extract_policy_statements(document, PolicyDimension.TERRITORIAL)
         detector._build_knowledge_graph(statements_d5)
         incompatibilities = detector._detect_logical_incompatibilities(statements_d5)
@@ -1290,7 +1296,7 @@ class ExecutionChoreographer:
         # Step 8: Detect logical incompatibilities
         trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
         # Extract policy statements for D6
-        from contradiction_deteccion import PolicyDimension
+        # PolicyDimension imported at top
         statements_d6 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
         detector._build_knowledge_graph(statements_d6)
         incompatibilities = detector._detect_logical_incompatibilities(statements_d6)
