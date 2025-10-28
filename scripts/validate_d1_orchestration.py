@@ -17,6 +17,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -223,7 +224,7 @@ def generate_validation_report(
     
     return {
         "overall_status": "PASSED" if all_passed else "FAILED",
-        "timestamp": "",  # Would be filled with actual timestamp
+        "timestamp": datetime.now().isoformat(),
         "validations": {
             "method_specifications": spec_validation,
             "method_availability": availability_validation,

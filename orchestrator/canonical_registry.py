@@ -240,7 +240,7 @@ def _validate_method_registry(
         "threshold": threshold,
         "threshold_type": threshold_name,
         "passed": total_methods >= threshold,
-        "coverage_percentage": (resolved_methods / total_methods * 100) if total_methods > 0 else 0
+        "coverage_percentage": round((resolved_methods / total_methods * 100), 2) if total_methods > 0 else 0
     }
     
     if not result["passed"]:
@@ -334,8 +334,8 @@ def generate_audit_report(
             "total_methods_in_codebase": total_methods,
             "declared_in_metadata": len(declared_symbols),
             "successfully_resolved": len(resolved_symbols),
-            "coverage_percentage": (len(resolved_symbols) / len(declared_symbols) * 100) if declared_symbols else 0,
-            "resolution_rate": (len(resolved_symbols) / total_methods * 100) if total_methods > 0 else 0
+            "coverage_percentage": round((len(resolved_symbols) / len(declared_symbols) * 100), 2) if declared_symbols else 0,
+            "resolution_rate": round((len(resolved_symbols) / total_methods * 100), 2) if total_methods > 0 else 0
         },
         "validation": {
             "provisional": validation_provisional,
