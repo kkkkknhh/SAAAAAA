@@ -378,7 +378,12 @@ def calibrate_against_peers(
     area_positions: Dict[str, str] = {}
     outliers: Dict[str, bool] = {}
     dispersion_values = _to_float_sequence(policy_area_scores.values())
-    cluster_cv = _safe_std(dispersion_values) / _safe_mean(dispersion_values) if dispersion_values else 0.0
+    if dispersion_values:
+        cluster_mean = _safe_mean(dispersion_values)
+        cluster_std = _safe_std(dispersion_values)
+        cluster_cv = cluster_std / cluster_mean if cluster_mean else 0.0
+    else:
+        cluster_cv = 0.0
 
     for area, score in policy_area_scores.items():
         peers = peer_context.get(area, {})
