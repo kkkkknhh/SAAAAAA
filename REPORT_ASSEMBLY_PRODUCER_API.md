@@ -84,7 +84,7 @@ print(f"Score: {score} ({producer.classify_score(score)})")
 
 ---
 
-### MESO Level Methods (12 methods)
+### MESO Level Methods (13 methods)
 
 #### Production
 - `produce_meso_cluster(cluster_name, cluster_description, micro_answers, cluster_definition)` → `Dict`
