@@ -201,7 +201,6 @@ class MetricViolation:
 
     def to_flag_dict(self) -> Dict[str, bool]:
         return {
-            "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
             "stale_period": self.stale_period,
             "entity_misalignment": self.entity_misalignment,
