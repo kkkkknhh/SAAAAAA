@@ -325,11 +325,16 @@ def compose_cluster_posterior(
     if all(w == 0 for w in weights):
         weights = [1.0] * len(posts)
 
+    # Prevent degenerate/negative totals; fallback to uniform if needed.
+    weights = [max(0.0, float(w)) for w in weights]
     total_weight = sum(weights)
+    if total_weight == 0.0:
+        weights = [1.0] * len(posts)
+        total_weight = float(len(posts))
     normalised_weights = [w / total_weight for w in weights]
-    prior_meso = float(sum(p * w for p, w in zip(posts, normalised_weights)))
+    prior_meso = float(sum(p * w for p, w in zip(posts, normalised_weights, strict=True)))
 
-    variance = float(sum(w * (p - prior_meso) ** 2 for p, w in zip(posts, normalised_weights)))
+    variance = float(sum(w * (p - prior_meso) ** 2 for p, w in zip(posts, normalised_weights, strict=True)))
     uncertainty_index = float(variance ** 0.5)
 
     penalties_input = reconciliation_penalties or {}
