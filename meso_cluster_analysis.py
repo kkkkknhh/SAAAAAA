@@ -156,9 +156,10 @@ def analyze_policy_dispersion(
     if values:
         q1 = float(_percentile(values, 25))
         normalised_values = [max(v, q1) for v in values]
-        norm_cv = _safe_std(normalised_values) / _safe_mean(normalised_values)
+        norm_mean = _safe_mean(normalised_values)
+        norm_cv = _safe_std(normalised_values) / norm_mean if norm_mean else 0.0
         norm_gap = float(max(normalised_values) - min(normalised_values))
-        mean_uplift = _safe_mean(normalised_values) - mean_score
+        mean_uplift = norm_mean - mean_score
     else:
         norm_cv = 0.0
         norm_gap = 0.0
