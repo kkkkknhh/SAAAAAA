@@ -121,9 +121,10 @@ class EvidenceRecord:
             Hex digest of SHA-256 hash
         """
         # Combine content hash with previous hash to create chain
+        # Use empty string for first entry (no predecessor)
         chain_data = {
             'content_hash': self.content_hash,
-            'previous_hash': self.previous_hash or '',
+            'previous_hash': self.previous_hash if self.previous_hash is not None else '',
             'evidence_type': self.evidence_type,
             'timestamp': self.timestamp,
         }

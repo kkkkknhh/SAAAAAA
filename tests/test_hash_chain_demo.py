@@ -65,11 +65,12 @@ def demonstrate_hash_chain_protection():
         entry2_original = json.loads(lines[1])
         print(f"  Original entry 2 previous_hash: {entry2_original['previous_hash'][:16]}...")
         
-        # Tamper with entry 2's previous_hash
-        entry2_original['previous_hash'] = "0" * 64  # Fake hash
+        # Tamper with entry 2's previous_hash using a fake hash
+        FAKE_HASH = "0" * 64  # Invalid hash value to simulate tampering
+        entry2_original['previous_hash'] = FAKE_HASH
         lines[1] = json.dumps(entry2_original) + '\n'
         
-        print(f"  Tampered entry 2 previous_hash: {entry2_original['previous_hash'][:16]}...")
+        print(f"  Tampered entry 2 previous_hash: {FAKE_HASH[:16]}...")
         
         # Write tampered data back
         with open(storage_path, 'w') as f:
