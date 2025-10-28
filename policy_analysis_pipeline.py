@@ -1109,7 +1109,7 @@ class ExecutionChoreographer:
         
         # Step 9: Calculate global semantic coherence
         trace.append({'step': 9, 'method': 'contradiction_deteccion.PolicyContradictionDetector._calculate_global_semantic_coherence'})
-        coherence = detector._calculate_global_semantic_coherence(graph)
+        coherence = detector._calculate_global_semantic_coherence(statements_d2)
         evidence['semantic_coherence'] = coherence
         
         # Step 10: Get dependency depth
