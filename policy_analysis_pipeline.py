@@ -790,6 +790,11 @@ class ExecutionChoreographer:
             )
         else:
             context = question_context
+
+        if isinstance(plan_metadata, dict):
+            pdf_path = plan_metadata.get('pdf_path')
+            if pdf_path:
+                context.metadata.setdefault('pdf_path', pdf_path)
         
         logger.info("=" * 80)
         logger.info(f"EXECUTING QUESTION: {context.question_id}")
@@ -1055,8 +1060,16 @@ class ExecutionChoreographer:
         analyzer = self._get_producer_instance('Analyzer_one', 'SemanticAnalyzer')
         
         # Step 1: Analyze tabular structure
-        trace.append({'step': 1, 'method': 'financiero_viabilidad_tablas.PDETMunicipalPlanAnalyzer.analyze_municipal_plan'})
-        tables = plan_analyzer.analyze_municipal_plan(document)
+        trace.append({'step': 1, 'method': 'PDETMunicipalPlanAnalyzer.analyze_municipal_plan'})
+        pdf_path = context.metadata.get('pdf_path')
+        if not pdf_path:
+            logger.warning(
+                "ExecutionContext metadata missing 'pdf_path'; skipping municipal plan analysis for %s",
+                context.question_id
+            )
+            tables = {}
+        else:
+            tables = plan_analyzer.analyze_municipal_plan_sync(pdf_path)
         evidence['tables'] = tables
         
         # Step 2: Match formalization patterns
