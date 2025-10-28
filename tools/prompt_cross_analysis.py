@@ -316,9 +316,22 @@ def evaluate_causal_paths(data: Dict[str, object]) -> Dict[str, object]:
     for path in data["causal_paths"]:
         dims: List[str] = path["dimensions"]
         missing = [dim for dim in expected_sequence if dim not in dims]
+        unexpected = [dim for dim in dims if dim not in expected_sequence]
         issues: List[str] = []
 
         if dims != expected_sequence:
+            # Check for unexpected dimensions (not in expected sequence)
+            if unexpected:
+                issues.append(
+                    "Unexpected dimensions: " + ", ".join(unexpected)
+                )
+            
+            # Check for length mismatch
+            if len(dims) != len(expected_sequence):
+                issues.append(
+                    f"Length mismatch: expected {len(expected_sequence)} dimensions but found {len(dims)}"
+                )
+            
             # Check for adjacency breaks
             for idx, expected_dim in enumerate(expected_sequence):
                 if idx >= len(dims):
@@ -358,6 +371,10 @@ def evaluate_causal_paths(data: Dict[str, object]) -> Dict[str, object]:
             for dim in status.missing_dimensions:
                 repair_actions.append(
                     f"Re-evaluate {dim} in {status.path_id} to restore sequential continuity"
+                )
+            for dim in unexpected:
+                repair_actions.append(
+                    f"Remove unexpected dimension {dim} from {status.path_id}"
                 )
 
     return {
