@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 import yaml
 import networkx as nx
+import spacy
+from pathlib import Path
 
 # Import from report_assembly
 from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
@@ -70,7 +72,7 @@ from financiero_viabilidad_tablas import (
 )
 
 # Producer 6: dereck_beach
-from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference
+from dereck_beach import CDAFFramework, CausalExtractor, BayesianMechanismInference, ConfigLoader
 
 # Producer 7: embedding_policy
 from embedding_policy import PolicyAnalysisEmbedder
@@ -415,10 +417,26 @@ class ExecutionChoreographer:
         # Producer 6: dereck_beach
         logger.info("  [6/9] Initializing dereck_beach...")
         try:
+            # Create ConfigLoader for dereck_beach components
+            config_path = Path("config.yaml")
+            dereck_config = ConfigLoader(config_path)
+            
+            # Load spacy model for NLP processing
+            try:
+                nlp_model = spacy.load("es_dep_news_trf")
+            except OSError:
+                logger.warning("es_dep_news_trf not found, trying es_core_news_sm")
+                try:
+                    nlp_model = spacy.load("es_core_news_sm")
+                except OSError:
+                    logger.warning("No Spanish model found, using blank Spanish model")
+                    nlp_model = spacy.blank("es")
+            
+            # Initialize dereck_beach components with required parameters
             self._producer_instances['dereck_beach'] = {
-                'CDAFFramework': CDAFFramework(),
-                'CausalExtractor': CausalExtractor(),
-                'BayesianMechanismInference': BayesianMechanismInference()
+                'CDAFFramework': CDAFFramework(config_path, Path("output"), "INFO"),
+                'CausalExtractor': CausalExtractor(dereck_config, nlp_model),
+                'BayesianMechanismInference': BayesianMechanismInference(dereck_config, nlp_model)
             }
             logger.info("  ✓ CDAFFramework initialized")
             logger.info("  ✓ CausalExtractor initialized")
