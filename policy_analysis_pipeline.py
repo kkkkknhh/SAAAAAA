@@ -38,7 +38,12 @@ from report_assembly import MicroLevelAnswer, MesoLevelCluster, MacroLevelConver
 # ========================================
 
 # Producer 1: policy_processor
-from policy_processor import IndustrialPolicyProcessor
+from policy_processor import (
+    IndustrialPolicyProcessor,
+    PolicyTextProcessor,
+    BayesianEvidenceScorer,
+    ProcessorConfig
+)
 
 # Producer 2: contradiction_deteccion
 from contradiction_deteccion import (
@@ -329,6 +334,8 @@ class ExecutionChoreographer:
         
         POST-CONDITIONS:
         - self._producer_instances['policy_processor']['IndustrialPolicyProcessor'] exists
+        - self._producer_instances['policy_processor']['PolicyTextProcessor'] exists
+        - self._producer_instances['policy_processor']['BayesianEvidenceScorer'] exists
         - self._producer_instances['contradiction_deteccion']['PolicyContradictionDetector'] exists
         - self._producer_instances['contradiction_deteccion']['TemporalLogicVerifier'] exists
         - self._producer_instances['contradiction_deteccion']['BayesianConfidenceCalculator'] exists
@@ -347,9 +354,16 @@ class ExecutionChoreographer:
             self._producer_instances['policy_processor'] = {
                 'IndustrialPolicyProcessor': IndustrialPolicyProcessor(
                     config=self.processor_config
+                ),
+                'PolicyTextProcessor': PolicyTextProcessor(config=self.processor_config),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(
+                    prior_confidence=self.processor_config.bayesian_prior_confidence,
+                    entropy_weight=self.processor_config.bayesian_entropy_weight
                 )
             }
             logger.info("  ✓ IndustrialPolicyProcessor initialized")
+            logger.info("  ✓ PolicyTextProcessor initialized")
+            logger.info("  ✓ BayesianEvidenceScorer initialized")
         except Exception as e:
             raise RuntimeError(f"FATAL: Failed to initialize IndustrialPolicyProcessor: {e}")
         
