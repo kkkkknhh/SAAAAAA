@@ -38,6 +38,21 @@ def test_analyze_policy_dispersion_generates_penalty_and_projection():
     assert len(narrative.splitlines()) >= 5
 
 
+def test_analyze_policy_dispersion_handles_zero_mean_cluster():
+    policy_area_scores = {"area_a": 0.0, "area_b": 0.0, "area_c": 0.0}
+    peer_dispersion_stats = {"cv_median": 0.2, "gap_median": 5.0}
+    thresholds = {"cv_warn": 0.1, "cv_fail": 0.2, "gap_warn": 3.0, "gap_fail": 6.0}
+
+    payload, narrative = analyze_policy_dispersion(
+        policy_area_scores, peer_dispersion_stats, thresholds
+    )
+
+    assert payload["cv"] == 0.0
+    assert payload["normalized_projection"]["adjusted_cv"] == 0.0
+    assert payload["normalized_projection"]["adjusted_max_gap"] == 0.0
+    assert "0.00" in narrative
+
+
 def test_reconcile_cross_metrics_flags_mismatches_and_converts_units():
     aggregated_metrics = [
         {"metric_id": "m1", "value": 1.5, "unit": "toneladas", "period": "2022", "entity": "A"},

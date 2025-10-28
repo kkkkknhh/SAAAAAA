@@ -85,7 +85,7 @@ def analyze_policy_dispersion(
     policy_area_scores: Mapping[str, float],
     peer_dispersion_stats: Mapping[str, float],
     thresholds: Mapping[str, float],
-) -> Tuple[Dict[str, float], str]:
+) -> Tuple[Dict[str, object], str]:
     """Evaluate intra-cluster dispersion and recommend a penalty.
 
     Parameters
@@ -101,7 +101,7 @@ def analyze_policy_dispersion(
 
     Returns
     -------
-    Tuple[Dict[str, float], str]
+    Tuple[Dict[str, object], str]
         A tuple of the JSON-friendly payload and the five-to-six line narrative.
     """
 
@@ -156,7 +156,8 @@ def analyze_policy_dispersion(
     if values:
         q1 = float(_percentile(values, 25))
         normalised_values = [max(v, q1) for v in values]
-        norm_cv = _safe_std(normalised_values) / _safe_mean(normalised_values)
+        norm_mean = _safe_mean(normalised_values)
+        norm_cv = _safe_std(normalised_values) / norm_mean if norm_mean else 0.0
         norm_gap = float(max(normalised_values) - min(normalised_values))
         mean_uplift = _safe_mean(normalised_values) - mean_score
     else:
@@ -199,8 +200,9 @@ class MetricViolation:
     entity_misalignment: bool = False
     out_of_range: bool = False
 
-    def to_flag_dict(self) -> Dict[str, bool]:
+    def to_flag_dict(self) -> Dict[str, object]:
         return {
+            "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
             "stale_period": self.stale_period,
             "entity_misalignment": self.entity_misalignment,
