@@ -34,6 +34,12 @@ from orchestrator.evidence_registry import (
 from qmcm_hooks import get_global_recorder
 
 
+def cleanup_file(filepath: Path):
+    """Utility function to clean up temporary files."""
+    if filepath.exists():
+        filepath.unlink()
+
+
 def example_1_registry_validation():
     """Example 1: Validate canonical registry and generate audit report."""
     print("=" * 80)
@@ -60,8 +66,7 @@ def example_1_registry_validation():
     print(f"  - Missing methods: {len(audit['missing'])}")
     
     # Clean up
-    if audit_path.exists():
-        audit_path.unlink()
+    cleanup_file(audit_path)
 
 
 def example_2_choreographer_dispatch():
@@ -198,10 +203,8 @@ def example_3_evidence_registry():
     print(f"  - DAG nodes: {stats['dag_nodes']}")
     
     # Clean up
-    if storage_path.exists():
-        storage_path.unlink()
-    if dag_path.exists():
-        dag_path.unlink()
+    cleanup_file(storage_path)
+    cleanup_file(dag_path)
 
 
 def example_4_qmcm_integration():
@@ -253,8 +256,7 @@ def example_4_qmcm_integration():
     print(f"\n✓ Saved QMCM recording: {recording_path}")
     
     # Clean up
-    if recording_path.exists():
-        recording_path.unlink()
+    cleanup_file(recording_path)
 
 
 def example_5_integrated_workflow():
@@ -288,7 +290,7 @@ def example_5_integrated_workflow():
     
     dispatcher = ChoreographerDispatcher(
         registry=registry,
-        enable_evidence_recording=False,  # We'll record manually for better control
+        enable_evidence_recording=False,  # Manual recording for granular control over evidence metadata
     )
     
     print("\n✓ Processing pipeline:")
@@ -341,8 +343,7 @@ def example_5_integrated_workflow():
     print(f"  - By type: {dag_dict['stats']['by_type']}")
     
     # Clean up
-    if storage_path.exists():
-        storage_path.unlink()
+    cleanup_file(storage_path)
 
 
 def main():
