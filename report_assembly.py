@@ -9,6 +9,7 @@ Fully integrated with:
 - module_adapters_COMPLETE_MERGED.py (9 adapters, 413 methods)
 - rubric_scoring.json (scoring modalities)
 - FARFAN_3.0_UPDATED_QUESTIONNAIRE.yaml (execution chains)
+- macro_prompts.py (5 macro-level analysis prompts)
 
 This module generates comprehensive reports at three hierarchical levels:
 1. MICRO: Individual question answers with evidence
@@ -16,7 +17,7 @@ This module generates comprehensive reports at three hierarchical levels:
 3. MACRO: Overall plan convergence with Decálogo framework
 
 Author: Integration Team
-Version: 3.0.0 - Complete with 9 Adapters
+Version: 3.1.0 - Complete with Macro Prompts Integration
 Python: 3.10+
 """
 
@@ -25,12 +26,20 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
-from collections import defaultdict
+from collections import Counter, defaultdict
 import statistics
 import re
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Import macro prompts orchestrator
+try:
+    from macro_prompts import MacroPromptsOrchestrator
+    MACRO_PROMPTS_AVAILABLE = True
+except ImportError:
+    logger.warning("macro_prompts module not available - macro analyses will be limited")
+    MACRO_PROMPTS_AVAILABLE = False
 
 
 # ============================================================================
@@ -170,12 +179,19 @@ class ReportAssembler:
         self.cluster_policy_weights = cluster_policy_weights or {}
         self.causal_thresholds = causal_thresholds or {
             "default": 0.6,
+            "D3": 0.6,
             "D4": 0.65,
             "D5": 0.7,
-            "D6": 0.75
+            "D6": 0.75,
         }
 
-        logger.info("ReportAssembler initialized with rubric definitions")
+        # Initialize macro prompts orchestrator if available
+        if MACRO_PROMPTS_AVAILABLE:
+            self.macro_prompts = MacroPromptsOrchestrator()
+            logger.info("ReportAssembler initialized with rubric definitions and macro prompts")
+        else:
+            self.macro_prompts = None
+            logger.info("ReportAssembler initialized with rubric definitions (macro prompts unavailable)")
 
     # ========================================================================
     # MICRO LEVEL - Question-by-Question Analysis
@@ -1168,6 +1184,20 @@ class ReportAssembler:
         avg_score_raw = statistics.mean(scores) if scores else 0.0
         avg_score_pct = (avg_score_raw / 3.0) * 100  # Convert to percentage
 
+        coefficient_variation = self._calculate_coefficient_of_variation(scores)
+        dispersion_class = self._classify_dispersion(
+            coefficient_variation, len(scores)
+        )
+        cluster_confidence = (
+            statistics.mean(answer.confidence for answer in micro_answers)
+            if micro_answers
+            else 0.0
+        )
+        adjusted_confidence = self._apply_dispersion_adjustment(
+            cluster_confidence, coefficient_variation
+        )
+        probative_summary = self._summarize_probative_tests(micro_answers)
+
         policy_area_scores = self._calculate_policy_area_scores(micro_answers)
         avg_score_pct, weighting_trace = self._apply_policy_weighting(
             cluster_name,
@@ -1196,8 +1226,15 @@ class ReportAssembler:
             weaknesses
         )
 
+        if dispersion_class == "volatile":
+            recommendations.append(
+                "Uniformar la ejecución para reducir la alta dispersión entre preguntas del clúster."
+            )
+
         # Calculate evidence quality
         evidence_quality = self._assess_evidence_quality(micro_answers)
+        evidence_quality["dispersion_adjusted_confidence"] = adjusted_confidence
+        evidence_quality["coefficient_of_variation"] = coefficient_variation
 
         return MesoLevelCluster(
             cluster_name=cluster_name,
@@ -1218,7 +1255,14 @@ class ReportAssembler:
                 "score_distribution": self._calculate_score_distribution(micro_answers),
                 "weighting_trace": weighting_trace,
                 "policy_weights": cluster_definition.get("policy_weights", {}),
-                "macro_weight": cluster_definition.get("macro_weight")
+                "macro_weight": cluster_definition.get("macro_weight"),
+                "dispersion": {
+                    "coefficient_of_variation": coefficient_variation,
+                    "classification": dispersion_class,
+                    "adjusted_confidence": adjusted_confidence,
+                },
+                "probative_tests": probative_summary,
+                "cluster_confidence": cluster_confidence,
             }
         )
 
@@ -1297,6 +1341,128 @@ class ReportAssembler:
 
         weighted_score = weighted_sum / used_weight
         return weighted_score, trace
+
+    def _calculate_coefficient_of_variation(self, scores: List[float]) -> float:
+        """Calculate coefficient of variation for dispersion-aware scoring."""
+
+        if not scores or len(scores) < 2:
+            return 0.0
+
+        mean = statistics.mean(scores)
+        if mean == 0:
+            return 0.0
+
+        return abs(statistics.stdev(scores) / mean)
+
+    def _classify_dispersion(self, cv: float, sample_size: int) -> str:
+        """Classify dispersion profile using coefficient of variation."""
+
+        if sample_size <= 1:
+            return "singleton"
+        if cv < 0.1:
+            return "compact"
+        if cv < 0.25:
+            return "balanced"
+        return "volatile"
+
+    def _apply_dispersion_adjustment(
+        self, base_confidence: float, cv: float
+    ) -> float:
+        """Adjust cluster confidence based on dispersion."""
+
+        penalty = min(cv, 1.0) * 0.5
+        adjusted = base_confidence * (1 - penalty)
+        return max(0.0, min(1.0, adjusted))
+
+    def _summarize_probative_tests(
+        self, answers: List[MicroLevelAnswer]
+    ) -> Dict[str, Any]:
+        """Aggregate probative taxonomy distribution across answers."""
+
+        distribution = Counter()
+        for answer in answers:
+            classification = (
+                answer.metadata.get("probative_test")
+                if answer.metadata
+                else None
+            )
+            distribution[classification or "unknown"] += 1
+
+        total = sum(distribution.values()) or 1
+        proportions = {
+            key: value / total for key, value in distribution.items()
+        }
+        return {"counts": dict(distribution), "proportions": proportions}
+
+    def _calculate_dimension_coverage_index(
+        self,
+        all_micro_answers: List[MicroLevelAnswer],
+        plan_metadata: Dict[str, Any],
+    ) -> Dict[str, float]:
+        """Calculate coverage ratios per dimension for gating."""
+
+        counts = Counter()
+        for answer in all_micro_answers:
+            dimension = answer.metadata.get("dimension") if answer.metadata else None
+            if not dimension:
+                continue
+            counts[dimension] += 1
+
+        expected_counts = plan_metadata.get("dimension_expected_counts", {})
+        total_answers = len(all_micro_answers) or 1
+        coverage: Dict[str, float] = {}
+
+        for dimension, count in counts.items():
+            expected = expected_counts.get(dimension)
+            if expected:
+                coverage[dimension] = min(1.0, count / expected)
+            else:
+                coverage[dimension] = count / total_answers
+
+        return coverage
+
+    def _validate_macro_gating(
+        self,
+        all_micro_answers: List[MicroLevelAnswer],
+        coverage_index: Dict[str, float],
+    ) -> Dict[str, Any]:
+        """Validate macro gating constraints (coverage + causal integrity)."""
+
+        issues: List[str] = []
+        required_dimensions = ["D3", "D6"]
+
+        for dimension in required_dimensions:
+            threshold = self.causal_thresholds.get(
+                dimension, self.causal_thresholds.get("default", 0.6)
+            )
+            coverage = coverage_index.get(dimension, 0.0)
+            if coverage < threshold:
+                issues.append(
+                    f"Cobertura {dimension}={coverage:.2f} por debajo del umbral {threshold:.2f}"
+                )
+
+        for answer in all_micro_answers:
+            dimension = answer.metadata.get("dimension") if answer.metadata else None
+            if dimension != "D6":
+                continue
+            if answer.metadata.get("causal_path_status") != "verified":
+                issues.append(
+                    f"Ruta causal con contradicciones en {answer.question_id}"
+                )
+
+        if issues:
+            raise ValueError(
+                "MACRO convergence gated: " + "; ".join(sorted(set(issues)))
+            )
+
+        return {
+            "status": "passed",
+            "thresholds": {
+                dim: self.causal_thresholds.get(dim, self.causal_thresholds.get("default", 0.6))
+                for dim in required_dimensions
+            },
+            "coverage_index": coverage_index,
+        }
 
     def _identify_strengths(
             self,
@@ -1549,6 +1715,19 @@ class ReportAssembler:
         # Calculate confidence metrics
         confidence_metrics = self._calculate_confidence_metrics(all_micro_answers)
 
+        # Apply macro prompts if available
+        macro_prompts_results = None
+        if self.macro_prompts:
+            macro_prompts_results = self._apply_macro_prompts(
+                all_micro_answers,
+                all_meso_clusters,
+                convergence_by_dimension,
+                convergence_by_policy_area,
+                missing_clusters,
+                critical_gaps,
+                confidence_metrics
+            )
+
         metadata = {
             "timestamp": datetime.now().isoformat(),
             "total_questions_analyzed": len(all_micro_answers),
@@ -1557,7 +1736,8 @@ class ReportAssembler:
             "base_micro_average": base_micro_average,
             "weighting_trace": weighting_trace,
             "cluster_weights": self.cluster_weights,
-            "missing_clusters": missing_clusters
+            "missing_clusters": missing_clusters,
+            "macro_prompts_results": macro_prompts_results
         }
 
         return MacroLevelConvergence(
@@ -1956,6 +2136,214 @@ class ReportAssembler:
             "std_confidence": statistics.stdev(confidences) if len(confidences) > 1 else 0,
             "pct_high_confidence": sum(1 for c in confidences if c >= 0.7) / len(confidences) * 100
         }
+
+    def _apply_macro_prompts(
+            self,
+            all_micro_answers: List[MicroLevelAnswer],
+            all_meso_clusters: List[MesoLevelCluster],
+            convergence_by_dimension: Dict[str, float],
+            convergence_by_policy_area: Dict[str, float],
+            missing_clusters: List[str],
+            critical_gaps: List[str],
+            confidence_metrics: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """
+        Apply all 5 macro-level analysis prompts
+        
+        Returns enriched analysis including:
+        - Coverage gap assessment
+        - Inter-level contradiction detection
+        - Bayesian portfolio composition
+        - Optimized implementation roadmap
+        - Peer-normalized confidence
+        """
+        logger.info("Applying macro prompts for enhanced analysis")
+        
+        # Calculate dimension and policy area coverage
+        dimension_coverage = self._calculate_dimension_coverage(all_micro_answers)
+        policy_area_coverage = self._calculate_policy_area_coverage(all_micro_answers)
+        
+        # Extract micro claims for contradiction scanning
+        micro_claims = self._extract_micro_claims(all_micro_answers)
+        
+        # Extract meso signals
+        meso_summary_signals = self._extract_meso_signals(all_meso_clusters)
+        
+        # Build macro narratives from convergence
+        macro_narratives = {
+            dim: {"score": score / 100.0} 
+            for dim, score in convergence_by_dimension.items()
+        }
+        
+        # Extract meso posteriors (using cluster scores)
+        meso_posteriors = {
+            cluster.cluster_name: cluster.avg_score / 100.0 
+            for cluster in all_meso_clusters
+        }
+        
+        # Use cluster weights (or equal weights if not set)
+        cluster_weights = self.cluster_weights or {
+            cluster.cluster_name: 1.0 / len(all_meso_clusters)
+            for cluster in all_meso_clusters
+        }
+        
+        # Build critical gaps with effort and impact estimates
+        critical_gaps_structured = self._structure_critical_gaps(critical_gaps)
+        
+        # Build dependency graph (simplified)
+        dependency_graph = {gap["id"]: [] for gap in critical_gaps_structured}
+        
+        # Estimate efforts and impacts
+        effort_estimates = {gap["id"]: gap.get("effort", 2.0) for gap in critical_gaps_structured}
+        impact_scores = {gap["id"]: gap.get("impact", 0.7) for gap in critical_gaps_structured}
+        
+        # Mock peer distributions (in production, would come from database)
+        peer_distributions = self._get_peer_distributions(convergence_by_policy_area)
+        
+        # Prepare macro data for prompts
+        macro_data = {
+            "convergence_by_dimension": {k: v/100.0 for k, v in convergence_by_dimension.items()},
+            "convergence_by_policy_area": {k: v/100.0 for k, v in convergence_by_policy_area.items()},
+            "missing_clusters": missing_clusters,
+            "dimension_coverage": dimension_coverage,
+            "policy_area_coverage": policy_area_coverage,
+            "micro_claims": micro_claims,
+            "meso_summary_signals": meso_summary_signals,
+            "macro_narratives": macro_narratives,
+            "meso_posteriors": meso_posteriors,
+            "cluster_weights": cluster_weights,
+            "critical_gaps": critical_gaps_structured,
+            "dependency_graph": dependency_graph,
+            "effort_estimates": effort_estimates,
+            "impact_scores": impact_scores,
+            "peer_distributions": peer_distributions,
+            "baseline_confidence": confidence_metrics.get("avg_confidence", 0.85)
+        }
+        
+        # Execute all macro prompts
+        results = self.macro_prompts.execute_all(macro_data)
+        
+        logger.info("Macro prompts analysis complete")
+        return results
+    
+    def _calculate_dimension_coverage(
+            self,
+            all_micro_answers: List[MicroLevelAnswer]
+    ) -> Dict[str, float]:
+        """Calculate coverage percentage by dimension"""
+        total_by_dim = defaultdict(int)
+        answered_by_dim = defaultdict(int)
+        
+        for answer in all_micro_answers:
+            # Extract dimension from question_id (e.g., "P1-D1-Q1" -> "D1")
+            parts = answer.question_id.split("-")
+            if len(parts) >= 2:
+                dim = parts[1]
+                total_by_dim[dim] += 1
+                if answer.quantitative_score > 0:
+                    answered_by_dim[dim] += 1
+        
+        coverage = {}
+        for dim in total_by_dim:
+            coverage[dim] = answered_by_dim[dim] / total_by_dim[dim] if total_by_dim[dim] > 0 else 0.0
+        
+        return coverage
+    
+    def _calculate_policy_area_coverage(
+            self,
+            all_micro_answers: List[MicroLevelAnswer]
+    ) -> Dict[str, float]:
+        """Calculate coverage percentage by policy area"""
+        total_by_policy = defaultdict(int)
+        answered_by_policy = defaultdict(int)
+        
+        for answer in all_micro_answers:
+            # Extract policy area from question_id (e.g., "P1-D1-Q1" -> "P1")
+            parts = answer.question_id.split("-")
+            if len(parts) >= 1:
+                policy = parts[0]
+                total_by_policy[policy] += 1
+                if answer.quantitative_score > 0:
+                    answered_by_policy[policy] += 1
+        
+        coverage = {}
+        for policy in total_by_policy:
+            coverage[policy] = answered_by_policy[policy] / total_by_policy[policy] if total_by_policy[policy] > 0 else 0.0
+        
+        return coverage
+    
+    def _extract_micro_claims(
+            self,
+            all_micro_answers: List[MicroLevelAnswer]
+    ) -> List[Dict[str, Any]]:
+        """Extract micro-level claims from answers"""
+        claims = []
+        for answer in all_micro_answers:
+            parts = answer.question_id.split("-")
+            dimension = parts[1] if len(parts) >= 2 else "unknown"
+            
+            claims.append({
+                "dimension": dimension,
+                "score": answer.quantitative_score / 3.0,  # Normalize to 0-1
+                "posterior": answer.confidence,
+                "question_id": answer.question_id
+            })
+        
+        return claims
+    
+    def _extract_meso_signals(
+            self,
+            all_meso_clusters: List[MesoLevelCluster]
+    ) -> Dict[str, Any]:
+        """Extract meso-level summary signals"""
+        signals = {}
+        for cluster in all_meso_clusters:
+            for dim, score in cluster.dimension_scores.items():
+                signals[dim] = {"score": score / 100.0}  # Normalize to 0-1
+        
+        return signals
+    
+    def _structure_critical_gaps(
+            self,
+            critical_gaps: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Structure critical gaps with effort and impact estimates"""
+        structured = []
+        for i, gap in enumerate(critical_gaps):
+            # Estimate effort based on gap description
+            effort = 2.0  # Default 2 person-months
+            if "causal" in gap.lower() or "teoría" in gap.lower():
+                effort = 4.0
+            elif "baseline" in gap.lower() or "línea base" in gap.lower():
+                effort = 3.0
+            
+            # Estimate impact (higher for earlier dimensions)
+            impact = 0.8 - (i * 0.05)  # Decreasing importance
+            
+            structured.append({
+                "id": f"GAP_{i+1}",
+                "name": gap,
+                "effort": effort,
+                "impact": max(0.5, impact)
+            })
+        
+        return structured
+    
+    def _get_peer_distributions(
+            self,
+            convergence_by_policy_area: Dict[str, float]
+    ) -> Dict[str, Dict[str, float]]:
+        """Get peer distributions for normalization (mock data)"""
+        # In production, this would query a database of peer plans
+        # For now, use mock distributions
+        distributions = {}
+        for policy in convergence_by_policy_area:
+            distributions[policy] = {
+                "mean": 0.75,  # 75% average peer performance
+                "std": 0.10    # 10% standard deviation
+            }
+        
+        return distributions
 
     # ========================================================================
     # EXPORT UTILITIES

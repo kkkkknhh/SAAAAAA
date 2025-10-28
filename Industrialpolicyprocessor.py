@@ -41,7 +41,7 @@ import asyncio
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 import statistics
 
@@ -641,7 +641,7 @@ class PolicyAnalysisOrchestrator:
                     dimension=question_spec.dimension,
                     policy_area=question_spec.policy_area,
                     questionnaire_hash=self.questionnaire_hash,
-                    timestamp=datetime.utcnow().isoformat() + 'Z',
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                     metadata={
                         'question_text': question_spec.question_text,
                         'scoring_modality': question_spec.scoring_modality,
