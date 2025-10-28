@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": 1761628055.7667572,
+    "generated_at": 1761645860.9467878,
     "registry_version": "1.0.0",
     "sources": [
       "question_component_map.json",
@@ -12,9 +12,9 @@
   "coverage": {
     "total_methods_in_codebase": 416,
     "declared_in_metadata": 124,
-    "successfully_resolved": 8,
-    "coverage_percentage": 6.451612903225806,
-    "resolution_rate": 1.9230769230769231
+    "successfully_resolved": 18,
+    "coverage_percentage": 14.516129032258066,
+    "resolution_rate": 4.326923076923077
   },
   "validation": {
     "provisional": {
@@ -121,16 +121,6 @@
     "PolicyContradictionDetector.detect",
     "PolicyContradictionDetector.init",
     "PolicyTextProcessor.extract_contextual_window",
-    "ReportAssembler._generate_explanation",
-    "ReportAssembler._score_type_a",
-    "ReportAssembler._score_type_b",
-    "ReportAssembler._score_type_c",
-    "ReportAssembler._score_type_d",
-    "ReportAssembler._score_type_e",
-    "ReportAssembler._score_type_f",
-    "ReportAssembler.generate_macro_convergence",
-    "ReportAssembler.generate_meso_cluster",
-    "ReportAssembler.generate_micro_answer",
     "SemanticAnalyzer.init",
     "TemporalLogicVerifier._build_timeline",
     "TemporalLogicVerifier._check_deadline_constraints",
