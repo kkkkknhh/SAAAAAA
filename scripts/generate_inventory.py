@@ -10,7 +10,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Set, Any, Optional
 import inspect
@@ -342,7 +342,7 @@ class CodeInventoryGenerator:
             }
         
         return {
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "workspace_root": str(self.workspace_root),
             "total_files": len(self.inventory),
             "total_loc": sum(f.lines_of_code for f in self.inventory.values()),
