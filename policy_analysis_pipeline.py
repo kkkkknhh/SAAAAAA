@@ -768,9 +768,12 @@ class ExecutionChoreographer:
         
         # Step 6: Calculate Bayesian confidence
         trace.append({'step': 6, 'method': 'BayesianConfidenceCalculator.calculate_posterior'})
+        # Calculate evidence strength from quantitative claims
+        evidence_strength = min(1.0, len(quantitative_claims) / 10.0) if quantitative_claims else 0.01
         confidence = calculator.calculate_posterior(
-            evidence={'quantitative_claims': quantitative_claims},
-            prior=0.5
+            evidence_strength=evidence_strength,
+            observations=len(quantitative_claims) if quantitative_claims else 1,
+            domain_weight=1.0
         )
         evidence['bayesian_confidence'] = confidence
         
@@ -781,32 +784,37 @@ class ExecutionChoreographer:
         
         # Step 8: Detect numerical inconsistencies
         trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
-        inconsistencies = detector._detect_numerical_inconsistencies(
-            quantitative_claims,
-            resources
-        )
+        # Need to extract policy statements first to detect inconsistencies
+        from contradiction_deteccion import PolicyDimension
+        statements = detector._extract_policy_statements(document, PolicyDimension.DIAGNOSTICO)
+        inconsistencies = detector._detect_numerical_inconsistencies(statements)
         evidence['inconsistencies'] = inconsistencies
         
         # Step 9: Detect resource conflicts
         trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_resource_conflicts'})
-        conflicts = detector._detect_resource_conflicts(resources, total_budget=None)
+        # Reuse statements from step 8
+        conflicts = detector._detect_resource_conflicts(statements)
         evidence['conflicts'] = conflicts
         
         # Step 10: Calculate graph fragmentation (capacity)
         trace.append({'step': 10, 'method': 'PolicyContradictionDetector._calculate_graph_fragmentation'})
-        fragmentation = detector._calculate_graph_fragmentation(actor_graph=None)
+        fragmentation = detector._calculate_graph_fragmentation()
         evidence['capacity_fragmentation'] = fragmentation
         
         # Step 11: Verify temporal consistency
         trace.append({'step': 11, 'method': 'TemporalLogicVerifier.verify_temporal_consistency'})
-        temporal_consistency = verifier.verify_temporal_consistency(document)
+        # Reuse statements from step 8
+        is_consistent, conflicts_list = verifier.verify_temporal_consistency(statements)
+        temporal_consistency = {'is_consistent': is_consistent, 'conflicts': conflicts_list}
         evidence['temporal_consistency'] = temporal_consistency
         
         # Step 12: Calculate confidence interval
         trace.append({'step': 12, 'method': 'PolicyContradictionDetector._calculate_confidence_interval'})
+        # Calculate confidence interval with proper parameters
+        n_observations = len(statements) if statements else 1
         confidence_interval = detector._calculate_confidence_interval(
             confidence,
-            alpha=0.05  # 95% confidence
+            n_observations
         )
         evidence['confidence_interval'] = confidence_interval
         
@@ -876,13 +884,18 @@ class ExecutionChoreographer:
         
         # Step 7: Detect logical incompatibilities
         trace.append({'step': 7, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
-        incompatibilities = detector._detect_logical_incompatibilities(document)
+        # Extract policy statements for D2
+        from contradiction_deteccion import PolicyDimension
+        statements_d2 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
+        # Build knowledge graph first (required for logical incompatibilities detection)
+        detector._build_knowledge_graph(statements_d2)
+        incompatibilities = detector._detect_logical_incompatibilities(statements_d2)
         evidence['incompatibilities'] = incompatibilities
         
-        # Step 8: Build knowledge graph
-        trace.append({'step': 8, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
-        graph = detector._build_knowledge_graph(document)
-        evidence['knowledge_graph'] = graph
+        # Step 8: Get knowledge graph statistics
+        trace.append({'step': 8, 'method': 'PolicyContradictionDetector._get_graph_statistics'})
+        graph_stats = detector._get_graph_statistics()
+        evidence['knowledge_graph'] = graph_stats
         
         # Step 9: Calculate global semantic coherence
         trace.append({'step': 9, 'method': 'PolicyContradictionDetector._calculate_global_semantic_coherence'})
@@ -936,21 +949,34 @@ class ExecutionChoreographer:
         
         # Step 3: Calculate Bayesian confidence
         trace.append({'step': 3, 'method': 'BayesianConfidenceCalculator.calculate_posterior'})
+        # Calculate evidence strength from sources found
+        evidence_strength = 0.8 if sources else 0.3
         confidence = calculator.calculate_posterior(
-            evidence={'sources': sources},
-            prior=0.5,
-            pattern_specificity=0.8 if sources else 0.3
+            evidence_strength=evidence_strength,
+            observations=len(sources) if sources else 1,
+            domain_weight=1.0
         )
         evidence['confidence'] = confidence
         
         # Step 4: Detect numerical inconsistencies
         trace.append({'step': 4, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
-        inconsistencies = detector._detect_numerical_inconsistencies(claims)
+        # Extract policy statements first
+        from contradiction_deteccion import PolicyDimension
+        statements_d3 = detector._extract_policy_statements(document, PolicyDimension.PROGRAMATICO)
+        inconsistencies = detector._detect_numerical_inconsistencies(statements_d3)
         evidence['inconsistencies'] = inconsistencies
         
         # Step 5: Statistical significance test
         trace.append({'step': 5, 'method': 'PolicyContradictionDetector._statistical_significance_test'})
-        significance = detector._statistical_significance_test(claims)
+        # Test requires two claims to compare - if we have claims, compare first two
+        significance = []
+        if statements_d3 and len(statements_d3) >= 2:
+            for stmt in statements_d3[:2]:
+                if stmt.quantitative_claims and len(stmt.quantitative_claims) >= 2:
+                    claim_a = stmt.quantitative_claims[0]
+                    claim_b = stmt.quantitative_claims[1]
+                    sig = detector._statistical_significance_test(claim_a, claim_b)
+                    significance.append(sig)
         evidence['significance'] = significance
         
         # Step 6: Inject loss function
@@ -960,22 +986,33 @@ class ExecutionChoreographer:
         
         # Step 7: Detect temporal conflicts
         trace.append({'step': 7, 'method': 'TemporalLogicVerifier._check_deadline_constraints'})
-        temporal_conflicts = verifier._check_deadline_constraints(document)
+        # Build timeline from statements
+        timeline = verifier._build_timeline(statements_d3)
+        temporal_conflicts = verifier._check_deadline_constraints(timeline)
         evidence['temporal_conflicts'] = temporal_conflicts
         
         # Step 8: Classify temporal type
         trace.append({'step': 8, 'method': 'TemporalLogicVerifier._classify_temporal_type'})
-        temporal_type = verifier._classify_temporal_type(document)
+        # Extract a temporal marker from document to classify
+        temporal_markers = []
+        for stmt in statements_d3:
+            if stmt.temporal_markers:
+                temporal_markers.extend(stmt.temporal_markers)
+        temporal_type = verifier._classify_temporal_type(temporal_markers[0]) if temporal_markers else 'unspecified'
         evidence['temporal_type'] = temporal_type
         
         # Step 9: Detect resource conflicts
         trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_resource_conflicts'})
-        resource_conflicts = detector._detect_resource_conflicts(claims)
+        # Reuse statements from earlier steps
+        resource_conflicts = detector._detect_resource_conflicts(statements_d3)
         evidence['resource_conflicts'] = resource_conflicts
         
         # Step 10: Determine relation type (Producto→Resultado)
         trace.append({'step': 10, 'method': 'PolicyContradictionDetector._determine_relation_type'})
-        relation_type = detector._determine_relation_type(document)
+        # Determine relation type between first two statements if available
+        relation_type = 'related'  # default
+        if len(statements_d3) >= 2:
+            relation_type = detector._determine_relation_type(statements_d3[0], statements_d3[1])
         evidence['relation_strength'] = relation_type
         
         logger.info(f"✓ D3 chain complete: {len(trace)} steps executed")
@@ -1012,12 +1049,22 @@ class ExecutionChoreographer:
         
         # Step 2: Build knowledge graph
         trace.append({'step': 2, 'method': 'PolicyContradictionDetector._build_knowledge_graph'})
-        graph = detector._build_knowledge_graph(document)
-        evidence['knowledge_graph'] = graph
+        # Need to extract policy statements first
+        from contradiction_deteccion import PolicyDimension
+        statements_d4_prelim = detector._extract_policy_statements(document[:5000], PolicyDimension.SEGUIMIENTO)
+        detector._build_knowledge_graph(statements_d4_prelim)
+        graph_stats = detector._get_graph_statistics()
+        evidence['knowledge_graph'] = graph_stats
         
         # Step 3: Determine semantic role
         trace.append({'step': 3, 'method': 'PolicyContradictionDetector._determine_semantic_role'})
-        roles = detector._determine_semantic_role(assumptions)
+        # Need to process document with spaCy to get sentences
+        doc_nlp = detector.nlp(document[:5000])  # Limit text to avoid memory issues
+        roles = []
+        for sent in doc_nlp.sents:
+            role = detector._determine_semantic_role(sent)
+            if role:
+                roles.append(role)
         evidence['semantic_roles'] = roles
         
         # Step 4: Detect numerical inconsistencies
@@ -1025,7 +1072,10 @@ class ExecutionChoreographer:
         claims = detector._extract_quantitative_claims(document)
         
         trace.append({'step': 5, 'method': 'PolicyContradictionDetector._detect_numerical_inconsistencies'})
-        inconsistencies = detector._detect_numerical_inconsistencies(claims)
+        # Extract policy statements for D4
+        from contradiction_deteccion import PolicyDimension
+        statements_d4 = detector._extract_policy_statements(document, PolicyDimension.SEGUIMIENTO)
+        inconsistencies = detector._detect_numerical_inconsistencies(statements_d4)
         evidence['numerical_consistency'] = inconsistencies
         
         # Step 6: Calculate objective alignment
@@ -1117,7 +1167,11 @@ class ExecutionChoreographer:
         
         # Step 9: Detect logical incompatibilities
         trace.append({'step': 9, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
-        incompatibilities = detector._detect_logical_incompatibilities(document)
+        # Extract policy statements for D5
+        from contradiction_deteccion import PolicyDimension
+        statements_d5 = detector._extract_policy_statements(document, PolicyDimension.TERRITORIAL)
+        detector._build_knowledge_graph(statements_d5)
+        incompatibilities = detector._detect_logical_incompatibilities(statements_d5)
         evidence['incompatibilities'] = incompatibilities
         
         # Step 10: Calculate contradiction entropy
@@ -1235,7 +1289,11 @@ class ExecutionChoreographer:
         
         # Step 8: Detect logical incompatibilities
         trace.append({'step': 8, 'method': 'PolicyContradictionDetector._detect_logical_incompatibilities'})
-        incompatibilities = detector._detect_logical_incompatibilities(document)
+        # Extract policy statements for D6
+        from contradiction_deteccion import PolicyDimension
+        statements_d6 = detector._extract_policy_statements(document, PolicyDimension.ESTRATEGICO)
+        detector._build_knowledge_graph(statements_d6)
+        incompatibilities = detector._detect_logical_incompatibilities(statements_d6)
         evidence['incompatibilities'] = incompatibilities
         
         # Step 9: Generate resolution recommendations (type-specific)
