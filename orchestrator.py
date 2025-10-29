@@ -12,11 +12,17 @@ import logging
 import os
 import statistics
 import time
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional, Tuple, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from types import MappingProxyType
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+
+from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
+
+_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -163,19 +169,11 @@ except:
     MODULES_OK = False
     logger.warning("Módulos no disponibles - modo MOCK")
 
-@dataclass
-class PreprocessedDocument:
-    document_id: str
-    raw_text: str
-    sentences: List
-    tables: List
-    metadata: Dict
-
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Evidence:
     modality: str
-    elements: List = field(default_factory=list)
-    raw_results: Dict = field(default_factory=dict)
+    elements: Tuple[Any, ...] = field(default_factory=tuple)
+    raw_results: Mapping[str, Any] = _EMPTY_MAPPING
 
 
 class AbortRequested(RuntimeError):
@@ -7225,18 +7223,33 @@ class Orchestrator:
             "area_cluster_map": area_cluster_map,
         }
 
-    def _ingest_document(self, pdf_path: str, config: Dict[str, Any]) -> PreprocessedDocument:
+    def _ingest_document(self, pdf_path: str, config: Mapping[str, Any]) -> PreprocessedDocument:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[1]
         start = time.perf_counter()
 
         document_id = os.path.splitext(os.path.basename(pdf_path))[0] or "doc_1"
+        ingested_at = datetime.utcnow()
+        metadata_payload: Dict[str, Any] = {
+            "source_path": pdf_path,
+            "ingested_at": ingested_at.isoformat(),
+        }
+        extra_metadata = config.get("metadata") if isinstance(config, Mapping) else None
+        if isinstance(extra_metadata, Mapping):
+            metadata_payload.update(dict(extra_metadata))
+
+        structured_text = StructuredTextV1(full_text="", sections=tuple(), page_boundaries=tuple())
         preprocessed = PreprocessedDocument(
             document_id=document_id,
-            raw_text="",
-            sentences=[],
-            tables=[],
-            metadata={"source_path": pdf_path, "ingested_at": datetime.utcnow().isoformat()},
+            full_text="",
+            sentences=tuple(),
+            language=str(config.get("default_language", "unknown")),
+            structured_text=structured_text,
+            sentence_metadata=tuple(),
+            tables=tuple(),
+            indexes=DocumentIndexesV1(),
+            metadata=MappingProxyType(metadata_payload),
+            ingested_at=ingested_at,
         )
 
         duration = time.perf_counter() - start
