@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-10-29T02:16:24.476279+00:00",
+  "timestamp": "2025-10-29T02:21:25.847881+00:00",
   "output_file": "questionnaire_monolith.json",
-  "file_size": 623695,
-  "monolith_hash": "5e466b467ce472497977eab119dbe55f21a01db53b8d75c71b3deda5eb906928",
+  "file_size": 1156229,
+  "monolith_hash": "de52721917492cac3e6c548dc7457d9de68b66183bebdaf825e090e3bbdba6d0",
   "phases_executed": [
     "LoadLegacyPhase",
     "StructuralIndexingPhase",

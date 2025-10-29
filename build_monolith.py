@@ -584,6 +584,7 @@ class MonolithForge:
         
         # Build final monolith structure
         monolith = {
+            'schema_version': '1.1.0',  # Added versioning
             'version': '1.0.0',
             'generated_at': datetime.now(timezone.utc).isoformat(),
             'blocks': {}
@@ -601,6 +602,10 @@ class MonolithForge:
         micro_questions = []
         for global_num in range(1, 301):
             q = self.indices['by_global'][global_num]
+            
+            # Structure patterns with categories
+            structured_patterns = self._structure_patterns(q['pattern_refs'], q['question_id'])
+            
             micro_questions.append({
                 'question_global': q['question_global'],
                 'question_id': q.get('question_id'),
@@ -610,10 +615,15 @@ class MonolithForge:
                 'cluster_id': q.get('cluster_id'),
                 'text': q['text'],
                 'scoring_modality': q['scoring_modality'],
+                'scoring_definition_ref': f"scoring_modalities.{q['scoring_modality']}",
                 'expected_elements': q['expected_elements'],
-                'pattern_refs': q['pattern_refs'],
+                'patterns': structured_patterns,  # Enhanced structure
                 'validations': q['validations'],
-                'method_sets': q['method_sets']
+                'method_sets': q['method_sets'],
+                'failure_contract': {
+                    'abort_if': ['missing_required_element', 'incomplete_text'],
+                    'emit_code': f"ABORT-{q.get('question_id')}-REQ"
+                }
             })
         
         monolith['blocks']['micro_questions'] = micro_questions
@@ -624,8 +634,58 @@ class MonolithForge:
         # Block D: macro_question (1)
         monolith['blocks']['macro_question'] = self.monolith['macro_question']
         
-        # Add scoring matrix
-        monolith['blocks']['scoring'] = self.monolith['scoring_matrix']
+        # Add scoring matrix with explicit definitions
+        monolith['blocks']['scoring'] = self._create_scoring_definitions()
+        
+        # Add semantic layers block
+        monolith['blocks']['semantic_layers'] = {
+            'embedding_strategy': {
+                'model': 'multilingual-e5-base',
+                'dimension': 768,
+                'hybrid': {
+                    'bm25': True,
+                    'fusion': 'RRF'
+                }
+            },
+            'disambiguation': {
+                'entity_linker': 'spaCy_es_core_news_lg',
+                'confidence_threshold': 0.72
+            }
+        }
+        
+        # Add observability block
+        monolith['observability'] = {
+            'telemetry_schema': {
+                'metrics': [
+                    {
+                        'name': 'pattern_match_count',
+                        'level': 'MICRO',
+                        'aggregation': 'sum'
+                    },
+                    {
+                        'name': 'rule_latency_ms',
+                        'level': 'METHOD_SET',
+                        'aggregation': 'p95'
+                    },
+                    {
+                        'name': 'validation_failure_rate',
+                        'level': 'DIMENSION',
+                        'aggregation': 'ratio'
+                    }
+                ],
+                'logs': {
+                    'format': 'jsonl',
+                    'fields': ['timestamp', 'question_id', 'pattern_id', 'matched_text', 'confidence', 'trace_id', 'ruleset_hash']
+                },
+                'tracing': {
+                    'propagation': 'W3C',
+                    'span_structure': ['LOAD_RULESET', 'PARSE_DOCUMENT', 'EXTRACT_PATTERN', 'VALIDATE', 'AGGREGATE', 'EMIT_SCORE']
+                }
+            }
+        }
+        
+        # Calculate ruleset hash for deterministic reproducibility
+        ruleset_hash = self._calculate_ruleset_hash(micro_questions)
         
         # Calculate hash on canonical serialization
         canonical_json = json.dumps(monolith, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
@@ -634,6 +694,7 @@ class MonolithForge:
         # Add integrity block
         monolith['integrity'] = {
             'monolith_hash': monolith_hash,
+            'ruleset_hash': ruleset_hash,
             'question_count': {
                 'micro': 300,
                 'meso': 4,
@@ -645,7 +706,109 @@ class MonolithForge:
         self.monolith['final'] = monolith
         
         logger.info(f"Sealed monolith with hash: {monolith_hash[:16]}...")
+        logger.info(f"Ruleset hash: {ruleset_hash[:16]}...")
         logger.info(f"=== {phase} COMPLETE ===")
+    
+    def _structure_patterns(self, pattern_refs: List, question_id: str) -> List:
+        """Structure pattern_refs as typed objects with categories."""
+        structured = []
+        
+        for idx, pattern in enumerate(pattern_refs):
+            if not isinstance(pattern, str):
+                continue
+            
+            # Categorize patterns based on content
+            category = self._categorize_pattern(pattern)
+            
+            structured.append({
+                'id': f"PAT-{question_id}-{idx:03d}",
+                'pattern': pattern,
+                'category': category,
+                'match_type': 'REGEX' if any(c in pattern for c in r'\\d.*+?[]()') else 'LITERAL',
+                'flags': 'i',
+                'confidence_weight': 0.85
+            })
+        
+        return structured
+    
+    def _categorize_pattern(self, pattern: str) -> str:
+        """Categorize a pattern based on its content."""
+        pattern_lower = pattern.lower()
+        
+        if any(src in pattern_lower for src in ['dane', 'medicina legal', 'fiscalía', 'policía', 'sivigila', 'sispro']):
+            return 'FUENTE_OFICIAL'
+        elif any(ind in pattern_lower for ind in ['tasa', 'porcentaje', '%', 'indicador', 'cifra']):
+            return 'INDICADOR'
+        elif any(year in pattern for year in ['20\\d{2}', 'año', 'periodo']):
+            return 'TEMPORAL'
+        elif any(ent in pattern_lower for ent in ['departamental', 'municipal', 'territorial']):
+            return 'TERRITORIAL'
+        elif any(unit in pattern_lower for unit in ['por 100', 'por 1.000', 'por cada']):
+            return 'UNIDAD_MEDIDA'
+        else:
+            return 'GENERAL'
+    
+    def _create_scoring_definitions(self):
+        """Create explicit scoring modality definitions."""
+        return {
+            'micro_levels': self.monolith['scoring_matrix']['micro_levels'],
+            'modalities': self.monolith['scoring_matrix']['modalities'],
+            'modality_definitions': {
+                'TYPE_A': {
+                    'description': 'Count 4 elements and scale to 0-3',
+                    'aggregation': 'presence_threshold',
+                    'threshold': 0.7,
+                    'failure_code': 'F-A-MIN'
+                },
+                'TYPE_B': {
+                    'description': 'Count up to 3 elements, each worth 1 point',
+                    'aggregation': 'binary_sum',
+                    'max_score': 3,
+                    'failure_code': 'F-B-MIN'
+                },
+                'TYPE_C': {
+                    'description': 'Count 2 elements and scale to 0-3',
+                    'aggregation': 'presence_threshold',
+                    'threshold': 0.5,
+                    'failure_code': 'F-C-MIN'
+                },
+                'TYPE_D': {
+                    'description': 'Count 3 elements, weighted',
+                    'aggregation': 'weighted_sum',
+                    'weights': [0.4, 0.3, 0.3],
+                    'failure_code': 'F-D-MIN'
+                },
+                'TYPE_E': {
+                    'description': 'Boolean presence check',
+                    'aggregation': 'binary_presence',
+                    'failure_code': 'F-E-MIN'
+                },
+                'TYPE_F': {
+                    'description': 'Continuous scale',
+                    'aggregation': 'normalized_continuous',
+                    'normalization': 'minmax',
+                    'failure_code': 'F-F-MIN'
+                }
+            }
+        }
+    
+    def _calculate_ruleset_hash(self, micro_questions: List) -> str:
+        """Calculate deterministic hash of all patterns for reproducibility."""
+        all_patterns = []
+        
+        for q in micro_questions:
+            for pattern in q.get('patterns', []):
+                if isinstance(pattern, dict):
+                    all_patterns.append(pattern.get('pattern', ''))
+                else:
+                    all_patterns.append(str(pattern))
+        
+        # Sort for determinism
+        all_patterns.sort()
+        
+        # Concatenate and hash
+        patterns_str = '|'.join(all_patterns)
+        return hashlib.sha256(patterns_str.encode('utf-8')).hexdigest()
     
     # ========================================================================
     # PHASE 10: ValidationReportPhase

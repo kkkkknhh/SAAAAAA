@@ -72,6 +72,7 @@ class MonolithValidator:
         self.validate_meso_questions()
         self.validate_macro_question()
         self.validate_integrity_hash()
+        self.validate_enhancements()  # New validation for architectural improvements
         
         print("\n" + "=" * 70)
         print("VALIDATION SUMMARY")
@@ -116,7 +117,7 @@ class MonolithValidator:
         """Validate top-level structure."""
         print("\n--- Structure Validation ---")
         
-        required_keys = ['version', 'generated_at', 'integrity', 'blocks']
+        required_keys = ['schema_version', 'version', 'generated_at', 'integrity', 'blocks']
         for key in required_keys:
             if key not in self.monolith:
                 self.error(f"Missing top-level key: {key}")
@@ -221,7 +222,7 @@ class MonolithValidator:
         
         required_fields = [
             'question_global', 'question_id', 'base_slot', 'text',
-            'scoring_modality', 'expected_elements', 'pattern_refs'
+            'scoring_modality', 'expected_elements', 'patterns'
         ]
         
         missing_fields = defaultdict(list)
@@ -346,6 +347,72 @@ class MonolithValidator:
             self.success("Integrity: total count = 305")
         else:
             self.error(f"Integrity: total count should be 305, got {counts.get('total')}")
+    
+    def validate_enhancements(self):
+        """Validate architectural enhancements (schema_version, ruleset_hash, etc.)."""
+        print("\n--- Architectural Enhancements Validation ---")
+        
+        # Validate schema_version
+        schema_version = self.monolith.get('schema_version')
+        if schema_version:
+            self.success(f"Schema version: {schema_version}")
+        else:
+            self.warning("Missing schema_version (recommended)")
+        
+        # Validate ruleset_hash
+        ruleset_hash = self.monolith.get('integrity', {}).get('ruleset_hash')
+        if ruleset_hash:
+            self.success(f"Ruleset hash: {ruleset_hash[:16]}...")
+        else:
+            self.warning("Missing ruleset_hash (recommended for reproducibility)")
+        
+        # Validate semantic_layers
+        semantic_layers = self.monolith.get('blocks', {}).get('semantic_layers')
+        if semantic_layers:
+            self.success("Semantic layers block present")
+            if 'embedding_strategy' in semantic_layers:
+                model = semantic_layers['embedding_strategy'].get('model')
+                self.success(f"  Embedding model: {model}")
+        else:
+            self.warning("Missing semantic_layers block (recommended for SOTA)")
+        
+        # Validate observability
+        observability = self.monolith.get('observability')
+        if observability:
+            self.success("Observability block present")
+            metrics = observability.get('telemetry_schema', {}).get('metrics', [])
+            self.success(f"  Metrics defined: {len(metrics)}")
+        else:
+            self.warning("Missing observability block (recommended for monitoring)")
+        
+        # Validate structured patterns
+        micro_questions = self.monolith.get('blocks', {}).get('micro_questions', [])
+        if micro_questions:
+            q1 = micro_questions[0]
+            if 'patterns' in q1 and isinstance(q1['patterns'], list) and q1['patterns']:
+                if isinstance(q1['patterns'][0], dict):
+                    self.success("Patterns are structured with categories")
+                    pattern = q1['patterns'][0]
+                    if 'id' in pattern and 'category' in pattern:
+                        self.success(f"  Pattern IDs and categories present")
+                else:
+                    self.warning("Patterns not fully structured (use typed objects)")
+        
+        # Validate modality definitions
+        scoring = self.monolith.get('blocks', {}).get('scoring', {})
+        modality_defs = scoring.get('modality_definitions')
+        if modality_defs:
+            self.success(f"Modality definitions: {len(modality_defs)} types")
+        else:
+            self.warning("Missing modality_definitions (recommended for explicitness)")
+        
+        # Validate failure contracts
+        if micro_questions:
+            q1 = micro_questions[0]
+            if 'failure_contract' in q1:
+                self.success("Failure contracts defined")
+            else:
+                self.warning("Missing failure_contract in questions")
 
 
 def main():
