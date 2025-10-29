@@ -19,7 +19,6 @@ Features demonstrated:
 - Strategic alignment assessment
 """
 
-import json
 import logging
 import sys
 from pathlib import Path
