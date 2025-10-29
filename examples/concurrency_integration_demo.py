@@ -17,9 +17,9 @@ Key features demonstrated:
 
 import logging
 import time
-from typing import Any, Dict, List
+from typing import List
 
-from concurrency import WorkerPool, WorkerPoolConfig, TaskResult
+from concurrency import WorkerPool, WorkerPoolConfig
 
 logging.basicConfig(
     level=logging.INFO,

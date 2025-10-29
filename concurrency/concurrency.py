@@ -30,9 +30,9 @@ import logging
 import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -508,8 +508,8 @@ class WorkerPool:
                 if future.done() and task_id not in [r.task_id for r in results]:
                     try:
                         results.append(self.get_task_result(task_id, timeout=0.1))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.exception(f"Failed to get result for completed task {task_id}: {e}")
             
             raise TimeoutError(
                 f"Timeout waiting for tasks: {completed}/{len(all_futures)} completed"

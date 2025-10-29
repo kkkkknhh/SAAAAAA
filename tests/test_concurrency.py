@@ -15,12 +15,9 @@ Tests verify:
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
-
 from concurrency import (
     WorkerPool,
     WorkerPoolConfig,
-    TaskResult,
     TaskStatus,
     TaskExecutionError,
 )
@@ -261,6 +258,12 @@ class TestWorkerPoolMetrics(unittest.TestCase):
         # Wait for all
         results = pool.wait_for_all(timeout=10.0)
         
+        # Validate results
+        successful = [r for r in results if r.success]
+        failed = [r for r in results if not r.success]
+        self.assertEqual(len(successful), 5)
+        self.assertEqual(len(failed), 3)
+        
         # Get summary
         summary = pool.get_summary_metrics()
         
@@ -288,7 +291,7 @@ class TestWorkerPoolThreadSafety(unittest.TestCase):
             for i in range(start, end):
                 task_id = pool.submit_task(
                     f"task_{i}",
-                    lambda x: x * 2,
+                    lambda x, val=i: val * 2,
                     args=(i,)
                 )
                 task_ids.append(task_id)
