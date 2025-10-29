@@ -21,7 +21,6 @@ from orchestrator.choreographer import (
 
 class TestChoreographer(unittest.TestCase):
     """Test the Choreographer class."""
-    
     def setUp(self):
         """Set up test fixtures."""
         # Use actual monolith and catalog if they exist
