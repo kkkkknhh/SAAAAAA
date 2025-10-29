@@ -258,6 +258,20 @@ class TestWorkerPoolMetrics(unittest.TestCase):
         # Wait for all
         results = pool.wait_for_all(timeout=10.0)
         
+        # Assert results: 5 successes, 3 failures
+        success_count = 0
+        fail_count = 0
+        for result in results:
+            if isinstance(result, Exception):
+                fail_count += 1
+                self.assertIsInstance(result, TaskExecutionError)
+            else:
+                success_count += 1
+                self.assertEqual(result, "ok")
+        
+        self.assertEqual(success_count, 5)
+        self.assertEqual(fail_count, 3)
+        
         # Validate results
         successful = [r for r in results if r.success]
         failed = [r for r in results if not r.success]
