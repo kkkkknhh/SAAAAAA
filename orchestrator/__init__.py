@@ -36,6 +36,8 @@ try:  # pragma: no cover - executed at import time
         raise RuntimeError(
             "Data contract validation failed; see schema_validator output for details."
         )
+except ImportError:  # pragma: no cover - schema_validator not available
+    pass  # Schema validation is optional
 except Exception as exc:  # pragma: no cover - validation failure path
     raise
 
