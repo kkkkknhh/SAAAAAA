@@ -27,7 +27,7 @@ The orchestrator now properly coordinates all 11 phases (FASE 0 through FASE 10)
 Enhanced configuration validation includes:
 
 - **Integrity Hash Verification**: SHA256 hash validation for monolith
-- **Question Count Validation**: Ensures 305 questions (300 micro + 4 meso + 1 macro)
+- **Question Count Validation**: Ensures exactly 305 questions total (300 micro + 4 meso + 1 macro = 305)
 - **Method Catalog Validation**: Verifies 416 total methods (166 unique)
 - **Contract Structure Validation**: New `_validate_contract_structure()` method that checks:
   - All 30 base slots are defined in catalog (6 dimensions × 5 questions)
@@ -248,7 +248,7 @@ def _load_configuration(self) -> PhaseResult:
         # Validate contract structure (NEW)
         contract_errors = self._validate_contract_structure()
         if contract_errors:
-            raise ValueError(f"Contract validation failed: {errors}")
+            raise ValueError(f"Contract validation failed: {contract_errors}")
         
         instrumentation.complete()
         return PhaseResult(success=True, ...)
