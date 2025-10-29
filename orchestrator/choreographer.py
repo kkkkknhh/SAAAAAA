@@ -455,7 +455,6 @@ class Choreographer:
         
         # For now, execute all methods sequentially
         for package in method_packages:
-            file_name = package.get("f", "")
             class_name = package.get("c", "")
             methods = package.get("m", [])
             method_types = package.get("t", [])
