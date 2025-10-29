@@ -7,15 +7,18 @@ SIN brevedad. SIN omisiones. TODO implementado.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import os
+import re
 import statistics
 import time
-from dataclasses import dataclass, field
+from datetime import datetime
+from dataclasses import dataclass, field, asdict, is_dataclass
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from orchestrator.arg_router import (
@@ -28,6 +31,9 @@ from orchestrator.class_registry import ClassRegistryError, build_class_registry
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
 
 
 class _QuestionnaireProvider:
@@ -172,6 +178,107 @@ class PreprocessedDocument:
     sentences: List
     tables: List
     metadata: Dict
+
+    @staticmethod
+    def _dataclass_to_dict(value: Any) -> Any:
+        if is_dataclass(value):
+            return asdict(value)
+        return value
+
+    @classmethod
+    def ensure(
+        cls, document: Any, *, document_id: Optional[str] = None
+    ) -> "PreprocessedDocument":
+        """Normalize arbitrary ingestion payloads into orchestrator documents."""
+
+        if isinstance(document, cls):
+            return document
+
+        if hasattr(document, "raw_document") and hasattr(document, "full_text"):
+            return cls._from_ingestion(document, document_id=document_id)
+
+        raise TypeError(
+            "Unsupported preprocessed document payload: "
+            f"expected orchestrator or document_ingestion schema, got {type(document)!r}"
+        )
+
+    @classmethod
+    def _from_ingestion(
+        cls,
+        document: "IngestionPreprocessedDocument" | Any,
+        *,
+        document_id: Optional[str] = None,
+    ) -> "PreprocessedDocument":
+        """Build an orchestrator document from the ingestion schema."""
+
+        raw_doc = getattr(document, "raw_document", None)
+        derived_id: Optional[str] = document_id or getattr(document, "document_id", None)
+
+        if not derived_id and raw_doc is not None:
+            derived_id = getattr(raw_doc, "file_name", None)
+
+        if not derived_id and hasattr(document, "preprocessing_metadata"):
+            derived_id = getattr(document.preprocessing_metadata, "get", lambda _key, _default=None: None)(
+                "document_id"
+            )
+
+        if not derived_id and hasattr(document, "metadata"):
+            derived_id = getattr(document.metadata, "get", lambda _key, _default=None: None)("document_id")
+
+        if not derived_id and raw_doc is not None:
+            source_path = getattr(raw_doc, "file_path", "")
+            if source_path:
+                derived_id = os.path.splitext(os.path.basename(str(source_path)))[0]
+
+        if not derived_id:
+            derived_id = "document_1"
+
+        metadata: Dict[str, Any] = {}
+        preprocessing_block: Optional[Dict[str, Any]] = None
+        if hasattr(document, "preprocessing_metadata"):
+            preprocessing_metadata = document.preprocessing_metadata
+            if isinstance(preprocessing_metadata, dict):
+                preprocessing_block = preprocessing_metadata
+            else:
+                maybe_dict = cls._dataclass_to_dict(preprocessing_metadata)
+                if isinstance(maybe_dict, dict):
+                    preprocessing_block = maybe_dict
+        if preprocessing_block:
+            metadata["preprocessing_metadata"] = preprocessing_block
+
+        sentence_metadata = getattr(document, "sentence_metadata", None)
+        if sentence_metadata is not None:
+            metadata["sentence_metadata"] = list(sentence_metadata)
+
+        indexes = getattr(document, "indexes", None)
+        if indexes is not None:
+            metadata["indexes"] = cls._dataclass_to_dict(indexes)
+
+        structured_text = getattr(document, "structured_text", None)
+        if structured_text is not None:
+            metadata["structured_text"] = cls._dataclass_to_dict(structured_text)
+
+        language = getattr(document, "language", None)
+        if language:
+            metadata["language"] = language
+
+        raw_doc_dict = cls._dataclass_to_dict(raw_doc) if raw_doc is not None else None
+        if isinstance(raw_doc_dict, dict):
+            metadata.setdefault("raw_document", raw_doc_dict)
+            source_path = raw_doc_dict.get("file_path")
+            if source_path:
+                metadata.setdefault("source_path", source_path)
+
+        metadata.setdefault("document_id", str(derived_id))
+        metadata.setdefault("adapter_source", "document_ingestion.PreprocessedDocument")
+
+        return cls(
+            document_id=str(derived_id),
+            raw_text=getattr(document, "full_text", "") or "",
+            sentences=list(getattr(document, "sentences", [])),
+            tables=list(getattr(document, "tables", [])),
+            metadata=metadata,
+        )
 
 @dataclass
 class Evidence:
@@ -537,6 +644,195 @@ class ScoredMicroQuestion:
     scoring_details: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
+
+
+class ArgRouter:
+    """Normalize orchestrator kwargs into the signatures expected by methods."""
+
+    def __init__(self) -> None:
+        self._special_routes = {
+            ("IndustrialPolicyProcessor", "process"): self._route_policy_process,
+            (
+                "IndustrialPolicyProcessor",
+                "_match_patterns_in_sentences",
+            ): self._route_match_patterns,
+            (
+                "IndustrialPolicyProcessor",
+                "_construct_evidence_bundle",
+            ): self._route_construct_bundle,
+            ("PolicyTextProcessor", "segment_into_sentences"): self._route_segment_sentences,
+            ("BayesianEvidenceScorer", "compute_evidence_score"): self._route_evidence_score,
+        }
+
+    def route(
+        self,
+        class_name: str,
+        instance: Any,
+        method: Any,
+        provided_kwargs: Dict[str, Any],
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        """Return positional and keyword args compatible with the target method."""
+
+        route_key = (class_name, getattr(method, "__name__", ""))
+        if route_key in self._special_routes:
+            return self._special_routes[route_key](instance, method, provided_kwargs)
+
+        return self._default_route(method, provided_kwargs)
+
+    def _default_route(
+        self, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        signature = inspect.signature(method)
+        accepted_kwargs: Dict[str, Any] = {}
+        allow_extra = False
+
+        for name, param in signature.parameters.items():
+            if param.kind == param.VAR_POSITIONAL:
+                continue
+            if param.kind == param.VAR_KEYWORD:
+                allow_extra = True
+                continue
+
+            if name in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs[name]
+            elif name == "raw_text" and "text" in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs["text"]
+
+        if allow_extra:
+            for key, value in provided_kwargs.items():
+                accepted_kwargs.setdefault(key, value)
+
+        return (), accepted_kwargs
+
+    def _extract_all_patterns(self, instance: Any) -> List[Any]:
+        pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
+        compiled_patterns: List[Any] = []
+        for categories in pattern_registry.values():
+            compiled_patterns.extend(chain.from_iterable(categories.values()))
+        return compiled_patterns
+
+    def _derive_dimension_category(self, instance: Any) -> Tuple[Any, str, List[Any]]:
+        pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
+        dimension = None
+        category = None
+        compiled_patterns: List[Any] = []
+
+        if pattern_registry:
+            dimension = next(iter(pattern_registry.keys()))
+            categories = pattern_registry.get(dimension, {})
+            if categories:
+                category = next(iter(categories.keys()))
+                compiled_patterns = list(categories.get(category, []))
+
+        if dimension is None:
+            dimension = getattr(instance, "default_dimension", None)
+        if dimension is None:
+            dimension_enum = globals().get("CausalDimension")
+            if dimension_enum is not None:
+                dimension = getattr(dimension_enum, "D1_INSUMOS", dimension_enum)
+            else:
+                dimension = "d1_insumos"
+
+        if category is None:
+            category = "general"
+
+        return dimension, category, compiled_patterns
+
+    def _route_policy_process(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text")
+        if text is None:
+            text = provided_kwargs.get("raw_text", "")
+        return (), {"raw_text": text}
+
+    def _route_match_patterns(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        compiled_patterns = self._extract_all_patterns(instance)
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+        return (compiled_patterns, sentences), {}
+
+    def _route_construct_bundle(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+
+        dimension, category, compiled_patterns = self._derive_dimension_category(instance)
+
+        if compiled_patterns and sentences:
+            matches, positions = instance._match_patterns_in_sentences(  # type: ignore[attr-defined]
+                compiled_patterns, sentences
+            )
+        else:
+            matches = []
+            positions = []
+
+        if not matches and text:
+            fallback_matches = re.findall(r"\b\w{6,}\b", text)
+            matches = fallback_matches[:20]
+            positions = list(range(len(matches)))
+
+        text_length = len(text) if text else sum(len(s) for s in sentences)
+        confidence = 0.0
+        compute_confidence = getattr(instance, "_compute_evidence_confidence", None)
+        if callable(compute_confidence) and (matches or text_length):
+            try:
+                confidence = compute_confidence(matches, text_length, pattern_specificity=0.85)
+            except TypeError:
+                confidence = compute_confidence(matches, text_length, 0.85)
+        elif text_length:
+            confidence = min(1.0, len(matches) / max(1, text_length))
+
+        return (), {
+            "dimension": dimension,
+            "category": category,
+            "matches": matches,
+            "positions": positions,
+            "confidence": confidence,
+        }
+
+    def _route_segment_sentences(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text")
+        if text is None:
+            text = provided_kwargs.get("raw_text", "")
+        return (text,), {}
+
+    def _route_evidence_score(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+
+        matches: List[str] = [s for s in sentences if s.strip()]
+        if not matches and text:
+            matches = re.findall(r"\b\w{6,}\b", text)[:50]
+
+        total_corpus_size = len(text)
+        if total_corpus_size == 0 and sentences:
+            total_corpus_size = sum(len(s) for s in sentences)
+
+        uniqueness = len(set(matches)) if matches else 0
+        pattern_specificity = 0.8
+        if uniqueness and matches:
+            pattern_specificity = min(0.95, max(0.2, uniqueness / max(1, len(matches))))
+
+        return (matches, total_corpus_size), {"pattern_specificity": pattern_specificity}
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
@@ -6975,21 +7271,31 @@ class Orchestrator:
         if self.abort_signal.is_aborted():
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
-    def process_development_plan(self, pdf_path: str) -> List[PhaseResult]:
+    def process_development_plan(
+        self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> List[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None
         if loop and loop.is_running():
             raise RuntimeError("process_development_plan() debe ejecutarse fuera de un loop asyncio activo")
-        return asyncio.run(self.process_development_plan_async(pdf_path))
+        return asyncio.run(
+            self.process_development_plan_async(
+                pdf_path, preprocessed_document=preprocessed_document
+            )
+        )
 
-    async def process_development_plan_async(self, pdf_path: str) -> List[PhaseResult]:
+    async def process_development_plan_async(
+        self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> List[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
         self._phase_instrumentation = {}
         self._phase_outputs = {}
         self._context = {"pdf_path": pdf_path}
+        if preprocessed_document is not None:
+            self._context["preprocessed_override"] = preprocessed_document
         self._phase_status = {phase_id: "not_started" for phase_id, *_ in self.FASES}
         self._start_time = time.perf_counter()
 
@@ -7267,13 +7573,28 @@ class Orchestrator:
         start = time.perf_counter()
 
         document_id = os.path.splitext(os.path.basename(pdf_path))[0] or "doc_1"
-        preprocessed = PreprocessedDocument(
-            document_id=document_id,
-            raw_text="",
-            sentences=[],
-            tables=[],
-            metadata={"source_path": pdf_path, "ingested_at": datetime.utcnow().isoformat()},
-        )
+        override_payload = self._context.get("preprocessed_override")
+        if override_payload is not None:
+            try:
+                preprocessed = PreprocessedDocument.ensure(
+                    override_payload, document_id=document_id
+                )
+            except TypeError as exc:
+                instrumentation.record_error(
+                    "ingestion", "Documento preprocesado incompatible", reason=str(exc)
+                )
+                raise
+        else:
+            preprocessed = PreprocessedDocument(
+                document_id=document_id,
+                raw_text="",
+                sentences=[],
+                tables=[],
+                metadata={
+                    "source_path": pdf_path,
+                    "ingested_at": datetime.utcnow().isoformat(),
+                },
+            )
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
