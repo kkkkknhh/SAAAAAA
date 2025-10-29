@@ -38,8 +38,20 @@ from typing import Any, Dict, List, Optional
 from orchestrator.coreographer import (
     Choreographer,
     QuestionResult as ChoreographerQuestionResult,
-    PreprocessedDocument,
 )
+
+# Import document ingestion module
+try:
+    from ingestion.document_ingestion import (
+        DocumentLoader,
+        PreprocessingEngine,
+        PreprocessedDocument as IngestionPreprocessedDocument,
+        IngestionError,
+    )
+    INGESTION_AVAILABLE = True
+except ImportError:
+    INGESTION_AVAILABLE = False
+    IngestionPreprocessedDocument = None
 
 logger = logging.getLogger(__name__)
 
@@ -337,22 +349,66 @@ class Orchestrator:
         start = time.time()
         
         try:
-            # TODO: Implement document ingestion
-            # This is a placeholder - actual implementation would use DI module
+            if not INGESTION_AVAILABLE:
+                raise IngestionError(
+                    "Document ingestion module not available. "
+                    "Install required dependencies: pip install PyPDF2 pdfplumber"
+                )
             
-            # For now, create a mock preprocessed document
+            # Step 1: Load PDF
+            logger.info(f"Loading PDF: {pdf_path}")
+            raw_document = DocumentLoader.load_pdf(pdf_path)
+            logger.info(f"✓ PDF loaded: {raw_document.num_pages} pages")
+            
+            # Step 2: Preprocess document (includes text extraction, normalization,
+            # segmentation, table extraction, classification, and index building)
+            logger.info("Preprocessing document...")
+            preprocessing_engine = PreprocessingEngine()
+            ingestion_doc = preprocessing_engine.preprocess_document(raw_document)
+            
+            # Convert to orchestrator's PreprocessedDocument format
+            # (needed for compatibility with choreographer)
             preprocessed_doc = PreprocessedDocument(
-                document_id=hashlib.sha256(pdf_path.encode()).hexdigest()[:16],
-                raw_text="",
-                normalized_text="",
-                sentences=[],
-                tables=[],
-                indexes={},
-                metadata={"pdf_path": pdf_path}
+                document_id=ingestion_doc.document_id,
+                raw_text=ingestion_doc.raw_text,
+                normalized_text=ingestion_doc.normalized_text,
+                sentences=[
+                    {
+                        'text': sent.text,
+                        'start_offset': sent.start_offset,
+                        'end_offset': sent.end_offset,
+                        'sentence_index': sent.sentence_index,
+                        'page_number': sent.page_number
+                    }
+                    for sent in ingestion_doc.sentences
+                ],
+                tables=[
+                    {
+                        'table_index': table.table_index,
+                        'table_type': table.table_type,
+                        'data': table.data,
+                        'page_number': table.page_number,
+                        'confidence': table.confidence,
+                        'metadata': table.metadata
+                    }
+                    for table in ingestion_doc.tables
+                ],
+                indexes={
+                    'term_index': ingestion_doc.indexes.term_index,
+                    'numeric_index': ingestion_doc.indexes.numeric_index,
+                    'temporal_index': ingestion_doc.indexes.temporal_index,
+                    'table_index': ingestion_doc.indexes.table_index
+                },
+                metadata=ingestion_doc.metadata
             )
             
             duration = (time.time() - start) * 1000
-            logger.info(f"✓ Documento preprocesado (placeholder)")
+            logger.info(
+                f"✓ Documento preprocesado:\n"
+                f"  - {len(preprocessed_doc.sentences)} oraciones\n"
+                f"  - {len(preprocessed_doc.tables)} tablas\n"
+                f"  - Índices construidos"
+            )
             
             return PhaseResult(
                 phase_id="FASE_1",
@@ -364,6 +420,8 @@ class Orchestrator:
                 metrics={
                     "sentences": len(preprocessed_doc.sentences),
                     "tables": len(preprocessed_doc.tables),
+                    "document_id": preprocessed_doc.document_id,
+                    "text_length": len(preprocessed_doc.normalized_text),
                 }
             )
             
