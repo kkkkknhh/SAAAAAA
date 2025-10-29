@@ -126,17 +126,16 @@ def test_registry_append_single_evidence():
         registry = EvidenceRegistry(storage_path=registry_path)
         
         payload = {"test": "data", "value": 42}
-        record = EvidenceRecord(
-            evidence_id="test_001",
+        
+        evidence_id = registry.record_evidence(
             evidence_type="method_result",
             payload=payload,
             source_method="TestModule.test_method",
         )
         
-        registry.record_evidence(record)
-        
         assert len(registry.hash_index) == 1
-        print(f"✓ Single evidence appended")
+        assert evidence_id in registry.hash_index
+        print(f"✓ Single evidence appended with ID: {evidence_id[:16]}...")
 
 
 def test_registry_append_multiple_evidence():
@@ -145,16 +144,18 @@ def test_registry_append_multiple_evidence():
         registry_path = Path(tmpdir) / "test_registry.jsonl"
         registry = EvidenceRegistry(storage_path=registry_path)
         
+        evidence_ids = []
         for i in range(5):
-            record = EvidenceRecord(
-                evidence_id=f"test_{i:03d}",
+            eid = registry.record_evidence(
                 evidence_type="method_result",
                 payload={"index": i, "data": f"value_{i}"},
                 source_method=f"TestModule.method_{i}",
             )
-            registry.record_evidence(record)
+            evidence_ids.append(eid)
         
         assert len(registry.hash_index) == 5
+        for eid in evidence_ids:
+            assert eid in registry.hash_index
         print(f"✓ Multiple evidence records appended")
 
 
@@ -166,18 +167,16 @@ def test_registry_retrieve_evidence():
         
         # Append evidence
         payload = {"test": "retrieve", "value": 99}
-        record = EvidenceRecord(
-            evidence_id="test_retrieve",
+        evidence_id = registry.record_evidence(
             evidence_type="method_result",
             payload=payload,
         )
-        registry.record_evidence(record)
         
         # Retrieve evidence
-        retrieved = registry.get_evidence("test_retrieve")
+        retrieved = registry.get_evidence(evidence_id)
         
         assert retrieved is not None
-        assert retrieved.evidence_id == "test_retrieve"
+        assert retrieved.evidence_id == evidence_id
         assert retrieved.payload == payload
         print(f"✓ Evidence retrieved successfully")
 
@@ -200,15 +199,11 @@ def test_registry_hash_chain_integrity():
         registry = EvidenceRegistry(storage_path=registry_path)
         
         # Append multiple records
-        records = []
         for i in range(3):
-            record = EvidenceRecord(
-                evidence_id=f"chain_{i:03d}",
+            registry.record_evidence(
                 evidence_type="test",
                 payload={"index": i},
             )
-            registry.record_evidence(record)
-            records.append(record)
         
         # Verify hash chain
         is_valid, errors = registry.verify_chain_integrity()
@@ -224,12 +219,10 @@ def test_registry_detect_tampering():
         registry = EvidenceRegistry(storage_path=registry_path)
         
         # Append evidence
-        record = EvidenceRecord(
-            evidence_id="test_tamper",
+        registry.record_evidence(
             evidence_type="test",
             payload={"original": "data"},
         )
-        registry.record_evidence(record)
         
         # Tamper with JSONL file
         with open(registry_path, "r") as f:
@@ -258,35 +251,29 @@ def test_registry_provenance_tracking():
         registry = EvidenceRegistry(storage_path=registry_path)
         
         # Create parent evidence
-        parent1 = EvidenceRecord(
-            evidence_id="parent_001",
+        parent1_id = registry.record_evidence(
             evidence_type="extraction",
             payload={"data": "parent1"},
         )
-        registry.record_evidence(parent1)
         
-        parent2 = EvidenceRecord(
-            evidence_id="parent_002",
+        parent2_id = registry.record_evidence(
             evidence_type="extraction",
             payload={"data": "parent2"},
         )
-        registry.record_evidence(parent2)
         
         # Create child evidence with parent dependencies
-        child = EvidenceRecord(
-            evidence_id="child_001",
+        child_id = registry.record_evidence(
             evidence_type="analysis",
             payload={"data": "child", "result": "combined"},
-            parent_evidence_ids=["parent_001", "parent_002"],
+            parent_evidence_ids=[parent1_id, parent2_id],
         )
-        registry.record_evidence(child)
         
         # Retrieve and verify
-        retrieved = registry.get_evidence("child_001")
+        retrieved = registry.get_evidence(child_id)
         assert retrieved is not None
         assert len(retrieved.parent_evidence_ids) == 2
-        assert "parent_001" in retrieved.parent_evidence_ids
-        assert "parent_002" in retrieved.parent_evidence_ids
+        assert parent1_id in retrieved.parent_evidence_ids
+        assert parent2_id in retrieved.parent_evidence_ids
         
         print(f"✓ Provenance tracking verified")
 
@@ -298,28 +285,22 @@ def test_registry_export_provenance_dag():
         registry = EvidenceRegistry(storage_path=registry_path)
         
         # Create evidence chain
-        record1 = EvidenceRecord(
-            evidence_id="node_001",
+        node1_id = registry.record_evidence(
             evidence_type="extraction",
             payload={"data": "node1"},
         )
-        registry.record_evidence(record1)
         
-        record2 = EvidenceRecord(
-            evidence_id="node_002",
+        node2_id = registry.record_evidence(
             evidence_type="analysis",
             payload={"data": "node2"},
-            parent_evidence_ids=["node_001"],
+            parent_evidence_ids=[node1_id],
         )
-        registry.record_evidence(record2)
         
-        record3 = EvidenceRecord(
-            evidence_id="node_003",
+        node3_id = registry.record_evidence(
             evidence_type="synthesis",
             payload={"data": "node3"},
-            parent_evidence_ids=["node_001", "node_002"],
+            parent_evidence_ids=[node1_id, node2_id],
         )
-        registry.record_evidence(record3)
         
         # Export DAG
         dag = registry.export_provenance_dag()
@@ -342,18 +323,16 @@ def test_registry_persistence():
         
         # Create registry and append evidence
         registry1 = EvidenceRegistry(storage_path=registry_path)
-        record = EvidenceRecord(
-            evidence_id="persist_001",
+        evidence_id = registry1.record_evidence(
             evidence_type="test",
             payload={"data": "persistent"},
         )
-        registry1.record_evidence(record)
         
         # Create new registry instance with same path
         registry2 = EvidenceRegistry(storage_path=registry_path)
         
         # Verify evidence persisted
-        retrieved = registry2.get_evidence("persist_001")
+        retrieved = registry2.get_evidence(evidence_id)
         assert retrieved is not None
         assert retrieved.payload["data"] == "persistent"
         
@@ -368,18 +347,16 @@ def test_registry_immutability():
         
         # Append evidence
         original_payload = {"data": "original"}
-        record = EvidenceRecord(
-            evidence_id="immutable_001",
+        evidence_id = registry.record_evidence(
             evidence_type="test",
             payload=original_payload,
         )
-        registry.record_evidence(record)
         
         # Attempt to modify original payload (should not affect registry)
         original_payload["data"] = "MODIFIED"
         
         # Retrieve and verify unchanged
-        retrieved = registry.get_evidence("immutable_001")
+        retrieved = registry.get_evidence(evidence_id)
         assert retrieved.payload["data"] == "original"
         
         print(f"✓ Evidence immutability verified")
