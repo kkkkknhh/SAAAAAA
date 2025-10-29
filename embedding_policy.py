@@ -331,25 +331,25 @@ class AdvancedSemanticChunker:
         """
         # Policy-specific keywords (simplified for example)
         policy_keywords = {
-            "P1": ["mujer", "género", "igualdad", "equidad"],
-            "P2": ["violencia", "conflicto", "seguridad", "prevención"],
-            "P3": ["ambiente", "clima", "desastre", "riesgo"],
-            "P4": ["económico", "social", "cultural", "empleo"],
-            "P5": ["víctima", "paz", "reconciliación", "reparación"],
-            "P6": ["niñez", "adolescente", "juventud", "futuro"],
-            "P7": ["tierra", "territorio", "rural", "agrario"],
-            "P8": ["líder", "defensor", "derechos humanos"],
-            "P9": ["privado libertad", "cárcel", "reclusión"],
-            "P10": ["migración", "frontera", "venezolano"],
+            "PA01": ["mujer", "género", "igualdad", "equidad"],
+            "PA02": ["violencia", "conflicto", "seguridad", "prevención"],
+            "PA03": ["ambiente", "clima", "desastre", "riesgo"],
+            "PA04": ["económico", "social", "cultural", "empleo"],
+            "PA05": ["víctima", "paz", "reconciliación", "reparación"],
+            "PA06": ["niñez", "adolescente", "juventud", "futuro"],
+            "PA07": ["tierra", "territorio", "rural", "agrario"],
+            "PA08": ["líder", "defensor", "derechos humanos"],
+            "PA09": ["privado libertad", "cárcel", "reclusión"],
+            "PA10": ["migración", "frontera", "venezolano"],
         }
 
         dimension_keywords = {
-            "D1": ["diagnóstico", "baseline", "situación", "recurso"],
-            "D2": ["diseño", "estrategia", "intervención", "actividad"],
-            "D3": ["producto", "output", "entregable", "meta"],
-            "D4": ["resultado", "outcome", "efecto", "cambio"],
-            "D5": ["impacto", "largo plazo", "sostenibilidad"],
-            "D6": ["teoría", "causal", "coherencia", "lógica"],
+            "DIM01": ["diagnóstico", "baseline", "situación", "recurso"],
+            "DIM02": ["diseño", "estrategia", "intervención", "actividad"],
+            "DIM03": ["producto", "output", "entregable", "meta"],
+            "DIM04": ["resultado", "outcome", "efecto", "cambio"],
+            "DIM05": ["impacto", "largo plazo", "sostenibilidad"],
+            "DIM06": ["teoría", "causal", "coherencia", "lógica"],
         }
 
         # Score policies and dimensions
@@ -370,13 +370,14 @@ class AdvancedSemanticChunker:
         if policy_scores[best_policy] > 0 and dimension_scores[best_dimension] > 0:
             # Generate canonical identifier
             question_num = 1  # Simplified; real system would infer from context
+            question_code = f"Q{question_num:03d}"
 
             return PDQIdentifier(
-                question_unique_id=f"{best_policy}-{best_dimension}-Q{question_num}",
+                question_unique_id=f"{best_policy}-{best_dimension}-{question_code}",
                 policy=best_policy,
                 dimension=best_dimension,
                 question=question_num,
-                rubric_key=f"{best_dimension}-Q{question_num}",
+                rubric_key=f"{best_dimension}-{question_code}",
             )
 
         return None

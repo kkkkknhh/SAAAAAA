@@ -119,16 +119,16 @@ def demo_bayesian_portfolio():
     
     result = composer.compose(
         meso_posteriors={
-            "CLUSTER_1": 0.85,
-            "CLUSTER_2": 0.78,
-            "CLUSTER_3": 0.82,
-            "CLUSTER_4": 0.75
+            "CL01": 0.85,
+            "CL02": 0.78,
+            "CL03": 0.82,
+            "CL04": 0.75
         },
         cluster_weights={
-            "CLUSTER_1": 0.3,
-            "CLUSTER_2": 0.3,
-            "CLUSTER_3": 0.25,
-            "CLUSTER_4": 0.15
+            "CL01": 0.3,
+            "CL02": 0.3,
+            "CL03": 0.25,
+            "CL04": 0.15
         },
         reconciliation_penalties={
             "coverage": 0.08,
@@ -289,12 +289,12 @@ def demo_orchestrator():
             "D2": {"score": 0.76}
         },
         "meso_posteriors": {
-            "CLUSTER_1": 0.80,
-            "CLUSTER_2": 0.75
+            "CL01": 0.80,
+            "CL02": 0.75
         },
         "cluster_weights": {
-            "CLUSTER_1": 0.6,
-            "CLUSTER_2": 0.4
+            "CL01": 0.6,
+            "CL02": 0.4
         },
         "critical_gaps": [
             {"id": "GAP_1", "name": "Gap 1"},

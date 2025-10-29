@@ -44,10 +44,10 @@ This creates 30 unique base_slots (D1-Q1 through D6-Q5), each appearing exactly 
 
 The monolith preserves 4 hermetic clusters:
 
-1. **CLUSTER_1**: ['P2', 'P3', 'P7'] - Seguridad y Paz
-2. **CLUSTER_2**: ['P1', 'P5', 'P6'] - Grupos Poblacionales  
-3. **CLUSTER_3**: ['P4', 'P8'] - Territorio-Ambiente
-4. **CLUSTER_4**: ['P9', 'P10'] - Derechos Sociales & Crisis
+1. **CL01** (`PA02`, `PA03`, `PA07`) - Seguridad y Paz
+2. **CL02** (`PA01`, `PA05`, `PA06`) - Grupos Poblacionales
+3. **CL03** (`PA04`, `PA08`) - Territorio-Ambiente
+4. **CL04** (`PA09`, `PA10`) - Derechos Sociales & Crisis
 
 ## Building the Monolith
 
