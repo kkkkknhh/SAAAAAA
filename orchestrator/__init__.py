@@ -19,7 +19,6 @@ from .contract_loader import (
     LoadError,
     LoadResult,
 )
-
 try:
     from .d1_orchestrator import (
         D1Question,
