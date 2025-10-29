@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from statistics import mean
-from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -169,10 +169,13 @@ class ChoreographerPool:
     executor: concurrent.futures.Executor
     max_workers: int
 
-    def shutdown(self) -> None:
+    def shutdown(self, wait: bool = True, cancel_futures: bool = False) -> None:
         """Shutdown the underlying executor."""
 
-        self.executor.shutdown(wait=True)
+        try:
+            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+        except TypeError:  # pragma: no cover - Python <3.9 compatibility
+            self.executor.shutdown(wait=wait)
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
@@ -386,44 +389,31 @@ class Orchestrator:
             if self.metrics.total_start is not None and self.metrics.total_end is not None:
                 total_time = self.metrics.total_end - self.metrics.total_start
 
-            phase_durations = {
+            phase_times = {
                 phase.value: timing.duration
                 for phase, timing in self.metrics.phase_timings.items()
                 if timing.duration is not None
             }
 
             durations = list(self.metrics.micro_question_durations)
-            avg_duration = mean(durations) if durations else None
-            p95_duration = None
-            parallel_efficiency = None
+            avg_question_time = mean(durations) if durations else None
 
-            micro_timing = self.metrics.phase_timings.get(ProcessingPhase.MICRO_EXECUTION)
-            micro_phase_duration = micro_timing.duration if micro_timing else None
+            parallelism_efficiency = None
             if durations:
-                sorted_durations = sorted(durations)
-                index = int(0.95 * (len(sorted_durations) - 1))
-                p95_duration = sorted_durations[index]
-
-                if (
-                    micro_phase_duration
-                    and micro_phase_duration > 0
-                    and self.config["max_workers"] > 0
-                ):
-                    total_work = sum(durations)
-                    parallel_efficiency = min(
-                        1.0,
-                        total_work / (micro_phase_duration * self.config["max_workers"]),
-                    )
+                wall_clock = sum(
+                    timing.duration or 0.0 for timing in self.metrics.phase_timings.values()
+                )
+                total_work = sum(durations)
+                workers = max(1, self.config.get("max_workers", 1))
+                ideal_time = total_work / workers if workers else None
+                if ideal_time and wall_clock:
+                    parallelism_efficiency = min(1.0, ideal_time / wall_clock)
 
             return {
                 "total_time": total_time,
-                "phase_durations": phase_durations,
-                "micro_question": {
-                    "count": len(durations),
-                    "avg_duration": avg_duration,
-                    "p95_duration": p95_duration,
-                    "parallel_efficiency": parallel_efficiency,
-                },
+                "phase_times": phase_times,
+                "avg_question_time": avg_question_time,
+                "parallelism_efficiency": parallelism_efficiency,
                 "errors": list(self.metrics.errors),
                 "warnings": list(self.metrics.warnings),
             }
@@ -441,7 +431,9 @@ class Orchestrator:
         if not stored_hash:
             raise RuntimeError("Monolith integrity hash is missing")
 
-        computed_hash = _compute_integrity_hash(self.monolith)
+        monolith_for_hash = dict(self.monolith)
+        monolith_for_hash.pop("integrity", None)
+        computed_hash = _compute_integrity_hash(monolith_for_hash)
         if computed_hash != stored_hash:
             raise RuntimeError(
                 "Monolith hash mismatch: expected %s, computed %s"
@@ -453,7 +445,8 @@ class Orchestrator:
         meso_questions = self.monolith.get("blocks", {}).get("meso_questions", [])
         macro_question = self.monolith.get("blocks", {}).get("macro_question")
 
-        if len(micro_questions) != counts.get("micro"):
+        expected_micro = counts.get("micro") or 305
+        if len(micro_questions) != expected_micro:
             raise RuntimeError(
                 f"Micro question count mismatch: integrity={counts.get('micro')} actual={len(micro_questions)}"
             )
@@ -485,6 +478,12 @@ class Orchestrator:
                 % (EXPECTED_METHOD_TOTAL, declared_total),
             )
 
+        if catalog_metadata_total != declared_total:
+            raise RuntimeError(
+                "Method catalog metadata and summary totals diverge: %s vs %s"
+                % (catalog_metadata_total, declared_total),
+            )
+
         actual_total = sum(
             file_info.get("method_count", 0)
             for file_info in self.method_catalog.get("files", {}).values()
@@ -494,6 +493,39 @@ class Orchestrator:
                 "Method catalog file total mismatch: expected %d found %d"
                 % (EXPECTED_METHOD_TOTAL, actual_total),
             )
+
+        if actual_total != declared_total:
+            raise RuntimeError(
+                "Method catalog file totals do not match declared summary: %s vs %s"
+                % (actual_total, declared_total),
+            )
+
+        area_dimension_counts: Counter[Tuple[str, str]] = Counter()
+        area_dimensions: Dict[str, Set[str]] = {}
+        for question in micro_questions:
+            area_id = question.get("policy_area_id") or question.get("policy_area")
+            dimension_id = question.get("dimension_id") or question.get("dimension")
+            if area_id is None or dimension_id is None:
+                raise RuntimeError(
+                    "Micro question missing policy_area_id or dimension_id"
+                )
+            key = (str(area_id), str(dimension_id))
+            area_dimension_counts[key] += 1
+            area_dimensions.setdefault(str(area_id), set()).add(str(dimension_id))
+
+        for (area_id, dimension_id), count in area_dimension_counts.items():
+            if count != 5:
+                raise RuntimeError(
+                    "Dimensión %s del área %s tiene %d micro preguntas (esperadas 5)"
+                    % (dimension_id, area_id, count)
+                )
+
+        for area_id, dimensions in area_dimensions.items():
+            if len(dimensions) != 6:
+                raise RuntimeError(
+                    "Área %s tiene %d dimensiones (esperadas 6)"
+                    % (area_id, len(dimensions))
+                )
 
         self._validate_base_slot_mapping(micro_questions)
         self._validate_cluster_assignments()
@@ -541,10 +573,12 @@ class Orchestrator:
 
         pool = self._create_choreographer_pool(self.config["max_workers"])
         futures = self._distribute_questions(pool, preprocessed_doc)
+        results: List[Any] = []
         try:
             results = self._wait_for_all_questions(futures)
         finally:
-            pool.shutdown()
+            all_done = len(results) == len(futures)
+            pool.shutdown(wait=all_done, cancel_futures=not all_done)
             with self._lock:
                 self.state.active_futures = []
 
@@ -585,6 +619,12 @@ class Orchestrator:
 
         logger.info("=== FASE 4: AGREGACIÓN POR DIMENSIÓN ===")
         grouped = self._group_scores_by_dimension(scored_results)
+        for (area_id, dimension_id), q_results in grouped.items():
+            if len(q_results) != 5:
+                raise RuntimeError(
+                    "Dimensión %s del área %s espera 5 micro resultados y recibió %d"
+                    % (dimension_id, area_id, len(q_results))
+                )
         results: List[Any] = []
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.config["max_workers"]
@@ -614,6 +654,12 @@ class Orchestrator:
         logger.info("=== FASE 5: AGREGACIÓN POR ÁREA DE POLÍTICA ===")
         results = []
         grouped = self._group_dimensions_by_area(dimension_scores)
+        for area_id, dim_scores in grouped.items():
+            if len(dim_scores) != 6:
+                raise RuntimeError(
+                    "Área %s espera 6 dimensiones y recibió %d"
+                    % (area_id, len(dim_scores))
+                )
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.config["max_workers"]
         ) as executor:
@@ -640,21 +686,37 @@ class Orchestrator:
 
         logger.info("=== FASE 6: AGREGACIÓN POR CLUSTER ===")
         cluster_definitions = self._get_cluster_definitions()
+        known_areas = {str(area_id) for area_id in self._list_policy_areas()}
         results = []
         for cluster_def in cluster_definitions:
             cluster_id = cluster_def.get("cluster_id") or cluster_def.get("id")
             if not cluster_id:
                 raise RuntimeError("Cluster definition missing identifier")
 
-            allowed_areas = set(
+            raw_allowed = (
                 cluster_def.get("policy_area_ids")
                 or cluster_def.get("legacy_policy_area_ids")
                 or cluster_def.get("areas", [])
             )
+            allowed_areas = {str(area) for area in raw_allowed}
+            if not allowed_areas:
+                raise RuntimeError(
+                    f"Cluster {cluster_id} does not declare policy areas"
+                )
+            unknown_areas = allowed_areas - known_areas
+            if unknown_areas:
+                raise RuntimeError(
+                    "Cluster %s referencia áreas desconocidas: %s"
+                    % (cluster_id, ", ".join(sorted(unknown_areas)))
+                )
+
             cluster_area_scores = [
                 score
                 for score in area_scores
-                if self._extract_area_id(score) in allowed_areas
+                if (
+                    self._extract_area_id(score) is not None
+                    and str(self._extract_area_id(score)) in allowed_areas
+                )
             ]
 
             validator = getattr(aggregator, "validate_cluster_hermeticity", None)
@@ -1036,95 +1098,113 @@ class Orchestrator:
         timeout = self.config.get("micro_question_timeout")
         logger.info("Esperando la finalización de todas las preguntas (timeout=%s)", timeout)
 
-        start_time = time.time()
-        deadline = start_time + timeout if timeout is not None else None
-        pending = dict(futures)
         results: List[Any] = []
+        futures_map = dict(futures)
+        processed: Set[concurrent.futures.Future] = set()
         completed = 0
 
-        while pending:
-            wait_timeout: Optional[float] = None
-            if deadline is not None:
-                remaining = deadline - time.time()
-                if remaining <= 0:
-                    break
-                wait_timeout = remaining
-
-            done, _ = concurrent.futures.wait(
-                pending.keys(),
-                timeout=wait_timeout,
-                return_when=concurrent.futures.FIRST_COMPLETED,
-            )
-
-            if not done:
-                break
-
-            for future in done:
-                question_metadata = pending.pop(future)
-                question_global = question_metadata["question_global"]
-                try:
-                    result = future.result()
-                except Exception as exc:  # pragma: no cover - relies on components
-                    logger.warning(
-                        "Pregunta %s falló: %s. Iniciando reintentos locales",
-                        question_global,
-                        exc,
-                    )
-                    self.metrics.errors.append(str(exc))
-                    try:
-                        retry_result = self.retry_failed_question(question_global)
-                    except Exception as retry_exc:  # pragma: no cover - defensive
-                        logger.error(
-                            "Reintentos para la pregunta %s fallaron con excepción: %s",
-                            question_global,
-                            retry_exc,
-                        )
-                        self.metrics.errors.append(str(retry_exc))
-                        retry_result = None
-
-                    if retry_result is not None:
-                        results.append(self._tag_successful_retry(retry_result))
-                    else:
-                        failure_payload = self._build_failed_result(
-                            question_metadata, str(exc)
-                        )
-                        results.append(failure_payload)
-                        self.metrics.errors.append(
-                            f"Micro question {question_global} failed after retries"
-                        )
-                else:
-                    results.append(self._tag_successful_result(result))
-
-                completed += 1
-                with self._lock:
-                    self.state.questions_completed = completed
-
-                now = time.time()
-                if now - self.state.last_progress_update >= self.config["status_interval"]:
-                    logger.info(
-                        "Progreso: %d/%d preguntas completadas",
-                        completed,
-                        self.state.questions_total,
-                    )
-                    self.state.last_progress_update = now
-
-        if pending:
-            if timeout is not None:
-                logger.error(
-                    "Timeout alcanzado tras %.1f segundos esperando micro preguntas",
-                    timeout,
+        def _handle_completion(future: concurrent.futures.Future) -> None:
+            nonlocal completed
+            metadata = futures_map[future]
+            question_global = metadata["question_global"]
+            try:
+                result = future.result()
+            except Exception as exc:  # pragma: no cover - relies on components
+                logger.warning(
+                    "Pregunta %s falló: %s. Iniciando reintentos locales",
+                    question_global,
+                    exc,
                 )
-            for future, metadata in pending.items():
+                self.metrics.errors.append(str(exc))
+                try:
+                    retry_result = self.retry_failed_question(question_global)
+                except Exception as retry_exc:  # pragma: no cover - defensive
+                    logger.error(
+                        "Reintentos para la pregunta %s fallaron con excepción: %s",
+                        question_global,
+                        retry_exc,
+                    )
+                    self.metrics.errors.append(str(retry_exc))
+                    retry_result = None
+
+                if retry_result is not None:
+                    results.append(self._tag_successful_retry(retry_result))
+                else:
+                    failure_payload = self._build_failed_result(metadata, str(exc))
+                    results.append(failure_payload)
+                    self.metrics.errors.append(
+                        f"Micro question {question_global} failed after retries"
+                    )
+            else:
+                results.append(self._tag_successful_result(result))
+
+            processed.add(future)
+            completed += 1
+            should_log = False
+            with self._lock:
+                self.state.questions_completed = completed
+                now = time.time()
+                should_log = (
+                    now - self.state.last_progress_update
+                    >= self.config["status_interval"]
+                )
+                if should_log:
+                    self.state.last_progress_update = now
+            if should_log:
+                logger.info(
+                    "Progreso: %d/%d preguntas completadas",
+                    completed,
+                    self.state.questions_total,
+                )
+
+        iterator: Iterable[concurrent.futures.Future]
+        try:
+            if timeout is None:
+                iterator = concurrent.futures.as_completed(futures_map)
+            else:
+                iterator = concurrent.futures.as_completed(
+                    futures_map, timeout=timeout
+                )
+            for future in iterator:
+                _handle_completion(future)
+        except concurrent.futures.TimeoutError:
+            logger.exception(
+                "Timeout alcanzado tras %.1f segundos esperando micro preguntas",
+                timeout if timeout is not None else float("nan"),
+            )
+            done, not_done = concurrent.futures.wait(
+                futures_map.keys(), timeout=0, return_when=concurrent.futures.ALL_COMPLETED
+            )
+            for future in done - processed:
+                _handle_completion(future)
+            for future in not_done:
                 future.cancel()
+                metadata = futures_map[future]
                 timeout_result = self._build_timeout_result(metadata)
                 results.append(timeout_result)
                 self.metrics.warnings.append(
                     f"Micro question {metadata['question_global']} timed out"
                 )
+                completed += 1
+                should_log = False
+                with self._lock:
+                    self.state.questions_completed = completed
+                    now = time.time()
+                    should_log = (
+                        now - self.state.last_progress_update
+                        >= self.config["status_interval"]
+                    )
+                    if should_log:
+                        self.state.last_progress_update = now
+                if should_log:
+                    logger.info(
+                        "Progreso: %d/%d preguntas completadas",
+                        completed,
+                        self.state.questions_total,
+                    )
 
-            completed += len(pending)
             with self._lock:
-                self.state.questions_completed = completed
+                self.state.active_futures = list(done)
 
         if completed != self.state.questions_total:
             logger.warning(
@@ -1222,8 +1302,25 @@ class Orchestrator:
         return coreographer_instance.execute  # type: ignore[return-value]
 
     def _list_policy_areas(self) -> List[str]:
-        areas = self.monolith["blocks"].get("niveles_abstraccion", {}).get("policy_areas", {})
-        return list(areas.keys())
+        areas_block = (
+            self.monolith["blocks"].get("niveles_abstraccion", {}).get("policy_areas", {})
+        )
+        if isinstance(areas_block, dict):
+            return [str(key) for key in areas_block.keys()]
+        if isinstance(areas_block, list):
+            identifiers: List[str] = []
+            for area in areas_block:
+                if not isinstance(area, dict):
+                    continue
+                area_id = (
+                    area.get("policy_area_id")
+                    or (area.get("legacy_ids") or [None])[0]
+                    or area.get("id")
+                )
+                if area_id is not None:
+                    identifiers.append(str(area_id))
+            return identifiers
+        return []
 
     def _get_question_metadata(self, question_global: int) -> Dict[str, Any]:
         index = question_global - 1
