@@ -1,221 +1,530 @@
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                    NIVEL 3: CHEATSHEET DE REFERENCIA RÁPIDA                  ║
-║                        416 Métodos → 30 Preguntas                            ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+================================================================================
+NIVEL3 - CHEATSHEET DE MÉTODOS
+Sistema de Análisis de Políticas Públicas - 593 Métodos
+Generado: 2025-10-29 03:34:44
+================================================================================
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ CÓDIGOS DE ARCHIVO                                                           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ PP  policy_processor.py               32 métodos (7.7%)                      │
-│ CD  contradiction_deteccion.py        62 métodos (14.9%)                     │
-│ FV  financiero_viabilidad_tablas.py   65 métodos (15.6%)                     │
-│ DB  dereck_beach.py                   99 métodos (23.8%) ★ EL MÁS USADO     │
-│ RA  report_assembly.py                43 métodos (10.3%)                     │
-│ EP  embedding_policy.py               36 métodos (8.7%)                      │
-│ A1  Analyzer_one.py                   34 métodos (8.2%)                      │
-│ TC  teoria_cambio.py                  30 métodos (7.2%)                      │
-│ SC  semantic_chunking_policy.py       15 métodos (3.6%)                      │
-└──────────────────────────────────────────────────────────────────────────────┘
+RESUMEN GENERAL
+--------------------------------------------------------------------------------
+Total de métodos:        593
+Score promedio aptitud:  98.46/100
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ TIPOS DE MÉTODO                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ E   Extracción       → Extrae información del texto                          │
-│ V   Validación       → Valida/verifica consistencia                          │
-│ T   Transformación   → Transforma/normaliza datos                            │
-│ C   Cálculo          → Calcula métricas/scores                               │
-│ O   Orquestación     → Coordina otros métodos                                │
-│ R   Reporte          → Genera reportes/outputs                               │
-└──────────────────────────────────────────────────────────────────────────────┘
+Por Complejidad:
+  LOW     : 280 métodos
+  MEDIUM  : 282 métodos
+  HIGH    :  31 métodos
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ PRIORIDAD                                                                    │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ 3   ★  Crítico        → Sin él, el sistema no funciona                       │
-│ 2   ◆  Importante     → Pérdida significativa de capacidad                   │
-│ 1   ○  Complementario → Mejora la calidad del resultado                      │
-└──────────────────────────────────────────────────────────────────────────────┘
+Por Prioridad:
+  LOW     : 289 métodos
+  MEDIUM  : 236 métodos
+  HIGH    :  24 métodos
+  CRITICAL:  44 métodos
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ DIMENSIONES (6 total, 5 preguntas cada una)                                 │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ D1  Diagnóstico y Consistencia Inicial                   80 métodos (19.2%) │
-│     Q1: Líneas Base y Brechas (18m)                                          │
-│     Q2: Normalización y Fuentes (12m)                                        │
-│     Q3: Asignación de Recursos (22m)                                         │
-│     Q4: Capacidad Institucional (16m)                                        │
-│     Q5: Restricciones Temporales (14m)                                       │
-│                                                                               │
-│ D2  Diseño de Actividades y Coherencia                  107 métodos (25.7%) │
-│     Q1: Formato Tabular (20m)                                                │
-│     Q2: Causalidad de Actividades (25m)                                      │
-│     Q3: Responsables (18m)                                                   │
-│     Q4: Cuantificación (21m)                                                 │
-│     Q5: Eslabón Diagnóstico-Actividades (23m)                                │
-│                                                                               │
-│ D3  Productos, Indicadores y Especificidad              101 métodos (24.3%) │
-│     Q1: Indicadores de Producto (19m)                                        │
-│     Q2: Cuantificación (20m)                                                 │
-│     Q3: Responsables (17m)                                                   │
-│     Q4: Plazos (19m)                                                         │
-│     Q5: Eslabón Producto-Resultado (26m)                                     │
-│                                                                               │
-│ D4  Resultados, Supuestos y Alineación                   94 métodos (22.6%) │
-│     Q1: Indicadores de Resultado (18m)                                       │
-│     Q2: Cadena Causal y Supuestos (24m)                                      │
-│     Q3: Justificación de Ambición (20m)                                      │
-│     Q4: Población Objetivo (15m)                                             │
-│     Q5: Alineación con Objetivos Superiores (17m)                            │
-│                                                                               │
-│ D5  Impactos y Sostenibilidad                            91 métodos (21.9%) │
-│     Q1: Indicadores de Impacto (17m)                                         │
-│     Q2: Eslabón Resultado-Impacto (25m)                                      │
-│     Q3: Evidencia de Causalidad (19m)                                        │
-│     Q4: Plazos de Impacto (15m)                                              │
-│     Q5: Sostenibilidad Financiera (15m)                                      │
-│                                                                               │
-│ D6  Causalidad, Coherencia Global                       155 métodos (37.3%) │
-│     Q1: Integridad de Teoría de Cambio (32m) ★ LA MÁS COMPLEJA              │
-│     Q2: Proporcionalidad Anti-Milagro (28m)                                  │
-│     Q3: Inconsistencias - Ruta 1 (22m)                                       │
-│     Q4: Adaptación - Ruta 2 (26m)                                            │
-│     Q5: Contextualización y Enfoque Diferencial (24m)                        │
-└──────────────────────────────────────────────────────────────────────────────┘
+================================================================================
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ CARACTERÍSTICAS ESPECIALES                                                   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│ ⚙️  SISTEMA BICAMERAL (D6-Q3 y D6-Q4)                                         │
-│     Dos rutas paralelas de resolución:                                       │
-│     • Ruta 1: Detección Local                                                │
-│       CD.PolicyContradictionDetector._suggest_resolutions                    │
-│     • Ruta 2: Inferencia Estructural                                         │
-│       TC.TeoriaCambio._generar_sugerencias_internas                          │
-│                                                                               │
-│ 🚫 VALIDACIÓN ANTI-MILAGRO (D6-Q2)                                           │
-│     Detecta saltos inverosímiles en la cadena causal:                        │
-│     • enlaces_proporcionales (proporcional_a, razonable)                     │
-│     • sin_saltos (gradual, incremental, paso_a_paso)                         │
-│     • no_milagros (factible, posible, alcanzable)                            │
-│                                                                               │
-│ 🔬 DEREK BEACH PROCESS TRACING (100% integrado)                              │
-│     Cuatro tipos de tests evidenciales:                                      │
-│     • Hoop Test          → Necesario pero NO suficiente                      │
-│     • Smoking Gun Test   → Suficiente pero NO necesario                      │
-│     • Doubly Decisive    → Necesario Y suficiente                            │
-│     • Straw in Wind      → Ni necesario ni suficiente                        │
-│                                                                               │
-│ 🏗️  FRAMEWORK CDAF COMPLETO                                                  │
-│     9 componentes en dereck_beach.py:                                        │
-│     • ConfigLoader: Gestión configuración bayesiana                          │
-│     • PDFProcessor: Extracción texto/tablas                                  │
-│     • CausalExtractor: Jerarquía causal (14 métodos)                         │
-│     • MechanismPartExtractor: Entidad-actividad                              │
-│     • BayesianMechanismInference: Inferencia (9 métodos)                     │
-│     • CausalInferenceSetup: Dinámica y puntos de falla                       │
-│     • OperationalizationAuditor: Trazabilidad                                │
-│     • FinancialAuditor: Trazabilidad financiera                              │
-│     • CDAFFramework: Orquestador + Validación DNP                            │
-└──────────────────────────────────────────────────────────────────────────────┘
+MÉTODOS CRÍTICOS (CRITICAL PRIORITY)
+================================================================================
+Estos métodos DEBEN ejecutarse para el funcionamiento del sistema
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ EJEMPLO DE USO EN JSON                                                       │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│   {                                                                           │
-│     "q": "D1-Q1",                          ← ID de pregunta                  │
-│     "t": "Líneas Base y Brechas",          ← Título                          │
-│     "m": 18,                                ← Total de métodos               │
-│     "p": [                                  ← Paquetes de métodos            │
-│       {                                                                       │
-│         "f": "PP",                          ← Código de archivo              │
-│         "c": "IndustrialPolicyProcessor",   ← Clase                          │
-│         "m": ["process", "_match_patterns"], ← Lista de métodos             │
-│         "t": ["O", "E"],                    ← Tipos (Orquest, Extract)       │
-│         "pr": [3, 3]                        ← Prioridades (★ Crítico)        │
-│       }                                                                       │
-│     ],                                                                        │
-│     "flow": "PP.O → CD.E → PP.R"            ← Flujo de ejecución             │
-│   }                                                                           │
-│                                                                               │
-└──────────────────────────────────────────────────────────────────────────────┘
+ 1. PDETMunicipalPlanAnalyzer.__init__
+    Archivo: financiero_viabilidad_tablas.py
+    Aptitud: 90/100
+    Firma: __init__(self, use_gpu, language, confidence_threshold)
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ TOP 5 MÉTODOS MÁS REUTILIZADOS                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ 1. PP.IndustrialPolicyProcessor._match_patterns_in_sentences                 │
-│    Usado en ~25 preguntas (83%)                                              │
-│                                                                               │
-│ 2. PP.BayesianEvidenceScorer.compute_evidence_score                          │
-│    Usado en ~24 preguntas (80%)                                              │
-│                                                                               │
-│ 3. CD.PolicyContradictionDetector._extract_quantitative_claims               │
-│    Usado en ~15 preguntas (50%)                                              │
-│                                                                               │
-│ 4. PP.PolicyTextProcessor.segment_into_sentences                             │
-│    Usado en ~23 preguntas (77%)                                              │
-│                                                                               │
-│ 5. CD.BayesianConfidenceCalculator.calculate_posterior                       │
-│    Usado en ~20 preguntas (67%)                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+ 2. MunicipalOntology.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self)
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ FLUJOS TÍPICOS POR TIPO DE PREGUNTA                                         │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│ 📊 INDICADORES (D3-Q1, D4-Q1, D5-Q1)                                         │
-│    PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R                               │
-│                                                                               │
-│ 🔗 ESLABONES CAUSALES (D2-Q5, D3-Q5, D5-Q2)                                  │
-│    PP.E+C → CD.E+T+V+C → DB.O → TC.T+V → A1.V                               │
-│                                                                               │
-│ 💰 RECURSOS/FINANCIERO (D1-Q3, D5-Q5)                                        │
-│    PP.O → FV.E+C → CD.E+V+C → DB.O+C                                         │
-│                                                                               │
-│ ⏱️  TEMPORAL/PLAZOS (D1-Q5, D3-Q4, D5-Q4)                                    │
-│    PP.E+T → CD.E → CD.V+T+C → A1.C+V                                         │
-│                                                                               │
-│ 🎯 CAUSALIDAD GLOBAL (D6-Q1, D6-Q2)                                          │
-│    PP.O → TC.V → CD.T+C → DB.O → FV.T                                       │
-│                                                                               │
-└──────────────────────────────────────────────────────────────────────────────┘
+ 3. SemanticAnalyzer.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, ontology)
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ QUICK REFERENCE: COMANDOS PYTHON                                            │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│ # Cargar JSON                                                                │
-│ import json                                                                  │
-│ with open('metodos_completos_nivel3.json') as f:                             │
-│     data = json.load(f)                                                      │
-│                                                                               │
-│ # Buscar pregunta                                                            │
-│ question = next(q for d in data['dimensions']                                │
-│                   for q in d['questions']                                    │
-│                   if q['q'] == 'D1-Q1')                                      │
-│                                                                               │
-│ # Extraer métodos críticos                                                   │
-│ critical = [m for p in question['p']                                         │
-│               for i, pr in enumerate(p['pr'])                                │
-│               if pr == 3]                                                    │
-│                                                                               │
-│ # Contar métodos por archivo                                                 │
-│ from collections import Counter                                              │
-│ counts = Counter(p['f'] for p in question['p'])                              │
-│                                                                               │
-└──────────────────────────────────────────────────────────────────────────────┘
+ 4. PerformanceAnalyzer.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, ontology)
 
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ ARCHIVOS INCLUIDOS                                                           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ 📄 metodos_completos_nivel3.json   → JSON completo con 416 métodos           │
-│ 📖 README_NIVEL3.md                → Documentación completa                  │
-│ 🐍 ejemplo_uso_nivel3.py           → Script Python con ejemplos             │
-│ 📋 CHEATSHEET_NIVEL3.txt           → Esta referencia rápida                 │
-└──────────────────────────────────────────────────────────────────────────────┘
+ 5. TextMiningEngine.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, ontology)
 
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                   OBJETIVO ALCANZADO: 95% UTILIZACIÓN ✅                     ║
-║                      416 métodos → 30 preguntas genéricas                    ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+ 6. MunicipalAnalyzer.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self)
+
+ 7. CanonicalQuestionSegmenter.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, questionnaire_path, rubric_path, segmentation_method)
+
+ 8. ConfigurationManager.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, config_path)
+
+ 9. BatchProcessor.__init__
+    Archivo: Analyzer_one.py
+    Aptitud: 90/100
+    Firma: __init__(self, analyzer)
+
+10. BayesianConfidenceCalculator.__init__
+    Archivo: contradiction_deteccion.py
+    Aptitud: 90/100
+    Firma: __init__(self)
+
+11. TemporalLogicVerifier.__init__
+    Archivo: contradiction_deteccion.py
+    Aptitud: 90/100
+    Firma: __init__(self)
+
+12. PolicyContradictionDetector.__init__
+    Archivo: contradiction_deteccion.py
+    Aptitud: 90/100
+    Firma: __init__(self, model_name, spacy_model, device)
+
+13. AdvancedSemanticChunker.__init__
+    Archivo: embedding_policy.py
+    Aptitud: 90/100
+    Firma: __init__(self, config)
+
+14. BayesianNumericalAnalyzer.__init__
+    Archivo: embedding_policy.py
+    Aptitud: 100/100
+    Firma: __init__(self, prior_strength)
+
+15. PolicyCrossEncoderReranker.__init__
+    Archivo: embedding_policy.py
+    Aptitud: 100/100
+    Firma: __init__(self, model_name, max_length, retry_handler)
+
+16. PolicyAnalysisEmbedder.__init__
+    Archivo: embedding_policy.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, retry_handler)
+
+17. EmbeddingPolicyProducer.__init__
+    Archivo: embedding_policy.py
+    Aptitud: 100/100
+    Firma: __init__(self, config, model_tier, retry_handler)
+
+18. TeoriaCambio.__init__
+    Archivo: teoria_cambio.py
+    Aptitud: 100/100
+    Firma: __init__(self)
+
+19. AdvancedDAGValidator.__init__
+    Archivo: teoria_cambio.py
+    Aptitud: 90/100
+    Firma: __init__(self, graph_type)
+
+20. IndustrialGradeValidator.__init__
+    Archivo: teoria_cambio.py
+    Aptitud: 90/100
+    Firma: __init__(self)
+
+21. CDAFException.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, message, details, stage, recoverable)
+
+22. ConfigLoader.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config_path)
+
+23. PDFProcessor.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, retry_handler)
+
+24. CausalExtractor.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, nlp_model)
+
+25. MechanismPartExtractor.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, nlp_model)
+
+26. FinancialAuditor.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config)
+
+27. OperationalizationAuditor.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config)
+
+28. BayesianMechanismInference.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, nlp_model)
+
+29. CausalInferenceSetup.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config)
+
+30. ReportingEngine.__init__
+    Archivo: dereck_beach.py
+    Aptitud: 90/100
+    Firma: __init__(self, config, output_dir)
+
+================================================================================
+
+MÉTODOS DE ALTA PRIORIDAD (HIGH PRIORITY)
+================================================================================
+ 1. TemporalLogicVerifier._check_deadline_constraints
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 2. IndustrialGradeValidator.validate_engine_readiness
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 3. IndustrialGradeValidator.validate_causal_categories
+    Complejidad: HIGH | Aptitud: 85/100
+    Dependencias: Instance state
+
+ 4. IndustrialGradeValidator.validate_connection_matrix
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 5. MechanismTypeConfig.check_sum_to_one
+    Complejidad: MEDIUM | Aptitud: 100/100
+
+ 6. ConfigLoader._validate_config
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 7. ConfigLoader.check_uncertainty_reduction_criterion
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 8. CausalExtractor._check_structural_violation
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+ 9. FinancialAuditor._perform_counterfactual_budget_check
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+10. CDAFFramework._validate_dnp_compliance
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+11. AdaptivePriorCalculator.validate_quality_criteria
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+12. HierarchicalGenerativeModel.posterior_predictive_check
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+13. BayesianCounterfactualAuditor.refutation_and_sanity_checks
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+14. DerekBeachProducer.posterior_predictive_check
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+15. DerekBeachProducer.refutation_checks
+    Complejidad: MEDIUM | Aptitud: 95/100
+    Dependencias: Instance state
+
+16. DerekBeachProducer.all_checks_passed
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+17. ProcessorConfig.validate
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+18. ReportAssembler._validate_macro_gating
+    Complejidad: LOW | Aptitud: 100/100
+    Dependencias: Instance state
+
+19. ReportAssembler.validate_micro_answer_schema
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+20. ReportAssembler.validate_meso_cluster_schema
+    Complejidad: MEDIUM | Aptitud: 100/100
+    Dependencias: Instance state
+
+================================================================================
+
+MÉTODOS DE ALTA COMPLEJIDAD
+================================================================================
+Requieren atención especial y recursos computacionales
+
+ 1. PDETMunicipalPlanAnalyzer._bayesian_risk_inference
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 2. PDETMunicipalPlanAnalyzer.construct_causal_dag
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 3. PDETMunicipalPlanAnalyzer._identify_causal_nodes
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 4. PDETMunicipalPlanAnalyzer._identify_causal_edges
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 5. PDETMunicipalPlanAnalyzer.estimate_causal_effects
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 6. PDETMunicipalPlanAnalyzer._estimate_effect_bayesian
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 7. PDETMunicipalPlanAnalyzer.calculate_quality_score
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 8. PDETMunicipalPlanAnalyzer._score_causal_coherence
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+ 9. PDETMunicipalPlanAnalyzer.export_causal_network
+    Archivo: financiero_viabilidad_tablas.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+10. TeoriaCambio.construir_grafo_causal
+    Archivo: teoria_cambio.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+11. TeoriaCambio._validar_orden_causal
+    Archivo: teoria_cambio.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+12. AdvancedDAGValidator._calculate_bayesian_posterior
+    Archivo: teoria_cambio.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+13. IndustrialGradeValidator.validate_causal_categories
+    Archivo: teoria_cambio.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+14. ConfigLoader.get_bayesian_threshold
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+15. CausalExtractor.extract_causal_hierarchy
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+16. CausalExtractor._extract_causal_links
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+17. OperationalizationAuditor.bayesian_counterfactual_audit
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+18. OperationalizationAuditor._build_normative_dag
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+19. OperationalizationAuditor._audit_causal_implications
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+20. ReportingEngine.generate_causal_diagram
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+21. ReportingEngine.generate_confidence_report
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+22. ReportingEngine.generate_causal_model_json
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+23. BayesianCounterfactualAuditor.aggregate_risk_and_prioritize
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+24. DerekBeachProducer.is_inference_uncertain
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+25. DerekBeachProducer.get_causal_effect
+    Archivo: dereck_beach.py
+    Reqs Computacionales: HIGH
+    Memoria: MEDIUM
+    Riesgos: High computational complexity
+
+================================================================================
+
+DISTRIBUCIÓN POR ARCHIVO
+================================================================================
+
+financiero_viabilidad_tablas.py (61 métodos)
+--------------------------------------------------------------------------------
+  • _get_spanish_stopwords                   [LOW     ] 100/100
+  • _clean_dataframe                         [LOW     ] 100/100
+  • _is_likely_header                        [LOW     ] 100/100
+  • _deduplicate_tables                      [LOW     ] 100/100
+  • _classify_tables                         [LOW     ] 100/100
+  • _extract_financial_amounts               [LOW     ] 100/100
+  • _identify_funding_source                 [LOW     ] 100/100
+  • _extract_from_budget_table               [LOW     ] 100/100
+  • _analyze_funding_sources                 [LOW     ] 100/100
+  • _assess_financial_sustainability         [LOW     ] 100/100
+
+Analyzer_one.py (46 métodos)
+--------------------------------------------------------------------------------
+  • extract_semantic_cube                    [MEDIUM  ] 100/100
+  • _empty_semantic_cube                     [LOW     ] 100/100
+  • _vectorize_segments                      [LOW     ] 100/100
+  • _process_segment                         [LOW     ] 100/100
+  • _classify_value_chain_link               [LOW     ] 100/100
+  • _classify_policy_domain                  [LOW     ] 100/100
+  • _classify_cross_cutting_themes           [LOW     ] 100/100
+  • _calculate_semantic_complexity           [LOW     ] 100/100
+  • analyze_performance                      [MEDIUM  ] 100/100
+  • _calculate_throughput_metrics            [LOW     ] 100/100
+
+contradiction_deteccion.py (54 métodos)
+--------------------------------------------------------------------------------
+  • calculate_posterior                      [MEDIUM  ] 100/100
+  • verify_temporal_consistency              [MEDIUM  ] 100/100
+  • _build_timeline                          [LOW     ] 100/100
+  • _parse_temporal_marker                   [LOW     ] 100/100
+  • _has_temporal_conflict                   [LOW     ] 100/100
+  • _are_mutually_exclusive                  [LOW     ] 100/100
+  • _extract_resources                       [LOW     ] 100/100
+  • _check_deadline_constraints              [HIGH    ] 100/100
+  • _should_precede                          [LOW     ] 100/100
+  • _classify_temporal_type                  [LOW     ] 100/100
+
+embedding_policy.py (68 métodos)
+--------------------------------------------------------------------------------
+  • chunk_document                           [MEDIUM  ] 100/100
+  • _normalize_text                          [LOW     ] 100/100
+  • _recursive_split                         [LOW     ] 100/100
+  • _find_sentence_boundary                  [LOW     ] 100/100
+  • _extract_sections                        [LOW     ] 100/100
+  • _extract_tables                          [LOW     ] 100/100
+  • _extract_lists                           [LOW     ] 100/100
+  • _infer_pdq_context                       [LOW     ] 100/100
+  • _contains_table                          [LOW     ] 100/100
+  • _contains_list                           [LOW     ] 100/100
+
+teoria_cambio.py (39 métodos)
+--------------------------------------------------------------------------------
+  • __post_init__                            [LOW     ] 100/100
+  • _normalize_metadata                      [LOW     ] 100/100
+  • _sanitize_confidence                     [LOW     ] 100/100
+  • _sanitize_created                        [LOW     ] 100/100
+  • _sanitize_metadata_value                 [LOW     ] 100/100
+  • to_serializable_dict                     [MEDIUM  ] 100/100
+  • __init__                                 [CRITICAL] 100/100
+  • _es_conexion_valida                      [LOW     ] 100/100
+  • validacion_completa                      [MEDIUM  ] 100/100
+  • _extraer_categorias                      [LOW     ] 100/100
+
+dereck_beach.py (159 métodos)
+--------------------------------------------------------------------------------
+  • classify_test                            [MEDIUM  ] 100/100
+  • apply_test_logic                         [MEDIUM  ] 100/100
+  • _format_message                          [LOW     ] 100/100
+  • to_dict                                  [MEDIUM  ] 100/100
+  • check_sum_to_one                         [HIGH    ] 100/100
+  • _load_config                             [LOW     ] 100/100
+  • _load_default_config                     [LOW     ] 100/100
+  • _validate_config                         [HIGH    ] 100/100
+  • get                                      [MEDIUM  ] 100/100
+  • get_mechanism_prior                      [MEDIUM  ] 100/100
+
+policy_processor.py (41 métodos)
+--------------------------------------------------------------------------------
+  • from_legacy                              [MEDIUM  ] 100/100
+  • validate                                 [HIGH    ] 100/100
+  • compute_evidence_score                   [MEDIUM  ] 100/100
+  • _calculate_shannon_entropy               [LOW     ] 100/100
+  • normalize_unicode                        [MEDIUM  ] 100/100
+  • segment_into_sentences                   [MEDIUM  ] 100/100
+  • extract_contextual_window                [MEDIUM  ] 100/100
+  • compile_pattern                          [MEDIUM  ] 100/100
+  • _load_questionnaire                      [LOW     ] 100/100
+  • _compile_pattern_registry                [LOW     ] 100/100
+
+report_assembly.py (125 métodos)
+--------------------------------------------------------------------------------
+  • __init__                                 [CRITICAL] 100/100
+  • generate_micro_answer                    [MEDIUM  ] 100/100
+  • _apply_scoring_modality                  [LOW     ] 100/100
+  • _score_type_a                            [LOW     ] 100/100
+  • _score_type_b                            [LOW     ] 100/100
+  • _score_type_c                            [LOW     ] 100/100
+  • _score_type_d                            [LOW     ] 100/100
+  • _score_type_e                            [LOW     ] 100/100
+  • _score_type_f                            [LOW     ] 100/100
+  • _evaluate_condition                      [LOW     ] 100/100
+
+================================================================================
+FIN DEL CHEATSHEET
+Para detalles completos ver: metodos_completos_nivel3.json y README_NIVEL3.md
+================================================================================
