@@ -48,4 +48,6 @@ def test_optional_parameters_use_sentinel(router: ArgRouter) -> None:
 def test_type_mismatch_raises(router: ArgRouter) -> None:
     with pytest.raises(ArgumentValidationError) as excinfo:
         router.route("SampleExecutor", "compute", {"x": "bad", "y": 2})
-    assert "expected int" in next(iter(excinfo.value.type_mismatches.values()))
+    type_msgs = excinfo.value.type_mismatches
+    assert "x" in type_msgs
+    assert "expected int" in type_msgs["x"]
