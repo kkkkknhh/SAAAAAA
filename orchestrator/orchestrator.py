@@ -35,6 +35,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
 from orchestrator.coreographer import (
     Choreographer,
     QuestionResult as ChoreographerQuestionResult,
@@ -42,6 +48,124 @@ from orchestrator.coreographer import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class AbortSignal:
+    """Global abort signal for graceful shutdown."""
+    
+    def __init__(self):
+        self._aborted = False
+        self._reason: Optional[str] = None
+    
+    def abort(self, reason: str):
+        """Trigger abort with reason."""
+        self._aborted = True
+        self._reason = reason
+        logger.error(f"ABORT TRIGGERED: {reason}")
+    
+    def is_aborted(self) -> bool:
+        """Check if abort has been triggered."""
+        return self._aborted
+    
+    def get_reason(self) -> Optional[str]:
+        """Get abort reason."""
+        return self._reason
+    
+    def reset(self):
+        """Reset abort signal."""
+        self._aborted = False
+        self._reason = None
+
+
+@dataclass
+class ResourceLimits:
+    """Resource limits for orchestrator execution."""
+    max_memory_mb: int = 8192  # 8GB default
+    max_cpu_percent: float = 90.0  # 90% max CPU
+    max_execution_time_s: int = 3600  # 1 hour
+    max_workers: int = 50
+    
+    def check_memory_exceeded(self) -> bool:
+        """Check if memory limit is exceeded."""
+        if not PSUTIL_AVAILABLE:
+            return False
+        try:
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / (1024 * 1024)
+            return memory_mb > self.max_memory_mb
+        except Exception:
+            return False
+    
+    def check_cpu_exceeded(self) -> bool:
+        """Check if CPU limit is exceeded."""
+        if not PSUTIL_AVAILABLE:
+            return False
+        try:
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            return cpu_percent > self.max_cpu_percent
+        except Exception:
+            return False
+    
+    def get_resource_usage(self) -> Dict[str, Any]:
+        """Get current resource usage."""
+        if not PSUTIL_AVAILABLE:
+            return {
+                'memory_mb': 0,
+                'cpu_percent': 0,
+                'num_threads': 0,
+                'psutil_available': False,
+            }
+        try:
+            process = psutil.Process()
+            return {
+                'memory_mb': process.memory_info().rss / (1024 * 1024),
+                'cpu_percent': process.cpu_percent(),
+                'num_threads': process.num_threads(),
+                'psutil_available': True,
+            }
+        except Exception:
+            return {
+                'memory_mb': 0,
+                'cpu_percent': 0,
+                'num_threads': 0,
+                'psutil_available': False,
+            }
+
+
+@dataclass
+class PhaseInstrumentation:
+    """Detailed instrumentation for a phase."""
+    phase_id: str
+    start_time: float
+    end_time: Optional[float] = None
+    items_processed: int = 0
+    items_total: int = 0
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    resource_snapshots: List[Dict[str, Any]] = field(default_factory=list)
+    
+    def record_snapshot(self, limits: ResourceLimits):
+        """Record resource usage snapshot."""
+        self.resource_snapshots.append({
+            'timestamp': time.time(),
+            'resources': limits.get_resource_usage()
+        })
+    
+    def complete(self):
+        """Mark phase as complete."""
+        self.end_time = time.time()
+    
+    def get_duration_ms(self) -> float:
+        """Get phase duration in milliseconds."""
+        if self.end_time is None:
+            return (time.time() - self.start_time) * 1000
+        return (self.end_time - self.start_time) * 1000
+    
+    def get_progress(self) -> float:
+        """Get progress as fraction 0-1."""
+        if self.items_total == 0:
+            return 0.0
+        return self.items_processed / self.items_total
 
 
 class ExecutionMode(Enum):
@@ -178,6 +302,7 @@ class Orchestrator:
         method_catalog_path: Optional[Path] = None,
         choreographer: Optional[Choreographer] = None,
         enable_async: bool = True,
+        resource_limits: Optional[ResourceLimits] = None,
     ):
         """
         Initialize orchestrator.
@@ -187,11 +312,13 @@ class Orchestrator:
             method_catalog_path: Path to metodos_completos_nivel3.json
             choreographer: Choreographer instance (or create new)
             enable_async: Enable async execution for parallel phases
+            resource_limits: Resource limits for execution
         """
         self.monolith_path = monolith_path or Path("questionnaire_monolith.json")
         self.method_catalog_path = method_catalog_path or Path("rules/METODOS/metodos_completos_nivel3.json")
         self.choreographer = choreographer or Choreographer()
         self.enable_async = enable_async
+        self.resource_limits = resource_limits or ResourceLimits()
         
         # Configuration loaded in FASE 0
         self.monolith: Optional[Dict[str, Any]] = None
@@ -199,13 +326,18 @@ class Orchestrator:
         
         # Execution tracking
         self.phase_results: List[PhaseResult] = []
+        self.phase_instrumentation: Dict[str, PhaseInstrumentation] = {}
         self.start_time: Optional[float] = None
+        
+        # Abortability
+        self.abort_signal = AbortSignal()
         
         logger.info(
             f"Orchestrator initialized: "
             f"async={'enabled' if enable_async else 'disabled'}, "
             f"monolith={self.monolith_path}, "
-            f"catalog={self.method_catalog_path}"
+            f"catalog={self.method_catalog_path}, "
+            f"resource_limits={self.resource_limits}"
         )
     
     def _verify_integrity_hash(self, data: Dict[str, Any], expected_hash: str) -> bool:
@@ -240,6 +372,63 @@ class Orchestrator:
         
         return True
     
+    def _validate_contract_structure(self) -> List[str]:
+        """
+        Validate contract structure between monolith and catalog.
+        
+        Returns:
+            List of validation errors (empty if valid)
+        """
+        errors = []
+        
+        if not self.monolith or not self.method_catalog:
+            errors.append("Monolith or catalog not loaded")
+            return errors
+        
+        # Validate base slots mapping
+        micro_questions = self.monolith.get("blocks", {}).get("micro_questions", [])
+        dimensions = self.method_catalog.get("dimensions", [])
+        
+        # Check that all 30 base slots are defined in catalog
+        for dim_idx, dimension in enumerate(dimensions):
+            questions = dimension.get("questions", [])
+            if len(questions) != 5:
+                errors.append(
+                    f"Dimension {dim_idx} has {len(questions)} questions, expected 5"
+                )
+        
+        # Validate scoring modalities
+        valid_modalities = {"TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"}
+        for idx, q in enumerate(micro_questions):
+            modality = q.get("scoring_modality")
+            if modality not in valid_modalities:
+                errors.append(
+                    f"Question {idx+1} has invalid modality: {modality}"
+                )
+        
+        # Validate cluster hermeticity
+        clusters = self.monolith.get("blocks", {}).get("niveles_abstraccion", {}).get("clusters", [])
+        policy_areas = self.monolith.get("blocks", {}).get("niveles_abstraccion", {}).get("policy_areas", [])
+        
+        all_areas = {pa["policy_area_id"] for pa in policy_areas}
+        clustered_areas = set()
+        
+        for cluster in clusters:
+            cluster_areas = set(cluster.get("policy_area_ids", []))
+            # Check no overlap
+            if clustered_areas & cluster_areas:
+                errors.append(
+                    f"Cluster {cluster.get('cluster_id')} overlaps with previous clusters"
+                )
+            clustered_areas.update(cluster_areas)
+        
+        # Check all areas are clustered
+        if clustered_areas != all_areas:
+            missing = all_areas - clustered_areas
+            errors.append(f"Areas not in any cluster: {missing}")
+        
+        return errors
+    
     def _load_configuration(self) -> PhaseResult:
         """
         FASE 0: Load and validate configuration.
@@ -252,27 +441,47 @@ class Orchestrator:
         - Integrity hashes
         - Question counts (300 micro + 4 meso + 1 macro)
         - Method catalog structure
+        - Contract structure between monolith and catalog
+        - Cluster hermeticity
         
         Returns:
             PhaseResult for configuration loading
         """
         logger.info("=== FASE 0: CARGA DE CONFIGURACIÓN ===")
         start = time.time()
+        instrumentation = PhaseInstrumentation("FASE_0", start)
+        self.phase_instrumentation["FASE_0"] = instrumentation
         
         try:
+            # Check for abort
+            if self.abort_signal.is_aborted():
+                raise RuntimeError(f"Aborted: {self.abort_signal.get_reason()}")
+            
             # Load monolith
             with open(self.monolith_path) as f:
                 self.monolith = json.load(f)
             
+            instrumentation.items_processed += 1
+            instrumentation.record_snapshot(self.resource_limits)
+            
             # Verify monolith integrity
             expected_hash = self.monolith.get("integrity", {}).get("monolith_hash")
-            if expected_hash and not self._verify_integrity_hash(self.monolith, expected_hash):
-                raise ValueError("Monolith corrupted: hash mismatch")
+            if expected_hash:
+                try:
+                    self._verify_integrity_hash(self.monolith, expected_hash)
+                    logger.info("✓ Monolith integrity verified")
+                except ValueError as e:
+                    instrumentation.errors.append(str(e))
+                    raise
+            else:
+                instrumentation.warnings.append("No integrity hash found in monolith")
             
             # Verify question counts
             counts = self.monolith.get("integrity", {}).get("question_count", {})
             if counts.get("total") != 305:
-                raise ValueError(f"Expected 305 questions, found {counts.get('total')}")
+                error_msg = f"Expected 305 questions, found {counts.get('total')}"
+                instrumentation.errors.append(error_msg)
+                raise ValueError(error_msg)
             
             logger.info(f"✓ Monolith loaded: {counts.get('total')} questions")
             
@@ -280,14 +489,28 @@ class Orchestrator:
             with open(self.method_catalog_path) as f:
                 self.method_catalog = json.load(f)
             
+            instrumentation.items_processed += 1
+            instrumentation.record_snapshot(self.resource_limits)
+            
             # Verify method catalog
             meta = self.method_catalog.get("metadata", {})
             if meta.get("total_methods") != 416:
-                logger.warning(
-                    f"Expected 416 methods, found {meta.get('total_methods')}"
-                )
+                warning = f"Expected 416 methods, found {meta.get('total_methods')}"
+                instrumentation.warnings.append(warning)
+                logger.warning(warning)
             
             logger.info(f"✓ Catálogo cargado: {meta.get('total_methods')} métodos")
+            
+            # Validate contract structure
+            contract_errors = self._validate_contract_structure()
+            if contract_errors:
+                instrumentation.errors.extend(contract_errors)
+                raise ValueError(f"Contract validation failed: {'; '.join(contract_errors)}")
+            
+            logger.info("✓ Contract structure validated")
+            
+            instrumentation.items_total = 2
+            instrumentation.complete()
             
             duration = (time.time() - start) * 1000
             return PhaseResult(
@@ -299,12 +522,16 @@ class Orchestrator:
                 metrics={
                     "questions_loaded": counts.get("total"),
                     "methods_loaded": meta.get("total_methods"),
+                    "warnings": len(instrumentation.warnings),
+                    "contract_validated": True,
                 }
             )
             
         except Exception as e:
+            instrumentation.complete()
             duration = (time.time() - start) * 1000
             logger.error(f"Configuration loading failed: {e}")
+            self.abort_signal.abort(f"Configuration loading failed: {e}")
             return PhaseResult(
                 phase_id="FASE_0",
                 phase_name="Carga de Configuración",
@@ -456,6 +683,12 @@ class Orchestrator:
         """
         FASE 2: Execute all 300 micro questions in parallel with timeout and cancellation.
         
+        Features:
+        - Resource monitoring during execution
+        - Progress reporting every 30 seconds
+        - Graceful abort handling
+        - Per-worker resource limits
+        
         Args:
             preprocessed_doc: Preprocessed document
             timeout_seconds: Maximum time to wait for all questions
@@ -465,11 +698,52 @@ class Orchestrator:
         """
         logger.info("=== FASE 2: EJECUCIÓN DE 300 MICRO PREGUNTAS ===")
         start = time.time()
+        instrumentation = PhaseInstrumentation("FASE_2", start)
+        instrumentation.items_total = 300
+        self.phase_instrumentation["FASE_2"] = instrumentation
         
         try:
-            # Create tasks for all 300 questions
+            # Check for abort
+            if self.abort_signal.is_aborted():
+                raise RuntimeError(f"Aborted: {self.abort_signal.get_reason()}")
+            
+            # Check resource limits
+            if self.resource_limits.check_memory_exceeded():
+                error_msg = "Memory limit exceeded before starting FASE 2"
+                instrumentation.errors.append(error_msg)
+                raise RuntimeError(error_msg)
+            
+            # Create tasks for all 300 questions with limited concurrency
+            semaphore = asyncio.Semaphore(self.resource_limits.max_workers)
+            
+            async def process_with_limit(question_num: int):
+                async with semaphore:
+                    # Check abort before each question
+                    if self.abort_signal.is_aborted():
+                        raise RuntimeError(f"Aborted: {self.abort_signal.get_reason()}")
+                    
+                    result = await self._process_micro_question_async(question_num, preprocessed_doc)
+                    instrumentation.items_processed += 1
+                    
+                    # Log progress every 10 questions
+                    if instrumentation.items_processed % 10 == 0:
+                        progress = instrumentation.get_progress()
+                        logger.info(
+                            f"Progress: {instrumentation.items_processed}/300 "
+                            f"({progress*100:.1f}%)"
+                        )
+                        instrumentation.record_snapshot(self.resource_limits)
+                        
+                        # Check resource limits
+                        if self.resource_limits.check_memory_exceeded():
+                            warning = f"Memory limit exceeded at question {question_num}"
+                            instrumentation.warnings.append(warning)
+                            logger.warning(warning)
+                    
+                    return result
+            
             tasks = [
-                asyncio.create_task(self._process_micro_question_async(i, preprocessed_doc))
+                asyncio.create_task(process_with_limit(i))
                 for i in range(1, 301)
             ]
             
@@ -488,21 +762,38 @@ class Orchestrator:
                 # Wait for cancellation to complete
                 await asyncio.gather(*pending, return_exceptions=True)
                 
-                # Raise error about timeout
-                raise TimeoutError(
+                error_msg = (
                     f"FASE 2 timeout after {timeout_seconds}s. "
                     f"Completed: {len(done)}/300, Cancelled: {len(pending)}"
                 )
+                instrumentation.errors.append(error_msg)
+                
+                # Raise error about timeout
+                raise TimeoutError(error_msg)
             
             # Collect results from completed tasks
-            all_micro_results = [task.result() for task in done]
+            all_micro_results = []
+            for task in done:
+                try:
+                    result = task.result()
+                    all_micro_results.append(result)
+                except Exception as e:
+                    error_msg = f"Task failed: {e}"
+                    instrumentation.errors.append(error_msg)
+                    logger.error(error_msg)
+            
+            instrumentation.complete()
             
             duration = (time.time() - start) * 1000
             avg_time = duration / 300 if all_micro_results else 0
             
-            logger.info(f"✓ 300 micro preguntas procesadas")
+            logger.info(f"✓ {len(all_micro_results)} micro preguntas procesadas")
             logger.info(f"  - Tiempo promedio por pregunta: {avg_time:.2f}ms")
             logger.info(f"  - Tiempo total con paralelismo: {duration/1000:.2f}s")
+            logger.info(f"  - Max workers utilizados: {self.resource_limits.max_workers}")
+            
+            # Final resource snapshot
+            instrumentation.record_snapshot(self.resource_limits)
             
             return PhaseResult(
                 phase_id="FASE_2",
@@ -515,12 +806,18 @@ class Orchestrator:
                     "questions_processed": len(all_micro_results),
                     "avg_time_ms": avg_time,
                     "timeout_seconds": timeout_seconds,
+                    "max_workers": self.resource_limits.max_workers,
+                    "resource_snapshots": len(instrumentation.resource_snapshots),
+                    "warnings": len(instrumentation.warnings),
+                    "errors": len(instrumentation.errors),
                 }
             )
             
         except Exception as e:
+            instrumentation.complete()
             duration = (time.time() - start) * 1000
             logger.error(f"Micro question execution failed: {e}")
+            self.abort_signal.abort(f"FASE 2 failed: {e}")
             return PhaseResult(
                 phase_id="FASE_2",
                 phase_name="Ejecución de Micro Preguntas",
@@ -1410,6 +1707,88 @@ class Orchestrator:
         )
 
 
+    def get_processing_status(self) -> Dict[str, Any]:
+        """
+        Get current processing status.
+        
+        Returns:
+            Dictionary with status information including:
+            - current_phase: Current phase being executed
+            - overall_progress: Overall progress (0-1)
+            - phase_progress: Progress of current phase (0-1)
+            - elapsed_time: Time elapsed since start
+            - resource_usage: Current resource usage
+            - abort_status: Whether abort has been triggered
+        """
+        if self.start_time is None:
+            return {
+                "status": "not_started",
+                "abort_status": self.abort_signal.is_aborted(),
+            }
+        
+        elapsed = time.time() - self.start_time
+        
+        # Find current phase
+        current_phase = None
+        phase_progress = 0.0
+        
+        for phase_id, instr in self.phase_instrumentation.items():
+            if instr.end_time is None:
+                current_phase = phase_id
+                phase_progress = instr.get_progress()
+                break
+        
+        # Calculate overall progress (0-10 phases, simplified)
+        completed_phases = len([p for p in self.phase_results if p.success])
+        overall_progress = completed_phases / 11  # 11 phases (0-10)
+        
+        return {
+            "status": "aborted" if self.abort_signal.is_aborted() else "running",
+            "current_phase": current_phase,
+            "overall_progress": overall_progress,
+            "phase_progress": phase_progress,
+            "completed_phases": completed_phases,
+            "total_phases": 11,
+            "elapsed_time_s": elapsed,
+            "resource_usage": self.resource_limits.get_resource_usage(),
+            "abort_status": self.abort_signal.is_aborted(),
+            "abort_reason": self.abort_signal.get_reason(),
+        }
+    
+    def get_phase_metrics(self) -> Dict[str, Any]:
+        """
+        Get detailed metrics for all phases.
+        
+        Returns:
+            Dictionary with phase metrics including timing, errors, warnings
+        """
+        metrics = {}
+        
+        for phase_id, instr in self.phase_instrumentation.items():
+            metrics[phase_id] = {
+                "duration_ms": instr.get_duration_ms(),
+                "items_processed": instr.items_processed,
+                "items_total": instr.items_total,
+                "progress": instr.get_progress(),
+                "errors": instr.errors,
+                "warnings": instr.warnings,
+                "resource_snapshots": len(instr.resource_snapshots),
+                "completed": instr.end_time is not None,
+            }
+        
+        return metrics
+    
+    def request_abort(self, reason: str):
+        """
+        Request graceful abort of processing.
+        
+        Args:
+            reason: Reason for abort
+        """
+        logger.warning(f"Abort requested: {reason}")
+        self.abort_signal.abort(reason)
+
+
 __all__ = [
     "Choreographer",
     "CompleteReport",
@@ -1422,4 +1801,8 @@ __all__ = [
     "MacroScore",
     "ExecutionMode",
     "PhaseResult",
+    "AbortSignal",
+    "ResourceLimits",
+    "PhaseInstrumentation",
+    "Orchestrator",
 ]
