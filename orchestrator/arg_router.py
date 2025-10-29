@@ -392,8 +392,7 @@ class PayloadDriftMonitor:
 
     @staticmethod
     def _expected_type_name(expected: Any) -> str:
-        if isinstance(expected, tuple):
-            return ", ".join(t.__name__ for t in expected if hasattr(t, "__name__"))
+        return ", ".join(getattr(t, "__name__", str(t)) for t in expected)
         if hasattr(expected, "__name__"):
             return expected.__name__
         return str(expected)
