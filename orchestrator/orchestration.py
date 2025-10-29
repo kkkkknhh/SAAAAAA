@@ -1,0 +1,929 @@
+"""High level orchestration for the municipal development plan pipeline.
+
+This module implements the system orchestrator described in
+``PSEUDOCODIGO_FLUJO_COMPLETO.md`` and the architectural guidelines in
+``rules/METODOS/ARQUITECTURA_ORQUESTADOR_COREOGRAFO.md``.  The orchestrator is
+responsible for coordinating the ten phases of the end-to-end workflow while
+delegating all question-level execution to the coreographer subsystem.
+
+Key design goals
+----------------
+
+* **Strict role boundaries** – the orchestrator never inspects or executes the
+  DAG of methods for an individual question.  It only dispatches work to
+  coreographers and aggregates their reported results.
+* **Deterministic sequencing** – all phases are executed in the order defined
+  by the pseudocode with explicit state transitions that can be inspected via
+  :meth:`get_processing_status`.
+* **Observability and fault tolerance** – timings, progress counters and error
+  records are captured for every phase.  Critical failures are routed through
+  :meth:`handle_critical_error` in alignment with the doctrine described in the
+  architecture notes.
+
+The module intentionally avoids importing component implementations (document
+ingestion, scoring, aggregation, report assembly) at import time so that it can
+be safely imported before those components are available.  Resolution happens
+at call-time and produces actionable diagnostics when a dependency has not been
+implemented yet.
+"""
+
+from __future__ import annotations
+
+import concurrent.futures
+import hashlib
+import importlib
+import json
+import logging
+import threading
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tuple
+
+logger = logging.getLogger(__name__)
+
+
+class ProcessingPhase(str, Enum):
+    """Enumeration of the orchestration phases in execution order."""
+
+    IDLE = "idle"
+    VALIDATION = "validation"
+    INGESTION = "ingestion"
+    MICRO_EXECUTION = "micro_execution"
+    SCORING = "scoring"
+    DIMENSION_AGGREGATION = "dimension_aggregation"
+    AREA_AGGREGATION = "area_aggregation"
+    CLUSTER_AGGREGATION = "cluster_aggregation"
+    MACRO_EVALUATION = "macro_evaluation"
+    RECOMMENDATIONS = "recommendations"
+    REPORT_ASSEMBLY = "report_assembly"
+    OUTPUT_FORMATTING = "output_formatting"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass
+class PhaseTiming:
+    """Timing information for a single processing phase."""
+
+    start_time: float
+    end_time: Optional[float] = None
+
+    def complete(self) -> None:
+        """Mark the phase as finished and record its end time."""
+
+        if self.end_time is None:
+            self.end_time = time.time()
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Return the duration in seconds if the phase has completed."""
+
+        if self.end_time is None:
+            return None
+        return self.end_time - self.start_time
+
+
+@dataclass
+class ProcessingMetrics:
+    """Aggregated metrics generated during orchestration."""
+
+    total_start: Optional[float] = None
+    total_end: Optional[float] = None
+    phase_timings: Dict[ProcessingPhase, PhaseTiming] = field(default_factory=dict)
+    micro_question_durations: List[float] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+
+    def begin_phase(self, phase: ProcessingPhase) -> None:
+        """Register the start timestamp for ``phase``."""
+
+        self.phase_timings[phase] = PhaseTiming(start_time=time.time())
+
+    def end_phase(self, phase: ProcessingPhase) -> None:
+        """Finalize timing data for ``phase`` if it has started."""
+
+        timing = self.phase_timings.get(phase)
+        if timing:
+            timing.complete()
+
+    def record_micro_duration(self, duration: float) -> None:
+        """Append a duration measurement for a micro question."""
+
+        self.micro_question_durations.append(duration)
+
+
+@dataclass
+class ProcessingState:
+    """Mutable state snapshot for the orchestrator."""
+
+    current_phase: ProcessingPhase = ProcessingPhase.IDLE
+    questions_completed: int = 0
+    questions_total: int = 300
+    last_progress_update: float = field(default_factory=time.time)
+    active_futures: List[concurrent.futures.Future] = field(default_factory=list)
+    preprocessed_document: Optional[Any] = None
+    scored_results: Optional[List[Any]] = None
+    dimension_scores: Optional[List[Any]] = None
+    area_scores: Optional[List[Any]] = None
+    cluster_scores: Optional[List[Any]] = None
+    macro_score: Optional[Any] = None
+    recommendations: Optional[List[Any]] = None
+    complete_report: Optional[Any] = None
+    outputs: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class ErrorResponse:
+    """Response generated by :meth:`Orchestrator.handle_critical_error`."""
+
+    decision: str
+    reason: str
+    completed_questions: int
+    total_questions: int
+
+
+class QuestionExecutor(Protocol):
+    """Protocol implemented by the coreographer for executing a question."""
+
+    def __call__(
+        self,
+        question_global: int,
+        preprocessed_document: Any,
+        monolith: Dict[str, Any],
+        method_catalog: Dict[str, Any],
+    ) -> Any:
+        ...
+
+
+@dataclass
+class ChoreographerPool:
+    """Wrapper for the executor handling concurrent micro questions."""
+
+    executor: concurrent.futures.Executor
+    max_workers: int
+
+    def shutdown(self) -> None:
+        """Shutdown the underlying executor."""
+
+        self.executor.shutdown(wait=True)
+
+
+def _load_json(path: Path) -> Dict[str, Any]:
+    """Load JSON data from ``path`` and return a Python dictionary."""
+
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _compute_integrity_hash(payload: Dict[str, Any]) -> str:
+    """Compute the canonical hash of a JSON payload."""
+
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+class Orchestrator:
+    """Central coordinator for the municipal development plan pipeline.
+
+    Parameters
+    ----------
+    monolith_path:
+        File path to ``questionnaire_monolith.json``.
+    catalog_path:
+        File path to ``metodos_completos_nivel3.json``.
+    config:
+        Optional dictionary overriding orchestration configuration.  Supported
+        keys include ``max_workers`` (int), ``status_interval`` (float) and
+        ``micro_question_timeout`` (float, seconds).
+    question_executor_factory:
+        Optional callable returning a :class:`QuestionExecutor`.  When omitted,
+        the orchestrator tries to resolve ``coreographer.Coreographer`` and use
+        its ``execute`` method, raising a descriptive error if the module is
+        unavailable.
+    """
+
+    DEFAULT_CONFIG: Dict[str, Any] = {
+        "max_workers": 24,
+        "status_interval": 10.0,
+        "micro_question_timeout": 30 * 60.0,  # 30 minutes
+        "max_retries": 3,
+        "retry_backoff_seconds": [0.0, 5.0, 15.0],
+    }
+
+    def __init__(
+        self,
+        monolith_path: str | Path = "questionnaire_monolith.json",
+        catalog_path: str | Path = "rules/METODOS/metodos_completos_nivel3.json",
+        config: Optional[Dict[str, Any]] = None,
+        question_executor_factory: Optional[Callable[[Dict[str, Any]], QuestionExecutor]] = None,
+    ) -> None:
+        self.monolith_path = Path(monolith_path)
+        self.catalog_path = Path(catalog_path)
+
+        if not self.monolith_path.exists():
+            raise FileNotFoundError(f"Questionnaire monolith not found: {self.monolith_path}")
+        if not self.catalog_path.exists():
+            raise FileNotFoundError(f"Method catalog not found: {self.catalog_path}")
+
+        self.monolith: Dict[str, Any] = _load_json(self.monolith_path)
+        self.method_catalog: Dict[str, Any] = _load_json(self.catalog_path)
+
+        self.config = {**self.DEFAULT_CONFIG, **(config or {})}
+        self.metrics = ProcessingMetrics()
+        self.state = ProcessingState()
+        self._lock = threading.Lock()
+
+        self._question_executor_factory = question_executor_factory
+        self._coreographer_cls: Optional[type] = None
+
+        logger.info(
+            "Orchestrator initialized with monolith %s and catalog %s",
+            self.monolith_path,
+            self.catalog_path,
+        )
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def process_document(self, pdf_path: str | Path) -> Dict[str, Any]:
+        """Execute the full end-to-end pipeline for ``pdf_path``.
+
+        This method is the single public entry point of the orchestrator.  It
+        advances through each processing phase, recording metrics and updating
+        the internal state machine.  Component-specific work is delegated to the
+        specialised modules described in the architecture documentation.
+        """
+
+        self.metrics.total_start = time.time()
+        try:
+            self._start_phase(ProcessingPhase.VALIDATION)
+            self.validate_configuration()
+            self._end_phase(ProcessingPhase.VALIDATION)
+
+            self._start_phase(ProcessingPhase.INGESTION)
+            preprocessed = self.ingest_document(str(pdf_path))
+            self._end_phase(ProcessingPhase.INGESTION)
+
+            self._start_phase(ProcessingPhase.MICRO_EXECUTION)
+            micro_results = self.execute_all_micro_questions(preprocessed)
+            self._end_phase(ProcessingPhase.MICRO_EXECUTION)
+
+            self._start_phase(ProcessingPhase.SCORING)
+            scored_results = self.score_all_questions(micro_results)
+            self._end_phase(ProcessingPhase.SCORING)
+
+            self._start_phase(ProcessingPhase.DIMENSION_AGGREGATION)
+            dimension_scores = self.aggregate_dimensions(scored_results)
+            self._end_phase(ProcessingPhase.DIMENSION_AGGREGATION)
+
+            self._start_phase(ProcessingPhase.AREA_AGGREGATION)
+            area_scores = self.aggregate_areas(dimension_scores)
+            self._end_phase(ProcessingPhase.AREA_AGGREGATION)
+
+            self._start_phase(ProcessingPhase.CLUSTER_AGGREGATION)
+            cluster_scores = self.aggregate_clusters(area_scores)
+            self._end_phase(ProcessingPhase.CLUSTER_AGGREGATION)
+
+            self._start_phase(ProcessingPhase.MACRO_EVALUATION)
+            macro_score = self.evaluate_macro(cluster_scores)
+            self._end_phase(ProcessingPhase.MACRO_EVALUATION)
+
+            self._start_phase(ProcessingPhase.RECOMMENDATIONS)
+            recommendations = self.generate_recommendations(
+                {
+                    "scored_results": scored_results,
+                    "dimension_scores": dimension_scores,
+                    "area_scores": area_scores,
+                    "cluster_scores": cluster_scores,
+                    "macro_score": macro_score,
+                }
+            )
+            self._end_phase(ProcessingPhase.RECOMMENDATIONS)
+
+            self._start_phase(ProcessingPhase.REPORT_ASSEMBLY)
+            complete_report = self.assemble_report(
+                {
+                    "micro_results": scored_results,
+                    "dimension_scores": dimension_scores,
+                    "area_scores": area_scores,
+                    "cluster_scores": cluster_scores,
+                    "macro_score": macro_score,
+                    "recommendations": recommendations,
+                }
+            )
+            self._end_phase(ProcessingPhase.REPORT_ASSEMBLY)
+
+            self._start_phase(ProcessingPhase.OUTPUT_FORMATTING)
+            outputs = self.format_outputs(complete_report)
+            self._end_phase(ProcessingPhase.OUTPUT_FORMATTING)
+
+            self._set_phase(ProcessingPhase.COMPLETED)
+            logger.info("✓ Procesamiento completo para %s", pdf_path)
+
+            return {
+                "complete_report": complete_report,
+                "output_formats": outputs,
+            }
+        except Exception as exc:  # pragma: no cover - defensive catch
+            logger.exception("Critical failure during process_document: %s", exc)
+            self.metrics.errors.append(str(exc))
+            self._set_phase(ProcessingPhase.FAILED)
+            raise
+        finally:
+            self.metrics.total_end = time.time()
+
+    def get_processing_status(self) -> Dict[str, Any]:
+        """Return a snapshot describing the current execution status."""
+
+        with self._lock:
+            elapsed = None
+            if self.metrics.total_start is not None:
+                elapsed = time.time() - self.metrics.total_start
+            timing = self.metrics.phase_timings.get(self.state.current_phase)
+            if timing:
+                phase_elapsed = time.time() - timing.start_time
+            else:
+                phase_elapsed = 0.0
+
+            estimated_remaining = None
+            if (
+                self.state.questions_completed
+                and self.metrics.micro_question_durations
+            ):
+                avg_duration = sum(self.metrics.micro_question_durations) / len(
+                    self.metrics.micro_question_durations
+                )
+                remaining = self.state.questions_total - self.state.questions_completed
+                estimated_remaining = max(0.0, remaining * avg_duration)
+
+            total_questions = max(1, self.state.questions_total)
+            progress = self.state.questions_completed / total_questions
+
+            return {
+                "current_phase": self.state.current_phase.value,
+                "progress": progress,
+                "questions_completed": self.state.questions_completed,
+                "questions_total": self.state.questions_total,
+                "elapsed_time": elapsed,
+                "current_phase_elapsed": phase_elapsed,
+                "estimated_time_remaining": estimated_remaining,
+                "errors": list(self.metrics.errors),
+                "warnings": list(self.metrics.warnings),
+            }
+
+    # ------------------------------------------------------------------
+    # Phase implementations
+    # ------------------------------------------------------------------
+    def validate_configuration(self) -> bool:
+        """Validate questionnaire and method catalogue integrity."""
+
+        logger.info("Validating configuration integrity…")
+
+        integrity = self.monolith.get("integrity", {})
+        stored_hash = integrity.get("monolith_hash")
+        if not stored_hash:
+            raise RuntimeError("Monolith integrity hash is missing")
+
+        computed_hash = _compute_integrity_hash(self.monolith)
+        if computed_hash != stored_hash:
+            raise RuntimeError(
+                "Monolith hash mismatch: expected %s, computed %s"
+                % (stored_hash, computed_hash)
+            )
+
+        counts = integrity.get("question_count", {})
+        micro_questions = self.monolith.get("blocks", {}).get("micro_questions", [])
+        meso_questions = self.monolith.get("blocks", {}).get("meso_questions", [])
+        macro_question = self.monolith.get("blocks", {}).get("macro_question")
+
+        if len(micro_questions) != counts.get("micro"):
+            raise RuntimeError(
+                f"Micro question count mismatch: integrity={counts.get('micro')} actual={len(micro_questions)}"
+            )
+        if len(meso_questions) != counts.get("meso"):
+            raise RuntimeError(
+                f"Meso question count mismatch: integrity={counts.get('meso')} actual={len(meso_questions)}"
+            )
+        if (macro_question is None) != (counts.get("macro", 0) == 0):
+            expected_macro = counts.get("macro", 0)
+            actual_macro = 0 if macro_question is None else 1
+            raise RuntimeError(
+                f"Macro question count mismatch: integrity={expected_macro} actual={actual_macro}"
+            )
+
+        summary = self.method_catalog.get("summary", {})
+        declared_total = summary.get("total_methods")
+        actual_total = 0
+        for file_info in self.method_catalog.get("files", {}).values():
+            actual_total += file_info.get("method_count", 0)
+        if declared_total is not None and actual_total and declared_total != actual_total:
+            raise RuntimeError(
+                f"Method catalogue mismatch: declared={declared_total} actual={actual_total}"
+            )
+
+        logger.info(
+            "✓ Monolith y catálogo validados (micro=%d, meso=%d, macro=%s, métodos=%d)",
+            len(micro_questions),
+            len(meso_questions),
+            "1" if macro_question else "0",
+            actual_total,
+        )
+
+        self.state.questions_total = len(micro_questions)
+        return True
+
+    def ingest_document(self, pdf_path: str) -> Any:
+        """Delegate the document ingestion pipeline to the DI package."""
+
+        di_module = self._lazy_import("document_ingestion")
+
+        try:
+            loader = getattr(di_module, "DocumentLoader")
+            text_extractor = getattr(di_module, "TextExtractor")
+            preprocessing = getattr(di_module, "PreprocessingEngine")
+        except AttributeError as exc:  # pragma: no cover - defensive branch
+            raise RuntimeError(
+                "document_ingestion module is missing required classes"
+            ) from exc
+
+        logger.info("=== FASE 1: INGESTIÓN DEL DOCUMENTO ===")
+        raw_document = loader.load_pdf(pdf_path)
+        logger.info("✓ PDF cargado")
+
+        _ = text_extractor.extract_full_text(raw_document)
+        logger.info("✓ Texto extraído")
+
+        preprocessed = preprocessing.preprocess_document(raw_document)
+        logger.info("✓ Documento preprocesado")
+
+        self.state.preprocessed_document = preprocessed
+        return preprocessed
+
+    def execute_all_micro_questions(self, preprocessed_doc: Any) -> List[Any]:
+        """Execute the 300 micro questions in parallel using coreographers."""
+
+        pool = self._create_choreographer_pool(self.config["max_workers"])
+        futures = self._distribute_questions(pool, preprocessed_doc)
+        try:
+            results = self._wait_for_all_questions(futures)
+        finally:
+            pool.shutdown()
+
+        return results
+
+    def score_all_questions(self, micro_results: List[Any]) -> List[Any]:
+        """Apply scoring modalities to the micro question results."""
+
+        scoring_module = self._lazy_import("scoring")
+        scorer = getattr(scoring_module, "MicroQuestionScorer")
+
+        scoring_config = self.monolith["blocks"].get("scoring", {})
+        scored_results = []
+        logger.info("=== FASE 3: SCORING DE MICRO PREGUNTAS ===")
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.config["max_workers"]
+        ) as executor:
+            future_map = {
+                executor.submit(
+                    self._score_single_question,
+                    scorer,
+                    result,
+                    scoring_config,
+                ): result
+                for result in micro_results
+            }
+            for future in concurrent.futures.as_completed(future_map):
+                scored_results.append(future.result())
+
+        self.state.scored_results = scored_results
+        return scored_results
+
+    def aggregate_dimensions(self, scored_results: List[Any]) -> List[Any]:
+        """Aggregate dimension scores using the aggregation module."""
+
+        aggregation_module = self._lazy_import("aggregation")
+        aggregator = getattr(aggregation_module, "DimensionAggregator")
+
+        logger.info("=== FASE 4: AGREGACIÓN POR DIMENSIÓN ===")
+        grouped = self._group_scores_by_dimension(scored_results)
+        results: List[Any] = []
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.config["max_workers"]
+        ) as executor:
+            futures = [
+                executor.submit(
+                    aggregator.aggregate_dimension,
+                    dimension_id=dimension_id,
+                    area_id=area_id,
+                    q_results=q_results,
+                    monolith=self.monolith,
+                )
+                for (area_id, dimension_id), q_results in grouped.items()
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                results.append(future.result())
+
+        self.state.dimension_scores = results
+        return results
+
+    def aggregate_areas(self, dimension_scores: List[Any]) -> List[Any]:
+        """Aggregate area scores."""
+
+        aggregation_module = self._lazy_import("aggregation")
+        aggregator = getattr(aggregation_module, "AreaPolicyAggregator")
+
+        logger.info("=== FASE 5: AGREGACIÓN POR ÁREA DE POLÍTICA ===")
+        results = []
+        grouped = self._group_dimensions_by_area(dimension_scores)
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.config["max_workers"]
+        ) as executor:
+            futures = [
+                executor.submit(
+                    aggregator.aggregate_area,
+                    area_id,
+                    dim_scores,
+                    self.monolith,
+                )
+                for area_id, dim_scores in grouped.items()
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                results.append(future.result())
+
+        self.state.area_scores = results
+        return results
+
+    def aggregate_clusters(self, area_scores: List[Any]) -> List[Any]:
+        """Aggregate cluster (meso) scores."""
+
+        aggregation_module = self._lazy_import("aggregation")
+        aggregator = getattr(aggregation_module, "ClusterAggregator")
+
+        logger.info("=== FASE 6: AGREGACIÓN POR CLUSTER ===")
+        cluster_definitions = self.monolith["blocks"]["niveles_abstraccion"]["clusters"]
+        results = []
+        for cluster_id, cluster_def in cluster_definitions.items():
+            areas = cluster_def.get("areas", [])
+            cluster_area_scores = [
+                score for score in area_scores if getattr(score, "area_id", None) in areas
+            ]
+            results.append(
+                aggregator.aggregate_cluster(
+                    cluster_id=cluster_id,
+                    area_scores=cluster_area_scores,
+                    cluster_def=cluster_def,
+                    monolith=self.monolith,
+                )
+            )
+
+        self.state.cluster_scores = results
+        return results
+
+    def evaluate_macro(self, cluster_scores: List[Any]) -> Any:
+        """Evaluate the macro question."""
+
+        aggregation_module = self._lazy_import("aggregation")
+        evaluator = getattr(aggregation_module, "MacroEvaluator")
+
+        logger.info("=== FASE 7: EVALUACIÓN MACRO ===")
+        macro_result = evaluator.evaluate_macro(cluster_scores, self.monolith)
+        self.state.macro_score = macro_result
+        return macro_result
+
+    def generate_recommendations(self, all_scores: Dict[str, Any]) -> List[Any]:
+        """Generate recommendations using the report assembly subsystem."""
+
+        report_module = self._lazy_import("report_assembly")
+        engine = getattr(report_module, "RecommendationEngine")
+
+        logger.info("=== FASE 8: GENERACIÓN DE RECOMENDACIONES ===")
+        recommendations = engine.generate_all_recommendations(all_scores)
+        self.state.recommendations = recommendations
+        return recommendations
+
+    def assemble_report(self, all_data: Dict[str, Any]) -> Any:
+        """Assemble the complete report."""
+
+        report_module = self._lazy_import("report_assembly")
+        assembler = getattr(report_module, "ReportAssembler")
+
+        logger.info("=== FASE 9: ENSAMBLADO DE REPORTE ===")
+        complete_report = assembler.assemble_full_report(all_data)
+        self.state.complete_report = complete_report
+        return complete_report
+
+    def format_outputs(self, report: Any) -> Dict[str, Any]:
+        """Generate output formats (JSON, HTML, PDF, Excel)."""
+
+        report_module = self._lazy_import("report_assembly")
+        formatter = getattr(report_module, "ReportFormatter")
+
+        logger.info("=== FASE 10: FORMATEO Y EXPORTACIÓN ===")
+        outputs = {
+            "json": formatter.format_as_json(report),
+            "html": formatter.format_as_html(report),
+            "pdf": formatter.format_as_pdf(report),
+            "excel": formatter.format_as_excel(report),
+        }
+        self.state.outputs = outputs
+        return outputs
+
+    # ------------------------------------------------------------------
+    # Error handling
+    # ------------------------------------------------------------------
+    def handle_critical_error(self, error: Exception, context: Dict[str, Any]) -> ErrorResponse:
+        """Handle critical orchestration errors with doctrine-aligned policy."""
+
+        completed = self.state.questions_completed
+        total = self.state.questions_total
+        progress = completed / total if total else 0
+
+        if progress < 0.10:
+            decision = "ABORT"
+        elif progress < 0.50:
+            decision = "PARTIAL"
+        else:
+            decision = "CONTINUE"
+
+        message = f"Critical error during {self.state.current_phase.value}: {error}"
+        logger.error(message)
+        self.metrics.errors.append(message)
+
+        return ErrorResponse(
+            decision=decision,
+            reason=message,
+            completed_questions=completed,
+            total_questions=total,
+        )
+
+    def retry_failed_question(self, question_global: int, max_retries: Optional[int] = None) -> Optional[Any]:
+        """Retry a failed question execution with exponential backoff."""
+
+        retries = max_retries if max_retries is not None else self.config["max_retries"]
+        backoff = self.config.get("retry_backoff_seconds", [0.0, 5.0, 15.0])
+
+        question_metadata = self._get_question_metadata(question_global)
+        executor = self._resolve_question_executor(question_metadata)
+
+        for attempt in range(retries):
+            delay = backoff[min(attempt, len(backoff) - 1)]
+            if delay:
+                logger.info(
+                    "Retrying question %s in %.1f seconds (attempt %d/%d)",
+                    question_global,
+                    delay,
+                    attempt + 1,
+                    retries,
+                )
+                time.sleep(delay)
+
+            try:
+                result = executor(
+                    question_global,
+                    self.state.preprocessed_document,
+                    self.monolith,
+                    self.method_catalog,
+                )
+                logger.info("✓ Retry successful for question %s", question_global)
+                return result
+            except Exception as exc:  # pragma: no cover - future behaviour
+                logger.warning(
+                    "Retry %d/%d for question %s failed: %s",
+                    attempt + 1,
+                    retries,
+                    question_global,
+                    exc,
+                )
+
+        logger.error("All retries failed for question %s", question_global)
+        return None
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _start_phase(self, phase: ProcessingPhase) -> None:
+        with self._lock:
+            self.state.current_phase = phase
+            self.metrics.begin_phase(phase)
+
+    def _end_phase(self, phase: ProcessingPhase) -> None:
+        with self._lock:
+            self.metrics.end_phase(phase)
+
+    def _set_phase(self, phase: ProcessingPhase) -> None:
+        with self._lock:
+            self.state.current_phase = phase
+
+    def _lazy_import(self, module_name: str):
+        try:
+            return importlib.import_module(module_name)
+        except ModuleNotFoundError as exc:  # pragma: no cover - defensive branch
+            raise RuntimeError(
+                f"Required module '{module_name}' is not available. "
+                "Ensure the component has been implemented before running the orchestrator."
+            ) from exc
+
+    def _create_choreographer_pool(self, max_workers: int) -> ChoreographerPool:
+        logger.info("Creando pool de Coreógrafos con %d workers", max_workers)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        return ChoreographerPool(executor=executor, max_workers=max_workers)
+
+    def _distribute_questions(
+        self, pool: ChoreographerPool, preprocessed_doc: Any
+    ) -> List[concurrent.futures.Future]:
+        futures: List[concurrent.futures.Future] = []
+        logger.info("Distribuyendo 300 micro preguntas a los Coreógrafos")
+
+        for question in self.monolith["blocks"]["micro_questions"]:
+            question_global = question["question_global"]
+            executor = self._resolve_question_executor(question)
+            future = pool.executor.submit(
+                self._execute_single_question,
+                executor,
+                question_global,
+                preprocessed_doc,
+            )
+            futures.append(future)
+
+        with self._lock:
+            self.state.active_futures = futures
+        return futures
+
+    def _wait_for_all_questions(
+        self, futures: Iterable[concurrent.futures.Future]
+    ) -> List[Any]:
+        timeout = self.config.get("micro_question_timeout")
+        results: List[Any] = []
+        logger.info("Esperando la finalización de todas las preguntas (timeout=%s)", timeout)
+
+        completed = 0
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=timeout):
+                result = future.result()
+                results.append(result)
+                completed += 1
+                with self._lock:
+                    self.state.questions_completed = completed
+
+                now = time.time()
+                if now - self.state.last_progress_update >= self.config["status_interval"]:
+                    logger.info(
+                        "Progreso: %d/%d preguntas completadas",
+                        completed,
+                        self.state.questions_total,
+                    )
+                    self.state.last_progress_update = now
+        except TimeoutError:
+            logger.error(
+                "Timeout alcanzado tras %.1f segundos esperando micro preguntas",
+                timeout if timeout is not None else float("nan"),
+            )
+
+        if completed != self.state.questions_total:
+            logger.warning(
+                "Solo %d de %d preguntas completaron dentro del timeout",
+                completed,
+                self.state.questions_total,
+            )
+
+        return results
+
+    def _execute_single_question(
+        self,
+        executor: QuestionExecutor,
+        question_global: int,
+        preprocessed_doc: Any,
+    ) -> Any:
+        start = time.time()
+        result = executor(
+            question_global,
+            preprocessed_doc,
+            self.monolith,
+            self.method_catalog,
+        )
+        duration = time.time() - start
+        self.metrics.record_micro_duration(duration)
+        return result
+
+    def _score_single_question(
+        self,
+        scorer: Any,
+        micro_result: Any,
+        scoring_config: Dict[str, Any],
+    ) -> Any:
+        question_global = self._safe_get(micro_result, "question_global")
+        if question_global is None:
+            raise ValueError("Micro result is missing 'question_global'")
+        question_index = int(question_global) - 1
+        question_metadata = self.monolith["blocks"]["micro_questions"][question_index]
+        modality = question_metadata["scoring_modality"]
+
+        score = scorer.apply_scoring_modality(
+            evidence=self._safe_get(micro_result, "evidence"),
+            modality=modality,
+            config=scoring_config,
+        )
+
+        quality = scorer.determine_quality_level(
+            score=score,
+            thresholds=scoring_config.get("quality_levels", {}),
+        )
+
+        builder = getattr(scorer, "build_scored_result", None)
+        if callable(builder):
+            return builder(
+                micro_result=micro_result,
+                score=score,
+                quality_level=quality,
+                metadata=question_metadata,
+            )
+
+        return {
+            "question_global": self._safe_get(micro_result, "question_global"),
+            "base_slot": question_metadata.get("base_slot"),
+            "policy_area": question_metadata.get("policy_area"),
+            "dimension": question_metadata.get("dimension"),
+            "score": score,
+            "quality_level": quality,
+            "evidence": self._safe_get(micro_result, "evidence"),
+            "raw_results": self._safe_get(micro_result, "raw_results"),
+        }
+
+    def _resolve_question_executor(self, question_metadata: Dict[str, Any]) -> QuestionExecutor:
+        if self._question_executor_factory is not None:
+            return self._question_executor_factory(question_metadata)
+
+        if self._coreographer_cls is None:
+            try:
+                coreographer_module = importlib.import_module("coreographer")
+                self._coreographer_cls = getattr(coreographer_module, "Coreographer")
+            except (ModuleNotFoundError, AttributeError) as exc:  # pragma: no cover
+                raise RuntimeError(
+                    "Coreographer module is required but not available."
+                ) from exc
+
+        coreographer_instance = self._coreographer_cls(
+            question_metadata=question_metadata,
+            monolith=self.monolith,
+            method_catalog=self.method_catalog,
+        )
+
+        if not hasattr(coreographer_instance, "execute"):
+            raise RuntimeError("Coreographer instance does not implement 'execute'")
+
+        return coreographer_instance.execute  # type: ignore[return-value]
+
+    def _list_policy_areas(self) -> List[str]:
+        areas = self.monolith["blocks"].get("niveles_abstraccion", {}).get("policy_areas", {})
+        return list(areas.keys())
+
+    def _get_question_metadata(self, question_global: int) -> Dict[str, Any]:
+        index = question_global - 1
+        questions = self.monolith["blocks"]["micro_questions"]
+        if index < 0 or index >= len(questions):  # pragma: no cover - bounds safety
+            raise IndexError(f"Invalid question_global: {question_global}")
+        return questions[index]
+
+    def _group_scores_by_dimension(
+        self, scored_results: List[Any]
+    ) -> Dict[Tuple[str, str], List[Any]]:
+        grouped: Dict[Tuple[str, str], List[Any]] = {}
+        for result in scored_results:
+            area_id = self._safe_get(result, "policy_area")
+            dimension_id = self._safe_get(result, "dimension")
+            if area_id is None or dimension_id is None:
+                continue
+            key = (area_id, dimension_id)
+            grouped.setdefault(key, []).append(result)
+        return grouped
+
+    def _group_dimensions_by_area(
+        self, dimension_scores: List[Any]
+    ) -> Dict[str, List[Any]]:
+        grouped: Dict[str, List[Any]] = {}
+        for dim_score in dimension_scores:
+            area_id = self._safe_get(dim_score, "area_id")
+            if area_id is None:
+                continue
+            grouped.setdefault(area_id, []).append(dim_score)
+        return grouped
+
+    @staticmethod
+    def _safe_get(obj: Any, attribute: str) -> Any:
+        if hasattr(obj, attribute):
+            return getattr(obj, attribute)
+        if isinstance(obj, dict):
+            return obj.get(attribute)
+        return None
+
+
+__all__ = [
+    "ProcessingPhase",
+    "ProcessingMetrics",
+    "ProcessingState",
+    "ErrorResponse",
+    "Orchestrator",
+]
+
