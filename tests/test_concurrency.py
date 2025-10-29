@@ -387,7 +387,6 @@ class TestWorkerPoolDeterminism(unittest.TestCase):
         pool = WorkerPool(config)
         
         execution_log = []
-        log_lock = ThreadPoolExecutor(max_workers=1)
         
         def logged_task(task_num):
             execution_log.append(("start", task_num, time.time()))
