@@ -45,11 +45,6 @@ from orchestrator.aggregation import (
     AreaPolicyAggregator,
     ClusterAggregator,
     MacroAggregator,
-    ScoredResult as AggregationScoredResult,
-    DimensionScore as AggregationDimensionScore,
-    AreaScore as AggregationAreaScore,
-    ClusterScore as AggregationClusterScore,
-    MacroScore as AggregationMacroScore,
 )
 
 logger = logging.getLogger(__name__)
