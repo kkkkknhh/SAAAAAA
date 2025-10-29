@@ -20,6 +20,32 @@ from .contract_loader import (
     LoadResult,
 )
 
+# Core Orchestrator
+from .orchestrator_core import (
+    Orchestrator,
+    OrchestratorError,
+    ValidationError,
+    ConfigurationError,
+)
+
+# Orchestrator types
+from .orchestrator_types import (
+    PhaseStatus,
+    ProcessingPhase,
+    PhaseMetrics,
+    ProcessingStatus,
+    PreprocessedDocument,
+    QuestionResult,
+    ScoredResult,
+    DimensionScore,
+    AreaScore,
+    ClusterScore,
+    MacroScore,
+    CompleteReport,
+    OrchestratorConfig,
+    ErrorContext,
+)
+
 try:
     from .d1_orchestrator import (
         D1Question,
@@ -57,6 +83,24 @@ __all__ = [
     "JSONContractLoader",
     "LoadError",
     "LoadResult",
+    "Orchestrator",
+    "OrchestratorError",
+    "ValidationError",
+    "ConfigurationError",
+    "PhaseStatus",
+    "ProcessingPhase",
+    "PhaseMetrics",
+    "ProcessingStatus",
+    "PreprocessedDocument",
+    "QuestionResult",
+    "ScoredResult",
+    "DimensionScore",
+    "AreaScore",
+    "ClusterScore",
+    "MacroScore",
+    "CompleteReport",
+    "OrchestratorConfig",
+    "ErrorContext",
 ]
 
 if _D1_AVAILABLE:
