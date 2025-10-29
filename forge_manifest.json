@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-10-29T01:05:06.682735+00:00",
+  "output_file": "questionnaire_monolith.json",
+  "file_size": 623695,
+  "monolith_hash": "33dc0d144490dcd86ef7e8a57ee09f2836a774fc6dde603b915412d9cb945345",
+  "phases_executed": [
+    "LoadLegacyPhase",
+    "StructuralIndexingPhase",
+    "BaseSlotMappingPhase",
+    "ExtractionAndNormalizationPhase",
+    "IndicatorsAndEvidencePhase",
+    "MethodSetSynthesisPhase",
+    "RubricTranspositionPhase",
+    "MesoMacroEmbeddingPhase",
+    "IntegritySealingPhase",
+    "ValidationReportPhase",
+    "FinalEmissionPhase"
+  ],
+  "stats": {
+    "micro_questions": 300,
+    "meso_questions": 4,
+    "macro_questions": 1,
+    "total_questions": 305,
+    "base_slots": 30,
+    "clusters": 4,
+    "policy_areas": 10,
+    "dimensions": 6
+  }
+}
