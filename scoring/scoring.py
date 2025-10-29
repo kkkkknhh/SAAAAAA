@@ -28,10 +28,10 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class ScoredResult:
     quality_level: str
     evidence_hash: str
     metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
@@ -178,7 +178,7 @@ class ScoringValidator:
     """Validates evidence structure against modality requirements."""
     
     # Modality configurations
-    MODALITY_CONFIGS = {
+    MODALITY_CONFIGS: ClassVar[Dict[ScoringModality, ModalityConfig]] = {
         ScoringModality.TYPE_A: ModalityConfig(
             name="TYPE_A",
             description="Bayesian: Numerical claims, gaps, risks",
@@ -251,7 +251,7 @@ class ScoringValidator:
             config.validate_evidence(evidence)
             logger.info(f"✓ Evidence validation passed for {modality.value}")
         except (EvidenceStructureError, ModalityValidationError) as e:
-            logger.error(f"✗ Evidence validation failed for {modality.value}: {e}")
+            logger.exception(f"✗ Evidence validation failed for {modality.value}: {e}")
             raise
     
     @classmethod
@@ -724,11 +724,11 @@ def apply_scoring(
     # Parse modality
     try:
         modality_enum = ScoringModality(modality)
-    except ValueError:
+    except ValueError as e:
         raise ModalityValidationError(
             f"Invalid modality: {modality}. "
             f"Must be one of: {[m.value for m in ScoringModality]}"
-        )
+        ) from e
     
     # Validate evidence structure
     ScoringValidator.validate(evidence, modality_enum)
@@ -744,9 +744,12 @@ def apply_scoring(
     # Apply scoring
     try:
         score, metadata = scoring_func(evidence, config)
-    except Exception as e:
-        logger.error(f"Scoring failed for {modality}: {e}")
+    except (ModalityValidationError, EvidenceStructureError, ScoringError) as e:
+        logger.exception(f"Scoring failed for {modality}: {e}")
         raise ScoringError(f"Scoring failed for {modality}: {e}") from e
+    except Exception as e:
+        logger.exception(f"Unexpected error in scoring {modality}: {e}")
+        raise ScoringError(f"Unexpected error in scoring {modality}: {e}") from e
     
     # Apply rounding
     rounded_score = apply_rounding(
