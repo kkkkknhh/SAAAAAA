@@ -218,9 +218,29 @@ class Choreographer:
             
         Returns:
             True if hash matches
+        
+        Note:
+            Currently disabled pending alignment with monolith build process.
+            The hash computation in build_monolith.py needs to be documented
+            and replicated here for proper verification.
+            
+            TODO: Implement proper hash verification:
+            1. Understand exact hash computation in build_monolith.py
+            2. Replicate same normalization and serialization
+            3. Enable strict hash verification in production
         """
-        # For now, skip hash verification since the monolith format may vary
-        # TODO: Implement proper hash verification matching monolith build process
+        # Temporarily disabled - needs alignment with build process
+        # In production, this should:
+        # 1. Extract data without integrity block
+        # 2. Normalize the data (same as build process)
+        # 3. Compute SHA256 hash
+        # 4. Compare with expected_hash
+        # 5. Raise ValueError on mismatch
+        
+        logger.warning(
+            "Integrity hash verification is currently disabled. "
+            "Enable in production after aligning with build_monolith.py"
+        )
         return True
     
     def _load_configuration(self) -> PhaseResult:
@@ -712,16 +732,24 @@ class Choreographer:
         Determine quality level from score.
         
         Args:
-            score: Score (0-3)
+            score: Score (typically 0-3 range)
             thresholds: Quality level thresholds from monolith
             
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
-        """
-        # Convert score to 0-1 scale
-        normalized_score = score / 3.0
         
-        # Default levels from monolith (thresholds are for normalized scores 0-1)
+        Note:
+            Assumes scores are in 0-3 range as per scoring modality definitions.
+            Scores outside this range are clamped to [0, 3] before normalization.
+        """
+        # Clamp score to valid range [0, 3]
+        clamped_score = max(0.0, min(3.0, score))
+        
+        # Convert score to 0-1 scale
+        normalized_score = clamped_score / 3.0
+        
+        # Apply thresholds (from questionnaire_monolith.json)
+        # These are the standard thresholds used across the system
         if normalized_score >= 0.85:
             return "EXCELENTE"
         elif normalized_score >= 0.70:
