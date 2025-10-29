@@ -4,7 +4,7 @@ MonolithForge: Canonical Questionnaire Monolith Builder
 ========================================================
 
 Migrates legacy questionnaire.json and rubric_scoring.json into a single
-questionnaire_monolith.json with 305 questions (300 micro, 4 meso, 1 macro).
+questionnaire monolith with 305 questions (300 micro, 4 meso, 1 macro).
 
 No graceful degradation. No strategic simplification. No atom loss.
 Abort immediately on any inconsistency.
@@ -16,9 +16,13 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
+
+from orchestrator import get_questionnaire_provider
+
+QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
 
 # Configure structured logging
 logging.basicConfig(
@@ -922,31 +926,24 @@ class MonolithForge:
     # PHASE 11: FinalEmissionPhase
     # ========================================================================
     
-    def final_emission_phase(self, output_path: str):
-        """
-        Write questionnaire_monolith.json to disk.
-        Postconditions: file accessible, size > 0, hash matches
-        """
+    def final_emission_phase(self, output_path: Optional[str]):
+        """Write the orchestrator-managed questionnaire monolith to disk."""
         phase = "FinalEmissionPhase"
         logger.info(f"=== {phase} START ===")
-        
+
         monolith = self.monolith['final']
-        
-        # Write to file
-        output_file = Path(output_path)
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(monolith, f, indent=2, ensure_ascii=False, sort_keys=True)
-        
-        # Postcondition: size > 0
-        file_size = output_file.stat().st_size
+
+        # Delegate persistence to the orchestrator provider
+        output_file = QUESTIONNAIRE_PROVIDER.save(monolith, output_path=output_path)
+
+        file_info = QUESTIONNAIRE_PROVIDER.describe(output_file)
+        file_size = file_info["size"]
         if file_size == 0:
             self.abort('A100', 'Empty monolith emission', phase)
-        
-        # Verify hash matches
-        # Reload and recalculate hash on the same structure used during sealing (without integrity block)
-        with open(output_file, 'r', encoding='utf-8') as f:
-            reloaded = json.load(f)
-        
+
+        # Verify hash matches by reloading through the provider interface
+        reloaded = QUESTIONNAIRE_PROVIDER.load(force_reload=True, data_path=output_file)
+
         expected_hash = monolith['integrity']['monolith_hash']
         reloaded_without_integrity = {k: v for k, v in reloaded.items() if k != 'integrity'}
         canonical_check = json.dumps(reloaded_without_integrity, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
@@ -994,14 +991,14 @@ class MonolithForge:
         manifest_path = output_file.parent / 'forge_manifest.json'
         with open(manifest_path, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f"Manifest written to {manifest_path}")
     
     # ========================================================================
     # Main Build Pipeline
     # ========================================================================
     
-    def build(self, output_path: str = 'questionnaire_monolith.json'):
+    def build(self, output_path: Optional[str] = None):
         """Execute all construction phases in order."""
         logger.info("=" * 70)
         logger.info("MonolithForge: Starting construction pipeline")
@@ -1035,12 +1032,16 @@ def main():
     """Main entry point."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Build questionnaire_monolith.json')
-    parser.add_argument('--output', '-o', default='questionnaire_monolith.json',
-                       help='Output path for monolith file')
-    
+    parser = argparse.ArgumentParser(description='Build questionnaire monolith payload')
+    parser.add_argument(
+        '--output',
+        '-o',
+        default=None,
+        help='Output path for the questionnaire monolith file'
+    )
+
     args = parser.parse_args()
-    
+
     forge = MonolithForge()
     success = forge.build(args.output)
     

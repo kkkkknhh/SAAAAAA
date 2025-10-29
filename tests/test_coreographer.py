@@ -4,9 +4,11 @@ Tests for the Choreographer (single micro-question execution).
 These tests verify the granular execution of a SINGLE micro question.
 """
 
+import json
 import unittest
 from pathlib import Path
 
+from orchestrator import get_questionnaire_provider
 from orchestrator.coreographer import (
     Choreographer,
     QuestionResult,
@@ -21,17 +23,20 @@ from orchestrator.coreographer import (
 )
 
 
+QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
+
+
 class TestChoreographer(unittest.TestCase):
     """Test the Choreographer class (single question execution)."""
     
     def setUp(self):
         """Set up test fixtures."""
-        self.monolith_path = Path("questionnaire_monolith.json")
+        self.monolith_provider = QUESTIONNAIRE_PROVIDER
         self.catalog_path = Path("rules/METODOS/metodos_completos_nivel3.json")
-        
+
         # Check if files exist
         self.files_exist = (
-            self.monolith_path.exists() and
+            self.monolith_provider.exists() and
             self.catalog_path.exists()
         )
     
@@ -88,17 +93,15 @@ class TestChoreographer(unittest.TestCase):
         self.assertEqual(len(execution_plan.nodes[0].method_names), 2)
     
     @unittest.skipUnless(
-        Path("questionnaire_monolith.json").exists(),
-        "Requires questionnaire_monolith.json"
+        QUESTIONNAIRE_PROVIDER.exists(),
+        "Requires orchestrator questionnaire payload"
     )
     def test_map_question_to_slot(self):
         """Test mapping question to base slot."""
         choreographer = Choreographer()
-        
+
         # Load config
-        import json
-        with open("questionnaire_monolith.json") as f:
-            monolith = json.load(f)
+        monolith = QUESTIONNAIRE_PROVIDER.load()
         with open("rules/METODOS/metodos_completos_nivel3.json") as f:
             method_catalog = json.load(f)
         
