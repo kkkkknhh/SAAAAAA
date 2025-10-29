@@ -369,6 +369,134 @@ class Choreographer:
                 error=e
             )
     
+    def _get_method_packages_for_question(
+        self,
+        base_slot: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get method packages for a base_slot from the catalog.
+        
+        Args:
+            base_slot: Base slot identifier (e.g., "D1-Q1")
+            
+        Returns:
+            List of method packages with execution metadata
+        """
+        # Extract dimension and question indices
+        parts = base_slot.split("-")
+        dim_index = int(parts[0][1:]) - 1  # D1 -> 0
+        q_index = int(parts[1][1:]) - 1    # Q1 -> 0
+        
+        # Get dimension from catalog
+        dimensions = self.method_catalog.get("dimensions", [])
+        if dim_index >= len(dimensions):
+            return []
+        
+        dimension = dimensions[dim_index]
+        questions = dimension.get("questions", [])
+        if q_index >= len(questions):
+            return []
+        
+        question = questions[q_index]
+        return question.get("p", [])  # 'p' contains method packages
+    
+    def _build_execution_dag(
+        self,
+        flow_spec: Optional[str],
+    ) -> List[List[str]]:
+        """
+        Build execution DAG from flow specification.
+        
+        The flow spec defines execution order and parallelism.
+        Returns a list of execution levels, where each level contains
+        methods that can be executed in parallel.
+        
+        Args:
+            flow_spec: Flow specification string from catalog
+            
+        Returns:
+            List of execution levels, each containing method IDs
+        """
+        # Simple implementation - just sequential execution for now
+        # TODO: Parse actual flow spec and build proper DAG
+        return []
+    
+    def _execute_methods_for_question(
+        self,
+        method_packages: List[Dict[str, Any]],
+        dag: List[List[str]],
+        context: InvocationContext,
+    ) -> Dict[str, Any]:
+        """
+        Execute methods according to DAG structure.
+        
+        Args:
+            method_packages: List of method packages
+            dag: Execution DAG (list of parallel groups)
+            context: Invocation context
+            
+        Returns:
+            Dictionary of method results keyed by method name
+        """
+        all_results = {}
+        
+        # For now, execute all methods sequentially
+        for package in method_packages:
+            file_name = package.get("f", "")
+            class_name = package.get("c", "")
+            methods = package.get("m", [])
+            method_types = package.get("t", [])
+            
+            for i, method_name in enumerate(methods):
+                method_type = method_types[i] if i < len(method_types) else "unknown"
+                
+                # Build FQN
+                fqn = f"{class_name}.{method_name}"
+                
+                try:
+                    # Invoke method via dispatcher
+                    result = self.dispatcher.invoke_method(fqn, context)
+                    
+                    if result.success:
+                        all_results[method_name] = result.result
+                    else:
+                        logger.warning(f"Method {fqn} failed: {result.error}")
+                        all_results[method_name] = None
+                        
+                except Exception as e:
+                    logger.error(f"Error executing {fqn}: {e}")
+                    all_results[method_name] = None
+        
+        return all_results
+    
+    def _extract_evidence(
+        self,
+        method_results: Dict[str, Any],
+        q_metadata: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Extract evidence from method results.
+        
+        Args:
+            method_results: Results from executed methods
+            q_metadata: Question metadata from monolith
+            
+        Returns:
+            Evidence dictionary
+        """
+        # Simple evidence extraction - collect all non-None results
+        evidence = {
+            "method_count": len(method_results),
+            "successful_methods": sum(1 for v in method_results.values() if v is not None),
+            "patterns_found": [],
+            "confidence": 0.0,
+        }
+        
+        # TODO: Implement proper evidence extraction based on question type
+        # and scoring modality
+        
+        return evidence
+    
     async def _process_micro_question_async(
         self,
         question_global: int,
@@ -399,13 +527,43 @@ class Choreographer:
         # Get question metadata from monolith
         q_metadata = self.monolith["blocks"]["micro_questions"][question_global - 1]
         
-        # TODO: Get method packages from catalog and build DAG
-        # TODO: Execute methods according to DAG
-        # TODO: Extract evidence
+        # Step 2: Get method packages from catalog
+        method_packages = self._get_method_packages_for_question(base_slot)
         
-        # Placeholder implementation
-        evidence = {}
-        raw_results = {}
+        # Get flow spec if available
+        flow_spec = None
+        if method_packages:
+            # Look for flow in first package (if present)
+            for pkg in method_packages:
+                if "flow" in pkg:
+                    flow_spec = pkg["flow"]
+                    break
+        
+        # Step 3: Build execution DAG
+        dag = self._build_execution_dag(flow_spec)
+        
+        # Step 4: Prepare execution context
+        context = InvocationContext(
+            text=preprocessed_doc.normalized_text or preprocessed_doc.raw_text,
+            data=preprocessed_doc.metadata,
+            document=preprocessed_doc,
+            questionnaire=self.monolith,
+            question_id=f"Q{question_global:03d}",
+            metadata={
+                "base_slot": base_slot,
+                "question_global": question_global,
+            }
+        )
+        
+        # Step 5: Execute methods
+        raw_results = self._execute_methods_for_question(
+            method_packages,
+            dag,
+            context
+        )
+        
+        # Step 6: Extract evidence
+        evidence = self._extract_evidence(raw_results, q_metadata)
         
         duration = (time.time() - start) * 1000
         
@@ -494,6 +652,261 @@ class Choreographer:
                 success=False,
                 execution_time_ms=duration,
                 mode=ExecutionMode.ASYNC,
+                error=e
+            )
+    
+    def _apply_scoring_modality(
+        self,
+        evidence: Dict[str, Any],
+        modality: str,
+        scoring_config: Dict[str, Any],
+    ) -> float:
+        """
+        Apply scoring modality to evidence.
+        
+        Implements scoring types from questionnaire_monolith.json:
+        - TYPE_A: Count 4 elements and scale to 0-3
+        - TYPE_B: Count up to 3 elements, each worth 1 point
+        - TYPE_C: Count 2 elements and scale to 0-3
+        - TYPE_D: Count 3 elements, weighted
+        - TYPE_E: Boolean presence check
+        - TYPE_F: Continuous scale
+        
+        Args:
+            evidence: Evidence dictionary from micro question
+            modality: Scoring modality (TYPE_A, TYPE_B, etc.)
+            scoring_config: Scoring configuration from monolith
+            
+        Returns:
+            Score between 0 and 3
+        """
+        modality_defs = scoring_config.get("modality_definitions", {})
+        modality_def = modality_defs.get(modality, {})
+        
+        # Simple implementation - count successful methods as proxy
+        successful_count = evidence.get("successful_methods", 0)
+        
+        if modality == "TYPE_A":
+            # Count 4 elements, scale to 0-3
+            return min(3.0, (successful_count / 4.0) * 3.0)
+        elif modality == "TYPE_B":
+            # Count up to 3 elements, each worth 1 point
+            return min(3.0, float(successful_count))
+        elif modality == "TYPE_C":
+            # Count 2 elements, scale to 0-3
+            return min(3.0, (successful_count / 2.0) * 3.0)
+        elif modality == "TYPE_D":
+            # Weighted sum
+            weights = modality_def.get("weights", [0.4, 0.3, 0.3])
+            # Simplified - just use first weight
+            return min(3.0, successful_count * weights[0]) if weights else 0.0
+        elif modality == "TYPE_E":
+            # Boolean presence
+            return 3.0 if successful_count > 0 else 0.0
+        elif modality == "TYPE_F":
+            # Continuous scale - use confidence from evidence
+            return min(3.0, evidence.get("confidence", 0.0) * 3.0)
+        else:
+            logger.warning(f"Unknown scoring modality: {modality}")
+            return 0.0
+    
+    def _determine_quality_level(
+        self,
+        score: float,
+        thresholds: List[Dict[str, Any]],
+    ) -> str:
+        """
+        Determine quality level from score.
+        
+        Args:
+            score: Score (0-3)
+            thresholds: Quality level thresholds from monolith
+            
+        Returns:
+            Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
+        """
+        # Convert score to 0-1 scale if needed
+        normalized_score = score / 3.0 if score > 1.0 else score
+        
+        # Default levels from monolith
+        if normalized_score >= 0.85:
+            return "EXCELENTE"
+        elif normalized_score >= 0.70:
+            return "BUENO"
+        elif normalized_score >= 0.55:
+            return "ACEPTABLE"
+        else:
+            return "INSUFICIENTE"
+    
+    async def _score_micro_result_async(
+        self,
+        micro_result: QuestionResult,
+    ) -> ScoredResult:
+        """
+        Score a single micro result asynchronously.
+        
+        Args:
+            micro_result: QuestionResult from FASE 2
+            
+        Returns:
+            ScoredResult with score and quality level
+        """
+        # Get question metadata
+        q_metadata = self.monolith["blocks"]["micro_questions"][
+            micro_result.question_global - 1
+        ]
+        
+        # Get scoring config
+        scoring_config = self.monolith["blocks"]["scoring"]
+        scoring_modality = q_metadata.get("scoring_modality", "TYPE_A")
+        
+        # Apply scoring
+        score = self._apply_scoring_modality(
+            micro_result.evidence,
+            scoring_modality,
+            scoring_config
+        )
+        
+        # Determine quality level
+        quality_level = self._determine_quality_level(
+            score,
+            scoring_config.get("micro_levels", [])
+        )
+        
+        return ScoredResult(
+            question_global=micro_result.question_global,
+            base_slot=micro_result.base_slot,
+            policy_area=q_metadata.get("policy_area_id", ""),
+            dimension=q_metadata.get("dimension_id", ""),
+            score=score,
+            quality_level=quality_level,
+            evidence=micro_result.evidence,
+            raw_results=micro_result.raw_results
+        )
+    
+    async def _score_micro_results_async(
+        self,
+        all_micro_results: List[QuestionResult],
+    ) -> PhaseResult:
+        """
+        FASE 3: Score all 300 micro results in parallel.
+        
+        Args:
+            all_micro_results: List of QuestionResults from FASE 2
+            
+        Returns:
+            PhaseResult with list of ScoredResults
+        """
+        logger.info("=== FASE 3: SCORING DE MICRO PREGUNTAS ===")
+        start = time.time()
+        
+        try:
+            # Create tasks for scoring all results
+            tasks = [
+                self._score_micro_result_async(result)
+                for result in all_micro_results
+            ]
+            
+            # Execute all in parallel
+            all_scored_results = await asyncio.gather(*tasks)
+            
+            # Calculate statistics
+            stats = {
+                "EXCELENTE": sum(1 for r in all_scored_results if r.quality_level == "EXCELENTE"),
+                "BUENO": sum(1 for r in all_scored_results if r.quality_level == "BUENO"),
+                "ACEPTABLE": sum(1 for r in all_scored_results if r.quality_level == "ACEPTABLE"),
+                "INSUFICIENTE": sum(1 for r in all_scored_results if r.quality_level == "INSUFICIENTE"),
+            }
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ 300 micro preguntas scored")
+            logger.info(f"  - EXCELENTE: {stats['EXCELENTE']}")
+            logger.info(f"  - BUENO: {stats['BUENO']}")
+            logger.info(f"  - ACEPTABLE: {stats['ACEPTABLE']}")
+            logger.info(f"  - INSUFICIENTE: {stats['INSUFICIENTE']}")
+            
+            return PhaseResult(
+                phase_id="FASE_3",
+                phase_name="Scoring de Micro Preguntas",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                data=all_scored_results,
+                metrics=stats
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Scoring failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_3",
+                phase_name="Scoring de Micro Preguntas",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                error=e
+            )
+    
+    def _score_micro_results_sync(
+        self,
+        all_micro_results: List[QuestionResult],
+    ) -> PhaseResult:
+        """
+        FASE 3: Score all 300 micro results sequentially.
+        
+        Fallback for when async is disabled.
+        
+        Args:
+            all_micro_results: List of QuestionResults from FASE 2
+            
+        Returns:
+            PhaseResult with list of ScoredResults
+        """
+        logger.info("=== FASE 3: SCORING DE MICRO PREGUNTAS (SYNC) ===")
+        start = time.time()
+        
+        try:
+            all_scored_results = []
+            for result in all_micro_results:
+                scored = asyncio.run(self._score_micro_result_async(result))
+                all_scored_results.append(scored)
+            
+            # Calculate statistics
+            stats = {
+                "EXCELENTE": sum(1 for r in all_scored_results if r.quality_level == "EXCELENTE"),
+                "BUENO": sum(1 for r in all_scored_results if r.quality_level == "BUENO"),
+                "ACEPTABLE": sum(1 for r in all_scored_results if r.quality_level == "ACEPTABLE"),
+                "INSUFICIENTE": sum(1 for r in all_scored_results if r.quality_level == "INSUFICIENTE"),
+            }
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ 300 micro preguntas scored (secuencial)")
+            logger.info(f"  - EXCELENTE: {stats['EXCELENTE']}")
+            logger.info(f"  - BUENO: {stats['BUENO']}")
+            logger.info(f"  - ACEPTABLE: {stats['ACEPTABLE']}")
+            logger.info(f"  - INSUFICIENTE: {stats['INSUFICIENTE']}")
+            
+            return PhaseResult(
+                phase_id="FASE_3",
+                phase_name="Scoring de Micro Preguntas",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
+                data=all_scored_results,
+                metrics=stats
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Scoring failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_3",
+                phase_name="Scoring de Micro Preguntas",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
                 error=e
             )
     
@@ -613,7 +1026,18 @@ class Choreographer:
         
         all_micro_results = phase2.data
         
-        # TODO: FASE 3-10 implementation
+        # FASE 3: Score micro results
+        if self.enable_async:
+            phase3 = asyncio.run(self._score_micro_results_async(all_micro_results))
+        else:
+            phase3 = self._score_micro_results_sync(all_micro_results)
+        self.phase_results.append(phase3)
+        if not phase3.success:
+            raise ValueError(f"Scoring failed: {phase3.error}")
+        
+        all_scored_results = phase3.data
+        
+        # TODO: FASE 4-10 implementation
         # For now, create a minimal report structure
         
         total_time = time.time() - self.start_time
