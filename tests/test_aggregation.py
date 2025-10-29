@@ -20,10 +20,6 @@ from orchestrator.aggregation import (
     DimensionScore,
     AreaScore,
     ClusterScore,
-    MacroScore,
-    WeightValidationError,
-    CoverageError,
-    HermeticityValidationError,
 )
 
 
