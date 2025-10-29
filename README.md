@@ -29,7 +29,8 @@
 - [`COMMIT_2_SUMMARY.md`](COMMIT_2_SUMMARY.md) - Detailed Commit 2 completion summary
 - [`cuestionario_FIXED.json`](cuestionario_FIXED.json) - The 300 questions defining all requirements (814KB)
 
-### **Data Contracts**
+### **Architecture & Doctrine**
+- [`SIN_CARRETA_ARCH.md`](docs/SIN_CARRETA_ARCH.md) - Complete architectural doctrine, invariants, contracts, and abortability
 - [`DATA_CONTRACTS.md`](docs/DATA_CONTRACTS.md) - Operational rules, validation commands, and migration workflow
 
 ---
