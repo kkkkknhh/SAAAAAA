@@ -59,7 +59,7 @@ The implementation strictly follows `ARQUITECTURA_ORQUESTADOR_COREOGRAFO.md`:
 
 **Orchestrator (Implemented)**:
 - Single entry point: `process_document()`
-- Global knowledge of all 305 questions
+- Global knowledge of all questions (300 micro + 4 MESO + 1 MACRO = 305 total)
 - Centralized coordination of all phases
 - Strategic decisions (when to aggregate, when to abort)
 - Resource management (worker pools, timeouts)

@@ -11,7 +11,7 @@ The Orchestrator is the central coordinator for the policy evaluation pipeline. 
 As detailed in `ARQUITECTURA_ORQUESTADOR_COREOGRAFO.md`, the system follows a clear separation:
 
 - **Orchestrator**: High-level pipeline coordination
-  - Knows all 305 questions
+  - Knows all 300 micro questions (plus 4 MESO and 1 MACRO = 305 total)
   - Manages global state
   - Coordinates phases sequentially
   - Distributes work to workers
@@ -29,8 +29,8 @@ The Orchestrator coordinates 11 distinct phases:
 
 ### Phase 0: Validation
 - Validates configuration integrity
-- Loads questionnaire monolith (300 questions)
-- Loads method catalog (593 method packages)
+- Loads questionnaire monolith (300 micro questions + 4 MESO + 1 MACRO = 305 total)
+- Loads method catalog (593 method packages containing 416+ unique methods)
 - Verifies data contracts
 
 ### Phase 1: Ingestion
@@ -58,6 +58,11 @@ The Orchestrator coordinates 11 distinct phases:
 
 ### Phase 6: Cluster Aggregation
 - Aggregates into 4 clusters (MESO questions)
+- Clusters represent major evaluation domains:
+  1. Diagnostic: Problem identification and baseline
+  2. Design: Intervention design and planning
+  3. Implementation: Execution and monitoring
+  4. Evaluation: Impact and learning
 
 ### Phase 7: Macro Evaluation
 - Performs holistic evaluation
