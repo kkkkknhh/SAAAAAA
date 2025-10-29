@@ -848,6 +848,423 @@ class Choreographer:
                 error=e
             )
     
+    async def _aggregate_dimension_async(
+        self,
+        dimension_id: str,
+        area_id: str,
+        scored_results: List[ScoredResult],
+    ) -> DimensionScore:
+        """
+        Aggregate a single dimension asynchronously.
+        
+        Args:
+            dimension_id: Dimension ID (e.g., "DIM01")
+            area_id: Policy area ID (e.g., "PA01")
+            scored_results: List of scored results for this dimension
+            
+        Returns:
+            DimensionScore with aggregated score
+        """
+        # Filter results for this dimension/area
+        dim_results = [
+            r for r in scored_results
+            if r.dimension == dimension_id and r.policy_area == area_id
+        ]
+        
+        if not dim_results:
+            # No results for this dimension
+            return DimensionScore(
+                dimension_id=dimension_id,
+                area_id=area_id,
+                score=0.0,
+                quality_level="INSUFICIENTE",
+                contributing_questions=[]
+            )
+        
+        # Calculate weighted average (simplified - equal weights)
+        scores = [r.score for r in dim_results]
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        
+        # Determine quality level
+        quality_level = self._determine_quality_level(
+            avg_score,
+            self.monolith["blocks"]["scoring"].get("micro_levels", [])
+        )
+        
+        return DimensionScore(
+            dimension_id=dimension_id,
+            area_id=area_id,
+            score=avg_score,
+            quality_level=quality_level,
+            contributing_questions=[r.question_global for r in dim_results]
+        )
+    
+    async def _aggregate_dimensions_async(
+        self,
+        all_scored_results: List[ScoredResult],
+    ) -> PhaseResult:
+        """
+        FASE 4: Aggregate 60 dimensions (6 dimensions × 10 policy areas).
+        
+        Args:
+            all_scored_results: List of ScoredResults from FASE 3
+            
+        Returns:
+            PhaseResult with list of DimensionScores
+        """
+        logger.info("=== FASE 4: AGREGACIÓN POR DIMENSIÓN ===")
+        start = time.time()
+        
+        try:
+            # Get all policy areas and dimensions
+            policy_areas = self.monolith["blocks"]["niveles_abstraccion"]["policy_areas"]
+            dimensions = self.monolith["blocks"]["niveles_abstraccion"]["dimensions"]
+            
+            # Create tasks for all 60 combinations
+            tasks = []
+            for area in policy_areas:
+                area_id = area["policy_area_id"]
+                for dim in dimensions:
+                    dim_id = dim["dimension_id"]
+                    tasks.append(
+                        self._aggregate_dimension_async(dim_id, area_id, all_scored_results)
+                    )
+            
+            # Execute all in parallel
+            all_dimension_scores = await asyncio.gather(*tasks)
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ {len(all_dimension_scores)} dimensiones agregadas")
+            
+            return PhaseResult(
+                phase_id="FASE_4",
+                phase_name="Agregación por Dimensión",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                data=all_dimension_scores,
+                metrics={"dimensions_aggregated": len(all_dimension_scores)}
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Dimension aggregation failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_4",
+                phase_name="Agregación por Dimensión",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                error=e
+            )
+    
+    def _aggregate_dimensions_sync(
+        self,
+        all_scored_results: List[ScoredResult],
+    ) -> PhaseResult:
+        """FASE 4: Aggregate dimensions sequentially."""
+        return asyncio.run(self._aggregate_dimensions_async(all_scored_results))
+    
+    async def _aggregate_area_async(
+        self,
+        area_id: str,
+        dimension_scores: List[DimensionScore],
+    ) -> AreaScore:
+        """
+        Aggregate a single policy area asynchronously.
+        
+        Args:
+            area_id: Policy area ID (e.g., "PA01")
+            dimension_scores: List of dimension scores
+            
+        Returns:
+            AreaScore with aggregated score
+        """
+        # Filter dimension scores for this area
+        area_dim_scores = [
+            d for d in dimension_scores
+            if d.area_id == area_id
+        ]
+        
+        if not area_dim_scores:
+            # Get area name
+            areas = self.monolith["blocks"]["niveles_abstraccion"]["policy_areas"]
+            area_name = next(
+                (a["i18n"]["keys"]["label_es"] for a in areas if a["policy_area_id"] == area_id),
+                area_id
+            )
+            return AreaScore(
+                area_id=area_id,
+                area_name=area_name,
+                score=0.0,
+                quality_level="INSUFICIENTE",
+                dimension_scores=[]
+            )
+        
+        # Calculate average score across dimensions
+        scores = [d.score for d in area_dim_scores]
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        
+        # Determine quality level
+        quality_level = self._determine_quality_level(
+            avg_score,
+            self.monolith["blocks"]["scoring"].get("micro_levels", [])
+        )
+        
+        # Get area name
+        areas = self.monolith["blocks"]["niveles_abstraccion"]["policy_areas"]
+        area_name = next(
+            (a["i18n"]["keys"]["label_es"] for a in areas if a["policy_area_id"] == area_id),
+            area_id
+        )
+        
+        return AreaScore(
+            area_id=area_id,
+            area_name=area_name,
+            score=avg_score,
+            quality_level=quality_level,
+            dimension_scores=area_dim_scores
+        )
+    
+    async def _aggregate_areas_async(
+        self,
+        all_dimension_scores: List[DimensionScore],
+    ) -> PhaseResult:
+        """
+        FASE 5: Aggregate 10 policy areas.
+        
+        Args:
+            all_dimension_scores: List of DimensionScores from FASE 4
+            
+        Returns:
+            PhaseResult with list of AreaScores
+        """
+        logger.info("=== FASE 5: AGREGACIÓN POR ÁREA DE POLÍTICA ===")
+        start = time.time()
+        
+        try:
+            # Get all policy areas
+            policy_areas = self.monolith["blocks"]["niveles_abstraccion"]["policy_areas"]
+            
+            # Create tasks for all 10 areas
+            tasks = [
+                self._aggregate_area_async(area["policy_area_id"], all_dimension_scores)
+                for area in policy_areas
+            ]
+            
+            # Execute all in parallel
+            all_area_scores = await asyncio.gather(*tasks)
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ {len(all_area_scores)} áreas de política agregadas")
+            
+            return PhaseResult(
+                phase_id="FASE_5",
+                phase_name="Agregación por Área de Política",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                data=all_area_scores,
+                metrics={"areas_aggregated": len(all_area_scores)}
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Area aggregation failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_5",
+                phase_name="Agregación por Área de Política",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.ASYNC,
+                error=e
+            )
+    
+    def _aggregate_areas_sync(
+        self,
+        all_dimension_scores: List[DimensionScore],
+    ) -> PhaseResult:
+        """FASE 5: Aggregate areas sequentially."""
+        return asyncio.run(self._aggregate_areas_async(all_dimension_scores))
+    
+    def _aggregate_clusters(
+        self,
+        all_area_scores: List[AreaScore],
+    ) -> PhaseResult:
+        """
+        FASE 6: Aggregate 4 MESO clusters (Q301-Q304).
+        
+        Synchronous execution as per pseudocode - only 4 clusters, not worth parallelizing.
+        
+        Args:
+            all_area_scores: List of AreaScores from FASE 5
+            
+        Returns:
+            PhaseResult with list of ClusterScores
+        """
+        logger.info("=== FASE 6: AGREGACIÓN POR CLUSTER (MESO) ===")
+        start = time.time()
+        
+        try:
+            # Get cluster definitions
+            clusters = self.monolith["blocks"]["niveles_abstraccion"]["clusters"]
+            all_cluster_scores = []
+            
+            for cluster in clusters:
+                cluster_id = cluster["cluster_id"]
+                cluster_name = cluster["i18n"]["keys"]["label_es"]
+                policy_area_ids = cluster["policy_area_ids"]
+                
+                # Filter area scores for this cluster
+                cluster_area_scores = [
+                    a for a in all_area_scores
+                    if a.area_id in policy_area_ids
+                ]
+                
+                if not cluster_area_scores:
+                    logger.warning(f"No area scores found for cluster {cluster_id}")
+                    continue
+                
+                # Calculate cluster score (weighted average)
+                scores = [a.score for a in cluster_area_scores]
+                avg_score = sum(scores) / len(scores) if scores else 0.0
+                
+                # Calculate coherence (inverse of standard deviation)
+                if len(scores) > 1:
+                    mean = avg_score
+                    variance = sum((s - mean) ** 2 for s in scores) / len(scores)
+                    std_dev = variance ** 0.5
+                    coherence = max(0.0, 1.0 - std_dev)
+                else:
+                    coherence = 1.0
+                
+                cluster_score = ClusterScore(
+                    cluster_id=cluster_id,
+                    cluster_name=cluster_name,
+                    areas=policy_area_ids,
+                    score=avg_score,
+                    coherence=coherence,
+                    area_scores=cluster_area_scores
+                )
+                
+                all_cluster_scores.append(cluster_score)
+                logger.info(f"✓ {cluster_id} ({cluster_name}): {avg_score:.2f}")
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ {len(all_cluster_scores)} clusters MESO agregados (Q301-Q304 respondidas)")
+            
+            return PhaseResult(
+                phase_id="FASE_6",
+                phase_name="Agregación por Cluster (MESO)",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
+                data=all_cluster_scores,
+                metrics={"clusters_aggregated": len(all_cluster_scores)}
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Cluster aggregation failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_6",
+                phase_name="Agregación por Cluster (MESO)",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
+                error=e
+            )
+    
+    def _evaluate_macro(
+        self,
+        all_cluster_scores: List[ClusterScore],
+        all_area_scores: List[AreaScore],
+        all_dimension_scores: List[DimensionScore],
+    ) -> PhaseResult:
+        """
+        FASE 7: Macro holistic evaluation (Q305).
+        
+        Synchronous execution - only 1 macro evaluation.
+        
+        Args:
+            all_cluster_scores: List of ClusterScores from FASE 6
+            all_area_scores: List of AreaScores from FASE 5
+            all_dimension_scores: List of DimensionScores from FASE 4
+            
+        Returns:
+            PhaseResult with MacroScore
+        """
+        logger.info("=== FASE 7: EVALUACIÓN MACRO HOLÍSTICA ===")
+        start = time.time()
+        
+        try:
+            # Calculate cross-cutting coherence
+            cluster_scores = [c.score for c in all_cluster_scores]
+            if len(cluster_scores) > 1:
+                mean = sum(cluster_scores) / len(cluster_scores)
+                variance = sum((s - mean) ** 2 for s in cluster_scores) / len(cluster_scores)
+                std_dev = variance ** 0.5
+                cross_cutting_coherence = max(0.0, 1.0 - std_dev)
+            else:
+                cross_cutting_coherence = 1.0
+            
+            # Identify systemic gaps (areas with INSUFICIENTE quality)
+            systemic_gaps = []
+            for area in all_area_scores:
+                if area.quality_level == "INSUFICIENTE":
+                    systemic_gaps.append(area.area_name)
+            
+            # Calculate global quality index
+            cluster_avg = sum(cluster_scores) / len(cluster_scores) if cluster_scores else 0.0
+            
+            # Apply gap penalty (5% per gap)
+            gap_penalty = len(systemic_gaps) * 0.05
+            global_quality_index = max(0.0, min(100.0, (cluster_avg / 3.0) * 100 - gap_penalty * 100))
+            
+            macro_score = MacroScore(
+                question_global=305,
+                type="MACRO",
+                global_quality_index=global_quality_index,
+                cross_cutting_coherence=cross_cutting_coherence,
+                systemic_gaps=systemic_gaps,
+                cluster_scores=all_cluster_scores
+            )
+            
+            duration = (time.time() - start) * 1000
+            
+            logger.info(f"✓ Evaluación MACRO completada (Q305 respondida)")
+            logger.info(f"  - Índice de calidad global: {global_quality_index:.2f}/100")
+            logger.info(f"  - Coherencia transversal: {cross_cutting_coherence:.2f}")
+            logger.info(f"  - Brechas sistémicas: {len(systemic_gaps)}")
+            
+            return PhaseResult(
+                phase_id="FASE_7",
+                phase_name="Evaluación Macro Holística",
+                success=True,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
+                data=macro_score,
+                metrics={
+                    "global_quality_index": global_quality_index,
+                    "systemic_gaps_count": len(systemic_gaps),
+                }
+            )
+            
+        except Exception as e:
+            duration = (time.time() - start) * 1000
+            logger.error(f"Macro evaluation failed: {e}")
+            return PhaseResult(
+                phase_id="FASE_7",
+                phase_name="Evaluación Macro Holística",
+                success=False,
+                execution_time_ms=duration,
+                mode=ExecutionMode.SYNC,
+                error=e
+            )
+    
     def _score_micro_results_sync(
         self,
         all_micro_results: List[QuestionResult],
@@ -1037,34 +1454,76 @@ class Choreographer:
         
         all_scored_results = phase3.data
         
-        # TODO: FASE 4-10 implementation
-        # For now, create a minimal report structure
+        # FASE 4: Aggregate dimensions
+        if self.enable_async:
+            phase4 = asyncio.run(self._aggregate_dimensions_async(all_scored_results))
+        else:
+            phase4 = self._aggregate_dimensions_sync(all_scored_results)
+        self.phase_results.append(phase4)
+        if not phase4.success:
+            raise ValueError(f"Dimension aggregation failed: {phase4.error}")
+        
+        all_dimension_scores = phase4.data
+        
+        # FASE 5: Aggregate policy areas
+        if self.enable_async:
+            phase5 = asyncio.run(self._aggregate_areas_async(all_dimension_scores))
+        else:
+            phase5 = self._aggregate_areas_sync(all_dimension_scores)
+        self.phase_results.append(phase5)
+        if not phase5.success:
+            raise ValueError(f"Area aggregation failed: {phase5.error}")
+        
+        all_area_scores = phase5.data
+        
+        # FASE 6: Aggregate clusters (MESO)
+        phase6 = self._aggregate_clusters(all_area_scores)
+        self.phase_results.append(phase6)
+        if not phase6.success:
+            raise ValueError(f"Cluster aggregation failed: {phase6.error}")
+        
+        all_cluster_scores = phase6.data
+        
+        # FASE 7: Macro evaluation
+        phase7 = self._evaluate_macro(all_cluster_scores, all_area_scores, all_dimension_scores)
+        self.phase_results.append(phase7)
+        if not phase7.success:
+            raise ValueError(f"Macro evaluation failed: {phase7.error}")
+        
+        macro_score = phase7.data
+        
+        # TODO: FASE 8-10 implementation (recommendations, report assembly, export)
+        # For now, create report with all computed data
         
         total_time = time.time() - self.start_time
         logger.info("=" * 70)
-        logger.info("PROCESAMIENTO COMPLETO")
+        logger.info("PROCESAMIENTO COMPLETO - 305 PREGUNTAS RESPONDIDAS")
         logger.info(f"✓ Tiempo total: {total_time:.2f}s")
+        logger.info(f"✓ Índice de calidad global: {macro_score.global_quality_index:.2f}/100")
         logger.info("=" * 70)
         
-        # Return minimal report structure
+        # Return complete report structure
         return CompleteReport(
-            micro_results=[],
-            dimension_scores=[],
-            area_scores=[],
-            cluster_scores=[],
-            macro_score=MacroScore(
-                question_global=305,
-                type="MACRO",
-                global_quality_index=0.0,
-                cross_cutting_coherence=0.0,
-                systemic_gaps=[],
-                cluster_scores=[]
-            ),
-            recommendations=[],
+            micro_results=all_scored_results,
+            dimension_scores=all_dimension_scores,
+            area_scores=all_area_scores,
+            cluster_scores=all_cluster_scores,
+            macro_score=macro_score,
+            recommendations=[],  # TODO: FASE 8
             metadata={
                 "pdf_path": pdf_path,
                 "total_time_s": total_time,
                 "phases_completed": len(self.phase_results),
+                "phases": [
+                    {
+                        "id": p.phase_id,
+                        "name": p.phase_name,
+                        "success": p.success,
+                        "duration_ms": p.execution_time_ms,
+                        "mode": p.mode.value,
+                    }
+                    for p in self.phase_results
+                ],
             }
         )
 
