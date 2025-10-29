@@ -1,6 +1,12 @@
 """Orchestrator utilities with contract validation on import."""
 
-from .canonical_registry import CANONICAL_METHODS
+try:
+    from .canonical_registry import CANONICAL_METHODS
+    _CANONICAL_AVAILABLE = True
+except ImportError:
+    CANONICAL_METHODS = {}
+    _CANONICAL_AVAILABLE = False
+
 from .evidence_registry import (
     EvidenceRecord,
     EvidenceRegistry,
@@ -36,6 +42,8 @@ try:  # pragma: no cover - executed at import time
         raise RuntimeError(
             "Data contract validation failed; see schema_validator output for details."
         )
+except ImportError:  # pragma: no cover - schema_validator not available
+    pass  # Schema validation is optional
 except Exception as exc:  # pragma: no cover - validation failure path
     raise
 
