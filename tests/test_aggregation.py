@@ -10,7 +10,6 @@ These tests verify the hierarchical aggregation of scores across all levels:
 
 import json
 import unittest
-from typing import Dict, Any
 
 from orchestrator.aggregation import (
     DimensionAggregator,
