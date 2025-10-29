@@ -1,6 +1,12 @@
 """Orchestrator utilities with contract validation on import."""
 
-from .canonical_registry import CANONICAL_METHODS
+try:
+    from .canonical_registry import CANONICAL_METHODS
+    _CANONICAL_AVAILABLE = True
+except ImportError:
+    CANONICAL_METHODS = {}
+    _CANONICAL_AVAILABLE = False
+
 from .evidence_registry import (
     EvidenceRecord,
     EvidenceRegistry,

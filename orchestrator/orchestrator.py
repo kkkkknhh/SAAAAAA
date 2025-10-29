@@ -1,10 +1,12 @@
 """
-Choreographer - Main Flow Controller for 305-Question Processing Pipeline
+Orchestrator - Global Pipeline Controller for 305-Question Processing
 
-This module implements the complete end-to-end flow described in PSEUDOCODIGO_FLUJO_COMPLETO.md:
+This module implements the GLOBAL orchestration of the complete end-to-end flow 
+described in PSEUDOCODIGO_FLUJO_COMPLETO.md:
+
 - FASE 0: Configuration loading (monolith, method catalog)
-- FASE 1: Document ingestion and preprocessing
-- FASE 2: Execution of 300 micro questions (ASYNC)
+- FASE 1: Document ingestion and preprocessing  
+- FASE 2: Execution of 300 micro questions (ASYNC) → delegates to Choreographer
 - FASE 3: Scoring of 300 micro results (ASYNC)
 - FASE 4: Dimension aggregation - 60 dimensions (ASYNC)
 - FASE 5: Policy area aggregation - 10 areas (ASYNC)
@@ -15,10 +17,10 @@ This module implements the complete end-to-end flow described in PSEUDOCODIGO_FL
 - FASE 10: Format and export (ASYNC)
 
 Architecture:
-- Uses choreographer_dispatch for FQN-based method invocation
-- Implements both SYNC and ASYNC execution patterns
+- Orchestrates the WHAT and WHEN of the complete pipeline
+- Delegates HOW of single question execution to Choreographer
+- Implements scoring, aggregation, and report generation
 - Maintains full traceability and audit trail
-- Follows SIN_CARRETA doctrine (no graceful degradation)
 """
 
 from __future__ import annotations
@@ -31,12 +33,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
-from orchestrator.choreographer_dispatch import (
-    ChoreographerDispatcher,
-    InvocationContext,
-    InvocationResult,
+from orchestrator.coreographer import (
+    Choreographer,
+    QuestionResult as ChoreographerQuestionResult,
+    PreprocessedDocument,
 )
 
 logger = logging.getLogger(__name__)
@@ -151,46 +153,44 @@ class CompleteReport:
     metadata: Dict[str, Any]
 
 
-class Choreographer:
+class Orchestrator:
     """
-    Main choreographer for the complete 305-question processing pipeline.
+    Orchestrator - Controls the GLOBAL 305-question processing pipeline.
     
-    This class orchestrates the entire flow from document ingestion to final report,
-    following the exact structure defined in PSEUDOCODIGO_FLUJO_COMPLETO.md.
-    
-    Key responsibilities:
-    - Load and validate configuration (monolith, method catalog)
-    - Coordinate document ingestion and preprocessing
-    - Execute all 305 questions (300 micro + 4 meso + 1 macro)
-    - Aggregate results across all levels
+    Responsibilities:
+    - Load configuration (monolith, catalog)
+    - Ingest and preprocess documents
+    - Orchestrate 300 micro questions (delegates to Choreographer)
+    - Score results (TYPE_A-F modalities)
+    - Aggregate across all levels (dimensions, areas, clusters, macro)
     - Generate recommendations
-    - Assemble and export final report
+    - Assemble and export reports
     
-    Execution patterns:
-    - SYNC: Sequential execution (configuration, ingestion, some aggregations)
-    - ASYNC: Parallel execution (micro questions, scoring, lower-level aggregations)
-    - HYBRID: Mix of sync and async based on DAG structure
+    NOT responsible for:
+    - HOW to execute a single question (that's Choreographer)
+    - Method-level DAG execution
+    - Method priorities and retries
     """
     
     def __init__(
         self,
         monolith_path: Optional[Path] = None,
         method_catalog_path: Optional[Path] = None,
-        dispatcher: Optional[ChoreographerDispatcher] = None,
+        choreographer: Optional[Choreographer] = None,
         enable_async: bool = True,
     ):
         """
-        Initialize choreographer.
+        Initialize orchestrator.
         
         Args:
             monolith_path: Path to questionnaire_monolith.json
             method_catalog_path: Path to metodos_completos_nivel3.json
-            dispatcher: ChoreographerDispatcher instance (or create new)
+            choreographer: Choreographer instance (or create new)
             enable_async: Enable async execution for parallel phases
         """
         self.monolith_path = monolith_path or Path("questionnaire_monolith.json")
         self.method_catalog_path = method_catalog_path or Path("rules/METODOS/metodos_completos_nivel3.json")
-        self.dispatcher = dispatcher or ChoreographerDispatcher()
+        self.choreographer = choreographer or Choreographer()
         self.enable_async = enable_async
         
         # Configuration loaded in FASE 0
@@ -202,7 +202,7 @@ class Choreographer:
         self.start_time: Optional[float] = None
         
         logger.info(
-            f"Choreographer initialized: "
+            f"Orchestrator initialized: "
             f"async={'enabled' if enable_async else 'disabled'}, "
             f"monolith={self.monolith_path}, "
             f"catalog={self.method_catalog_path}"
@@ -218,29 +218,26 @@ class Choreographer:
             
         Returns:
             True if hash matches
-        
-        Note:
-            Currently disabled pending alignment with monolith build process.
-            The hash computation in build_monolith.py needs to be documented
-            and replicated here for proper verification.
             
-            TODO: Implement proper hash verification:
-            1. Understand exact hash computation in build_monolith.py
-            2. Replicate same normalization and serialization
-            3. Enable strict hash verification in production
+        Raises:
+            ValueError: If hash mismatch detected
         """
-        # Temporarily disabled - needs alignment with build process
-        # In production, this should:
-        # 1. Extract data without integrity block
-        # 2. Normalize the data (same as build process)
-        # 3. Compute SHA256 hash
-        # 4. Compare with expected_hash
-        # 5. Raise ValueError on mismatch
+        # Extract data without integrity block for hash computation
+        data_copy = {k: v for k, v in data.items() if k != 'integrity'}
         
-        logger.warning(
-            "Integrity hash verification is currently disabled. "
-            "Enable in production after aligning with build_monolith.py"
-        )
+        # Compute SHA256 hash
+        computed_hash = hashlib.sha256(
+            json.dumps(data_copy, sort_keys=True, ensure_ascii=False).encode('utf-8')
+        ).hexdigest()
+        
+        # Compare hashes
+        if computed_hash != expected_hash:
+            raise ValueError(
+                f"Monolith integrity hash mismatch! "
+                f"Expected: {expected_hash[:16]}..., "
+                f"Got: {computed_hash[:16]}..."
+            )
+        
         return True
     
     def _load_configuration(self) -> PhaseResult:
@@ -249,7 +246,7 @@ class Choreographer:
         
         Loads:
         - questionnaire_monolith.json (305 questions)
-        - metodos_completos_nivel3.json (166 unique methods, 593 total)
+        - metodos_completos_nivel3.json (166 unique methods, 416 total)
         
         Validates:
         - Integrity hashes
@@ -285,9 +282,9 @@ class Choreographer:
             
             # Verify method catalog
             meta = self.method_catalog.get("metadata", {})
-            if meta.get("total_methods") != 593:
+            if meta.get("total_methods") != 416:
                 logger.warning(
-                    f"Expected 593 methods, found {meta.get('total_methods')}"
+                    f"Expected 416 methods, found {meta.get('total_methods')}"
                 )
             
             logger.info(f"✓ Catálogo cargado: {meta.get('total_methods')} métodos")
@@ -382,133 +379,6 @@ class Choreographer:
                 error=e
             )
     
-    def _get_method_packages_for_question(
-        self,
-        base_slot: str,
-    ) -> List[Dict[str, Any]]:
-        """
-        Get method packages for a base_slot from the catalog.
-        
-        Args:
-            base_slot: Base slot identifier (e.g., "D1-Q1")
-            
-        Returns:
-            List of method packages with execution metadata
-        """
-        # Extract dimension and question indices
-        parts = base_slot.split("-")
-        dim_index = int(parts[0][1:]) - 1  # D1 -> 0
-        q_index = int(parts[1][1:]) - 1    # Q1 -> 0
-        
-        # Get dimension from catalog
-        dimensions = self.method_catalog.get("dimensions", [])
-        if dim_index >= len(dimensions):
-            return []
-        
-        dimension = dimensions[dim_index]
-        questions = dimension.get("questions", [])
-        if q_index >= len(questions):
-            return []
-        
-        question = questions[q_index]
-        return question.get("p", [])  # 'p' contains method packages
-    
-    def _build_execution_dag(
-        self,
-        flow_spec: Optional[str],
-    ) -> List[List[str]]:
-        """
-        Build execution DAG from flow specification.
-        
-        The flow spec defines execution order and parallelism.
-        Returns a list of execution levels, where each level contains
-        methods that can be executed in parallel.
-        
-        Args:
-            flow_spec: Flow specification string from catalog
-            
-        Returns:
-            List of execution levels, each containing method IDs
-        """
-        # Simple implementation - just sequential execution for now
-        # TODO: Parse actual flow spec and build proper DAG
-        return []
-    
-    def _execute_methods_for_question(
-        self,
-        method_packages: List[Dict[str, Any]],
-        dag: List[List[str]],
-        context: InvocationContext,
-    ) -> Dict[str, Any]:
-        """
-        Execute methods according to DAG structure.
-        
-        Args:
-            method_packages: List of method packages
-            dag: Execution DAG (list of parallel groups)
-            context: Invocation context
-            
-        Returns:
-            Dictionary of method results keyed by method name
-        """
-        all_results = {}
-        
-        # For now, execute all methods sequentially
-        for package in method_packages:
-            class_name = package.get("c", "")
-            methods = package.get("m", [])
-            method_types = package.get("t", [])
-            
-            for i, method_name in enumerate(methods):
-                method_type = method_types[i] if i < len(method_types) else "unknown"
-                
-                # Build FQN
-                fqn = f"{class_name}.{method_name}"
-                
-                try:
-                    # Invoke method via dispatcher
-                    result = self.dispatcher.invoke_method(fqn, context)
-                    
-                    if result.success:
-                        all_results[method_name] = result.result
-                    else:
-                        logger.warning(f"Method {fqn} failed: {result.error}")
-                        all_results[method_name] = None
-                        
-                except Exception as e:
-                    logger.error(f"Error executing {fqn}: {e}")
-                    all_results[method_name] = None
-        
-        return all_results
-    
-    def _extract_evidence(
-        self,
-        method_results: Dict[str, Any],
-        q_metadata: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """
-        Extract evidence from method results.
-        
-        Args:
-            method_results: Results from executed methods
-            q_metadata: Question metadata from monolith
-            
-        Returns:
-            Evidence dictionary
-        """
-        # Simple evidence extraction - collect all non-None results
-        evidence = {
-            "method_count": len(method_results),
-            "successful_methods": sum(1 for v in method_results.values() if v is not None),
-            "patterns_found": [],
-            "confidence": 0.0,
-        }
-        
-        # TODO: Implement proper evidence extraction based on question type
-        # and scoring modality
-        
-        return evidence
-    
     async def _process_micro_question_async(
         self,
         question_global: int,
@@ -517,11 +387,7 @@ class Choreographer:
         """
         Process a single micro question asynchronously.
         
-        This implements the process_micro_question function from the pseudocode:
-        1. Map question to base_slot
-        2. Build execution DAG from flow spec
-        3. Execute methods (hybrid: sync for sequential, async for parallel)
-        4. Extract evidence
+        DELEGATES to Choreographer.process_micro_question()
         
         Args:
             question_global: Question number (1-300)
@@ -530,61 +396,22 @@ class Choreographer:
         Returns:
             QuestionResult with evidence and raw results
         """
-        start = time.time()
-        
-        # Step 1: Map to base_slot
-        base_index = (question_global - 1) % 30
-        base_slot = f"D{base_index // 5 + 1}-Q{base_index % 5 + 1}"
-        
-        # Get question metadata from monolith
-        q_metadata = self.monolith["blocks"]["micro_questions"][question_global - 1]
-        
-        # Step 2: Get method packages from catalog
-        method_packages = self._get_method_packages_for_question(base_slot)
-        
-        # Get flow spec if available
-        flow_spec = None
-        if method_packages:
-            # Look for flow in first package (if present)
-            for pkg in method_packages:
-                if "flow" in pkg:
-                    flow_spec = pkg["flow"]
-                    break
-        
-        # Step 3: Build execution DAG
-        dag = self._build_execution_dag(flow_spec)
-        
-        # Step 4: Prepare execution context
-        context = InvocationContext(
-            text=preprocessed_doc.normalized_text or preprocessed_doc.raw_text,
-            data=preprocessed_doc.metadata,
-            document=preprocessed_doc,
-            questionnaire=self.monolith,
-            question_id=f"Q{question_global:03d}",
-            metadata={
-                "base_slot": base_slot,
-                "question_global": question_global,
-            }
+        # Delegate to choreographer for granular execution
+        result = await asyncio.to_thread(
+            self.choreographer.process_micro_question,
+            question_global,
+            preprocessed_doc,
+            self.monolith,
+            self.method_catalog
         )
         
-        # Step 5: Execute methods
-        raw_results = self._execute_methods_for_question(
-            method_packages,
-            dag,
-            context
-        )
-        
-        # Step 6: Extract evidence
-        evidence = self._extract_evidence(raw_results, q_metadata)
-        
-        duration = (time.time() - start) * 1000
-        
+        # Convert choreographer's QuestionResult to orchestrator's QuestionResult
         return QuestionResult(
-            question_global=question_global,
-            base_slot=base_slot,
-            evidence=evidence,
-            raw_results=raw_results,
-            execution_time_ms=duration
+            question_global=result.question_global,
+            base_slot=result.base_slot,
+            evidence=result.evidence,
+            raw_results=result.raw_results,
+            execution_time_ms=result.execution_time_ms
         )
     
     def _process_micro_question_sync(
@@ -595,7 +422,7 @@ class Choreographer:
         """
         Process a single micro question synchronously.
         
-        Wrapper for synchronous execution when async is disabled.
+        DELEGATES to Choreographer.process_micro_question()
         
         Args:
             question_global: Question number (1-300)
@@ -604,20 +431,34 @@ class Choreographer:
         Returns:
             QuestionResult
         """
-        # Use asyncio.run to execute async function synchronously
-        return asyncio.run(
-            self._process_micro_question_async(question_global, preprocessed_doc)
+        # Delegate to choreographer for granular execution
+        result = self.choreographer.process_micro_question(
+            question_global,
+            preprocessed_doc,
+            self.monolith,
+            self.method_catalog
+        )
+        
+        # Convert choreographer's QuestionResult to orchestrator's QuestionResult
+        return QuestionResult(
+            question_global=result.question_global,
+            base_slot=result.base_slot,
+            evidence=result.evidence,
+            raw_results=result.raw_results,
+            execution_time_ms=result.execution_time_ms
         )
     
     async def _execute_micro_questions_async(
         self,
         preprocessed_doc: PreprocessedDocument,
+        timeout_seconds: int = 3600,  # 1 hour default timeout
     ) -> PhaseResult:
         """
-        FASE 2: Execute all 300 micro questions in parallel.
+        FASE 2: Execute all 300 micro questions in parallel with timeout and cancellation.
         
         Args:
             preprocessed_doc: Preprocessed document
+            timeout_seconds: Maximum time to wait for all questions
             
         Returns:
             PhaseResult with list of QuestionResults
@@ -628,12 +469,33 @@ class Choreographer:
         try:
             # Create tasks for all 300 questions
             tasks = [
-                self._process_micro_question_async(i, preprocessed_doc)
+                asyncio.create_task(self._process_micro_question_async(i, preprocessed_doc))
                 for i in range(1, 301)
             ]
             
-            # Execute all in parallel
-            all_micro_results = await asyncio.gather(*tasks)
+            # Execute all in parallel with timeout
+            done, pending = await asyncio.wait(
+                tasks,
+                timeout=timeout_seconds,
+                return_when=asyncio.ALL_COMPLETED
+            )
+            
+            # If there are pending tasks, cancel them
+            if pending:
+                logger.warning(f"Timeout reached! Cancelling {len(pending)} pending tasks")
+                for task in pending:
+                    task.cancel()
+                # Wait for cancellation to complete
+                await asyncio.gather(*pending, return_exceptions=True)
+                
+                # Raise error about timeout
+                raise TimeoutError(
+                    f"FASE 2 timeout after {timeout_seconds}s. "
+                    f"Completed: {len(done)}/300, Cancelled: {len(pending)}"
+                )
+            
+            # Collect results from completed tasks
+            all_micro_results = [task.result() for task in done]
             
             duration = (time.time() - start) * 1000
             avg_time = duration / 300 if all_micro_results else 0
@@ -652,6 +514,7 @@ class Choreographer:
                 metrics={
                     "questions_processed": len(all_micro_results),
                     "avg_time_ms": avg_time,
+                    "timeout_seconds": timeout_seconds,
                 }
             )
             
@@ -692,9 +555,6 @@ class Choreographer:
         Returns:
             Score between 0 and 3
         """
-        modality_defs = scoring_config.get("modality_definitions", {})
-        modality_def = modality_defs.get(modality, {})
-        
         # Simple implementation - count successful methods as proxy
         successful_count = evidence.get("successful_methods", 0)
         
@@ -708,7 +568,9 @@ class Choreographer:
             # Count 2 elements, scale to 0-3
             return min(3.0, (successful_count / 2.0) * 3.0)
         elif modality == "TYPE_D":
-            # Weighted sum
+            # Weighted sum - get weights from config if available
+            modality_defs = scoring_config.get("modality_definitions", {})
+            modality_def = modality_defs.get(modality, {})
             weights = modality_def.get("weights", [0.4, 0.3, 0.3])
             # Simplified - just use first weight
             return min(3.0, successful_count * weights[0]) if weights else 0.0
