@@ -7,11 +7,9 @@ Validates the monolithic questionnaire structure against all invariants.
 """
 
 import json
-import hashlib
 import sys
 from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Any
 
 
 class MonolithValidator:

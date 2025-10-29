@@ -16,7 +16,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import List
 from dataclasses import dataclass
 from collections import defaultdict
 
@@ -58,9 +58,6 @@ class MonolithForge:
     # Canonical constants
     CANONICAL_POLICY_AREAS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10']
     CANONICAL_DIMENSIONS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']
-    # Note: Canonical clusters are loaded from legacy data to ensure consistency
-    # These are the expected clusters from the legacy questionnaire.json
-    CANONICAL_CLUSTERS = None  # Will be loaded from legacy data
     CANONICAL_SCORING_MODALITIES = ['TYPE_A', 'TYPE_B', 'TYPE_C', 'TYPE_D', 'TYPE_E', 'TYPE_F']
     
     # Quality thresholds for micro questions
@@ -96,15 +93,17 @@ class MonolithForge:
         phase = "LoadLegacyPhase"
         logger.info(f"=== {phase} START ===")
         
-        # Whitelist of allowed files
+        # Get repository root dynamically
+        repo_root = Path(__file__).parent.absolute()
+        
+        # Whitelist of allowed files (relative to repo root)
         allowed_files = {
-            'questionnaire.json': '/home/runner/work/SAAAAAA/SAAAAAA/questionnaire.json',
-            'rubric_scoring.json': '/home/runner/work/SAAAAAA/SAAAAAA/rubric_scoring.json',
-            'COMPLETE_METHOD_CLASS_MAP.json': '/home/runner/work/SAAAAAA/SAAAAAA/COMPLETE_METHOD_CLASS_MAP.json'
+            'questionnaire.json': repo_root / 'questionnaire.json',
+            'rubric_scoring.json': repo_root / 'rubric_scoring.json',
+            'COMPLETE_METHOD_CLASS_MAP.json': repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'
         }
         
-        for name, path_str in allowed_files.items():
-            path = Path(path_str)
+        for name, path in allowed_files.items():
             
             # Precondition: file exists
             if not path.exists():
@@ -359,8 +358,6 @@ class MonolithForge:
         
         # For this phase, we'll create synthetic method sets based on base_slots
         # In a real implementation, this would load from metodos_completos_nivel3.json
-        
-        method_catalog = self.legacy_data.get('COMPLETE_METHOD_CLASS_MAP.json', {})
         
         # Create method sets per base_slot
         # Each base_slot gets a set of methods for analysis
@@ -733,21 +730,22 @@ class MonolithForge:
         if file_size == 0:
             self.abort('A100', 'Empty monolith emission', phase)
         
-        # Verify hash
+        # Verify hash matches
+        # Reload and recalculate hash on the same structure used during sealing (without integrity block)
         with open(output_file, 'r', encoding='utf-8') as f:
             reloaded = json.load(f)
         
         expected_hash = monolith['integrity']['monolith_hash']
+        reloaded_without_integrity = {k: v for k, v in reloaded.items() if k != 'integrity'}
+        canonical_check = json.dumps(reloaded_without_integrity, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
+        actual_hash = hashlib.sha256(canonical_check.encode('utf-8')).hexdigest()
         
-        # Recalculate (exclude integrity block)
-        temp_monolith = {k: v for k, v in reloaded.items() if k != 'integrity'}
-        temp_monolith['integrity'] = monolith['integrity']
-        canonical = json.dumps(temp_monolith, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
-        actual_hash = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+        if actual_hash != expected_hash:
+            self.abort('A080', f'Hash mismatch after emission: expected {expected_hash}, got {actual_hash}', phase)
         
         logger.info(f"Emitted monolith to {output_path}")
         logger.info(f"  File size: {file_size:,} bytes")
-        logger.info(f"  Hash: {expected_hash[:16]}...")
+        logger.info(f"  Hash: {expected_hash[:16]}... (verified)")
         logger.info(f"=== {phase} COMPLETE ===")
         
         # Generate manifest
