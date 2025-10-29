@@ -6,7 +6,6 @@ These tests verify the global orchestration of the complete 305-question pipelin
 
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 from orchestrator.orchestrator import (
     Orchestrator,
