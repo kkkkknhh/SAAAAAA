@@ -92,7 +92,7 @@ CL04 (Derechos Sociales & Crisis): PA09, PA10
       "cluster_id": "CL01",
       "name": "Seguridad y Paz",
       "rationale": "Seguridad humana, protección de la vida y paz territorial",
-      "policy_area_ids": ["P2", "P3", "P7"],
+      "policy_area_ids": ["PA02", "PA03", "PA07"],
       "legacy_point_ids": ["P2", "P3", "P7"]
     },
     // ... CL02, CL03, CL04
@@ -132,32 +132,32 @@ CL04 (Derechos Sociales & Crisis): PA09, PA10
   "CL01": {
     "cluster_id": "CL01",
     "name": "Seguridad y Paz",
-    "policy_areas": ["P2", "P3", "P7"],
-    "weights": {"P2": 0.40, "P3": 0.35, "P7": 0.25},
+    "policy_area_ids": ["PA02", "PA03", "PA07"],
+    "weights": {"PA02": 0.40, "PA03": 0.35, "PA07": 0.25},
     "imbalance_threshold": 30.0,
     "aggregation_method": "weighted_average"
   },
   "CL02": {
     "cluster_id": "CL02",
     "name": "Grupos Poblacionales",
-    "policy_areas": ["P1", "P5", "P6"],
-    "weights": {"P1": 0.40, "P5": 0.35, "P6": 0.25},
+    "policy_area_ids": ["PA01", "PA05", "PA06"],
+    "weights": {"PA01": 0.40, "PA05": 0.35, "PA06": 0.25},
     "imbalance_threshold": 30.0,
     "aggregation_method": "weighted_average"
   },
   "CL03": {
     "cluster_id": "CL03",
     "name": "Territorio-Ambiente",
-    "policy_areas": ["P4", "P8"],
-    "weights": {"P4": 0.55, "P8": 0.45},
+    "policy_area_ids": ["PA04", "PA08"],
+    "weights": {"PA04": 0.55, "PA08": 0.45},
     "imbalance_threshold": 25.0,
     "aggregation_method": "weighted_average"
   },
   "CL04": {
     "cluster_id": "CL04",
     "name": "Derechos Sociales & Crisis",
-    "policy_areas": ["P9", "P10"],
-    "weights": {"P9": 0.50, "P10": 0.50},
+    "policy_area_ids": ["PA09", "PA10"],
+    "weights": {"PA09": 0.50, "PA10": 0.50},
     "imbalance_threshold": 25.0,
     "aggregation_method": "weighted_average"
   }

@@ -20,9 +20,9 @@
   "properties": {
     "cluster_name": {
       "type": "string",
-      "pattern": "^CLUSTER_\\d+$",
-      "description": "Identificador del cluster (CLUSTER_1, CLUSTER_2, etc.)",
-      "examples": ["CLUSTER_1", "CLUSTER_10"]
+      "pattern": "^CL\\d{2}$",
+      "description": "Identificador del cluster (CL01, CL02, etc.)",
+      "examples": ["CL01", "CL04"]
     },
     "cluster_description": {
       "type": "string",

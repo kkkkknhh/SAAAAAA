@@ -165,7 +165,7 @@ micro_data = [
 ]
 
 cluster_mapping = {
-    'CLUSTER_1': ['P1-D1-Q1']
+    'CL01': ['P1-D1-Q1']
 }
 
 # Run analysis
