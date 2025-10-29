@@ -143,6 +143,7 @@ class PhaseInstrumentation:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     resource_snapshots: List[Dict[str, Any]] = field(default_factory=list)
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock, init=False, repr=False)
     
     def record_snapshot(self, limits: ResourceLimits):
         """Record resource usage snapshot."""
@@ -166,6 +167,21 @@ class PhaseInstrumentation:
         if self.items_total == 0:
             return 0.0
         return self.items_processed / self.items_total
+    
+    async def increment_processed(self):
+        """Thread-safe increment of items_processed counter."""
+        async with self._lock:
+            self.items_processed += 1
+    
+    async def add_warning(self, warning: str):
+        """Thread-safe addition of warning."""
+        async with self._lock:
+            self.warnings.append(warning)
+    
+    async def add_error(self, error: str):
+        """Thread-safe addition of error."""
+        async with self._lock:
+            self.errors.append(error)
 
 
 class ExecutionMode(Enum):
@@ -723,7 +739,7 @@ class Orchestrator:
                         raise RuntimeError(f"Aborted: {self.abort_signal.get_reason()}")
                     
                     result = await self._process_micro_question_async(question_num, preprocessed_doc)
-                    instrumentation.items_processed += 1
+                    await instrumentation.increment_processed()
                     
                     # Log progress every 10 questions
                     if instrumentation.items_processed % 10 == 0:
@@ -737,7 +753,7 @@ class Orchestrator:
                         # Check resource limits
                         if self.resource_limits.check_memory_exceeded():
                             warning = f"Memory limit exceeded at question {question_num}"
-                            instrumentation.warnings.append(warning)
+                            await instrumentation.add_warning(warning)
                             logger.warning(warning)
                     
                     return result
@@ -779,7 +795,7 @@ class Orchestrator:
                     all_micro_results.append(result)
                 except Exception as e:
                     error_msg = f"Task failed: {e}"
-                    instrumentation.errors.append(error_msg)
+                    await instrumentation.add_error(error_msg)
                     logger.error(error_msg)
             
             instrumentation.complete()
