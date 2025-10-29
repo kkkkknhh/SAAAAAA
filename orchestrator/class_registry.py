@@ -51,9 +51,14 @@ def build_class_registry() -> Dict[str, Type[object]]:
             missing[name] = f"{path} (import error: {exc})"
             continue
         try:
-            resolved[name] = getattr(module, class_name)
+            attr = getattr(module, class_name)
         except AttributeError:
             missing[name] = f"{path} (attribute missing)"
+        else:
+            if not isinstance(attr, type):
+                missing[name] = f"{path} (attribute is not a class: {type(attr).__name__})"
+            else:
+                resolved[name] = attr
     if missing:
         formatted = ", ".join(f"{name}: {reason}" for name, reason in missing.items())
         raise ClassRegistryError(f"Failed to load orchestrator classes: {formatted}")
