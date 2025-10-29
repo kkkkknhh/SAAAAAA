@@ -1,3 +1,4 @@
 __pycache__/
 artifacts/
 *.pyc
+forge.log
