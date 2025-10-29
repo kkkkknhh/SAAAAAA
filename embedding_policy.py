@@ -601,9 +601,24 @@ class BayesianNumericalAnalyzer:
     def serialize_posterior_samples(
         self, samples: NDArray[np.float32]
     ) -> List[PosteriorSampleRecord]:
-        """Convert posterior samples into dereck-beach compatible records."""
+        """Convert posterior samples into standardized coherence records.
 
-        return [{"coherence": float(value)} for value in samples.tolist()]
+        Safely handles None or non-array inputs and limits the number of
+        serialized records to avoid excessive memory use.
+        """
+        if samples is None:
+            return []
+
+        # Ensure a 1-D numpy array of floats
+        arr = np.asarray(samples, dtype=np.float32).ravel()
+
+        # Prevent accidental excessive memory use when serializing huge arrays
+        MAX_RECORDS = 10000
+        values = arr.tolist()
+        if len(values) > MAX_RECORDS:
+            values = values[:MAX_RECORDS]
+
+        return [{"coherence": float(v)} for v in values]
 
     def compare_policies(
         self,
