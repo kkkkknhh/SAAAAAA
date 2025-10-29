@@ -23,7 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Literal, Protocol, TypedDict, Union
+from typing import Any, Dict, List, Literal, Protocol, TypedDict
 
 import numpy as np
 import scipy.stats as stats
@@ -80,6 +80,12 @@ class PDQIdentifier(TypedDict):
     rubric_key: str  # D#-Q#
 
 
+class PosteriorSampleRecord(TypedDict):
+    """Serializable posterior sample used by downstream Bayesian consumers."""
+
+    coherence: float
+
+
 class SemanticChunk(TypedDict):
     """Structured semantic chunk with metadata."""
 
@@ -100,6 +106,7 @@ class BayesianEvaluation(TypedDict):
     posterior_samples: NDArray[np.float32]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
+    posterior_records: List[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
@@ -481,6 +488,7 @@ class BayesianNumericalAnalyzer:
             posterior_samples=posterior_samples,
             evidence_strength=evidence_strength,
             numerical_coherence=coherence,
+            posterior_records=self.serialize_posterior_samples(posterior_samples),
         )
 
     def _beta_binomial_posterior(
@@ -587,7 +595,30 @@ class BayesianNumericalAnalyzer:
             posterior_samples=np.array([0.0], dtype=np.float32),
             evidence_strength="weak",
             numerical_coherence=0.0,
+            posterior_records=[{"coherence": 0.0}],
         )
+
+    def serialize_posterior_samples(
+        self, samples: NDArray[np.float32]
+    ) -> List[PosteriorSampleRecord]:
+        """Convert posterior samples into standardized coherence records.
+
+        Safely handles None or non-array inputs and limits the number of
+        serialized records to avoid excessive memory use.
+        """
+        if samples is None:
+            return []
+
+        # Ensure a 1-D numpy array of floats
+        arr = np.asarray(samples, dtype=np.float32).ravel()
+
+        # Prevent accidental excessive memory use when serializing huge arrays
+        MAX_RECORDS = 10000
+        values = arr.tolist()
+        if len(values) > MAX_RECORDS:
+            values = values[:MAX_RECORDS]
+
+        return [{"coherence": float(v)} for v in values]
 
     def compare_policies(
         self,
@@ -1132,9 +1163,11 @@ class PolicyAnalysisEmbedder:
         return [
             chunk
             for chunk in chunks
-            if chunk["pdq_context"]
-            and chunk["pdq_context"]["policy"] == pdq_filter["policy"]
-            and chunk["pdq_context"]["dimension"] == pdq_filter["dimension"]
+            if (
+                (context := chunk.get("pdq_context"))
+                and context["policy"] == pdq_filter["policy"]
+                and context["dimension"] == pdq_filter["dimension"]
+            )
         ]
 
     def _apply_mmr(
