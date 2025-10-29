@@ -188,8 +188,8 @@ from macro_prompts import BayesianPortfolioComposer
 composer = BayesianPortfolioComposer(default_variance=0.05)
 
 result = composer.compose(
-    meso_posteriors={"CLUSTER_1": 0.8, "CLUSTER_2": 0.75},
-    cluster_weights={"CLUSTER_1": 0.6, "CLUSTER_2": 0.4},
+    meso_posteriors={"CL01": 0.8, "CL02": 0.75},
+    cluster_weights={"CL01": 0.6, "CL02": 0.4},
     reconciliation_penalties={"coverage": 0.1, "dispersion": 0.05}
 )
 ```

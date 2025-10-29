@@ -799,7 +799,7 @@ class ClusterAggregator:
         Aggregate a single MESO cluster from area scores.
         
         Args:
-            cluster_id: Cluster ID (e.g., "CLUSTER_1")
+            cluster_id: Cluster ID (e.g., "CL01")
             area_scores: List of area scores for this cluster
             weights: Optional cluster-specific weights
             

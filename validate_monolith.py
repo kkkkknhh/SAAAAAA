@@ -27,10 +27,23 @@ class MonolithValidator:
     QUESTIONS_PER_BASE_SLOT = 10
     
     CANONICAL_CLUSTERS = {
-        'CLUSTER_1': ['P2', 'P3', 'P7'],
-        'CLUSTER_2': ['P1', 'P5', 'P6'],
-        'CLUSTER_3': ['P4', 'P8'],
-        'CLUSTER_4': ['P9', 'P10']
+        'CL01': ['PA02', 'PA03', 'PA07'],
+        'CL02': ['PA01', 'PA05', 'PA06'],
+        'CL03': ['PA04', 'PA08'],
+        'CL04': ['PA09', 'PA10']
+    }
+
+    LEGACY_POLICY_AREA_MAP = {
+        'PA01': 'P1',
+        'PA02': 'P2',
+        'PA03': 'P3',
+        'PA04': 'P4',
+        'PA05': 'P5',
+        'PA06': 'P6',
+        'PA07': 'P7',
+        'PA08': 'P8',
+        'PA09': 'P9',
+        'PA10': 'P10',
     }
     
     CANONICAL_SCORING_MODALITIES = ['TYPE_A', 'TYPE_B', 'TYPE_C', 'TYPE_D', 'TYPE_E', 'TYPE_F']
@@ -204,15 +217,36 @@ class MonolithValidator:
         else:
             self.error(f"Expected {self.EXPECTED_CLUSTERS} clusters, got {len(clusters)}")
         
-        for i, cluster_def in enumerate(clusters, 1):
-            cluster_id = f'CLUSTER_{i}'
-            legacy_areas = cluster_def.get('legacy_policy_area_ids', [])
-            expected = self.CANONICAL_CLUSTERS.get(cluster_id, [])
-            
-            if set(legacy_areas) == set(expected):
-                self.success(f"{cluster_id}: {legacy_areas} ✓")
+        for index, cluster_def in enumerate(clusters, 1):
+            cluster_id = cluster_def.get('cluster_id')
+            if not cluster_id:
+                self.error(f"Cluster #{index} is missing 'cluster_id'")
+                continue
+
+            expected = self.CANONICAL_CLUSTERS.get(cluster_id)
+            canonical_ids = cluster_def.get('policy_area_ids', [])
+            legacy_ids = cluster_def.get('legacy_policy_area_ids', [])
+
+            if not expected:
+                self.warning(
+                    f"Cluster {cluster_id} is not in CANONICAL_CLUSTERS; found {canonical_ids}"
+                )
+                continue
+
+            if set(canonical_ids) == set(expected):
+                self.success(f"{cluster_id}: canonical policy areas {canonical_ids} ✓")
             else:
-                self.error(f"{cluster_id}: expected {expected}, got {legacy_areas}")
+                self.error(
+                    f"{cluster_id}: expected canonical {expected}, got {canonical_ids}"
+                )
+
+            expected_legacy = [self.LEGACY_POLICY_AREA_MAP[pa] for pa in expected]
+            if set(legacy_ids) == set(expected_legacy):
+                self.success(f"{cluster_id}: legacy policy areas {legacy_ids} ✓")
+            else:
+                self.error(
+                    f"{cluster_id}: expected legacy {expected_legacy}, got {legacy_ids}"
+                )
     
     def validate_micro_questions(self):
         """Validate micro question structure."""
