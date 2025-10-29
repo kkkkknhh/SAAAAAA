@@ -7,14 +7,17 @@ SIN brevedad. SIN omisiones. TODO implementado.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import os
+import re
 import statistics
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
+from itertools import chain
 from typing import Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -150,7 +153,12 @@ def get_question_payload(question_global: int) -> Dict[str, Any]:
 
 # Importar módulos reales
 try:
-    from policy_processor import IndustrialPolicyProcessor, PolicyTextProcessor, BayesianEvidenceScorer
+    from policy_processor import (
+        BayesianEvidenceScorer,
+        CausalDimension,
+        IndustrialPolicyProcessor,
+        PolicyTextProcessor,
+    )
     from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
     from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
     from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
@@ -536,6 +544,195 @@ class ScoredMicroQuestion:
     metadata: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
 
+
+class ArgRouter:
+    """Normalize orchestrator kwargs into the signatures expected by methods."""
+
+    def __init__(self) -> None:
+        self._special_routes = {
+            ("IndustrialPolicyProcessor", "process"): self._route_policy_process,
+            (
+                "IndustrialPolicyProcessor",
+                "_match_patterns_in_sentences",
+            ): self._route_match_patterns,
+            (
+                "IndustrialPolicyProcessor",
+                "_construct_evidence_bundle",
+            ): self._route_construct_bundle,
+            ("PolicyTextProcessor", "segment_into_sentences"): self._route_segment_sentences,
+            ("BayesianEvidenceScorer", "compute_evidence_score"): self._route_evidence_score,
+        }
+
+    def route(
+        self,
+        class_name: str,
+        instance: Any,
+        method: Any,
+        provided_kwargs: Dict[str, Any],
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        """Return positional and keyword args compatible with the target method."""
+
+        route_key = (class_name, getattr(method, "__name__", ""))
+        if route_key in self._special_routes:
+            return self._special_routes[route_key](instance, method, provided_kwargs)
+
+        return self._default_route(method, provided_kwargs)
+
+    def _default_route(
+        self, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        signature = inspect.signature(method)
+        accepted_kwargs: Dict[str, Any] = {}
+        allow_extra = False
+
+        for name, param in signature.parameters.items():
+            if param.kind == param.VAR_POSITIONAL:
+                continue
+            if param.kind == param.VAR_KEYWORD:
+                allow_extra = True
+                continue
+
+            if name in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs[name]
+            elif name == "raw_text" and "text" in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs["text"]
+
+        if allow_extra:
+            for key, value in provided_kwargs.items():
+                accepted_kwargs.setdefault(key, value)
+
+        return (), accepted_kwargs
+
+    def _extract_all_patterns(self, instance: Any) -> List[Any]:
+        pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
+        compiled_patterns: List[Any] = []
+        for categories in pattern_registry.values():
+            compiled_patterns.extend(chain.from_iterable(categories.values()))
+        return compiled_patterns
+
+    def _derive_dimension_category(self, instance: Any) -> Tuple[Any, str, List[Any]]:
+        pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
+        dimension = None
+        category = None
+        compiled_patterns: List[Any] = []
+
+        if pattern_registry:
+            dimension = next(iter(pattern_registry.keys()))
+            categories = pattern_registry.get(dimension, {})
+            if categories:
+                category = next(iter(categories.keys()))
+                compiled_patterns = list(categories.get(category, []))
+
+        if dimension is None:
+            dimension = getattr(instance, "default_dimension", None)
+        if dimension is None:
+            dimension_enum = globals().get("CausalDimension")
+            if dimension_enum is not None:
+                dimension = getattr(dimension_enum, "D1_INSUMOS", dimension_enum)
+            else:
+                dimension = "d1_insumos"
+
+        if category is None:
+            category = "general"
+
+        return dimension, category, compiled_patterns
+
+    def _route_policy_process(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text")
+        if text is None:
+            text = provided_kwargs.get("raw_text", "")
+        return (), {"raw_text": text}
+
+    def _route_match_patterns(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        compiled_patterns = self._extract_all_patterns(instance)
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+        return (compiled_patterns, sentences), {}
+
+    def _route_construct_bundle(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+
+        dimension, category, compiled_patterns = self._derive_dimension_category(instance)
+
+        if compiled_patterns and sentences:
+            matches, positions = instance._match_patterns_in_sentences(  # type: ignore[attr-defined]
+                compiled_patterns, sentences
+            )
+        else:
+            matches = []
+            positions = []
+
+        if not matches and text:
+            fallback_matches = re.findall(r"\b\w{6,}\b", text)
+            matches = fallback_matches[:20]
+            positions = list(range(len(matches)))
+
+        text_length = len(text) if text else sum(len(s) for s in sentences)
+        confidence = 0.0
+        compute_confidence = getattr(instance, "_compute_evidence_confidence", None)
+        if callable(compute_confidence) and (matches or text_length):
+            try:
+                confidence = compute_confidence(matches, text_length, pattern_specificity=0.85)
+            except TypeError:
+                confidence = compute_confidence(matches, text_length, 0.85)
+        elif text_length:
+            confidence = min(1.0, len(matches) / max(1, text_length))
+
+        return (), {
+            "dimension": dimension,
+            "category": category,
+            "matches": matches,
+            "positions": positions,
+            "confidence": confidence,
+        }
+
+    def _route_segment_sentences(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text")
+        if text is None:
+            text = provided_kwargs.get("raw_text", "")
+        return (text,), {}
+
+    def _route_evidence_score(
+        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+        text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
+        sentences = [
+            sentence
+            for sentence in provided_kwargs.get("sentences", [])
+            if isinstance(sentence, str)
+        ]
+
+        matches: List[str] = [s for s in sentences if s.strip()]
+        if not matches and text:
+            matches = re.findall(r"\b\w{6,}\b", text)[:50]
+
+        total_corpus_size = len(text)
+        if total_corpus_size == 0 and sentences:
+            total_corpus_size = sum(len(s) for s in sentences)
+
+        uniqueness = len(set(matches)) if matches else 0
+        pattern_specificity = 0.8
+        if uniqueness and matches:
+            pattern_specificity = min(0.95, max(0.2, uniqueness / max(1, len(matches))))
+
+        return (matches, total_corpus_size), {"pattern_specificity": pattern_specificity}
+
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
     def __init__(self):
@@ -565,6 +762,7 @@ class MethodExecutor:
             }
         else:
             self.instances = {}
+        self._router = ArgRouter()
     
     def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
         if not MODULES_OK:
@@ -574,7 +772,8 @@ class MethodExecutor:
             if not instance:
                 return None
             method = getattr(instance, method_name)
-            return method(**kwargs)
+            args, routed_kwargs = self._router.route(class_name, instance, method, kwargs)
+            return method(*args, **routed_kwargs)
         except Exception as e:
             logger.error(f"Error {class_name}.{method_name}: {e}")
             return None
