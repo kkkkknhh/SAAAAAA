@@ -9690,11 +9690,20 @@ class Orchestrator:
         
         # Initialize RecommendationEngine for 3-level recommendations
         try:
-            self.recommendation_engine = RecommendationEngine(
-                rules_path="config/recommendation_rules.json",
-                schema_path="rules/recommendation_rules.schema.json"
-            )
-            logger.info("RecommendationEngine initialized successfully")
+            # Try to load enhanced rules first (v2.0), fallback to v1.0
+            try:
+                self.recommendation_engine = RecommendationEngine(
+                    rules_path="config/recommendation_rules_enhanced.json",
+                    schema_path="rules/recommendation_rules_enhanced.schema.json"
+                )
+                logger.info("RecommendationEngine initialized with enhanced v2.0 rules")
+            except Exception as e_enhanced:
+                logger.info(f"Enhanced rules not available ({e_enhanced}), falling back to v1.0")
+                self.recommendation_engine = RecommendationEngine(
+                    rules_path="config/recommendation_rules.json",
+                    schema_path="rules/recommendation_rules.schema.json"
+                )
+                logger.info("RecommendationEngine initialized with v1.0 rules")
         except Exception as e:
             logger.warning(f"Failed to initialize RecommendationEngine: {e}")
             self.recommendation_engine = None
