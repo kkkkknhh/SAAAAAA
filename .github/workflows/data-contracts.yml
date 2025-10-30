@@ -33,6 +33,9 @@ jobs:
 
       - name: Rubric lint
         run: python tools/lint/json_lint.py rubric_scoring.json --schema schemas/rubric_scoring.schema.json
+      
+      - name: Scoring parity validation
+        run: python tools/validation/validate_scoring_parity.py
 
       - name: Deterministic artifact generation
         run: |

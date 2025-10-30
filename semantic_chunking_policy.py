@@ -34,6 +34,24 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("policy_framework")
 
+
+def _get_chunk_content(chunk: dict[str, Any]) -> str:
+    """Compatibility helper returning the canonical chunk content field."""
+
+    if "content" in chunk:
+        return chunk["content"]
+    return chunk.get("text", "")
+
+
+def _upgrade_chunk_schema(chunk: dict[str, Any]) -> dict[str, Any]:
+    """Return a chunk dict that guarantees ``content`` availability."""
+
+    if "content" in chunk:
+        return chunk
+    upgraded = dict(chunk)
+    upgraded["content"] = upgraded.get("text", "")
+    return upgraded
+
 # ========================
 # CALIBRATED CONSTANTS (SOTA)
 # ========================
@@ -162,20 +180,21 @@ class SemanticProcessor:
                 chunk_tokens = tokens[i:i + self.config.chunk_size]
                 chunk_text = self._tokenizer.decode(chunk_tokens, skip_special_tokens=True)
                 chunks.append({
-                    "text": chunk_text,
+                    "content": chunk_text,
                     "section_type": section["type"],
                     "section_id": section["id"],
                     "token_count": len(chunk_tokens),
                     "position": len(chunks),
                     "has_table": self._detect_table(chunk_text),
-                    "has_numerical": self._detect_numerical_data(chunk_text)
+                    "has_numerical": self._detect_numerical_data(chunk_text),
+                    "pdq_context": {},
                 })
         # Batch embed all chunks
-        embeddings = self._embed_batch([c["text"] for c in chunks])
+        embeddings = self._embed_batch([c["content"] for c in chunks])
         for chunk, emb in zip(chunks, embeddings):
             chunk["embedding"] = emb
         logger.info(f"Generated {len(chunks)} policy-aware chunks")
-        return chunks
+        return [_upgrade_chunk_schema(chunk) for chunk in chunks]
 
     def _detect_pdm_structure(self, text: str) -> list[dict[str, Any]]:
         """Detect PDM sections using Colombian policy document patterns"""
@@ -532,7 +551,8 @@ class PolicyDocumentAnalyzer:
             # Top 3 excerpts
             top_chunks = [chunks[i] for i, _ in sims[:3]]
             excerpts[dim.value] = [
-                c["text"][:300] + ("..." if len(c["text"]) > 300 else "")
+                _get_chunk_content(c)[:300]
+                + ("..." if len(_get_chunk_content(c)) > 300 else "")
                 for c in top_chunks
             ]
         return excerpts
@@ -578,7 +598,7 @@ class SemanticChunkingProducer:
     
     def get_chunk_text(self, chunk: dict[str, Any]) -> str:
         """Extract text from chunk"""
-        return chunk.get("text", "")
+        return _get_chunk_content(chunk)
     
     def get_chunk_embedding(self, chunk: dict[str, Any]) -> NDArray[np.floating[Any]]:
         """Extract embedding from chunk"""

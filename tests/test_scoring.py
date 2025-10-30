@@ -7,6 +7,8 @@ Tests all TYPE_A through TYPE_F modalities with various evidence structures.
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -90,7 +92,7 @@ def test_scoring_type_a():
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
     score, metadata = score_type_a(evidence, config)
-    assert score == 4.0, f"Expected 4.0, got {score}"
+    assert score == pytest.approx(3.0), f"Expected 3.0, got {score}"
     assert metadata["element_count"] == 4
     assert metadata["confidence"] == 1.0
     print(f"✓ TYPE_A full score: {score}")
@@ -98,7 +100,7 @@ def test_scoring_type_a():
     # Partial score with lower confidence
     evidence = {"elements": [1, 2], "confidence": 0.5}
     score, metadata = score_type_a(evidence, config)
-    expected = (2/4) * 4.0 * 0.5  # 1.0
+    expected = (2 / 4) * 3.0 * 0.5  # 0.75
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_A partial score: {score}")
     
@@ -250,12 +252,29 @@ def test_apply_scoring_type_a():
     assert result.policy_area == "PA01"
     assert result.dimension == "DIM01"
     assert result.modality == "TYPE_A"
-    assert 0 <= result.score <= 4.0
+    assert 0 <= result.score <= 3.0
     assert 0 <= result.normalized_score <= 1.0
     assert result.quality_level in ["EXCELENTE", "BUENO", "ACEPTABLE", "INSUFICIENTE"]
     assert result.evidence_hash == ScoredResult.compute_evidence_hash(evidence)
     
     print(f"✓ Full scoring workflow TYPE_A: score={result.score:.2f}, quality={result.quality_level}")
+
+
+def test_type_a_not_truncated():
+    """TYPE_A scores should reach the new 3.0 ceiling without truncation."""
+    evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
+
+    result = apply_scoring(
+        question_global=1,
+        base_slot="PA01-DIM01-Q001",
+        policy_area="PA01",
+        dimension="DIM01",
+        evidence=evidence,
+        modality="TYPE_A",
+    )
+
+    assert result.score == pytest.approx(3.0)
+    assert result.normalized_score == pytest.approx(1.0)
 
 
 def test_apply_scoring_invalid_modality():
@@ -397,3 +416,43 @@ if __name__ == "__main__":
     import sys
     success = run_all_tests()
     sys.exit(0 if success else 1)
+
+
+def test_dimension_aggregation_preserves_precision():
+    """Golden regression: no score truncation between scoring and aggregation."""
+
+    monolith = {
+        "blocks": {
+            "scoring": {},
+            "niveles_abstraccion": {},
+        }
+    }
+    aggregator = DimensionAggregator(monolith, abort_on_insufficient=False)
+
+    precise_scores = [
+        2.987654321,
+        2.987654322,
+        2.987654323,
+        2.987654324,
+        2.987654325,
+    ]
+
+    scored_results = [
+        AggregationScoredResult(
+            question_global=index + 1,
+            base_slot=f"Q{index + 1:03d}",
+            policy_area="PA01",
+            dimension="DIM01",
+            score=value,
+            quality_level="EXCELENTE",
+            evidence={},
+            raw_results={},
+        )
+        for index, value in enumerate(precise_scores)
+    ]
+
+    aggregated = aggregator.aggregate_dimension("DIM01", "PA01", scored_results)
+    expected_average = sum(precise_scores) / len(precise_scores)
+
+    assert aggregated.score == pytest.approx(expected_average, abs=1e-12)
+    assert aggregated.quality_level == "EXCELENTE"
