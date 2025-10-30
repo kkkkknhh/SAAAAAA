@@ -186,7 +186,8 @@ class SemanticProcessor:
                     "token_count": len(chunk_tokens),
                     "position": len(chunks),
                     "has_table": self._detect_table(chunk_text),
-                    "has_numerical": self._detect_numerical_data(chunk_text)
+                    "has_numerical": self._detect_numerical_data(chunk_text),
+                    "pdq_context": {},
                 })
         # Batch embed all chunks
         embeddings = self._embed_batch([c["content"] for c in chunks])

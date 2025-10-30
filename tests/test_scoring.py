@@ -416,3 +416,43 @@ if __name__ == "__main__":
     import sys
     success = run_all_tests()
     sys.exit(0 if success else 1)
+
+
+def test_dimension_aggregation_preserves_precision():
+    """Golden regression: no score truncation between scoring and aggregation."""
+
+    monolith = {
+        "blocks": {
+            "scoring": {},
+            "niveles_abstraccion": {},
+        }
+    }
+    aggregator = DimensionAggregator(monolith, abort_on_insufficient=False)
+
+    precise_scores = [
+        2.987654321,
+        2.987654322,
+        2.987654323,
+        2.987654324,
+        2.987654325,
+    ]
+
+    scored_results = [
+        AggregationScoredResult(
+            question_global=index + 1,
+            base_slot=f"Q{index + 1:03d}",
+            policy_area="PA01",
+            dimension="DIM01",
+            score=value,
+            quality_level="EXCELENTE",
+            evidence={},
+            raw_results={},
+        )
+        for index, value in enumerate(precise_scores)
+    ]
+
+    aggregated = aggregator.aggregate_dimension("DIM01", "PA01", scored_results)
+    expected_average = sum(precise_scores) / len(precise_scores)
+
+    assert aggregated.score == pytest.approx(expected_average, abs=1e-12)
+    assert aggregated.quality_level == "EXCELENTE"

@@ -310,7 +310,7 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     Scoring:
     - Count elements (max 4)
     - Weight by confidence
-    - Scale to 0-4 range
+    - Scale to 0-3 range
     
     Args:
         evidence: Evidence dictionary
@@ -331,6 +331,9 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     # Count valid elements (up to expected)
     element_count = min(len(elements), config.expected_elements or 4)
     
+    max_elements = config.expected_elements or 4
+    max_score = config.score_range[1] if config.score_range else 3.0
+
     # Calculate raw score: count weighted by confidence, scale to range
     max_elements = config.expected_elements or max(1, len(elements))
     scale = config.score_range[1] if config.score_range else 3.0
@@ -338,12 +341,13 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
 
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "confidence": confidence,
         "raw_score": raw_score,
         "expected_elements": config.expected_elements,
+        "max_score": max_score,
     }
     
     logger.info(

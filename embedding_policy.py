@@ -80,6 +80,12 @@ class PDQIdentifier(TypedDict):
     rubric_key: str  # D#-Q#
 
 
+class PosteriorSampleRecord(TypedDict):
+    """Serializable posterior sample used by downstream Bayesian consumers."""
+
+    coherence: float
+
+
 class SemanticChunk(TypedDict):
     """Structured semantic chunk with metadata."""
 
@@ -106,6 +112,7 @@ class BayesianEvaluation(TypedDict):
     posterior_samples: list[PosteriorSample]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
+    posterior_records: List[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
@@ -515,6 +522,7 @@ class BayesianNumericalAnalyzer:
             posterior_samples=serialized_samples,
             evidence_strength=evidence_strength,
             numerical_coherence=coherence,
+            posterior_records=self.serialize_posterior_samples(posterior_samples),
         )
 
     def _beta_binomial_posterior(
@@ -623,7 +631,30 @@ class BayesianNumericalAnalyzer:
             posterior_samples=null_samples,
             evidence_strength="weak",
             numerical_coherence=0.0,
+            posterior_records=[{"coherence": 0.0}],
         )
+
+    def serialize_posterior_samples(
+        self, samples: NDArray[np.float32]
+    ) -> List[PosteriorSampleRecord]:
+        """Convert posterior samples into standardized coherence records.
+
+        Safely handles None or non-array inputs and limits the number of
+        serialized records to avoid excessive memory use.
+        """
+        if samples is None:
+            return []
+
+        # Ensure a 1-D numpy array of floats
+        arr = np.asarray(samples, dtype=np.float32).ravel()
+
+        # Prevent accidental excessive memory use when serializing huge arrays
+        MAX_RECORDS = 10000
+        values = arr.tolist()
+        if len(values) > MAX_RECORDS:
+            values = values[:MAX_RECORDS]
+
+        return [{"coherence": float(v)} for v in values]
 
     def compare_policies(
         self,
@@ -1164,13 +1195,91 @@ class PolicyAnalysisEmbedder:
         self, chunks: list[SemanticChunk], pdq_filter: PDQIdentifier
     ) -> list[SemanticChunk]:
         """Filter chunks by P-D-Q context."""
-        return [
-            chunk
-            for chunk in chunks
-            if chunk["pdq_context"]
-            and chunk["pdq_context"]["policy"] == pdq_filter["policy"]
-            and chunk["pdq_context"]["dimension"] == pdq_filter["dimension"]
-        ]
+
+        def _repr_contract(value: Any) -> str:
+            if value is None or isinstance(value, (int, float, bool)):
+                return repr(value)
+            if isinstance(value, str):
+                # Strip excessive whitespace for logging clarity
+                preview = value if len(value) <= 24 else f"{value[:21]}..."
+                return repr(preview)
+            return type(value).__name__
+
+        def _log_mismatch(key: str, needed: Any, got: Any, index: int | None = None) -> None:
+            message = (
+                "ERR_CONTRACT_MISMATCH[fn=_filter_by_pdq, "
+                f"key='{key}', needed={_repr_contract(needed)}, got={_repr_contract(got)}"
+            )
+            if index is not None:
+                message += f", index={index}"
+            message += "]"
+            self._logger.error(message)
+
+        self._logger.debug(
+            "edge %s → _filter_by_pdq | params=%s",
+            self.__class__.__name__,
+            {
+                "chunks_type": type(chunks).__name__,
+                "chunks_len": len(chunks) if isinstance(chunks, list) else "n/a",
+                "pdq_filter_type": type(pdq_filter).__name__,
+                "pdq_filter_keys": sorted(pdq_filter.keys())
+                if isinstance(pdq_filter, dict)
+                else None,
+            },
+        )
+
+        if not isinstance(chunks, list):
+            _log_mismatch("chunks", "list", chunks)
+            return []
+
+        if not isinstance(pdq_filter, dict):
+            _log_mismatch("pdq_filter", "dict", pdq_filter)
+            return []
+
+        expected_policy = pdq_filter.get("policy")
+        expected_dimension = pdq_filter.get("dimension")
+
+        if expected_policy is None or expected_dimension is None:
+            _log_mismatch(
+                "pdq_filter",
+                "keys=('policy','dimension')",
+                {"policy": expected_policy, "dimension": expected_dimension},
+            )
+            return []
+
+        filtered_chunks: list[SemanticChunk] = []
+
+        for index, chunk in enumerate(chunks):
+            if not isinstance(chunk, dict):
+                _log_mismatch("chunk", "dict", chunk, index)
+                continue
+
+            pdq_context = chunk.get("pdq_context")
+
+            if not pdq_context:
+                _log_mismatch("pdq_context", True, pdq_context, index)
+                continue
+
+            if not isinstance(pdq_context, dict):
+                _log_mismatch("pdq_context", "dict", pdq_context, index)
+                continue
+
+            policy = pdq_context.get("policy")
+            dimension = pdq_context.get("dimension")
+
+            if policy is None or dimension is None:
+                _log_mismatch(
+                    "pdq_context",
+                    "keys=('policy','dimension')",
+                    {"policy": policy, "dimension": dimension},
+                    index,
+                )
+                continue
+
+            if policy == expected_policy and dimension == expected_dimension:
+                filtered_chunks.append(chunk)
+
+        return filtered_chunks
 
     def _apply_mmr(
         self,
