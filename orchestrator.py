@@ -6,10 +6,7 @@ TODAS las preguntas base con sus métodos REALES del catálogo.
 SIN brevedad. SIN omisiones. TODO implementado.
 """
 
-from __future__ import annotations
-
 import asyncio
-import hashlib
 import inspect
 import json
 import logging
@@ -17,28 +14,154 @@ import os
 import re
 import statistics
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from datetime import datetime
-from itertools import chain
 from collections import deque
+from datetime import datetime
+from dataclasses import dataclass, field, asdict, is_dataclass
 from pathlib import Path
 from threading import RLock
-import threading
-from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
-
-_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
+from orchestrator.arg_router import (
+    ArgRouter,
+    ArgRouterError,
+    ArgumentValidationError,
+    PayloadDriftMonitor,
+)
+from orchestrator.class_registry import ClassRegistryError, build_class_registry
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:  # pragma: no cover - type checking only
-    from document_ingestion import PreprocessedDocument as PreprocessedDocumentV1
-else:  # pragma: no cover - runtime fallback when ingestion module unavailable
-    PreprocessedDocumentV1 = Any
+if TYPE_CHECKING:
+    from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
+
+
+class _QuestionnaireProvider:
+    """Centralized access to the questionnaire monolith payload."""
+
+    _DEFAULT_PATH = Path(__file__).resolve().parent / "questionnaire_monolith.json"
+
+    def __init__(self, data_path: Optional[Path] = None) -> None:
+        self._data_path = data_path or self._DEFAULT_PATH
+        self._cache: Optional[Dict[str, Any]] = None
+        self._lock = RLock()
+
+    @property
+    def data_path(self) -> Path:
+        """Return the resolved path of the questionnaire payload."""
+        return self._data_path
+
+    def _resolve_path(self, candidate: Optional[Union[str, Path]] = None) -> Path:
+        """Resolve a candidate path relative to the current working directory."""
+        if candidate is None:
+            return self._data_path
+        if isinstance(candidate, Path):
+            path = candidate
+        else:
+            path = Path(candidate)
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        return path
+
+    def exists(self, data_path: Optional[Union[str, Path]] = None) -> bool:
+        """Check whether the questionnaire payload exists on disk."""
+        return self._resolve_path(data_path).exists()
+
+    def describe(self, data_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+        """Return metadata about a questionnaire payload on disk."""
+        path = self._resolve_path(data_path)
+        exists = path.exists()
+        size = path.stat().st_size if exists else 0
+        return {"path": path, "exists": exists, "size": size}
+
+    def _read_payload(self, path: Path) -> Dict[str, Any]:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def load(
+        self,
+        force_reload: bool = False,
+        data_path: Optional[Union[str, Path]] = None,
+    ) -> Dict[str, Any]:
+        """Load and optionally cache the questionnaire payload from disk."""
+        target_path = self._resolve_path(data_path)
+        with self._lock:
+            if data_path is None:
+                if force_reload or self._cache is None:
+                    if not target_path.exists():
+                        raise FileNotFoundError(
+                            f"Questionnaire payload missing at {target_path}"
+                        )
+                    self._cache = self._read_payload(target_path)
+                return self._cache
+
+            if not target_path.exists():
+                raise FileNotFoundError(
+                    f"Questionnaire payload missing at {target_path}"
+                )
+            return self._read_payload(target_path)
+
+    def save(
+        self,
+        payload: Dict[str, Any],
+        output_path: Optional[Union[str, Path]] = None,
+    ) -> Path:
+        """Persist a questionnaire payload to disk through the orchestrator."""
+        target_path = self._resolve_path(output_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=True)
+        if output_path is None:
+            with self._lock:
+                self._cache = payload
+        return target_path
+
+    def get_question(self, question_global: int) -> Dict[str, Any]:
+        """Return the monolith entry for a given global question identifier."""
+        payload = self.load()
+        blocks = payload.get("blocks")
+        if not isinstance(blocks, dict):
+            raise ValueError("The questionnaire payload is missing the 'blocks' mapping")
+
+        def _iter_questions():
+            micro = blocks.get("micro_questions") or []
+            if isinstance(micro, list):
+                for item in micro:
+                    if isinstance(item, dict):
+                        yield item
+            meso = blocks.get("meso_questions") or []
+            if isinstance(meso, list):
+                for item in meso:
+                    if isinstance(item, dict):
+                        yield item
+            macro = blocks.get("macro_question")
+            if isinstance(macro, dict):
+                yield macro
+
+        for question in _iter_questions():
+            if question.get("question_global") == question_global:
+                return question
+
+        raise KeyError(f"Question {question_global} not present in questionnaire payload")
+
+
+_questionnaire_provider = _QuestionnaireProvider()
+
+
+def get_questionnaire_provider() -> _QuestionnaireProvider:
+    """Expose the shared questionnaire provider singleton."""
+    return _questionnaire_provider
+
+
+def get_questionnaire_payload(force_reload: bool = False) -> Dict[str, Any]:
+    """Convenience wrapper returning the questionnaire payload as a dictionary."""
+    return _questionnaire_provider.load(force_reload=force_reload)
+
+
+def get_question_payload(question_global: int) -> Dict[str, Any]:
+    """Convenience wrapper returning a single question entry from the monolith."""
+    return _questionnaire_provider.get_question(question_global)
 
 # Validate dynamic class registry early so missing classes fail fast.
 try:
@@ -49,89 +172,120 @@ except ClassRegistryError as exc:
     _CLASS_REGISTRY = {}
     logger.warning("Class registry validation failed: %s", exc)
 
-@dataclass(frozen=True, slots=True)
-class Evidence:
-    modality: str
-    elements: Tuple[Any, ...] = field(default_factory=tuple)
-    raw_results: Mapping[str, Any] = _EMPTY_MAPPING
+@dataclass
+class PreprocessedDocument:
+    document_id: str
+    raw_text: str
+    sentences: List
+    tables: List
+    metadata: Dict
 
-
-@dataclass(frozen=True)
-class MethodContext:
-    document: OrchestratorDocument
-    overrides: Dict[str, Any]
-
-    @property
-    def raw_text(self) -> str:
-        return self.document.raw_text
-
-    @property
-    def sentences(self) -> Sequence[str]:
-        return self.document.sentences
-
-    @property
-    def tables(self) -> Sequence[Any]:
-        return self.document.tables
-
-    @property
-    def metadata(self) -> Dict[str, Any]:
-        return self.document.metadata
+    @staticmethod
+    def _dataclass_to_dict(value: Any) -> Any:
+        if is_dataclass(value):
+            return asdict(value)
+        return value
 
     @classmethod
-    def from_inputs(
+    def ensure(
+        cls, document: Any, *, document_id: Optional[str] = None
+    ) -> "PreprocessedDocument":
+        """Normalize arbitrary ingestion payloads into orchestrator documents."""
+
+        if isinstance(document, cls):
+            return document
+
+        if hasattr(document, "raw_document") and hasattr(document, "full_text"):
+            return cls._from_ingestion(document, document_id=document_id)
+
+        raise TypeError(
+            "Unsupported preprocessed document payload: "
+            f"expected orchestrator or document_ingestion schema, got {type(document)!r}"
+        )
+
+    @classmethod
+    def _from_ingestion(
         cls,
-        context: OrchestratorDocument | None,
-        kwargs: Dict[str, Any],
-    ) -> "MethodContext":
-        data = dict(kwargs)
-        document = context
-        if document is None:
-            if "raw_text" in data:
-                raw_text = data.pop("raw_text")
+        document: "IngestionPreprocessedDocument" | Any,
+        *,
+        document_id: Optional[str] = None,
+    ) -> "PreprocessedDocument":
+        """Build an orchestrator document from the ingestion schema."""
+
+        raw_doc = getattr(document, "raw_document", None)
+        derived_id: Optional[str] = document_id or getattr(document, "document_id", None)
+
+        if not derived_id and raw_doc is not None:
+            derived_id = getattr(raw_doc, "file_name", None)
+
+        if not derived_id and hasattr(document, "preprocessing_metadata"):
+            derived_id = getattr(document.preprocessing_metadata, "get", lambda _key, _default=None: None)(
+                "document_id"
+            )
+
+        if not derived_id and hasattr(document, "metadata"):
+            derived_id = getattr(document.metadata, "get", lambda _key, _default=None: None)("document_id")
+
+        if not derived_id and raw_doc is not None:
+            source_path = getattr(raw_doc, "file_path", "")
+            if source_path:
+                derived_id = os.path.splitext(os.path.basename(str(source_path)))[0]
+
+        if not derived_id:
+            derived_id = "document_1"
+
+        metadata: Dict[str, Any] = {}
+        preprocessing_block: Optional[Dict[str, Any]] = None
+        if hasattr(document, "preprocessing_metadata"):
+            preprocessing_metadata = document.preprocessing_metadata
+            if isinstance(preprocessing_metadata, dict):
+                preprocessing_block = preprocessing_metadata
             else:
-                raw_text = data.pop("text", "")
-            sentences = data.pop("sentences", []) or []
-            tables = data.pop("tables", []) or []
-            metadata = data.pop("metadata", {}) or {}
-            if not isinstance(metadata, dict):
-                metadata = {"metadata": metadata}
-            document_id = data.pop(
-                "document_id",
-                metadata.get("document_id") or metadata.get("documentId") or "document",
-            )
-            document = OrchestratorDocument(
-                document_id=document_id,
-                raw_text=raw_text,
-                sentences=list(sentences),
-                tables=list(tables),
-                metadata=metadata,
-            )
+                maybe_dict = cls._dataclass_to_dict(preprocessing_metadata)
+                if isinstance(maybe_dict, dict):
+                    preprocessing_block = maybe_dict
+        if preprocessing_block:
+            metadata["preprocessing_metadata"] = preprocessing_block
 
-        return cls(document=document, overrides=data)
+        sentence_metadata = getattr(document, "sentence_metadata", None)
+        if sentence_metadata is not None:
+            metadata["sentence_metadata"] = list(sentence_metadata)
 
+        indexes = getattr(document, "indexes", None)
+        if indexes is not None:
+            metadata["indexes"] = cls._dataclass_to_dict(indexes)
 
-def _route_text_sentences_tables(ctx: MethodContext) -> Dict[str, Any]:
-    payload = {
-        "document_id": ctx.document.document_id,
-        "raw_text": ctx.raw_text,
-        "text": ctx.raw_text,
-        "sentences": list(ctx.sentences),
-        "tables": list(ctx.tables),
-        "metadata": ctx.metadata,
-    }
-    payload.update(ctx.overrides)
-    return payload
+        structured_text = getattr(document, "structured_text", None)
+        if structured_text is not None:
+            metadata["structured_text"] = cls._dataclass_to_dict(structured_text)
 
+        language = getattr(document, "language", None)
+        if language:
+            metadata["language"] = language
 
-DEFAULT_ROUTE = _route_text_sentences_tables
+        raw_doc_dict = cls._dataclass_to_dict(raw_doc) if raw_doc is not None else None
+        if isinstance(raw_doc_dict, dict):
+            metadata.setdefault("raw_document", raw_doc_dict)
+            source_path = raw_doc_dict.get("file_path")
+            if source_path:
+                metadata.setdefault("source_path", source_path)
 
-ARG_ROUTER: Dict[Tuple[str, str], Callable[[MethodContext], Dict[str, Any]]] = {
-    ("IndustrialPolicyProcessor", "process"): _route_text_sentences_tables,
-    ("IndustrialPolicyProcessor", "_match_patterns_in_sentences"): _route_text_sentences_tables,
-    ("IndustrialPolicyProcessor", "_construct_evidence_bundle"): _route_text_sentences_tables,
-    ("PolicyTextProcessor", "segment_into_sentences"): _route_text_sentences_tables,
-    ("BayesianEvidenceScorer", "compute_evidence_score"): _route_text_sentences_tables,
-}
+        metadata.setdefault("document_id", str(derived_id))
+        metadata.setdefault("adapter_source", "document_ingestion.PreprocessedDocument")
+
+        return cls(
+            document_id=str(derived_id),
+            raw_text=getattr(document, "full_text", "") or "",
+            sentences=list(getattr(document, "sentences", [])),
+            tables=list(getattr(document, "tables", [])),
+            metadata=metadata,
+        )
+
+@dataclass
+class Evidence:
+    modality: str
+    elements: List = field(default_factory=list)
+    raw_results: Dict = field(default_factory=dict)
 
 
 class AbortRequested(RuntimeError):
@@ -370,38 +524,12 @@ class PhaseInstrumentation:
         snapshot["items_processed"] = self.items_processed
         self.resource_snapshots.append(snapshot)
 
-    def record_warning(
-        self,
-        *,
-        category: str,
-        message: str,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Record warning with keyword-only parameters."""
-        entry: Dict[str, Any] = {
-            "category": category,
-            "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        if extra:
-            entry.update(extra)
+    def record_warning(self, category: str, message: str, **extra: Any) -> None:
+        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
         self.warnings.append(entry)
 
-    def record_error(
-        self,
-        *,
-        category: str,
-        message: str,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Record error with keyword-only parameters."""
-        entry: Dict[str, Any] = {
-            "category": category,
-            "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        if extra:
-            entry.update(extra)
+    def record_error(self, category: str, message: str, **extra: Any) -> None:
+        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
         self.errors.append(entry)
 
     def _detect_latency_anomaly(self, latency: float) -> None:
@@ -556,23 +684,6 @@ class ArgRouter:
         self, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         signature = inspect.signature(method)
-        normalized = dict(provided_kwargs)
-        
-        # Alias map for common parameter name variations
-        alias_map = {
-            "text": ("raw_text", "document_text"),
-            "raw_text": ("text", "document_text"),
-        }
-        
-        # Apply alias mapping
-        for source, targets in alias_map.items():
-            if source in normalized:
-                for target in targets:
-                    if target in signature.parameters and target not in normalized:
-                        normalized[target] = normalized[source]
-                        break
-        
-        # Filter to only accepted kwargs
         accepted_kwargs: Dict[str, Any] = {}
         allow_extra = False
 
@@ -583,11 +694,13 @@ class ArgRouter:
                 allow_extra = True
                 continue
 
-            if name in normalized:
-                accepted_kwargs[name] = normalized[name]
+            if name in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs[name]
+            elif name == "raw_text" and "text" in provided_kwargs:
+                accepted_kwargs[name] = provided_kwargs["text"]
 
         if allow_extra:
-            for key, value in normalized.items():
+            for key, value in provided_kwargs.items():
                 accepted_kwargs.setdefault(key, value)
 
         return (), accepted_kwargs
@@ -729,94 +842,56 @@ class MethodExecutor:
         self,
         class_registry: Optional[Dict[str, type]] = None,
         arg_router: Optional[ArgRouter] = None,
-    def __init__(self):
-        modules_ok = globals().get('MODULES_OK', False)
-        if modules_ok:
-            # Create shared ontology instance for all analyzers
-            ontology = MunicipalOntology()
-        
+        drift_monitor: Optional[PayloadDriftMonitor] = None,
+    ) -> None:
+        self._class_registry = class_registry or _CLASS_REGISTRY
+        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
+        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
+        if MODULES_OK:
             self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
+                name: cls()
+                for name, cls in self._class_registry.items()
             }
         else:
             self.instances = {}
-        self._router = ArgRouter()
-    
-    def execute(
-        self,
-        *,
-        class_name: str,
-        method_name: str,
-        kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Any:
-        """
-        Execute method with keyword-only parameters (refactored for type safety).
-        
-        Args:
-            class_name: Name of the class to execute
-            method_name: Name of the method to execute
-            kwargs: Optional kwargs dict to pass to method
-        
-        Returns:
-            Method execution result
-        
-        Raises:
-            TypeError: If contract mismatch detected
-            AttributeError: If class or method not found
-        """
+
+    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
         if not MODULES_OK:
             return None
-        
-        # Use empty dict if no kwargs provided
-        method_kwargs = kwargs or {}
-        
+
+        instance = self.instances.get(class_name)
+        if instance is None:
+            logger.error("Class '%s' not registered in executor", class_name)
+            return None
+
+        method = getattr(instance, method_name, None)
+        if method is None:
+            logger.error("Method '%s.%s' not available", class_name, method_name)
+            return None
+
         try:
-            instance = self.instances.get(class_name)
-            if not instance:
-                logger.warning(f"Class '{class_name}' not found in instances")
-                return None
-            
-            method = getattr(instance, method_name, None)
-            if method is None:
-                logger.warning(f"Method '{method_name}' not found on class '{class_name}'")
-                return None
-            
-            # Route arguments through adapter
-            method_context = MethodContext.from_inputs(context, method_kwargs)
-            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
-            routed_kwargs = router(method_context)
-            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
-            
-            return method(**filtered_kwargs)
-        except TypeError as e:
-            if "unexpected keyword argument" in str(e) or "required positional argument" in str(e):
-                logger.error(
-                    f"ERR_CONTRACT_MISMATCH[class={class_name}, method={method_name}]: {e}"
-                )
-            raise
-        except Exception as e:
-            logger.exception(f"Catalog invocation failed for {class_name}.{method_name}")
-            raise
+            args, call_kwargs = self.arg_router.route(
+                class_name, method_name, dict(kwargs)
+            )
+        except ArgumentValidationError as error:
+            expected = self.arg_router.expected_arguments(class_name, method_name)
+            logger.error(
+                "Argument validation failed [%s -> %s]: missing=%s unexpected=%s "
+                "type_mismatches=%s provided=%s expected=%s",
+                class_name,
+                method_name,
+                sorted(error.missing),
+                sorted(error.unexpected),
+                error.type_mismatches,
+                sorted(kwargs.keys()),
+                sorted(expected),
+            )
+            return None
+        except ArgRouterError as error:
+            logger.error(
+                "Routing failure for %s.%s: %s", class_name, method_name, error
+            )
+            return None
 
         self._drift_monitor.maybe_validate(
             kwargs, producer=class_name, consumer=method_name
@@ -836,6 +911,27 @@ class MethodExecutor:
             )
 
         return result
+
+
+
+
+
+class DataFlowExecutor:
+    """Ejecutor base con composición funcional"""
+    
+    def __init__(self, method_executor):
+        self.executor = method_executor
+    
+    def execute_sequential(self, steps, initial_input):
+        """Ejecuta una secuencia de pasos con flujo de datos"""
+        current_data = initial_input
+        for class_name, method_name, param_name in steps:
+            result = self.executor.execute(
+                class_name, method_name,
+                **{param_name: current_data}
+            )
+            current_data = result
+        return current_data
 
 
 class D1Q1_Executor(DataFlowExecutor):
@@ -890,58 +986,54 @@ class D1Q1_Executor(DataFlowExecutor):
             current_data = result
         
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
-    def __init__(self):
-        if MODULES_OK:
-            # Create shared ontology instance for all analyzers
-            ontology = MunicipalOntology()
-            
-            self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
-            }
-        else:
-            self.instances = {}
-        self._router = ArgRouter()
-        # Expose routing context for other methods, preventing NameError
-        global context
-        context = self._router
+        result = self.executor.execute(
+            'PolicyTextProcessor',
+            'segment_into_sentences',
+            data=current_data,
+            text=doc.raw_text,
             sentences=doc.sentences,
-    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
-            if not MODULES_OK:
-                return None
-            try:
-                instance = self.instances.get(class_name)
-                if not instance:
-                    return None
-                method = getattr(instance, method_name)
-                ctx = kwargs.get("context")  # Safely retrieve context if provided
-                method_context = MethodContext.from_inputs(ctx, kwargs)
-                router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
-                routed_kwargs = router(method_context)
-                filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
-                return method(**filtered_kwargs)
-            except Exception as e:
-                logger.exception("Catalog invocation failed")
-                raise
+            tables=doc.tables
+        )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
+        
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
+            'BayesianEvidenceScorer',
+            'compute_evidence_score',
+            data=current_data,
+            text=doc.raw_text,
+            sentences=doc.sentences,
+            tables=doc.tables
+        )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
+        
+        # 6. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
+        result = self.executor.execute(
+            'BayesianEvidenceScorer',
+            '_calculate_shannon_entropy',
+            data=current_data,
+            text=doc.raw_text,
+            sentences=doc.sentences,
+            tables=doc.tables
+        )
+        results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
+        if result is not None:
+            current_data = result
+        
+        # 7. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
+            'PolicyContradictionDetector',
+            '_extract_quantitative_claims',
+            data=current_data,
+            text=doc.raw_text,
+            sentences=doc.sentences,
+            tables=doc.tables
+        )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
         
@@ -9501,6 +9593,106 @@ class D6Q5_Executor(DataFlowExecutor):
         return vals[:4] if vals else []
 
 
+# ============================================================================
+# CASOS ESPECIALES
+# ============================================================================
+
+class D6Q2_Executor_AntiMilagro(D6Q2_Executor):
+    """D6-Q2 con validación anti-milagro"""
+    
+    def execute(self, doc, method_executor):
+        result = super().execute(doc, method_executor)
+        
+        # Detectar saltos causales
+        if self._detect_miracle(result):
+            logger.warning("⚠️ SALTO CAUSAL DETECTADO")
+            result['miracle_penalty'] = 0.5
+        
+        return result
+    
+    def _detect_miracle(self, result):
+        # TODO: Implementar lógica de detección
+        return False
+
+
+class D6Q3_Executor_Bicameral(D6Q3_Executor):
+    """D6-Q3 con sistema bicameral"""
+    
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
+        
+        # Ruta normal
+        base_result = super().execute(doc, method_executor)
+        
+        # RUTA 1: Detección Local (CD._suggest_resolutions)
+        route1 = self.executor.execute(
+            'PolicyContradictionDetector',
+            '_suggest_resolutions',
+            data=base_result['raw']
+        )
+        
+        # RUTA 2: Inferencia Estructural (TC._generar_sugerencias_internas)
+        route2 = self.executor.execute(
+            'TeoriaCambio',
+            '_generar_sugerencias_internas',
+            data=base_result['raw']
+        )
+        
+        # Consolidar
+        base_result['route1'] = route1
+        base_result['route2'] = route2
+        base_result['bicameral'] = True
+        
+        return base_result
+
+
+class D6Q4_Executor_Bicameral(D6Q4_Executor):
+    """D6-Q4 con sistema bicameral"""
+    
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
+        
+        base_result = super().execute(doc, method_executor)
+        
+        route1 = self.executor.execute(
+            'PolicyContradictionDetector',
+            '_suggest_resolutions',
+            data=base_result['raw']
+        )
+        
+        route2 = self.executor.execute(
+            'TeoriaCambio',
+            '_generar_sugerencias_internas',
+            data=base_result['raw']
+        )
+        
+        base_result['route1'] = route1
+        base_result['route2'] = route2
+        base_result['bicameral'] = True
+        
+        return base_result
+
+
+# Derek Beach se aplica donde se necesite
+class ProcessTracingMixin:
+    """Mixin para process tracing"""
+    
+    def apply_hoop_test(self, evidence, hypothesis):
+        return self.executor.execute(
+            'BayesianMechanismInference',
+            '_test_necessity',
+            evidence=evidence,
+            hypothesis=hypothesis
+        )
+    
+    def apply_smoking_gun(self, evidence, hypothesis):
+        return self.executor.execute(
+            'BayesianMechanismInference',
+            '_test_sufficiency',
+            evidence=evidence,
+            hypothesis=hypothesis
+        )
+
 class Orchestrator:
     """Orquestador robusto de 11 fases con abortabilidad y control de recursos."""
 
@@ -9619,26 +9811,6 @@ class Orchestrator:
         self._phase_outputs: Dict[int, Any] = {}
         self._context: Dict[str, Any] = {}
         self._start_time: Optional[float] = None
-        
-        # Initialize RecommendationEngine for 3-level recommendations
-        try:
-            # Try to load enhanced rules first (v2.0), fallback to v1.0
-            try:
-                self.recommendation_engine = RecommendationEngine(
-                    rules_path="config/recommendation_rules_enhanced.json",
-                    schema_path="rules/recommendation_rules_enhanced.schema.json"
-                )
-                logger.info("RecommendationEngine initialized with enhanced v2.0 rules")
-            except Exception as e_enhanced:
-                logger.info(f"Enhanced rules not available ({e_enhanced}), falling back to v1.0")
-                self.recommendation_engine = RecommendationEngine(
-                    rules_path="config/recommendation_rules.json",
-                    schema_path="rules/recommendation_rules.schema.json"
-                )
-                logger.info("RecommendationEngine initialized with v1.0 rules")
-        except Exception as e:
-            logger.warning(f"Failed to initialize RecommendationEngine: {e}")
-            self.recommendation_engine = None
 
     def _resolve_path(self, path: Optional[str]) -> Optional[str]:
         if path is None:
@@ -9669,7 +9841,7 @@ class Orchestrator:
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
     def process_development_plan(
-        self, pdf_path: str, preprocessed_document: Optional[Any] = None
+        self, pdf_path: str, preprocessed_document: Any | None = None
     ) -> List[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
@@ -9684,7 +9856,7 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-        self, pdf_path: str, preprocessed_document: Optional[Any] = None
+        self, pdf_path: str, preprocessed_document: Any | None = None
     ) -> List[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
@@ -9964,34 +10136,34 @@ class Orchestrator:
             "area_cluster_map": area_cluster_map,
         }
 
-    def _ingest_document(self, pdf_path: str, config: Mapping[str, Any]) -> PreprocessedDocument:
+    def _ingest_document(self, pdf_path: str, config: Dict[str, Any]) -> PreprocessedDocument:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[1]
         start = time.perf_counter()
 
         document_id = os.path.splitext(os.path.basename(pdf_path))[0] or "doc_1"
-        ingested_at = datetime.utcnow()
-        metadata_payload: Dict[str, Any] = {
-            "source_path": pdf_path,
-            "ingested_at": ingested_at.isoformat(),
-        }
-        extra_metadata = config.get("metadata") if isinstance(config, Mapping) else None
-        if isinstance(extra_metadata, Mapping):
-            metadata_payload.update(dict(extra_metadata))
-
-        structured_text = StructuredTextV1(full_text="", sections=tuple(), page_boundaries=tuple())
-        preprocessed = PreprocessedDocument(
-            document_id=document_id,
-            full_text="",
-            sentences=tuple(),
-            language=str(config.get("default_language", "unknown")),
-            structured_text=structured_text,
-            sentence_metadata=tuple(),
-            tables=tuple(),
-            indexes=DocumentIndexesV1(),
-            metadata=MappingProxyType(metadata_payload),
-            ingested_at=ingested_at,
-        )
+        override_payload = self._context.get("preprocessed_override")
+        if override_payload is not None:
+            try:
+                preprocessed = PreprocessedDocument.ensure(
+                    override_payload, document_id=document_id
+                )
+            except TypeError as exc:
+                instrumentation.record_error(
+                    "ingestion", "Documento preprocesado incompatible", reason=str(exc)
+                )
+                raise
+        else:
+            preprocessed = PreprocessedDocument(
+                document_id=document_id,
+                raw_text="",
+                sentences=[],
+                tables=[],
+                metadata={
+                    "source_path": pdf_path,
+                    "ingested_at": datetime.utcnow().isoformat(),
+                },
+            )
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
@@ -10092,8 +10264,7 @@ class Orchestrator:
                     instrumentation.record_error("executor", error_message, base_slot=base_slot)
                 else:
                     try:
-                        executor_instance = executor_class(self.executor)
-                        evidence = await asyncio.to_thread(executor_instance.execute, document, self.executor)
+                        evidence = await asyncio.to_thread(executor_class.execute, document, self.executor)
                         circuit["failures"] = 0
                     except Exception as exc:  # pragma: no cover - dependencias externas
                         circuit["failures"] += 1
@@ -10377,184 +10548,16 @@ class Orchestrator:
         macro_result: Dict[str, Any],
         config: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """
-        Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
-        
-        This phase connects to the orchestrator's 3-level flux:
-        - MICRO: Uses scored question results from phase 3
-        - MESO: Uses cluster aggregations from phase 6
-        - MACRO: Uses macro evaluation from phase 7
-        
-        Args:
-            macro_result: Macro evaluation results from phase 7
-            config: Configuration dictionary
-            
-        Returns:
-            Dictionary with MICRO, MESO, and MACRO recommendations
-        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[8]
         start = time.perf_counter()
 
         await asyncio.sleep(0)
-        
-        # If RecommendationEngine is not available, return empty recommendations
-        if self.recommendation_engine is None:
-            logger.warning("RecommendationEngine not available, returning empty recommendations")
-            recommendations = {
-                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "macro_score": macro_result.get("macro_score"),
-            }
-            instrumentation.increment(latency=time.perf_counter() - start)
-            return recommendations
-        
-        try:
-            # ========================================================================
-            # MICRO LEVEL: Transform scored results to PA-DIM scores
-            # ========================================================================
-            micro_scores: Dict[str, float] = {}
-            scored_results = self._context.get('scored_results', [])
-            
-            # Group by policy area and dimension to calculate average scores
-            pa_dim_groups: Dict[str, List[float]] = {}
-            for result in scored_results:
-                if hasattr(result, 'metadata') and result.metadata:
-                    pa_id = result.metadata.get('policy_area_id')
-                    dim_id = result.metadata.get('dimension_id')
-                    score = result.normalized_score
-                    
-                    if pa_id and dim_id and score is not None:
-                        key = f"{pa_id}-{dim_id}"
-                        if key not in pa_dim_groups:
-                            pa_dim_groups[key] = []
-                        pa_dim_groups[key].append(score)
-            
-            # Calculate average for each PA-DIM combination
-            for key, scores in pa_dim_groups.items():
-                if scores:
-                    micro_scores[key] = sum(scores) / len(scores)
-            
-            logger.info(f"Extracted {len(micro_scores)} MICRO PA-DIM scores for recommendations")
-            
-            # ========================================================================
-            # MESO LEVEL: Transform cluster scores
-            # ========================================================================
-            cluster_data: Dict[str, Any] = {}
-            cluster_scores = self._context.get('cluster_scores', [])
-            
-            for cluster in cluster_scores:
-                cluster_id = cluster.get('cluster_id')
-                cluster_score = cluster.get('score')
-                areas = cluster.get('areas', [])
-                
-                if cluster_id and cluster_score is not None:
-                    # Calculate variance across areas in this cluster
-                    area_scores = [area.get('score', 0) for area in areas if area.get('score') is not None]
-                    variance = statistics.variance(area_scores) if len(area_scores) > 1 else 0.0
-                    
-                    # Find weakest policy area in cluster
-                    weak_pa = None
-                    if area_scores:
-                        min_score = min(area_scores)
-                        for area in areas:
-                            if area.get('score') == min_score:
-                                weak_pa = area.get('area_id')
-                                break
-                    
-                    cluster_data[cluster_id] = {
-                        'score': cluster_score * 100,  # Convert to 0-100 scale
-                        'variance': variance,
-                        'weak_pa': weak_pa
-                    }
-            
-            logger.info(f"Extracted {len(cluster_data)} MESO cluster metrics for recommendations")
-            
-            # ========================================================================
-            # MACRO LEVEL: Transform macro evaluation
-            # ========================================================================
-            macro_score = macro_result.get('macro_score')
-            
-            # Determine macro band based on score
-            macro_band = 'INSUFICIENTE'
-            if macro_score is not None:
-                scaled_score = macro_score * 100
-                if scaled_score >= 75:
-                    macro_band = 'SATISFACTORIO'
-                elif scaled_score >= 55:
-                    macro_band = 'ACEPTABLE'
-                elif scaled_score >= 35:
-                    macro_band = 'DEFICIENTE'
-            
-            # Find clusters below target (< 55%)
-            clusters_below_target = []
-            for cluster in cluster_scores:
-                cluster_id = cluster.get('cluster_id')
-                cluster_score = cluster.get('score', 0)
-                if cluster_score * 100 < 55:
-                    clusters_below_target.append(cluster_id)
-            
-            # Calculate overall variance
-            all_cluster_scores = [c.get('score', 0) for c in cluster_scores if c.get('score') is not None]
-            overall_variance = statistics.variance(all_cluster_scores) if len(all_cluster_scores) > 1 else 0.0
-            
-            variance_alert = 'BAJA'
-            if overall_variance >= 0.18:
-                variance_alert = 'ALTA'
-            elif overall_variance >= 0.08:
-                variance_alert = 'MODERADA'
-            
-            # Find priority micro gaps (lowest scoring PA-DIM combinations)
-            sorted_micro = sorted(micro_scores.items(), key=lambda x: x[1])
-            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 1.65]
-            
-            macro_data = {
-                'macro_band': macro_band,
-                'clusters_below_target': clusters_below_target,
-                'variance_alert': variance_alert,
-                'priority_micro_gaps': priority_micro_gaps
-            }
-            
-            logger.info(f"Macro band: {macro_band}, Clusters below target: {len(clusters_below_target)}")
-            
-            # ========================================================================
-            # GENERATE RECOMMENDATIONS AT ALL 3 LEVELS
-            # ========================================================================
-            context = {
-                'generated_at': datetime.utcnow().isoformat(),
-                'macro_score': macro_score
-            }
-            
-            recommendation_sets = self.recommendation_engine.generate_all_recommendations(
-                micro_scores=micro_scores,
-                cluster_data=cluster_data,
-                macro_data=macro_data,
-                context=context
-            )
-            
-            # Convert RecommendationSet objects to dictionaries
-            recommendations = {
-                level: rec_set.to_dict() for level, rec_set in recommendation_sets.items()
-            }
-            recommendations['macro_score'] = macro_score
-            
-            logger.info(
-                f"Generated recommendations: "
-                f"MICRO={len(recommendation_sets['MICRO'].recommendations)}, "
-                f"MESO={len(recommendation_sets['MESO'].recommendations)}, "
-                f"MACRO={len(recommendation_sets['MACRO'].recommendations)}"
-            )
-            
-        except Exception as e:
-            logger.error(f"Error generating recommendations: {e}", exc_info=True)
-            recommendations = {
-                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
-                "macro_score": macro_result.get("macro_score"),
-                "error": str(e)
-            }
+        recommendations = {
+            "strategic": [],
+            "tactical": [],
+            "macro_score": macro_result.get("macro_score"),
+        }
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
