@@ -42,6 +42,12 @@ try:
     CONTRADICTION_MODULE_AVAILABLE = True
 except Exception as import_error:  # pragma: no cover - safety net for heavy deps
     CONTRADICTION_MODULE_AVAILABLE = False
+    
+    # In production/CI, require the module to be available
+    import os
+    if os.getenv('REQUIRE_CONTRADICTION_MODULE', '').lower() in ('true', '1', 'yes'):
+        raise ImportError(f"Contradiction detection module is required but not available: {import_error}")
+    
     logger = logging.getLogger(__name__)
     logger.warning(
         "Falling back to lightweight contradiction components due to import error: %s",

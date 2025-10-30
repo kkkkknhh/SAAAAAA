@@ -121,6 +121,8 @@ jobs:
           echo "=== Verifying contract test coverage ==="
           python -c "
           import sys
+          import re
+          import ast
           
           # Check that contract tests exist
           try:
@@ -133,6 +135,49 @@ jobs:
           except FileNotFoundError:
               print('ERROR: Contract test file not found')
               sys.exit(1)
+          
+          # Check for public interfaces without tests
+          print('=== Checking public interface coverage ===')
+          files_to_check = [
+              'contracts.py',
+              'orchestrator.py',
+              'document_ingestion.py',
+              'embedding_policy.py',
+              'semantic_chunking_policy.py'
+          ]
+          
+          missing_tests = []
+          for file in files_to_check:
+              try:
+                  with open(file) as f:
+                      tree = ast.parse(f.read())
+                      
+                  public_functions = []
+                  for node in ast.walk(tree):
+                      if isinstance(node, ast.FunctionDef) and not node.name.startswith('_'):
+                          public_functions.append(node.name)
+                      elif isinstance(node, ast.ClassDef) and not node.name.startswith('_'):
+                          public_functions.append(node.name)
+                  
+                  # Check if tests exist for public functions
+                  with open('tests/test_contracts.py') as f:
+                      test_content = f.read()
+                      
+                  for func in public_functions:
+                      test_name = f'def test_{func.lower()}'
+                      if test_name not in test_content:
+                          missing_tests.append(f'{file}:{func}')
+                          
+              except Exception as e:
+                  print(f'Warning: Could not analyze {file}: {e}')
+          
+          if missing_tests:
+              print('WARNING: Missing contract tests for public interfaces:')
+              for item in missing_tests:
+                  print(f'  - {item}')
+              print('Consider adding contract tests for these interfaces')
+          else:
+              print('✓ All public interfaces appear to have contract test coverage')
           "
 
   lint-validation:
