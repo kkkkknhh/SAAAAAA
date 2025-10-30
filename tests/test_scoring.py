@@ -92,7 +92,7 @@ def test_scoring_type_a():
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
     score, metadata = score_type_a(evidence, config)
-    assert score == 3.0, f"Expected 3.0, got {score}"
+    assert score == pytest.approx(3.0), f"Expected 3.0, got {score}"
     assert metadata["element_count"] == 4
     assert metadata["confidence"] == 1.0
     print(f"✓ TYPE_A full score: {score}")
