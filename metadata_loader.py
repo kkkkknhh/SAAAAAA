@@ -256,29 +256,40 @@ class MetadataLoader:
         logger.error(json.dumps(log_entry, indent=2))
 
 
-def load_cuestionario(
+# DEPRECATED: Use MonolithOrchestrator instead of load_cuestionario
+# This function is kept for backward compatibility but should not be used
+# Use: from monolith_orchestrator import get_global_orchestrator
+#      orchestrator = get_global_orchestrator()
+#      questions = orchestrator.get_all_questions()
+def load_cuestionario_DEPRECATED(
     path: Optional[Path] = None,
     required_version: str = "2.0.0"
 ) -> Dict[str, Any]:
     """
-    Load and validate cuestionario_FIXED.json
+    DEPRECATED: Use MonolithOrchestrator instead.
+    
+    This function is deprecated and should not be used.
+    Use monolith_orchestrator.get_global_orchestrator() instead.
     
     Args:
-        path: Path to cuestionario file (default: cuestionario_FIXED.json)
-        required_version: Required version
+        path: Path to cuestionario file (IGNORED)
+        required_version: Required version (IGNORED)
     
     Returns:
-        Validated cuestionario data
-    """
-    if path is None:
-        path = Path.cwd() / "cuestionario_FIXED.json"
+        Empty dict (deprecated)
     
-    loader = MetadataLoader()
-    return loader.load_and_validate_metadata(
-        path=path,
-        schema_ref=None,  # TODO: Create cuestionario schema
-        required_version=required_version
+    Raises:
+        DeprecationWarning: Always raised to prevent usage
+    """
+    import warnings
+    warnings.warn(
+        "load_cuestionario is deprecated. Use MonolithOrchestrator instead: "
+        "from monolith_orchestrator import get_global_orchestrator; "
+        "orchestrator = get_global_orchestrator()",
+        DeprecationWarning,
+        stacklevel=2
     )
+    return {}
 
 
 def load_execution_mapping(
@@ -308,18 +319,34 @@ def load_execution_mapping(
 
 def load_rubric_scoring(
     path: Optional[Path] = None,
-    required_version: str = "2.0.0"
+    required_version: str = "2.0.0",
+    use_monolith: bool = True
 ) -> Dict[str, Any]:
     """
-    Load and validate rubric_scoring.json
+    Load and validate rubric_scoring configuration.
+    
+    By default, loads from questionnaire_monolith.json via MonolithOrchestrator.
+    Set use_monolith=False to load from legacy rubric_scoring.json file.
     
     Args:
-        path: Path to rubric scoring (default: rubric_scoring.json)
-        required_version: Required version
+        path: Path to rubric scoring (default: rubric_scoring.json) - only used if use_monolith=False
+        required_version: Required version - only used if use_monolith=False
+        use_monolith: If True, load from monolith (recommended)
     
     Returns:
         Validated rubric scoring configuration
     """
+    if use_monolith:
+        # Load from monolith (recommended path)
+        try:
+            from monolith_orchestrator import get_global_orchestrator
+            orchestrator = get_global_orchestrator()
+            return orchestrator.get_rubricacion_scoring()
+        except Exception as e:
+            logger.warning(f"Failed to load from monolith, falling back to file: {e}")
+            # Fall through to file-based loading
+    
+    # Legacy file-based loading
     if path is None:
         path = Path.cwd() / "rubric_scoring.json"
     

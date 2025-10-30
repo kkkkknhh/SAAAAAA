@@ -43,16 +43,46 @@ class ContractLoadReport:
 
 
 class JSONContractLoader:
-    """Load JSON contract files and compute integrity metadata."""
+    """
+    Load JSON contract files and compute integrity metadata.
+    
+    SECURITY: Direct access to questionnaire_monolith.json is BLOCKED.
+    Use MonolithOrchestrator instead for authorized access.
+    """
 
-    def __init__(self, base_path: Optional[Path] = None):
+    # Blocked files that should use MonolithOrchestrator
+    BLOCKED_FILES = {
+        'questionnaire_monolith.json',
+        'cuestionario_FIXED.json',
+        'cuestionario.json',
+    }
+
+    def __init__(self, base_path: Optional[Path] = None, allow_monolith_access: bool = False):
+        """
+        Initialize contract loader.
+        
+        Args:
+            base_path: Base path for resolving relative paths
+            allow_monolith_access: If False, blocks direct monolith access (default: False)
+        """
         self.base_path = base_path or Path(__file__).resolve().parent
+        self.allow_monolith_access = allow_monolith_access
 
     def load(self, paths: Iterable[PathLike]) -> ContractLoadReport:
         documents: Dict[str, ContractDocument] = {}
         errors: List[str] = []
         for raw in paths:
             path = self._resolve_path(raw)
+            
+            # SECURITY: Block direct monolith access
+            if not self.allow_monolith_access and path.name in self.BLOCKED_FILES:
+                errors.append(
+                    f"{path}: Direct access BLOCKED. "
+                    f"Use MonolithOrchestrator instead: "
+                    f"from monolith_orchestrator import get_global_orchestrator"
+                )
+                continue
+            
             try:
                 payload = self._read_payload(path)
             except (FileNotFoundError, json.JSONDecodeError, ValueError) as exc:
