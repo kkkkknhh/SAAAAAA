@@ -112,7 +112,7 @@ class BayesianEvaluation(TypedDict):
     posterior_samples: list[PosteriorSample]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
-    posterior_records: List[PosteriorSampleRecord]
+    posterior_records: list[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
