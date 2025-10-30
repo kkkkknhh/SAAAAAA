@@ -6,6 +6,8 @@ TODAS las preguntas base con sus métodos REALES del catálogo.
 SIN brevedad. SIN omisiones. TODO implementado.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import json
@@ -20,6 +22,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 from recommendation_engine import RecommendationEngine
 
