@@ -148,7 +148,10 @@ class SemanticProcessor:
         """
         self._lazy_load()
         # Detect structural elements (headings, numbered sections, tables)
-        sections = self._detect_pdm_structure(text)
+        if preserve_structure:
+            sections = self._detect_pdm_structure(text)
+        else:
+            sections = [{"text": text, "type": "TEXT", "id": 0}]
         chunks = []
         for section in sections:
             # Tokenize section
@@ -514,15 +517,13 @@ class PolicyDocumentAnalyzer:
                 "has_numerical": sum(1 for c in chunks if c["has_numerical"])
             },
             "causal_dimensions": dimension_results,
-            "key_excerpts": key_excerpts
-        }
-
     def _extract_key_excerpts(
         self,
         chunks: list[dict[str, Any]],
         dimension_results: dict[str, dict[str, Any]]
     ) -> dict[str, list[str]]:
         """Extract most relevant text excerpts per dimension"""
+        _ = dimension_results  # parameter kept for future compatibility
         excerpts = {}
         for dim, dim_emb in self.dimension_embeddings.items():
             # Rank chunks by similarity
@@ -535,6 +536,9 @@ class PolicyDocumentAnalyzer:
             top_chunks = [chunks[i] for i, _ in sims[:3]]
             excerpts[dim.value] = [
                 c["text"][:300] + ("..." if len(c["text"]) > 300 else "")
+                for c in top_chunks
+            ]
+        return excerpts
                 for c in top_chunks
             ]
         return excerpts

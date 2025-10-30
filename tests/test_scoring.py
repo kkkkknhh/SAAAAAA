@@ -90,11 +90,12 @@ def test_modality_validation_type_a():
 def test_scoring_type_a():
     """Test TYPE_A scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_A)
+    max_score = config.score_range[1]
     
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
     score, metadata = score_type_a(evidence, config)
-    assert score == 4.0, f"Expected 4.0, got {score}"
+    assert score == max_score, f"Expected {max_score}, got {score}"
     assert metadata["element_count"] == 4
     assert metadata["confidence"] == 1.0
     print(f"✓ TYPE_A full score: {score}")
@@ -102,7 +103,7 @@ def test_scoring_type_a():
     # Partial score with lower confidence
     evidence = {"elements": [1, 2], "confidence": 0.5}
     score, metadata = score_type_a(evidence, config)
-    expected = (2/4) * 4.0 * 0.5  # 1.0
+    expected = (2/4) * max_score * 0.5
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_A partial score: {score}")
     

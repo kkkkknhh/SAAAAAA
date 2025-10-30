@@ -191,7 +191,7 @@ class PreprocessedDocument:
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
-        if is_dataclass(value):
+        if is_dataclass(value) and not isinstance(value, type):
             return asdict(value)
         return value
 
