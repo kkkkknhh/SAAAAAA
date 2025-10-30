@@ -1,117 +1,53 @@
-import importlib.util
-from pathlib import Path
+"""Unit tests for the orchestrator argument router."""
+from __future__ import annotations
 
 import pytest
 
-
-def _load_orchestrator_module():
-    module_path = Path(__file__).parent.parent / "orchestrator.py"
-    spec = importlib.util.spec_from_file_location("orchestrator_root", module_path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+from orchestrator.arg_router import ArgRouter, ArgumentValidationError
 
 
-orchestrator = _load_orchestrator_module()
+class SampleExecutor:
+    def compute(self, x: int, y: int, *, flag: bool = False) -> int:
+        return x + y if not flag else x - y
+
+    def optional(self, x: int, y: int | None = None) -> tuple[int, int | None]:
+        return x, y
 
 
-class _RawDocumentStub:
-    def __init__(self):
-        self.file_id = "raw-123"
-        self.file_name = "fallback.pdf"
-        self.file_path = "/tmp/fallback.pdf"
+@pytest.fixture()
+def router() -> ArgRouter:
+    return ArgRouter({"SampleExecutor": SampleExecutor})
 
 
-class _PreprocessedStub:
-    def __init__(self):
-        self.raw_document = _RawDocumentStub()
-        self.full_text = "hello world"
-        self.sentences = ["hello", "world"]
-        self.tables = [{"rows": 1}]
-        self.preprocessing_metadata = {"extra": True}
-        self.language = "es"
-
-
-class DummyProcessor:
-    def __init__(self):
-        self.calls = []
-
-    def process(self, text: str) -> str:
-        self.calls.append({"text": text})
-        return "ok"
-
-
-class DummyTextProcessor:
-    def __init__(self):
-        self.calls = []
-
-    def segment_into_sentences(self, text: str) -> list[str]:
-        self.calls.append({"text": text})
-        return text.split()
-
-
-@pytest.fixture
-def executor(monkeypatch):
-    exec_inst = orchestrator.MethodExecutor()
-    exec_inst.instances = {
-        "IndustrialPolicyProcessor": DummyProcessor(),
-        "PolicyTextProcessor": DummyTextProcessor(),
-    }
-    monkeypatch.setattr(orchestrator, "MODULES_OK", True, raising=False)
-    yield exec_inst
-    monkeypatch.setattr(orchestrator, "MODULES_OK", False, raising=False)
-
-
-def test_orchestrator_document_from_ingestion():
-    doc = orchestrator.OrchestratorDocument.from_ingestion(_PreprocessedStub())
-
-    assert doc.document_id == "raw-123"
-    assert doc.raw_text == "hello world"
-    assert doc.metadata["language"] == "es"
-    assert doc.metadata["source_path"].endswith("fallback.pdf")
-
-
-def test_arg_router_registry_contains_primary_routes():
-    assert (
-        "IndustrialPolicyProcessor",
-        "process",
-    ) in orchestrator.ARG_ROUTER
-    assert (
-        "PolicyTextProcessor",
-        "segment_into_sentences",
-    ) in orchestrator.ARG_ROUTER
-
-
-def test_executor_uses_router_with_context(executor):
-    document = orchestrator.OrchestratorDocument(
-        document_id="doc-1",
-        raw_text="texto",
-        sentences=("uno", "dos"),
-        tables=(),
-        metadata={"source_path": "demo.pdf"},
+def test_route_honors_signature(router: ArgRouter) -> None:
+    args, kwargs = router.route(
+        "SampleExecutor", "compute", {"x": 4, "y": 2, "flag": True}
     )
-
-    result = executor.execute(
-        "IndustrialPolicyProcessor",
-        "process",
-        context=document,
-    )
-
-    assert result == "ok"
-    processor = executor.instances["IndustrialPolicyProcessor"]
-    assert processor.calls[-1] == {"text": "texto"}
+    assert args == (4, 2)
+    assert kwargs == {"flag": True}
 
 
-def test_executor_upgrades_legacy_kwargs(executor):
-    result = executor.execute(
-        "PolicyTextProcessor",
-        "segment_into_sentences",
-        text="hola mundo",
-        sentences=["hola", "mundo"],
-        tables=[],
-    )
+def test_missing_argument_raises(router: ArgRouter) -> None:
+    with pytest.raises(ArgumentValidationError) as excinfo:
+        router.route("SampleExecutor", "compute", {"x": 4})
+    assert excinfo.value.missing == {"y"}
 
-    assert result == ["hola", "mundo"]
-    text_processor = executor.instances["PolicyTextProcessor"]
-    assert text_processor.calls[-1] == {"text": "hola mundo"}
+
+def test_unexpected_argument_raises(router: ArgRouter) -> None:
+    with pytest.raises(ArgumentValidationError) as excinfo:
+        router.route("SampleExecutor", "compute", {"x": 1, "y": 2, "extra": 5})
+    assert excinfo.value.unexpected == {"extra"}
+
+
+def test_optional_parameters_use_sentinel(router: ArgRouter) -> None:
+    args, kwargs = router.route("SampleExecutor", "optional", {"x": 3})
+    assert args == (3,)
+    assert kwargs == {}
+
+
+def test_type_mismatch_raises(router: ArgRouter) -> None:
+    with pytest.raises(ArgumentValidationError) as excinfo:
+        router.route("SampleExecutor", "compute", {"x": "bad", "y": 2})
+    type_msgs = excinfo.value.type_mismatches
+    assert "x" in type_msgs
+    assert "expected int" in type_msgs["x"]

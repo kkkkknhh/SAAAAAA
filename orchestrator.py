@@ -26,6 +26,14 @@ from datetime import datetime
 
 from recommendation_engine import RecommendationEngine
 
+from orchestrator.arg_router import (
+    ArgRouter,
+    ArgRouterError,
+    ArgumentValidationError,
+    PayloadDriftMonitor,
+)
+from orchestrator.class_registry import ClassRegistryError, build_class_registry
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -161,26 +169,14 @@ def get_question_payload(question_global: int) -> Dict[str, Any]:
     """Convenience wrapper returning a single question entry from the monolith."""
     return _questionnaire_provider.get_question(question_global)
 
-# Importar módulos reales
+# Validate dynamic class registry early so missing classes fail fast.
 try:
-    from policy_processor import (
-        BayesianEvidenceScorer,
-        CausalDimension,
-        IndustrialPolicyProcessor,
-        PolicyTextProcessor,
-        ProcessorConfig,
-    )
-    from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
-    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
-    from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
-    from embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
-    from Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
-    from teoria_cambio import TeoriaCambio, AdvancedDAGValidator
-    from semantic_chunking_policy import SemanticChunker
+    _CLASS_REGISTRY = build_class_registry()
     MODULES_OK = True
-except:
+except ClassRegistryError as exc:
     MODULES_OK = False
-    logger.warning("Módulos no disponibles - modo MOCK")
+    _CLASS_REGISTRY = {}
+    logger.warning("Class registry validation failed: %s", exc)
 
 @dataclass(frozen=True)
 class PreprocessedDocumentV2:
@@ -977,60 +973,82 @@ class ArgRouter:
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
 
-    def __init__(self):
+    def __init__(
+        self,
+        class_registry: Optional[Dict[str, type]] = None,
+        arg_router: Optional[ArgRouter] = None,
+        drift_monitor: Optional[PayloadDriftMonitor] = None,
+    ) -> None:
+        self._class_registry = class_registry or _CLASS_REGISTRY
+        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
+        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
             
             self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
+                name: cls()
+                for name, cls in self._class_registry.items()
             }
         else:
             self.instances = {}
-        self._router = ArgRouter()
-    
+
     def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
         if not MODULES_OK:
             return None
+
+        instance = self.instances.get(class_name)
+        if instance is None:
+            logger.error("Class '%s' not registered in executor", class_name)
+            return None
+
+        method = getattr(instance, method_name, None)
+        if method is None:
+            logger.error("Method '%s.%s' not available", class_name, method_name)
+            return None
+
         try:
-            instance = self.instances.get(class_name)
-            if not instance:
-                return None
-            method = getattr(instance, method_name)
-            method_context = MethodContext.from_inputs(context, kwargs)
-            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
-            routed_kwargs = router(method_context)
-            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
-            return method(**filtered_kwargs)
-        except Exception as e:
-            logger.exception("Catalog invocation failed")
-            raise
+            args, call_kwargs = self.arg_router.route(
+                class_name, method_name, dict(kwargs)
+            )
+        except ArgumentValidationError as error:
+            expected = self.arg_router.expected_arguments(class_name, method_name)
+            logger.error(
+                "Argument validation failed [%s -> %s]: missing=%s unexpected=%s "
+                "type_mismatches=%s provided=%s expected=%s",
+                class_name,
+                method_name,
+                sorted(error.missing),
+                sorted(error.unexpected),
+                error.type_mismatches,
+                sorted(kwargs.keys()),
+                sorted(expected),
+            )
+            return None
+        except ArgRouterError as error:
+            logger.error(
+                "Routing failure for %s.%s: %s", class_name, method_name, error
+            )
+            return None
 
+        self._drift_monitor.maybe_validate(
+            kwargs, producer=class_name, consumer=method_name
+        )
 
-class DataFlowExecutor:
-    """Ejecutor base"""
-    def __init__(self, method_executor):
-        self.executor = method_executor
+        try:
+            result = method(*args, **call_kwargs)
+        except Exception as exc:
+            logger.error(f"Error {class_name}.{method_name}: {exc}")
+            return None
+
+        if isinstance(result, dict):
+            self._drift_monitor.maybe_validate(
+                result,
+                producer=f"{class_name}.{method_name}",
+                consumer="return",
+            )
+
+        return result
 
 
 class D1Q1_Executor(DataFlowExecutor):
