@@ -182,11 +182,11 @@ class DocumentLoader:
     def __init__(self):
         self.logger = logger
     
-    def load_pdf(self, file_path: str) -> RawDocument:
+    def load_pdf(self, *, pdf_path: str) -> RawDocument:
         """
-        MÉTODO 1: Carga un PDF desde disco.
+        MÉTODO 1: Carga un PDF desde disco (keyword-only params).
         
-        ENTRADA: pdf_path (string)
+        ENTRADA: pdf_path (string) - keyword only
         PROCESO:
           - Leer bytes del PDF
           - Validar que es PDF válido
@@ -195,7 +195,7 @@ class DocumentLoader:
         SYNC
         
         Args:
-            file_path: Ruta al archivo PDF
+            pdf_path: Ruta al archivo PDF (keyword-only)
             
         Returns:
             RawDocument con información básica del PDF
@@ -203,8 +203,17 @@ class DocumentLoader:
         Raises:
             FileNotFoundError: Si el archivo no existe
             ValueError: Si el archivo no es un PDF válido
+            TypeError: If pdf_path is not a string
         """
-        pdf_path = Path(file_path)
+        # Runtime validation at ingress
+        if not isinstance(pdf_path, str):
+            raise TypeError(
+                f"ERR_CONTRACT_MISMATCH[fn=load_pdf, param='pdf_path', "
+                f"expected=str, got={type(pdf_path).__name__}, "
+                f"producer=caller, consumer=DocumentLoader.load_pdf]"
+            )
+        file_path = pdf_path
+        pdf_path = Path(pdf_path)
         
         if not pdf_path.exists():
             raise FileNotFoundError(f"Archivo no encontrado: {file_path}")
@@ -245,7 +254,7 @@ class DocumentLoader:
         
         return raw_doc
     
-    def validate_pdf(self, raw_doc: RawDocument) -> bool:
+    def validate_pdf(self, *, raw_doc: RawDocument) -> bool:
         """
         MÉTODO 2: Valida que el PDF sea procesable.
         
@@ -343,11 +352,11 @@ class TextExtractor:
     def __init__(self):
         self.logger = logger
     
-    def extract_full_text(self, raw_doc: RawDocument) -> str:
+    def extract_full_text(self, *, raw_doc: RawDocument) -> str:
         """
-        MÉTODO 4: Extrae todo el texto del PDF.
+        MÉTODO 4: Extrae todo el texto del PDF (keyword-only params).
         
-        ENTRADA: RawDocument
+        ENTRADA: RawDocument (keyword only)
         PROCESO:
           - Extraer texto de todas las páginas
           - Preservar estructura (párrafos, secciones)
@@ -356,7 +365,7 @@ class TextExtractor:
         SYNC
         
         Args:
-            raw_doc: Documento crudo cargado
+            raw_doc: Documento crudo cargado (keyword-only)
             
         Returns:
             Texto completo del documento
@@ -390,7 +399,7 @@ class TextExtractor:
         
         return full_text
     
-    def extract_by_page(self, raw_doc: RawDocument, page: int) -> str:
+    def extract_by_page(self, *, raw_doc: RawDocument, page: int) -> str:
         """
         MÉTODO 5: Extrae texto de una página específica.
         
@@ -413,7 +422,7 @@ class TextExtractor:
             self.logger.error(f"Error extrayendo página {page}: {e}")
             return ""
     
-    def preserve_structure(self, text: str) -> StructuredTextV1:
+    def preserve_structure(self, *, text: str) -> StructuredText:
         """
         MÉTODO 6: Preserva estructura del documento.
         
@@ -511,11 +520,11 @@ class PreprocessingEngine:
             self.table_analyzer = None
             self.logger.warning("PDETMunicipalPlanAnalyzer no disponible")
     
-    def preprocess_document(self, raw_doc: RawDocument) -> PreprocessedDocument:
+    def preprocess_document(self, *, raw_doc: RawDocument) -> PreprocessedDocument:
         """
-        MÉTODO 7: Pipeline completo de preprocesamiento.
+        MÉTODO 7: Pipeline completo de preprocesamiento (keyword-only params).
         
-        ENTRADA: RawDocument
+        ENTRADA: RawDocument (keyword only)
         PROCESO INTERNO (SYNC pero con llamadas a métodos existentes):
         
           1. Extraer texto completo
@@ -620,7 +629,7 @@ class PreprocessingEngine:
         
         return preprocessed_doc
     
-    def normalize_encoding(self, text: str) -> str:
+    def normalize_encoding(self, *, text: str) -> str:
         """
         MÉTODO 8: Normaliza encoding del texto.
         
@@ -639,7 +648,7 @@ class PreprocessingEngine:
             import unicodedata
             return unicodedata.normalize('NFC', text)
     
-    def detect_language(self, text: str) -> str:
+    def detect_language(self, *, text: str) -> str:
         """
         MÉTODO 9: Detecta el idioma del documento.
         

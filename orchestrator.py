@@ -367,12 +367,38 @@ class PhaseInstrumentation:
         snapshot["items_processed"] = self.items_processed
         self.resource_snapshots.append(snapshot)
 
-    def record_warning(self, category: str, message: str, **extra: Any) -> None:
-        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
+    def record_warning(
+        self,
+        *,
+        category: str,
+        message: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record warning with keyword-only parameters."""
+        entry: Dict[str, Any] = {
+            "category": category,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        if extra:
+            entry.update(extra)
         self.warnings.append(entry)
 
-    def record_error(self, category: str, message: str, **extra: Any) -> None:
-        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
+    def record_error(
+        self,
+        *,
+        category: str,
+        message: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record error with keyword-only parameters."""
+        entry: Dict[str, Any] = {
+            "category": category,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        if extra:
+            entry.update(extra)
         self.errors.append(entry)
 
     def _detect_latency_anomaly(self, latency: float) -> None:
@@ -732,28 +758,62 @@ class MethodExecutor:
         else:
             self.instances = {}
         self._router = ArgRouter()
-            args, call_kwargs = self.arg_router.route(
-                class_name, method_name, dict(kwargs)
-            )
-        except ArgumentValidationError as error:
-            expected = self.arg_router.expected_arguments(class_name, method_name)
-            logger.error(
-                "Argument validation failed [%s -> %s]: missing=%s unexpected=%s "
-                "type_mismatches=%s provided=%s expected=%s",
-                class_name,
-                method_name,
-                sorted(error.missing),
-                sorted(error.unexpected),
-                error.type_mismatches,
-                sorted(kwargs.keys()),
-                sorted(expected),
-            )
+    
+    def execute(
+        self,
+        *,
+        class_name: str,
+        method_name: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """
+        Execute method with keyword-only parameters (refactored for type safety).
+        
+        Args:
+            class_name: Name of the class to execute
+            method_name: Name of the method to execute
+            kwargs: Optional kwargs dict to pass to method
+        
+        Returns:
+            Method execution result
+        
+        Raises:
+            TypeError: If contract mismatch detected
+            AttributeError: If class or method not found
+        """
+        if not MODULES_OK:
             return None
-        except ArgRouterError as error:
-            logger.error(
-                "Routing failure for %s.%s: %s", class_name, method_name, error
-            )
-            return None
+        
+        # Use empty dict if no kwargs provided
+        method_kwargs = kwargs or {}
+        
+        try:
+            instance = self.instances.get(class_name)
+            if not instance:
+                logger.warning(f"Class '{class_name}' not found in instances")
+                return None
+            
+            method = getattr(instance, method_name, None)
+            if method is None:
+                logger.warning(f"Method '{method_name}' not found on class '{class_name}'")
+                return None
+            
+            # Route arguments through adapter
+            method_context = MethodContext.from_inputs(context, method_kwargs)
+            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+            routed_kwargs = router(method_context)
+            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
+            
+            return method(**filtered_kwargs)
+        except TypeError as e:
+            if "unexpected keyword argument" in str(e) or "required positional argument" in str(e):
+                logger.error(
+                    f"ERR_CONTRACT_MISMATCH[class={class_name}, method={method_name}]: {e}"
+                )
+            raise
+        except Exception as e:
+            logger.exception(f"Catalog invocation failed for {class_name}.{method_name}")
+            raise
 
         self._drift_monitor.maybe_validate(
             kwargs, producer=class_name, consumer=method_name

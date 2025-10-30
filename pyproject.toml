@@ -1,10 +1,176 @@
+[project]
+name = "saaaaaa"
+version = "0.1.0"
+description = "Municipal policy analysis system with strict type safety"
+requires-python = ">=3.10"
+dependencies = []
+
 [tool.pyright]
+# Strict type checking configuration
 typeCheckingMode = "strict"
-include = ["."]
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+
+# Report missing imports
+reportMissingImports = true
+reportMissingTypeStubs = true
+
+# Strict settings from problem statement
+reportUnknownParameterType = "error"
+reportUnknownArgumentType = "error"
+reportUnknownMemberType = "error"
+reportUnknownVariableType = "error"
+reportUntypedFunctionDecorator = "error"
+reportUntypedClassDecorator = "error"
+reportUntypedBaseClass = "error"
+reportUnknownLambdaType = "error"
+reportImplicitStringConcatenation = "warning"
+reportMissingTypeArgument = "error"
+reportInvalidTypeVarUse = "error"
+reportCallInDefaultInitializer = "warning"
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryContains = "warning"
+reportAssertAlwaysTrue = "warning"
+reportSelfClsParameterName = "error"
+reportImplicitOverride = "warning"
+
+# Ban Any as defect
+reportAny = "error"
+
+# Forbid untyped defs
+reportUntypedFunctionDecorator = "error"
+reportUntypedClassDecorator = "error"
+
+# Forbid implicit Optional
+reportOptionalCall = "error"
+reportOptionalMemberAccess = "error"
+reportOptionalIterable = "error"
+reportOptionalContextManager = "error"
+reportOptionalOperand = "error"
+
+# Include and exclude paths
+include = [
+    "orchestrator.py",
+    "document_ingestion.py",
+    "embedding_policy.py",
+    "semantic_chunking_policy.py",
+    "scoring/",
+    "concurrency/",
+]
+
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "tests/",
+    "examples/",
+    ".git",
+]
 
 [tool.mypy]
+# Strict type checking for mypy
 python_version = "3.10"
-disallow_untyped_defs = true
-no_implicit_optional = true
+strict = true
 warn_return_any = true
 warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+disallow_any_expr = false  # Too strict initially
+disallow_any_decorated = true
+disallow_any_explicit = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Core packages with strict enforcement
+[[tool.mypy.overrides]]
+module = [
+    "orchestrator",
+    "document_ingestion",
+    "embedding_policy",
+    "semantic_chunking_policy",
+    "scoring.*",
+    "concurrency.*",
+]
+strict = true
+disallow_any_expr = false
+
+# Ignore third-party packages without stubs
+[[tool.mypy.overrides]]
+module = [
+    "pdfplumber.*",
+    "langdetect.*",
+    "spacy.*",
+    "transformers.*",
+    "sklearn.*",
+    "networkx.*",
+    "pymc.*",
+    "dowhy.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+# Linting rules
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "ANN", # flake8-annotations
+]
+
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "ANN101", # missing type annotation for self
+    "ANN102", # missing type annotation for cls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN", "ARG"]
+"examples/**/*.py" = ["ANN"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers --tb=short"
+markers = [
+    "contract: Contract tests for API boundaries",
+    "property: Property-based tests with Hypothesis",
+    "integration: Integration tests",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "examples/*", ".venv/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]

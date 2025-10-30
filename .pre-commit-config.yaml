@@ -21,3 +21,25 @@ repos:
         entry: python tools/lint/json_lint.py rubric_scoring.json --schema schemas/rubric_scoring.schema.json
         language: system
         pass_filenames: false
+  
+  # Type checking and linting (from problem statement requirements)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        name: Ruff Linter
+        args: [--fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: Ruff Formatter
+        types_or: [python, pyi]
+  
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.0
+    hooks:
+      - id: mypy
+        name: MyPy Type Checker
+        args: [--strict, --config-file=pyproject.toml]
+        additional_dependencies: []
+        files: ^(orchestrator|document_ingestion|embedding_policy|semantic_chunking_policy|scoring|concurrency)\.py$
+        pass_filenames: true
