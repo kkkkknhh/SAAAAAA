@@ -23,7 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Literal, Protocol, TypedDict, Union
+from typing import Any, Iterable, Literal, Protocol, TypedDict, Union
 
 import numpy as np
 import scipy.stats as stats
@@ -80,6 +80,12 @@ class PDQIdentifier(TypedDict):
     rubric_key: str  # D#-Q#
 
 
+class PosteriorSampleRecord(TypedDict):
+    """Serializable posterior sample used by downstream Bayesian consumers."""
+
+    coherence: float
+
+
 class SemanticChunk(TypedDict):
     """Structured semantic chunk with metadata."""
 
@@ -92,14 +98,21 @@ class SemanticChunk(TypedDict):
     position: tuple[int, int]  # (start, end) in document
 
 
+class PosteriorSample(TypedDict):
+    """Serialized posterior sample representation."""
+
+    coherence: float
+
+
 class BayesianEvaluation(TypedDict):
     """Bayesian uncertainty-aware evaluation result."""
 
     point_estimate: float  # 0.0-1.0
     credible_interval_95: tuple[float, float]
-    posterior_samples: NDArray[np.float32]
+    posterior_samples: list[PosteriorSample]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
+    posterior_records: list[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
@@ -108,6 +121,32 @@ class EmbeddingProtocol(Protocol):
     def encode(
         self, texts: list[str], batch_size: int = 32, normalize: bool = True
     ) -> NDArray[np.float32]: ...
+
+
+def to_dict_samples(samples: NDArray[np.float32] | Iterable[float]) -> list[PosteriorSample]:
+    """Convert posterior samples to the serialized TypedDict format."""
+
+    array = np.asarray(list(samples) if not hasattr(samples, "shape") else samples, dtype=np.float32)
+    flat = array.ravel()
+    return [{"coherence": float(value)} for value in flat]
+
+
+def samples_to_array(samples: NDArray[np.float32] | Iterable[PosteriorSample]) -> NDArray[np.float32]:
+    """Normalize posterior samples into a numpy array for computation."""
+
+    if isinstance(samples, np.ndarray):
+        return samples.astype(np.float32)
+    return np.array([sample["coherence"] for sample in samples], dtype=np.float32)
+
+
+def ensure_content_schema(chunk: dict[str, Any]) -> dict[str, Any]:
+    """Ensure chunk dictionaries expose the ``content`` key."""
+
+    if "content" not in chunk and "text" in chunk:
+        upgraded = dict(chunk)
+        upgraded["content"] = upgraded.pop("text")
+        return upgraded
+    return chunk
 
 
 # ============================================================================
@@ -213,7 +252,7 @@ class AdvancedSemanticChunker:
                 "position": (0, len(chunk_text)),  # Updated during splitting
             }
 
-            semantic_chunks.append(semantic_chunk)
+            semantic_chunks.append(ensure_content_schema(semantic_chunk))
 
         self._logger.info(
             "Created %d semantic chunks from document %s",
@@ -475,12 +514,15 @@ class BayesianNumericalAnalyzer:
         # Assess numerical coherence (consistency of observations)
         coherence = self._compute_coherence(obs_array)
 
+        serialized_samples = to_dict_samples(posterior_samples)
+
         return BayesianEvaluation(
             point_estimate=point_estimate,
             credible_interval_95=(ci_lower, ci_upper),
-            posterior_samples=posterior_samples,
+            posterior_samples=serialized_samples,
             evidence_strength=evidence_strength,
             numerical_coherence=coherence,
+            posterior_records=self.serialize_posterior_samples(posterior_samples),
         )
 
     def _beta_binomial_posterior(
@@ -581,13 +623,38 @@ class BayesianNumericalAnalyzer:
 
     def _null_evaluation(self) -> BayesianEvaluation:
         """Return null evaluation when no data available."""
+        null_samples = to_dict_samples(np.array([0.0], dtype=np.float32))
+
         return BayesianEvaluation(
             point_estimate=0.0,
             credible_interval_95=(0.0, 0.0),
-            posterior_samples=np.array([0.0], dtype=np.float32),
+            posterior_samples=null_samples,
             evidence_strength="weak",
             numerical_coherence=0.0,
+            posterior_records=[{"coherence": 0.0}],
         )
+
+    def serialize_posterior_samples(
+        self, samples: NDArray[np.float32]
+    ) -> List[PosteriorSampleRecord]:
+        """Convert posterior samples into standardized coherence records.
+
+        Safely handles None or non-array inputs and limits the number of
+        serialized records to avoid excessive memory use.
+        """
+        if samples is None:
+            return []
+
+        # Ensure a 1-D numpy array of floats
+        arr = np.asarray(samples, dtype=np.float32).ravel()
+
+        # Prevent accidental excessive memory use when serializing huge arrays
+        MAX_RECORDS = 10000
+        values = arr.tolist()
+        if len(values) > MAX_RECORDS:
+            values = values[:MAX_RECORDS]
+
+        return [{"coherence": float(v)} for v in values]
 
     def compare_policies(
         self,
@@ -606,10 +673,15 @@ class BayesianNumericalAnalyzer:
         eval_a = self.evaluate_policy_metric(policy_a_values)
         eval_b = self.evaluate_policy_metric(policy_b_values)
 
-        # Compute probability that A > B
-        prob_a_better = np.mean(
-            eval_a["posterior_samples"] > eval_b["posterior_samples"]
-        )
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation
+        samples_a = samples_to_array(eval_a["posterior_samples"])
+        samples_b = samples_to_array(eval_b["posterior_samples"])
+
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation.
+        prob_a_better = float(np.mean(samples_a > samples_b))
+        prob_a_better = float(np.clip(prob_a_better, 1e-6, 1.0 - 1e-6))
 
         # Compute Bayes factor (simplified)
         if prob_a_better > 0.5:
@@ -620,19 +692,17 @@ class BayesianNumericalAnalyzer:
         return {
             "probability_a_better": float(prob_a_better),
             "bayes_factor": float(bayes_factor),
-            "difference_mean": float(
-                np.mean(eval_a["posterior_samples"] - eval_b["posterior_samples"])
-            ),
+            "difference_mean": float(np.mean(samples_a - samples_b)),
             "difference_ci_95": (
                 float(
                     np.percentile(
-                        eval_a["posterior_samples"] - eval_b["posterior_samples"],
+                        samples_a - samples_b,
                         2.5,
                     )
                 ),
                 float(
                     np.percentile(
-                        eval_a["posterior_samples"] - eval_b["posterior_samples"],
+                        samples_a - samples_b,
                         97.5,
                     )
                 ),
@@ -1129,13 +1199,91 @@ class PolicyAnalysisEmbedder:
         self, chunks: list[SemanticChunk], pdq_filter: PDQIdentifier
     ) -> list[SemanticChunk]:
         """Filter chunks by P-D-Q context."""
-        return [
-            chunk
-            for chunk in chunks
-            if chunk["pdq_context"]
-            and chunk["pdq_context"]["policy"] == pdq_filter["policy"]
-            and chunk["pdq_context"]["dimension"] == pdq_filter["dimension"]
-        ]
+
+        def _repr_contract(value: Any) -> str:
+            if value is None or isinstance(value, (int, float, bool)):
+                return repr(value)
+            if isinstance(value, str):
+                # Strip excessive whitespace for logging clarity
+                preview = value if len(value) <= 24 else f"{value[:21]}..."
+                return repr(preview)
+            return type(value).__name__
+
+        def _log_mismatch(key: str, needed: Any, got: Any, index: int | None = None) -> None:
+            message = (
+                "ERR_CONTRACT_MISMATCH[fn=_filter_by_pdq, "
+                f"key='{key}', needed={_repr_contract(needed)}, got={_repr_contract(got)}"
+            )
+            if index is not None:
+                message += f", index={index}"
+            message += "]"
+            self._logger.error(message)
+
+        self._logger.debug(
+            "edge %s → _filter_by_pdq | params=%s",
+            self.__class__.__name__,
+            {
+                "chunks_type": type(chunks).__name__,
+                "chunks_len": len(chunks) if isinstance(chunks, list) else "n/a",
+                "pdq_filter_type": type(pdq_filter).__name__,
+                "pdq_filter_keys": sorted(pdq_filter.keys())
+                if isinstance(pdq_filter, dict)
+                else None,
+            },
+        )
+
+        if not isinstance(chunks, list):
+            _log_mismatch("chunks", "list", chunks)
+            return []
+
+        if not isinstance(pdq_filter, dict):
+            _log_mismatch("pdq_filter", "dict", pdq_filter)
+            return []
+
+        expected_policy = pdq_filter.get("policy")
+        expected_dimension = pdq_filter.get("dimension")
+
+        if expected_policy is None or expected_dimension is None:
+            _log_mismatch(
+                "pdq_filter",
+                "keys=('policy','dimension')",
+                {"policy": expected_policy, "dimension": expected_dimension},
+            )
+            return []
+
+        filtered_chunks: list[SemanticChunk] = []
+
+        for index, chunk in enumerate(chunks):
+            if not isinstance(chunk, dict):
+                _log_mismatch("chunk", "dict", chunk, index)
+                continue
+
+            pdq_context = chunk.get("pdq_context")
+
+            if not pdq_context:
+                _log_mismatch("pdq_context", True, pdq_context, index)
+                continue
+
+            if not isinstance(pdq_context, dict):
+                _log_mismatch("pdq_context", "dict", pdq_context, index)
+                continue
+
+            policy = pdq_context.get("policy")
+            dimension = pdq_context.get("dimension")
+
+            if policy is None or dimension is None:
+                _log_mismatch(
+                    "pdq_context",
+                    "keys=('policy','dimension')",
+                    {"policy": policy, "dimension": dimension},
+                    index,
+                )
+                continue
+
+            if policy == expected_policy and dimension == expected_dimension:
+                filtered_chunks.append(chunk)
+
+        return filtered_chunks
 
     def _apply_mmr(
         self,
