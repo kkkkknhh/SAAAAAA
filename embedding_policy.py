@@ -677,7 +677,10 @@ class BayesianNumericalAnalyzer:
         samples_a = samples_to_array(eval_a["posterior_samples"])
         samples_b = samples_to_array(eval_b["posterior_samples"])
 
-        prob_a_better = np.mean(samples_a > samples_b)
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation.
+        prob_a_better = float(np.mean(samples_a > samples_b))
+        prob_a_better = float(np.clip(prob_a_better, 1e-6, 1.0 - 1e-6))
 
         # Compute Bayes factor (simplified)
         if prob_a_better > 0.5:
