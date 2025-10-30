@@ -40,7 +40,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Recommendation:
     """
-    Structured recommendation with full intervention details
+    Structured recommendation with full intervention details.
+    
+    Supports both v1.0 (simple) and v2.0 (enhanced with 7 advanced features):
+    1. Template parameterization
+    2. Execution logic
+    3. Measurable indicators
+    4. Unambiguous time horizons
+    5. Testable verification
+    6. Cost tracking
+    7. Authority mapping
     """
     rule_id: str
     level: str  # MICRO, MESO, or MACRO
@@ -48,13 +57,21 @@ class Recommendation:
     intervention: str
     indicator: Dict[str, Any]
     responsible: Dict[str, Any]
-    horizon: Dict[str, str]
-    verification: List[str]
+    horizon: Dict[str, Any]  # Changed from Dict[str, str] to support enhanced fields
+    verification: List[Any]  # Changed from List[str] to support structured verification
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    # Enhanced fields (v2.0) - optional for backward compatibility
+    execution: Optional[Dict[str, Any]] = None
+    budget: Optional[Dict[str, Any]] = None
+    template_id: Optional[str] = None
+    template_params: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return asdict(self)
+        result = asdict(self)
+        # Remove None values for cleaner output
+        return {k: v for k, v in result.items() if v is not None}
 
 
 @dataclass
@@ -201,7 +218,7 @@ class RecommendationEngine:
                 template = rule.get('template', {})
                 rendered = self._render_micro_template(template, pa_id, dim_id, context)
                 
-                # Create recommendation
+                # Create recommendation with enhanced fields (v2.0) if available
                 rec = Recommendation(
                     rule_id=rule.get('rule_id'),
                     level='MICRO',
@@ -216,7 +233,12 @@ class RecommendationEngine:
                         'actual_score': scores[score_key],
                         'threshold': score_lt,
                         'gap': score_lt - scores[score_key]
-                    }
+                    },
+                    # Enhanced fields (v2.0)
+                    execution=rule.get('execution'),
+                    budget=rule.get('budget'),
+                    template_id=template.get('template_id'),
+                    template_params=template.get('template_params')
                 )
                 recommendations.append(rec)
         
@@ -316,7 +338,7 @@ class RecommendationEngine:
             template = rule.get('template', {})
             rendered = self._render_meso_template(template, cluster_id, context)
             
-            # Create recommendation
+            # Create recommendation with enhanced fields (v2.0) if available
             rec = Recommendation(
                 rule_id=rule.get('rule_id'),
                 level='MESO',
@@ -333,7 +355,12 @@ class RecommendationEngine:
                     'variance': cluster_variance,
                     'variance_level': variance_level,
                     'weak_pa': cluster_weak_pa
-                }
+                },
+                # Enhanced fields (v2.0)
+                execution=rule.get('execution'),
+                budget=rule.get('budget'),
+                template_id=template.get('template_id'),
+                template_params=template.get('template_params')
             )
             recommendations.append(rec)
         
@@ -467,7 +494,7 @@ class RecommendationEngine:
             template = rule.get('template', {})
             rendered = self._render_macro_template(template, context)
             
-            # Create recommendation
+            # Create recommendation with enhanced fields (v2.0) if available
             rec = Recommendation(
                 rule_id=rule.get('rule_id'),
                 level='MACRO',
@@ -482,7 +509,12 @@ class RecommendationEngine:
                     'clusters_below_target': list(actual_clusters),
                     'variance_alert': actual_variance,
                     'priority_micro_gaps': list(actual_gaps)
-                }
+                },
+                # Enhanced fields (v2.0)
+                execution=rule.get('execution'),
+                budget=rule.get('budget'),
+                template_id=template.get('template_id'),
+                template_params=template.get('template_params')
             )
             recommendations.append(rec)
         
