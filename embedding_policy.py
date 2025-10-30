@@ -673,7 +673,8 @@ class BayesianNumericalAnalyzer:
         eval_a = self.evaluate_policy_metric(policy_a_values)
         eval_b = self.evaluate_policy_metric(policy_b_values)
 
-        # Compute probability that A > B
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation
         samples_a = samples_to_array(eval_a["posterior_samples"])
         samples_b = samples_to_array(eval_b["posterior_samples"])
 
