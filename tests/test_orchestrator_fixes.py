@@ -15,9 +15,7 @@ import inspect
 
 try:
     import pytest
-    HAS_PYTEST = True
 except ImportError:
-    HAS_PYTEST = False
     # Mock pytest.raises for standalone execution
     class MockPytest:
         class raises:
@@ -53,46 +51,49 @@ from aggregation import (
 )
 
 
+def simulate_default_route(method, provided_kwargs):
+    """
+    Helper function that simulates the ArgRouter._default_route logic.
+    
+    This extracts the common routing logic used in tests to avoid duplication.
+    """
+    signature = inspect.signature(method)
+    normalized = dict(provided_kwargs)
+    
+    # Alias map for common parameter name variations
+    alias_map = {
+        "text": ("raw_text", "document_text"),
+        "raw_text": ("text", "document_text"),
+    }
+    
+    # Apply alias mapping
+    for source, targets in alias_map.items():
+        if source in normalized:
+            for target in targets:
+                if target in signature.parameters and target not in normalized:
+                    normalized[target] = normalized[source]
+                    break
+    
+    # Filter to only accepted kwargs
+    accepted_kwargs = {}
+    for name, param in signature.parameters.items():
+        if param.kind == param.VAR_POSITIONAL:
+            continue
+        if param.kind == param.VAR_KEYWORD:
+            for key, value in normalized.items():
+                accepted_kwargs.setdefault(key, value)
+            break
+        if name in normalized:
+            accepted_kwargs[name] = normalized[name]
+    
+    return (), accepted_kwargs
+
+
 class TestArgRouterAliasing:
     """Test Issue 1: Alias-mismatched kwargs in MethodExecutor"""
     
     def test_default_route_text_to_raw_text_alias(self):
         """Test that 'text' is aliased to 'raw_text' when needed."""
-        # Test the aliasing logic directly
-        # Create a simple implementation to test the logic
-        
-        def default_route(method, provided_kwargs):
-            signature = inspect.signature(method)
-            normalized = dict(provided_kwargs)
-            
-            # Alias map for common parameter name variations
-            alias_map = {
-                "text": ("raw_text", "document_text"),
-                "raw_text": ("text", "document_text"),
-            }
-            
-            # Apply alias mapping
-            for source, targets in alias_map.items():
-                if source in normalized:
-                    for target in targets:
-                        if target in signature.parameters and target not in normalized:
-                            normalized[target] = normalized[source]
-                            break
-            
-            # Filter to only accepted kwargs
-            accepted_kwargs = {}
-            for name, param in signature.parameters.items():
-                if param.kind == param.VAR_POSITIONAL:
-                    continue
-                if param.kind == param.VAR_KEYWORD:
-                    for key, value in normalized.items():
-                        accepted_kwargs.setdefault(key, value)
-                    break
-                if name in normalized:
-                    accepted_kwargs[name] = normalized[name]
-            
-            return (), accepted_kwargs
-        
         # Create a mock method that expects raw_text
         def mock_method(self, raw_text: str):
             return raw_text
@@ -100,7 +101,7 @@ class TestArgRouterAliasing:
         # Provide kwargs with 'text' instead of 'raw_text'
         provided_kwargs = {'text': 'sample text', 'sentences': [], 'tables': []}
         
-        args, routed_kwargs = default_route(mock_method, provided_kwargs)
+        args, routed_kwargs = simulate_default_route(mock_method, provided_kwargs)
         
         # Should map 'text' to 'raw_text'
         assert 'raw_text' in routed_kwargs, "Expected 'raw_text' in routed kwargs"
@@ -113,38 +114,6 @@ class TestArgRouterAliasing:
     
     def test_default_route_raw_text_to_text_alias(self):
         """Test that 'raw_text' is aliased to 'text' when needed."""
-        def default_route(method, provided_kwargs):
-            signature = inspect.signature(method)
-            normalized = dict(provided_kwargs)
-            
-            # Alias map for common parameter name variations
-            alias_map = {
-                "text": ("raw_text", "document_text"),
-                "raw_text": ("text", "document_text"),
-            }
-            
-            # Apply alias mapping
-            for source, targets in alias_map.items():
-                if source in normalized:
-                    for target in targets:
-                        if target in signature.parameters and target not in normalized:
-                            normalized[target] = normalized[source]
-                            break
-            
-            # Filter to only accepted kwargs
-            accepted_kwargs = {}
-            for name, param in signature.parameters.items():
-                if param.kind == param.VAR_POSITIONAL:
-                    continue
-                if param.kind == param.VAR_KEYWORD:
-                    for key, value in normalized.items():
-                        accepted_kwargs.setdefault(key, value)
-                    break
-                if name in normalized:
-                    accepted_kwargs[name] = normalized[name]
-            
-            return (), accepted_kwargs
-        
         # Create a mock method that expects text
         def mock_method(self, text: str):
             return text
@@ -152,7 +121,7 @@ class TestArgRouterAliasing:
         # Provide kwargs with 'raw_text' instead of 'text'
         provided_kwargs = {'raw_text': 'sample text', 'sentences': []}
         
-        args, routed_kwargs = default_route(mock_method, provided_kwargs)
+        args, routed_kwargs = simulate_default_route(mock_method, provided_kwargs)
         
         # Should map 'raw_text' to 'text'
         assert 'text' in routed_kwargs, "Expected 'text' in routed kwargs"
@@ -164,38 +133,6 @@ class TestArgRouterAliasing:
     
     def test_default_route_filters_extra_kwargs(self):
         """Test that extra kwargs are filtered out."""
-        def default_route(method, provided_kwargs):
-            signature = inspect.signature(method)
-            normalized = dict(provided_kwargs)
-            
-            # Alias map for common parameter name variations
-            alias_map = {
-                "text": ("raw_text", "document_text"),
-                "raw_text": ("text", "document_text"),
-            }
-            
-            # Apply alias mapping
-            for source, targets in alias_map.items():
-                if source in normalized:
-                    for target in targets:
-                        if target in signature.parameters and target not in normalized:
-                            normalized[target] = normalized[source]
-                            break
-            
-            # Filter to only accepted kwargs
-            accepted_kwargs = {}
-            for name, param in signature.parameters.items():
-                if param.kind == param.VAR_POSITIONAL:
-                    continue
-                if param.kind == param.VAR_KEYWORD:
-                    for key, value in normalized.items():
-                        accepted_kwargs.setdefault(key, value)
-                    break
-                if name in normalized:
-                    accepted_kwargs[name] = normalized[name]
-            
-            return (), accepted_kwargs
-        
         # Create a mock method with specific parameters
         def mock_method(self, matches: list, total_corpus_size: int):
             return len(matches)
@@ -208,7 +145,7 @@ class TestArgRouterAliasing:
             'sentences': [],
         }
         
-        args, routed_kwargs = default_route(mock_method, provided_kwargs)
+        args, routed_kwargs = simulate_default_route(mock_method, provided_kwargs)
         
         # Should only include expected parameters
         assert 'matches' in routed_kwargs, "Expected 'matches' in routed kwargs"
@@ -297,14 +234,6 @@ class TestWeightedAverageValidation:
         # Should not raise an error and should compute correctly
         assert result > 0.0
         print("✓ test_weight_length_match_succeeds passed")
-
-
-class TestExceptionHandling:
-    """Test Issue 4: Exception laundering in MethodExecutor"""
-    
-    def test_method_executor_raises_exceptions(self):
-        """Test that MethodExecutor re-raises exceptions instead of returning None."""
-        print("SKIPPED: test_method_executor_raises_exceptions - requires full module import")
 
 
 class TestDimensionNormalization:
