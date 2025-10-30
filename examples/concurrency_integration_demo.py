@@ -17,9 +17,13 @@ Key features demonstrated:
 
 import logging
 import time
-from typing import List
+from dataclasses import dataclass
+from datetime import datetime
+from types import MappingProxyType
+from typing import Tuple
 
 from concurrency import WorkerPool, WorkerPoolConfig
+from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,22 +32,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Mock classes for demonstration
-class PreprocessedDocument:
-    """Mock preprocessed document."""
-    def __init__(self, document_id: str, text: str):
-        self.document_id = document_id
-        self.raw_text = text
-        self.sentences = []
-        self.tables = []
-        self.metadata = {}
-
-
+@dataclass(frozen=True, slots=True)
 class Evidence:
     """Mock evidence result."""
-    def __init__(self, modality: str, elements: List[str]):
-        self.modality = modality
-        self.elements = elements
+
+    modality: str
+    elements: Tuple[str, ...]
 
 
 def process_micro_question(
@@ -77,7 +71,7 @@ def process_micro_question(
     # Return mock evidence
     return Evidence(
         modality="TYPE_A",
-        elements=[f"evidence_{question_num}_1", f"evidence_{question_num}_2"]
+        elements=(f"evidence_{question_num}_1", f"evidence_{question_num}_2"),
     )
 
 
@@ -96,8 +90,19 @@ def orchestrator_with_workerpool_demo():
     logger.info("ORCHESTRATOR WITH WORKERPOOL DEMO")
     logger.info("=" * 70)
     
-    # Create preprocessed document (mock)
-    doc = PreprocessedDocument("doc_1", "mock text")
+    # Create preprocessed document (mock payload using the shared DTO)
+    doc = PreprocessedDocument(
+        document_id="doc_1",
+        full_text="mock text",
+        sentences=("mock text",),
+        language="es",
+        structured_text=StructuredTextV1(full_text="mock text"),
+        sentence_metadata=tuple(),
+        tables=tuple(),
+        indexes=DocumentIndexesV1(),
+        metadata=MappingProxyType({"source": "demo"}),
+        ingested_at=datetime.utcnow(),
+    )
     
     # Configure WorkerPool
     config = WorkerPoolConfig(

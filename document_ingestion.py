@@ -29,9 +29,105 @@ DEPENDENCIAS:
 """
 
 import logging
-from dataclasses import dataclass, field
+from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from types import MappingProxyType
+from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+
+from schemas.preprocessed_document import (
+    DocumentIndexesV1,
+    PreprocessedDocument,
+    SentenceMetadata,
+    StructuredSection,
+    StructuredTextV1,
+    TableAnnotation,
+)
+
+_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
+
+
+def _to_frozen_mapping(data: Optional[Mapping[str, Any]]) -> Mapping[str, Any]:
+    if not data:
+        return _EMPTY_MAPPING
+    if isinstance(data, MappingProxyType):
+        return data
+    return MappingProxyType(dict(data))
+
+
+def _coerce_optional_int(value: Any) -> Optional[int]:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_sentence_metadata_entries(
+    entries: Sequence[Any],
+    sentences: Sequence[str],
+) -> Tuple[SentenceMetadata, ...]:
+    result: List[SentenceMetadata] = []
+    for index, entry in enumerate(entries):
+        if isinstance(entry, SentenceMetadata):
+            result.append(entry)
+            continue
+
+        if isinstance(entry, Mapping):
+            metadata_dict = dict(entry)
+            idx = int(metadata_dict.pop('index', index) or index)
+            page_number = _coerce_optional_int(
+                metadata_dict.pop('page', metadata_dict.pop('page_number', None))
+            )
+            start_char = _coerce_optional_int(metadata_dict.pop('start_char', None))
+            end_char = _coerce_optional_int(metadata_dict.pop('end_char', None))
+            result.append(
+                SentenceMetadata(
+                    index=idx,
+                    page_number=page_number,
+                    start_char=start_char,
+                    end_char=end_char,
+                    extra=_to_frozen_mapping(metadata_dict),
+                )
+            )
+            continue
+
+        result.append(SentenceMetadata(index=index))
+
+    if not result:
+        result = [SentenceMetadata(index=index) for index, _ in enumerate(sentences)]
+
+    return tuple(result)
+
+
+def _coerce_table_annotations(tables: Sequence[Any]) -> Tuple[TableAnnotation, ...]:
+    annotations: List[TableAnnotation] = []
+    for index, table in enumerate(tables):
+        if isinstance(table, TableAnnotation):
+            annotations.append(table)
+            continue
+
+        if isinstance(table, Mapping):
+            table_dict = dict(table)
+            table_id = str(table_dict.pop('table_id', table_dict.pop('id', f'table_{index}')))
+            label = str(table_dict.pop('label', table_id))
+            annotations.append(
+                TableAnnotation(
+                    table_id=table_id,
+                    label=label,
+                    attributes=_to_frozen_mapping(table_dict),
+                )
+            )
+            continue
+
+        annotations.append(
+            TableAnnotation(
+                table_id=f'table_{index}',
+                label=type(table).__name__,
+                attributes=_EMPTY_MAPPING,
+            )
+        )
+
+    return tuple(annotations)
 import hashlib
 
 # PDF Processing
@@ -58,7 +154,7 @@ logger = logging.getLogger(__name__)
 # DATACLASSES - ESTRUCTURAS DE DATOS INMUTABLES
 # ============================================================================
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RawDocument:
     """
     Documento PDF crudo cargado desde disco.
@@ -69,46 +165,8 @@ class RawDocument:
     num_pages: int
     file_size_bytes: int
     file_hash: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = _EMPTY_MAPPING
     is_valid: bool = True
-
-
-@dataclass(frozen=True)
-class StructuredText:
-    """
-    Texto con estructura preservada (secciones, jerarquía).
-    """
-    full_text: str
-    sections: List[Dict[str, Any]] = field(default_factory=list)
-    page_boundaries: List[Tuple[int, int]] = field(default_factory=list)  # (start_char, end_char)
-
-
-@dataclass(frozen=True)
-class DocumentIndexes:
-    """
-    Índices construidos sobre el documento para búsqueda rápida.
-    """
-    term_index: Dict[str, List[int]] = field(default_factory=dict)  # término -> [sentence_ids]
-    numeric_index: Dict[float, List[int]] = field(default_factory=dict)  # número -> [sentence_ids]
-    temporal_index: Dict[str, List[int]] = field(default_factory=dict)  # fecha/año -> [sentence_ids]
-    entity_index: Dict[str, List[int]] = field(default_factory=dict)  # entidad -> [sentence_ids]
-
-
-@dataclass(frozen=True)
-class PreprocessedDocument:
-    """
-    Documento completamente preprocesado y listo para evaluación.
-    Este objeto se cachea y se distribuye a todos los evaluadores.
-    """
-    raw_document: RawDocument
-    full_text: str
-    structured_text: StructuredText
-    sentences: List[str]
-    sentence_metadata: List[Dict[str, Any]]  # ubicación, página, índices
-    tables: List[Dict[str, Any]]  # tablas clasificadas y limpias
-    indexes: DocumentIndexes
-    language: str
-    preprocessing_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================================
@@ -188,8 +246,8 @@ class DocumentLoader:
             num_pages=num_pages,
             file_size_bytes=file_stats.st_size,
             file_hash=file_hash,
-            metadata=metadata,
-            is_valid=is_valid
+            metadata=_to_frozen_mapping(metadata),
+            is_valid=is_valid,
         )
         
         self.logger.info(f"✓ PDF cargado: {num_pages} páginas, {file_stats.st_size / 1024:.1f} KB")
@@ -379,12 +437,12 @@ class TextExtractor:
         Returns:
             StructuredText con jerarquía preservada
         """
-        sections = []
-        page_boundaries = []
-        
+        sections: List[MutableMapping[str, Any]] = []
+        page_boundaries: List[Tuple[int, int]] = []
+
         lines = text.split('\n')
         current_position = 0
-        current_section = None
+        current_section: Optional[MutableMapping[str, Any]] = None
         
         for line in lines:
             line_stripped = line.strip()
@@ -419,10 +477,20 @@ class TextExtractor:
         if current_section:
             sections.append(current_section)
         
-        return StructuredText(
+        structured_sections = tuple(
+            StructuredSection(
+                title=str(section.get('title', '')),
+                start_char=int(section.get('start_char', 0)),
+                content=str(section.get('content', '')),
+            )
+            for section in sections
+        )
+        structured_page_boundaries = tuple((int(start), int(end)) for start, end in page_boundaries)
+
+        return StructuredTextV1(
             full_text=text,
-            sections=sections,
-            page_boundaries=page_boundaries
+            sections=structured_sections,
+            page_boundaries=structured_page_boundaries,
         )
 
 
@@ -523,28 +591,38 @@ class PreprocessingEngine:
             except Exception as e:
                 self.logger.warning(f"Error extrayendo tablas: {e}")
         
+        sentences_tuple: Tuple[str, ...] = tuple(str(sentence) for sentence in sentences)
+        sentence_metadata_entries = _build_sentence_metadata_entries(sentence_metadata, sentences_tuple)
+        table_annotations = _coerce_table_annotations(tables)
+
         # PASO 6: Construir índices
-        indexes = self._build_document_indexes(sentences, tables)
-        
+        indexes = self._build_document_indexes(sentences_tuple, table_annotations)
+
         # PASO 7: Detectar idioma
         language = self.detect_language(normalized_text)
-        
-        # Ensamblar documento preprocesado
+
+        metadata_dict: MutableMapping[str, Any] = {
+            'num_sentences': len(sentences_tuple),
+            'num_tables': len(table_annotations),
+            'text_length': len(normalized_text),
+            'index_terms': len(indexes.term_index),
+            'source_path': raw_doc.file_path,
+            'file_hash': raw_doc.file_hash,
+            'file_name': raw_doc.file_name,
+            'page_count': raw_doc.num_pages,
+        }
+
         preprocessed_doc = PreprocessedDocument(
-            raw_document=raw_doc,
+            document_id=raw_doc.file_name,
             full_text=normalized_text,
-            structured_text=structured_text,
-            sentences=sentences,
-            sentence_metadata=sentence_metadata,
-            tables=tables,
-            indexes=indexes,
+            sentences=sentences_tuple,
             language=language,
-            preprocessing_metadata={
-                'num_sentences': len(sentences),
-                'num_tables': len(tables),
-                'text_length': len(normalized_text),
-                'index_terms': len(indexes.term_index)
-            }
+            structured_text=structured_text,
+            sentence_metadata=sentence_metadata_entries,
+            tables=table_annotations,
+            indexes=indexes,
+            metadata=_to_frozen_mapping(metadata_dict),
+            ingested_at=datetime.utcnow(),
         )
         
         self.logger.info(f"✓ Preprocesamiento completado")
@@ -601,9 +679,9 @@ class PreprocessingEngine:
     
     def _build_document_indexes(
         self,
-        sentences: List[str],
-        tables: List[Dict[str, Any]]
-    ) -> DocumentIndexes:
+        sentences: Sequence[str],
+        tables: Sequence[TableAnnotation],
+    ) -> DocumentIndexesV1:
         """
         Construye índices sobre el documento para búsqueda rápida.
         
@@ -620,10 +698,10 @@ class PreprocessingEngine:
         Returns:
             DocumentIndexes con todos los índices
         """
-        term_index = {}
-        numeric_index = {}
-        temporal_index = {}
-        entity_index = {}
+        term_index: MutableMapping[str, List[int]] = {}
+        numeric_index: MutableMapping[str, List[int]] = {}
+        temporal_index: MutableMapping[str, List[int]] = {}
+        entity_index: MutableMapping[str, List[int]] = {}
         
         import re
         
@@ -641,35 +719,33 @@ class PreprocessingEngine:
             # Índice de números
             numbers = re.findall(r'\d+(?:\.\d+)?', sentence)
             for num_str in numbers:
-                try:
-                    num = float(num_str)
-                    if num not in numeric_index:
-                        numeric_index[num] = []
-                    numeric_index[num].append(sent_idx)
-                except ValueError:
-                    continue
+                numeric_index.setdefault(num_str, []).append(sent_idx)
             
             # Índice temporal (años, fechas)
             years = re.findall(r'\b(20\d{2})\b', sentence)
             for year in years:
-                if year not in temporal_index:
-                    temporal_index[year] = []
-                temporal_index[year].append(sent_idx)
+                temporal_index.setdefault(year, []).append(sent_idx)
             
             # Índice de entidades (palabras capitalizadas)
             entities = re.findall(r'\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\b', sentence)
             for entity in set(entities):
-                if entity not in entity_index:
-                    entity_index[entity] = []
-                entity_index[entity].append(sent_idx)
-        
+                entity_index.setdefault(entity, []).append(sent_idx)
+
+        for table in tables:
+            entity_index.setdefault(table.label, []).append(-1)
+
+        term_index_frozen = MappingProxyType({key: tuple(sorted(set(ids))) for key, ids in term_index.items()})
+        numeric_index_frozen = MappingProxyType({key: tuple(sorted(set(ids))) for key, ids in numeric_index.items()})
+        temporal_index_frozen = MappingProxyType({key: tuple(sorted(set(ids))) for key, ids in temporal_index.items()})
+        entity_index_frozen = MappingProxyType({key: tuple(sorted(set(ids))) for key, ids in entity_index.items()})
+
         self.logger.info(f"✓ Índices construidos: {len(term_index)} términos, {len(numeric_index)} números")
-        
-        return DocumentIndexes(
-            term_index=term_index,
-            numeric_index=numeric_index,
-            temporal_index=temporal_index,
-            entity_index=entity_index
+
+        return DocumentIndexesV1(
+            term_index=term_index_frozen,
+            numeric_index=numeric_index_frozen,
+            temporal_index=temporal_index_frozen,
+            entity_index=entity_index_frozen,
         )
 
 
@@ -677,7 +753,7 @@ class PreprocessingEngine:
 # FUNCIÓN DE CONVENIENCIA
 # ============================================================================
 
-def ingest_document(pdf_path: str) -> PreprocessedDocument:
+def ingest_document(*, pdf_path: str) -> PreprocessedDocument:
     """
     Función de conveniencia para ejecutar pipeline completo de ingesta.
     
@@ -717,7 +793,7 @@ if __name__ == "__main__":
     pdf_path = "plan_desarrollo_municipal.pdf"
     
     try:
-        preprocessed_doc = ingest_document(pdf_path)
+        preprocessed_doc = ingest_document(pdf_path=pdf_path)
         
         print(f"\n✅ DOCUMENTO PREPROCESADO:")
         print(f"   - Archivo: {preprocessed_doc.raw_document.file_name}")
