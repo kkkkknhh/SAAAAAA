@@ -16727,5 +16727,67 @@
       "total": 305
     }
   },
-  "version": "1.0.0"
+  "version": "1.1.0",
+  "dimension_metadata": {
+    "DIM01": {
+      "canonical_name_es": "INSUMOS",
+      "canonical_name_en": "INSUMOS",
+      "legacy_id": "D1",
+      "full_label_es": "Insumos (Diagnóstico y Líneas Base)",
+      "full_label_en": "Insumos (Diagnóstico y Líneas Base)",
+      "description": "Evalúa la calidad del diagnóstico territorial, líneas base cuantitativas, identificación de brechas y suficiencia de recursos."
+    },
+    "DIM02": {
+      "canonical_name_es": "ACTIVIDADES",
+      "canonical_name_en": "ACTIVIDADES",
+      "legacy_id": "D2",
+      "full_label_es": "Actividades (Diseño de Intervención)",
+      "full_label_en": "Actividades (Diseño de Intervención)",
+      "description": "Evalúa la formalización de actividades con estructura clara, responsables, cronogramas, costos y mecanismos causales."
+    },
+    "DIM03": {
+      "canonical_name_es": "PRODUCTOS",
+      "canonical_name_en": "PRODUCTOS",
+      "legacy_id": "D3",
+      "full_label_es": "Productos (Verificables)",
+      "full_label_en": "Productos (Verificables)",
+      "description": "Evalúa la especificación de productos (bienes y servicios) con indicadores verificables, fórmulas, fuentes y trazabilidad presupuestal."
+    },
+    "DIM04": {
+      "canonical_name_es": "RESULTADOS",
+      "canonical_name_en": "RESULTADOS",
+      "legacy_id": "D4",
+      "full_label_es": "Resultados (Medibles)",
+      "full_label_en": "Resultados (Medibles)",
+      "description": "Evalúa la definición de resultados (cambios en la población) con métricas, líneas base, metas y encadenamiento causal."
+    },
+    "DIM05": {
+      "canonical_name_es": "IMPACTOS",
+      "canonical_name_en": "IMPACTOS",
+      "legacy_id": "D5",
+      "full_label_es": "Impactos (Largo Plazo)",
+      "full_label_en": "Impactos (Largo Plazo)",
+      "description": "Evalúa la proyección de impactos (transformaciones estructurales) con rutas de transmisión, rezagos temporales y consideración de riesgos sistémicos."
+    },
+    "DIM06": {
+      "canonical_name_es": "CAUSALIDAD",
+      "canonical_name_en": "CAUSALIDAD",
+      "legacy_id": "D6",
+      "full_label_es": "Causalidad (Teoría de Cambio Explícita)",
+      "full_label_en": "Causalidad (Teoría de Cambio Explícita)",
+      "description": "Evalúa la explicitación de teorías de cambio, identificación de causas raíz, mediadores, moderadores y supuestos verificables."
+    }
+  },
+  "last_modified": "2025-10-30T02:19:37.818810+00:00",
+  "changelog": [
+    {
+      "version": "1.1.0",
+      "date": "2025-10-30T02:19:37.818824+00:00",
+      "changes": [
+        "Added explicit dimension_metadata mapping for canonical notation compliance",
+        "Added canonical_name_es and canonical_name_en fields for each dimension",
+        "Ensures DIM01-DIM06 map clearly to INSUMOS, ACTIVIDADES, PRODUCTOS, RESULTADOS, IMPACTOS, CAUSALIDAD"
+      ]
+    }
+  ]
 }
