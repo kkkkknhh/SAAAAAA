@@ -19,6 +19,7 @@ from .contract_loader import (
     LoadError,
     LoadResult,
 )
+from .orchestrator import get_questionnaire_provider
 try:
     from .d1_orchestrator import (
         D1Question,
@@ -56,6 +57,7 @@ __all__ = [
     "JSONContractLoader",
     "LoadError",
     "LoadResult",
+    "get_questionnaire_provider",
 ]
 
 if _D1_AVAILABLE:
@@ -67,3 +69,6 @@ if _D1_AVAILABLE:
         "MethodContract",
         "OrchestrationResult",
     ])
+
+# Import from the main orchestrator module
+from ..orchestrator import get_questionnaire_provider

@@ -107,6 +107,7 @@ from Analyzer_one import (
     SemanticAnalyzer,
 )
 from financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
+from orchestrator import get_questionnaire_provider
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -555,6 +556,7 @@ class IndustrialPolicyProcessor:
     """
 
     QUESTIONNAIRE_PATH: ClassVar[Path] = Path("decalogo-industrial.latest.clean.json")
+    QUESTIONNAIRE_PROVIDER: ClassVar = get_questionnaire_provider()
 
     def __init__(
         self,
