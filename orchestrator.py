@@ -14,11 +14,11 @@ import os
 import re
 import statistics
 import time
+from dataclasses import dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict, is_dataclass
 from pathlib import Path
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from recommendation_engine import RecommendationEngine
@@ -26,8 +26,10 @@ from recommendation_engine import RecommendationEngine
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
+if TYPE_CHECKING:  # pragma: no cover - type checking only
+    from document_ingestion import PreprocessedDocument as PreprocessedDocumentV1
+else:  # pragma: no cover - runtime fallback when ingestion module unavailable
+    PreprocessedDocumentV1 = Any
 
 
 class _QuestionnaireProvider:
@@ -177,13 +179,49 @@ except:
     MODULES_OK = False
     logger.warning("Módulos no disponibles - modo MOCK")
 
-@dataclass
-class PreprocessedDocument:
+@dataclass(frozen=True)
+class PreprocessedDocumentV2:
     document_id: str
     raw_text: str
-    sentences: List
-    tables: List
-    metadata: Dict
+    sentences: Sequence[str]
+    tables: Sequence[Any]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_ingestion(cls, preprocessed: PreprocessedDocumentV1) -> "PreprocessedDocumentV2":
+        """Adapt ingestion output into the orchestrator v2 schema."""
+
+        raw_doc = getattr(preprocessed, "raw_document", None)
+        document_id = None
+        if raw_doc is not None:
+            document_id = getattr(raw_doc, "file_id", None) or getattr(raw_doc, "file_name", None)
+        if not document_id:
+            document_id = getattr(preprocessed, "document_id", None) or "document"
+
+        raw_text = getattr(preprocessed, "full_text", "")
+        sentences = list(getattr(preprocessed, "sentences", []))
+        tables = list(getattr(preprocessed, "tables", []))
+
+        metadata = dict(getattr(preprocessed, "preprocessing_metadata", {}))
+        language = getattr(preprocessed, "language", None)
+        if language and "language" not in metadata:
+            metadata["language"] = language
+        if raw_doc is not None:
+            source_path = getattr(raw_doc, "file_path", None)
+            if source_path and "source_path" not in metadata:
+                metadata["source_path"] = source_path
+
+        return cls(
+            document_id=document_id,
+            raw_text=raw_text,
+            sentences=sentences,
+            tables=tables,
+            metadata=metadata,
+        )
+
+
+OrchestratorDocument = PreprocessedDocumentV2
+PreprocessedDocument = PreprocessedDocumentV2
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
@@ -291,6 +329,84 @@ class Evidence:
     modality: str
     elements: List = field(default_factory=list)
     raw_results: Dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class MethodContext:
+    document: OrchestratorDocument
+    overrides: Dict[str, Any]
+
+    @property
+    def raw_text(self) -> str:
+        return self.document.raw_text
+
+    @property
+    def sentences(self) -> Sequence[str]:
+        return self.document.sentences
+
+    @property
+    def tables(self) -> Sequence[Any]:
+        return self.document.tables
+
+    @property
+    def metadata(self) -> Dict[str, Any]:
+        return self.document.metadata
+
+    @classmethod
+    def from_inputs(
+        cls,
+        context: OrchestratorDocument | None,
+        kwargs: Dict[str, Any],
+    ) -> "MethodContext":
+        data = dict(kwargs)
+        document = context
+        if document is None:
+            if "raw_text" in data:
+                raw_text = data.pop("raw_text")
+            else:
+                raw_text = data.pop("text", "")
+            sentences = data.pop("sentences", []) or []
+            tables = data.pop("tables", []) or []
+            metadata = data.pop("metadata", {}) or {}
+            if not isinstance(metadata, dict):
+                metadata = {"metadata": metadata}
+            document_id = data.pop(
+                "document_id",
+                metadata.get("document_id") or metadata.get("documentId") or "document",
+            )
+            document = OrchestratorDocument(
+                document_id=document_id,
+                raw_text=raw_text,
+                sentences=list(sentences),
+                tables=list(tables),
+                metadata=metadata,
+            )
+
+        return cls(document=document, overrides=data)
+
+
+def _route_text_sentences_tables(ctx: MethodContext) -> Dict[str, Any]:
+    payload = {
+        "document_id": ctx.document.document_id,
+        "raw_text": ctx.raw_text,
+        "text": ctx.raw_text,
+        "sentences": list(ctx.sentences),
+        "tables": list(ctx.tables),
+        "metadata": ctx.metadata,
+    }
+    payload.update(ctx.overrides)
+    return payload
+
+
+DEFAULT_ROUTE = _route_text_sentences_tables
+
+ARG_ROUTER: Dict[Tuple[str, str], Callable[[MethodContext], Dict[str, Any]]] = {
+    ("IndustrialPolicyProcessor", "process"): _route_text_sentences_tables,
+    ("IndustrialPolicyProcessor", "_match_patterns_in_sentences"): _route_text_sentences_tables,
+    ("IndustrialPolicyProcessor", "_construct_evidence_bundle"): _route_text_sentences_tables,
+    ("PolicyTextProcessor", "segment_into_sentences"): _route_text_sentences_tables,
+    ("BayesianEvidenceScorer", "compute_evidence_score"): _route_text_sentences_tables,
+}
 
 
 class AbortRequested(RuntimeError):
@@ -857,6 +973,7 @@ class ArgRouter:
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
+
     def __init__(self):
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
@@ -897,8 +1014,11 @@ class MethodExecutor:
             if not instance:
                 return None
             method = getattr(instance, method_name)
-            args, routed_kwargs = self._router.route(class_name, instance, method, kwargs)
-            return method(*args, **routed_kwargs)
+            method_context = MethodContext.from_inputs(context, kwargs)
+            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+            routed_kwargs = router(method_context)
+            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
+            return method(**filtered_kwargs)
         except Exception as e:
             logger.exception("Catalog invocation failed")
             raise
