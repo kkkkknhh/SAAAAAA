@@ -1,0 +1,24 @@
+{
+        "CL01",
+        "CL02",
+        "CL03",
+        "CL04"
+        "cluster_id": "CL01",
+            "description": "Verificar referencias cruzadas entre áreas ['PA02', 'PA03', 'PA07']",
+          "PA02",
+          "PA03",
+          "PA07"
+        "cluster_id": "CL02",
+            "description": "Verificar referencias cruzadas entre áreas ['PA01', 'PA05', 'PA06']",
+          "PA01",
+          "PA05",
+          "PA06"
+        "cluster_id": "CL03",
+            "description": "Verificar referencias cruzadas entre áreas ['PA04', 'PA08']",
+          "PA04",
+          "PA08"
+        "cluster_id": "CL04",
+            "description": "Verificar referencias cruzadas entre áreas ['PA09', 'PA10']",
+          "PA09",
+          "PA10"
+}

@@ -23,7 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Literal, Protocol, TypedDict, Union
+from typing import Any, Dict, List, Literal, Protocol, TypedDict
 
 import numpy as np
 import scipy.stats as stats
@@ -80,6 +80,12 @@ class PDQIdentifier(TypedDict):
     rubric_key: str  # D#-Q#
 
 
+class PosteriorSampleRecord(TypedDict):
+    """Serializable posterior sample used by downstream Bayesian consumers."""
+
+    coherence: float
+
+
 class SemanticChunk(TypedDict):
     """Structured semantic chunk with metadata."""
 
@@ -100,6 +106,7 @@ class BayesianEvaluation(TypedDict):
     posterior_samples: NDArray[np.float32]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
+    posterior_records: List[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
@@ -331,25 +338,25 @@ class AdvancedSemanticChunker:
         """
         # Policy-specific keywords (simplified for example)
         policy_keywords = {
-            "P1": ["mujer", "género", "igualdad", "equidad"],
-            "P2": ["violencia", "conflicto", "seguridad", "prevención"],
-            "P3": ["ambiente", "clima", "desastre", "riesgo"],
-            "P4": ["económico", "social", "cultural", "empleo"],
-            "P5": ["víctima", "paz", "reconciliación", "reparación"],
-            "P6": ["niñez", "adolescente", "juventud", "futuro"],
-            "P7": ["tierra", "territorio", "rural", "agrario"],
-            "P8": ["líder", "defensor", "derechos humanos"],
-            "P9": ["privado libertad", "cárcel", "reclusión"],
-            "P10": ["migración", "frontera", "venezolano"],
+            "PA01": ["mujer", "género", "igualdad", "equidad"],
+            "PA02": ["violencia", "conflicto", "seguridad", "prevención"],
+            "PA03": ["ambiente", "clima", "desastre", "riesgo"],
+            "PA04": ["económico", "social", "cultural", "empleo"],
+            "PA05": ["víctima", "paz", "reconciliación", "reparación"],
+            "PA06": ["niñez", "adolescente", "juventud", "futuro"],
+            "PA07": ["tierra", "territorio", "rural", "agrario"],
+            "PA08": ["líder", "defensor", "derechos humanos"],
+            "PA09": ["privado libertad", "cárcel", "reclusión"],
+            "PA10": ["migración", "frontera", "venezolano"],
         }
 
         dimension_keywords = {
-            "D1": ["diagnóstico", "baseline", "situación", "recurso"],
-            "D2": ["diseño", "estrategia", "intervención", "actividad"],
-            "D3": ["producto", "output", "entregable", "meta"],
-            "D4": ["resultado", "outcome", "efecto", "cambio"],
-            "D5": ["impacto", "largo plazo", "sostenibilidad"],
-            "D6": ["teoría", "causal", "coherencia", "lógica"],
+            "DIM01": ["diagnóstico", "baseline", "situación", "recurso"],
+            "DIM02": ["diseño", "estrategia", "intervención", "actividad"],
+            "DIM03": ["producto", "output", "entregable", "meta"],
+            "DIM04": ["resultado", "outcome", "efecto", "cambio"],
+            "DIM05": ["impacto", "largo plazo", "sostenibilidad"],
+            "DIM06": ["teoría", "causal", "coherencia", "lógica"],
         }
 
         # Score policies and dimensions
@@ -370,13 +377,14 @@ class AdvancedSemanticChunker:
         if policy_scores[best_policy] > 0 and dimension_scores[best_dimension] > 0:
             # Generate canonical identifier
             question_num = 1  # Simplified; real system would infer from context
+            question_code = f"Q{question_num:03d}"
 
             return PDQIdentifier(
-                question_unique_id=f"{best_policy}-{best_dimension}-Q{question_num}",
+                question_unique_id=f"{best_policy}-{best_dimension}-{question_code}",
                 policy=best_policy,
                 dimension=best_dimension,
                 question=question_num,
-                rubric_key=f"{best_dimension}-Q{question_num}",
+                rubric_key=f"{best_dimension}-{question_code}",
             )
 
         return None
@@ -480,6 +488,7 @@ class BayesianNumericalAnalyzer:
             posterior_samples=posterior_samples,
             evidence_strength=evidence_strength,
             numerical_coherence=coherence,
+            posterior_records=self.serialize_posterior_samples(posterior_samples),
         )
 
     def _beta_binomial_posterior(
@@ -586,7 +595,30 @@ class BayesianNumericalAnalyzer:
             posterior_samples=np.array([0.0], dtype=np.float32),
             evidence_strength="weak",
             numerical_coherence=0.0,
+            posterior_records=[{"coherence": 0.0}],
         )
+
+    def serialize_posterior_samples(
+        self, samples: NDArray[np.float32]
+    ) -> List[PosteriorSampleRecord]:
+        """Convert posterior samples into standardized coherence records.
+
+        Safely handles None or non-array inputs and limits the number of
+        serialized records to avoid excessive memory use.
+        """
+        if samples is None:
+            return []
+
+        # Ensure a 1-D numpy array of floats
+        arr = np.asarray(samples, dtype=np.float32).ravel()
+
+        # Prevent accidental excessive memory use when serializing huge arrays
+        MAX_RECORDS = 10000
+        values = arr.tolist()
+        if len(values) > MAX_RECORDS:
+            values = values[:MAX_RECORDS]
+
+        return [{"coherence": float(v)} for v in values]
 
     def compare_policies(
         self,
@@ -1128,13 +1160,91 @@ class PolicyAnalysisEmbedder:
         self, chunks: list[SemanticChunk], pdq_filter: PDQIdentifier
     ) -> list[SemanticChunk]:
         """Filter chunks by P-D-Q context."""
-        return [
-            chunk
-            for chunk in chunks
-            if chunk["pdq_context"]
-            and chunk["pdq_context"]["policy"] == pdq_filter["policy"]
-            and chunk["pdq_context"]["dimension"] == pdq_filter["dimension"]
-        ]
+
+        def _repr_contract(value: Any) -> str:
+            if value is None or isinstance(value, (int, float, bool)):
+                return repr(value)
+            if isinstance(value, str):
+                # Strip excessive whitespace for logging clarity
+                preview = value if len(value) <= 24 else f"{value[:21]}..."
+                return repr(preview)
+            return type(value).__name__
+
+        def _log_mismatch(key: str, needed: Any, got: Any, index: int | None = None) -> None:
+            message = (
+                "ERR_CONTRACT_MISMATCH[fn=_filter_by_pdq, "
+                f"key='{key}', needed={_repr_contract(needed)}, got={_repr_contract(got)}"
+            )
+            if index is not None:
+                message += f", index={index}"
+            message += "]"
+            self._logger.error(message)
+
+        self._logger.debug(
+            "edge %s → _filter_by_pdq | params=%s",
+            self.__class__.__name__,
+            {
+                "chunks_type": type(chunks).__name__,
+                "chunks_len": len(chunks) if isinstance(chunks, list) else "n/a",
+                "pdq_filter_type": type(pdq_filter).__name__,
+                "pdq_filter_keys": sorted(pdq_filter.keys())
+                if isinstance(pdq_filter, dict)
+                else None,
+            },
+        )
+
+        if not isinstance(chunks, list):
+            _log_mismatch("chunks", "list", chunks)
+            return []
+
+        if not isinstance(pdq_filter, dict):
+            _log_mismatch("pdq_filter", "dict", pdq_filter)
+            return []
+
+        expected_policy = pdq_filter.get("policy")
+        expected_dimension = pdq_filter.get("dimension")
+
+        if expected_policy is None or expected_dimension is None:
+            _log_mismatch(
+                "pdq_filter",
+                "keys=('policy','dimension')",
+                {"policy": expected_policy, "dimension": expected_dimension},
+            )
+            return []
+
+        filtered_chunks: list[SemanticChunk] = []
+
+        for index, chunk in enumerate(chunks):
+            if not isinstance(chunk, dict):
+                _log_mismatch("chunk", "dict", chunk, index)
+                continue
+
+            pdq_context = chunk.get("pdq_context")
+
+            if not pdq_context:
+                _log_mismatch("pdq_context", True, pdq_context, index)
+                continue
+
+            if not isinstance(pdq_context, dict):
+                _log_mismatch("pdq_context", "dict", pdq_context, index)
+                continue
+
+            policy = pdq_context.get("policy")
+            dimension = pdq_context.get("dimension")
+
+            if policy is None or dimension is None:
+                _log_mismatch(
+                    "pdq_context",
+                    "keys=('policy','dimension')",
+                    {"policy": policy, "dimension": dimension},
+                    index,
+                )
+                continue
+
+            if policy == expected_policy and dimension == expected_dimension:
+                filtered_chunks.append(chunk)
+
+        return filtered_chunks
 
     def _apply_mmr(
         self,
@@ -1377,6 +1487,230 @@ def create_policy_embedder(
     logger.info("Creating policy embedder with tier: %s", model_tier)
 
     return PolicyAnalysisEmbedder(config)
+
+
+# ============================================================================
+# PRODUCER CLASS - Registry Exposure
+# ============================================================================
+
+
+class EmbeddingPolicyProducer:
+    """
+    Producer wrapper for embedding policy analysis with registry exposure
+    
+    Provides public API methods for orchestrator integration without exposing
+    internal implementation details or summarization logic.
+    
+    Version: 1.0.0
+    Producer Type: Embedding / Semantic Search
+    """
+    
+    def __init__(
+        self,
+        config: PolicyEmbeddingConfig | None = None,
+        model_tier: Literal["fast", "balanced", "accurate"] = "balanced",
+        retry_handler=None
+    ):
+        """Initialize producer with optional configuration"""
+        if config is None:
+            self.embedder = create_policy_embedder(model_tier)
+        else:
+            self.embedder = PolicyAnalysisEmbedder(config, retry_handler=retry_handler)
+        
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.info("EmbeddingPolicyProducer initialized")
+    
+    # ========================================================================
+    # DOCUMENT PROCESSING API
+    # ========================================================================
+    
+    def process_document(
+        self,
+        document_text: str,
+        document_metadata: dict[str, Any]
+    ) -> list[SemanticChunk]:
+        """Process document into semantic chunks with embeddings"""
+        return self.embedder.process_document(document_text, document_metadata)
+    
+    def get_chunk_count(self, chunks: list[SemanticChunk]) -> int:
+        """Get number of chunks"""
+        return len(chunks)
+    
+    def get_chunk_text(self, chunk: SemanticChunk) -> str:
+        """Extract text from chunk"""
+        return chunk["content"]
+    
+    def get_chunk_embedding(self, chunk: SemanticChunk) -> NDArray[np.float32]:
+        """Extract embedding from chunk"""
+        return chunk["embedding"]
+    
+    def get_chunk_metadata(self, chunk: SemanticChunk) -> dict[str, Any]:
+        """Extract metadata from chunk"""
+        return chunk["metadata"]
+    
+    def get_chunk_pdq_context(self, chunk: SemanticChunk) -> PDQIdentifier | None:
+        """Extract P-D-Q context from chunk"""
+        return chunk["pdq_context"]
+    
+    # ========================================================================
+    # SEMANTIC SEARCH API
+    # ========================================================================
+    
+    def semantic_search(
+        self,
+        query: str,
+        document_chunks: list[SemanticChunk],
+        pdq_filter: PDQIdentifier | None = None,
+        use_reranking: bool = True
+    ) -> list[tuple[SemanticChunk, float]]:
+        """Advanced semantic search with reranking"""
+        return self.embedder.semantic_search(
+            query, document_chunks, pdq_filter, use_reranking
+        )
+    
+    def get_search_result_chunk(
+        self, result: tuple[SemanticChunk, float]
+    ) -> SemanticChunk:
+        """Extract chunk from search result"""
+        return result[0]
+    
+    def get_search_result_score(
+        self, result: tuple[SemanticChunk, float]
+    ) -> float:
+        """Extract relevance score from search result"""
+        return result[1]
+    
+    # ========================================================================
+    # P-D-Q ANALYSIS API
+    # ========================================================================
+    
+    def generate_pdq_report(
+        self,
+        document_chunks: list[SemanticChunk],
+        target_pdq: PDQIdentifier
+    ) -> dict[str, Any]:
+        """Generate comprehensive analytical report for P-D-Q question"""
+        return self.embedder.generate_pdq_report(document_chunks, target_pdq)
+    
+    def get_pdq_evidence_count(self, report: dict[str, Any]) -> int:
+        """Extract evidence count from P-D-Q report"""
+        return report.get("evidence_count", 0)
+    
+    def get_pdq_numerical_evaluation(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Extract numerical evaluation from P-D-Q report"""
+        return report.get("numerical_evaluation", {})
+    
+    def get_pdq_evidence_passages(self, report: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract evidence passages from P-D-Q report"""
+        return report.get("evidence_passages", [])
+    
+    def get_pdq_confidence(self, report: dict[str, Any]) -> float:
+        """Extract confidence from P-D-Q report"""
+        return report.get("confidence", 0.0)
+    
+    # ========================================================================
+    # BAYESIAN NUMERICAL ANALYSIS API
+    # ========================================================================
+    
+    def evaluate_numerical_consistency(
+        self,
+        chunks: list[SemanticChunk],
+        pdq_context: PDQIdentifier
+    ) -> BayesianEvaluation:
+        """Evaluate numerical consistency with Bayesian analysis"""
+        return self.embedder.evaluate_policy_numerical_consistency(
+            chunks, pdq_context
+        )
+    
+    def get_point_estimate(self, evaluation: BayesianEvaluation) -> float:
+        """Extract point estimate from Bayesian evaluation"""
+        return evaluation["point_estimate"]
+    
+    def get_credible_interval(
+        self, evaluation: BayesianEvaluation
+    ) -> tuple[float, float]:
+        """Extract 95% credible interval from Bayesian evaluation"""
+        return evaluation["credible_interval_95"]
+    
+    def get_evidence_strength(
+        self, evaluation: BayesianEvaluation
+    ) -> Literal["weak", "moderate", "strong", "very_strong"]:
+        """Extract evidence strength classification"""
+        return evaluation["evidence_strength"]
+    
+    def get_numerical_coherence(self, evaluation: BayesianEvaluation) -> float:
+        """Extract numerical coherence score"""
+        return evaluation["numerical_coherence"]
+    
+    # ========================================================================
+    # POLICY COMPARISON API
+    # ========================================================================
+    
+    def compare_policy_interventions(
+        self,
+        intervention_a_chunks: list[SemanticChunk],
+        intervention_b_chunks: list[SemanticChunk],
+        pdq_context: PDQIdentifier
+    ) -> dict[str, Any]:
+        """Bayesian comparison of two policy interventions"""
+        return self.embedder.compare_policy_interventions(
+            intervention_a_chunks, intervention_b_chunks, pdq_context
+        )
+    
+    def get_comparison_probability(self, comparison: dict[str, Any]) -> float:
+        """Extract probability that A is better than B"""
+        return comparison.get("probability_a_better", 0.5)
+    
+    def get_comparison_bayes_factor(self, comparison: dict[str, Any]) -> float:
+        """Extract Bayes factor from comparison"""
+        return comparison.get("bayes_factor", 1.0)
+    
+    def get_comparison_difference_mean(self, comparison: dict[str, Any]) -> float:
+        """Extract mean difference from comparison"""
+        return comparison.get("difference_mean", 0.0)
+    
+    # ========================================================================
+    # UTILITY API
+    # ========================================================================
+    
+    def get_diagnostics(self) -> dict[str, Any]:
+        """Get system diagnostics and performance metrics"""
+        return self.embedder.get_diagnostics()
+    
+    def get_config(self) -> PolicyEmbeddingConfig:
+        """Get current configuration"""
+        return self.embedder.config
+    
+    def list_policy_domains(self) -> list[PolicyDomain]:
+        """List all policy domains"""
+        return list(PolicyDomain)
+    
+    def list_analytical_dimensions(self) -> list[AnalyticalDimension]:
+        """List all analytical dimensions"""
+        return list(AnalyticalDimension)
+    
+    def get_policy_domain_description(self, domain: PolicyDomain) -> str:
+        """Get description for policy domain"""
+        return domain.value
+    
+    def get_analytical_dimension_description(self, dimension: AnalyticalDimension) -> str:
+        """Get description for analytical dimension"""
+        return dimension.value
+    
+    def create_pdq_identifier(
+        self,
+        policy: str,
+        dimension: str,
+        question: int
+    ) -> PDQIdentifier:
+        """Create P-D-Q identifier"""
+        return PDQIdentifier(
+            question_unique_id=f"{policy}-{dimension}-Q{question}",
+            policy=policy,
+            dimension=dimension,
+            question=question,
+            rubric_key=f"{dimension}-Q{question}"
+        )
 
 
 # ============================================================================

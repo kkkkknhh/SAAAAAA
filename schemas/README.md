@@ -1,7 +1,7 @@
 # JSON Schemas for Producer Artifacts
-**Updated:** 2025-10-26  
+**Updated:** 2025-10-27  
 **Validation Level:** Draft-07 (strict)  
-**Schema Files Present:** 21
+**Schema Files Present:** 32
 
 This directory hosts the canonical JSON Schemas consumed by the policy analysis
 pipeline. Every schema listed here is curated to support deterministic
@@ -20,12 +20,17 @@ artifact contracts, see
 schemas/
 ├── CHOREOGRAPHER_SCHEMA_INVENTORY.md   # Exhaustive mapping per producer
 ├── README.md                           # This file
+├── analyzer_one/
+│   ├── performance_analysis.schema.json
+│   └── semantic_cube.schema.json
 ├── contradiction_deteccion/
 │   ├── contradiction_evidence.schema.json
 │   └── policy_statement.schema.json
 ├── dereck_beach/
+│   ├── audit_result.schema.json
 │   └── meta_node.schema.json
 ├── embedding_policy/
+│   ├── bayesian_evaluation.schema.json
 │   └── semantic_chunk.schema.json
 ├── execution_mapping.schema.json
 ├── execution_step.schema.json
@@ -34,7 +39,13 @@ schemas/
 │   ├── causal_edge.schema.json
 │   ├── causal_effect.schema.json
 │   ├── causal_node.schema.json
-│   └── financial_indicator.schema.json
+│   ├── counterfactual_scenario.schema.json
+│   ├── extracted_table.schema.json
+│   ├── financial_indicator.schema.json
+│   ├── quality_score.schema.json
+│   └── responsible_entity.schema.json
+├── policy_processor/
+│   └── evidence_bundle.schema.json
 ├── question_segmentation.schema.json
 ├── questionnaire.schema.json
 ├── report_assembly/
@@ -43,16 +54,16 @@ schemas/
 │   └── micro_answer.schema.json
 ├── rubric.schema.json
 ├── rubric_scoring.schema.json
+├── semantic_chunking_policy/
+│   ├── analysis_result.schema.json
+│   └── chunk.schema.json
 └── teoria_cambio/
     ├── advanced_graph_node.schema.json
     ├── monte_carlo_result.schema.json
     └── validacion_resultado.schema.json
 ```
 
-> **Note:** Schema packages for `Analyzer_one`, `policy_processor`, and
-> `semantic_chunking_policy` are not yet present. Their expected structures are
-> documented in the choreographer inventory so that schema authoring can follow
-> the correct contracts.
+> **Note:** All expected schema packages for producer modules are now present and validated.
 
 ---
 
@@ -60,24 +71,21 @@ schemas/
 
 | Producer Module                     | Primary Schemas                                                                           | Coverage Notes |
 |------------------------------------|-------------------------------------------------------------------------------------------|----------------|
-| `financiero_viabilidad_tablas.py`  | `causal_node`, `causal_edge`, `causal_dag`, `causal_effect`, `financial_indicator`        | Complete       |
+| `financiero_viabilidad_tablas.py`  | `causal_node`, `causal_edge`, `causal_dag`, `causal_effect`, `financial_indicator`, `counterfactual_scenario`, `extracted_table`, `responsible_entity`, `quality_score` | Complete       |
 | `contradiction_deteccion.py`       | `policy_statement`, `contradiction_evidence`                                              | Complete       |
-| `dereck_beach.py`                  | `meta_node`                                                                               | Covers MetaNode; audit schema pending |
-| `embedding_policy.py`              | `semantic_chunk`                                                                          | Bayesian evaluation schema pending |
+| `dereck_beach.py`                  | `meta_node`, `audit_result`                                                               | Complete       |
+| `embedding_policy.py`              | `semantic_chunk`, `bayesian_evaluation`                                                   | Complete       |
 | `teoria_cambio.py`                 | `advanced_graph_node`, `validacion_resultado`, `monte_carlo_result`                       | Complete       |
 | `report_assembly.py`               | `micro_answer`, `meso_cluster`, `macro_convergence`                                        | Complete       |
+| `Analyzer_one.py`                  | `semantic_cube`, `performance_analysis`                                                    | Complete       |
+| `policy_processor.py`              | `evidence_bundle`                                                                          | Complete       |
+| `semantic_chunking_policy.py`      | `chunk`, `analysis_result`                                                                 | Complete       |
 
 ---
 
-## ⏳ Pending Producer Schemas
+## 🎉 All Producer Schemas Complete
 
-| Producer Module                 | Expected Artifact(s)                               | Status |
-|--------------------------------|----------------------------------------------------|--------|
-| `Analyzer_one.py`              | `semantic_cube`, `performance_analysis`            | Not yet authored |
-| `policy_processor.py`          | `evidence_bundle`, `processor_config` (if exported) | Not yet authored |
-| `semantic_chunking_policy.py`  | `semantic_config`, `bayesian_dimension_result`      | Not yet authored |
-| `dereck_beach.py`              | `audit_result`                                     | Planned |
-| `embedding_policy.py`          | `bayesian_evaluation`                              | Planned |
+All expected schemas for the nine producer modules have been authored and validated against JSON Schema Draft-07 specification. The schema inventory is now complete and ready for choreographer integration.
 
 ---
 

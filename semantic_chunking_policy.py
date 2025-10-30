@@ -163,12 +163,14 @@ class SemanticProcessor:
                 chunk_text = self._tokenizer.decode(chunk_tokens, skip_special_tokens=True)
                 chunks.append({
                     "text": chunk_text,
+                    "content": chunk_text,
                     "section_type": section["type"],
                     "section_id": section["id"],
                     "token_count": len(chunk_tokens),
                     "position": len(chunks),
                     "has_table": self._detect_table(chunk_text),
-                    "has_numerical": self._detect_numerical_data(chunk_text)
+                    "has_numerical": self._detect_numerical_data(chunk_text),
+                    "pdq_context": {},
                 })
         # Batch embed all chunks
         embeddings = self._embed_batch([c["text"] for c in chunks])
@@ -536,6 +538,217 @@ class PolicyDocumentAnalyzer:
                 for c in top_chunks
             ]
         return excerpts
+
+
+# ========================
+# PRODUCER CLASS - Registry Exposure
+# ========================
+
+
+class SemanticChunkingProducer:
+    """
+    Producer wrapper for semantic chunking and policy analysis with registry exposure
+    
+    Provides public API methods for orchestrator integration without exposing
+    internal implementation details or summarization logic.
+    
+    Version: 1.0.0
+    Producer Type: Semantic Analysis / Chunking
+    """
+    
+    def __init__(self, config: SemanticConfig | None = None):
+        """Initialize producer with optional configuration"""
+        self.config = config or SemanticConfig()
+        self.semantic = SemanticProcessor(self.config)
+        self.bayesian = BayesianEvidenceIntegrator(
+            prior_concentration=self.config.bayesian_prior_strength
+        )
+        self.analyzer = PolicyDocumentAnalyzer(self.config)
+        logger.info("SemanticChunkingProducer initialized")
+    
+    # ========================================================================
+    # CHUNKING API
+    # ========================================================================
+    
+    def chunk_document(self, text: str, preserve_structure: bool = True) -> list[dict[str, Any]]:
+        """Chunk document into semantic units with embeddings"""
+        return self.semantic.chunk_text(text, preserve_structure)
+    
+    def get_chunk_count(self, chunks: list[dict[str, Any]]) -> int:
+        """Get number of chunks"""
+        return len(chunks)
+    
+    def get_chunk_text(self, chunk: dict[str, Any]) -> str:
+        """Extract text from chunk"""
+        return chunk.get("text", "")
+    
+    def get_chunk_embedding(self, chunk: dict[str, Any]) -> NDArray[np.floating[Any]]:
+        """Extract embedding from chunk"""
+        return chunk.get("embedding", np.array([]))
+    
+    def get_chunk_metadata(self, chunk: dict[str, Any]) -> dict[str, Any]:
+        """Extract metadata from chunk"""
+        return {
+            "section_type": chunk.get("section_type"),
+            "section_id": chunk.get("section_id"),
+            "token_count": chunk.get("token_count"),
+            "position": chunk.get("position"),
+            "has_table": chunk.get("has_table"),
+            "has_numerical": chunk.get("has_numerical")
+        }
+    
+    # ========================================================================
+    # EMBEDDING API
+    # ========================================================================
+    
+    def embed_text(self, text: str) -> NDArray[np.floating[Any]]:
+        """Generate single embedding for text"""
+        return self.semantic.embed_single(text)
+    
+    def embed_batch(self, texts: list[str]) -> list[NDArray[np.floating[Any]]]:
+        """Generate embeddings for batch of texts"""
+        return self.semantic._embed_batch(texts)
+    
+    # ========================================================================
+    # ANALYSIS API
+    # ========================================================================
+    
+    def analyze_document(self, text: str) -> dict[str, Any]:
+        """Full pipeline analysis of document"""
+        return self.analyzer.analyze(text)
+    
+    def get_dimension_analysis(
+        self, 
+        analysis: dict[str, Any], 
+        dimension: CausalDimension
+    ) -> dict[str, Any]:
+        """Extract specific dimension results from analysis"""
+        return analysis.get("causal_dimensions", {}).get(dimension.value, {})
+    
+    def get_dimension_score(
+        self,
+        analysis: dict[str, Any],
+        dimension: CausalDimension
+    ) -> float:
+        """Extract dimension evidence strength score"""
+        dim_result = self.get_dimension_analysis(analysis, dimension)
+        return dim_result.get("evidence_strength", 0.0)
+    
+    def get_dimension_confidence(
+        self,
+        analysis: dict[str, Any],
+        dimension: CausalDimension
+    ) -> float:
+        """Extract dimension confidence score"""
+        dim_result = self.get_dimension_analysis(analysis, dimension)
+        return dim_result.get("confidence", 0.0)
+    
+    def get_dimension_excerpts(
+        self,
+        analysis: dict[str, Any],
+        dimension: CausalDimension
+    ) -> list[str]:
+        """Extract key excerpts for dimension"""
+        return analysis.get("key_excerpts", {}).get(dimension.value, [])
+    
+    # ========================================================================
+    # BAYESIAN EVIDENCE API
+    # ========================================================================
+    
+    def integrate_evidence(
+        self,
+        similarities: NDArray[np.float64],
+        chunk_metadata: list[dict[str, Any]]
+    ) -> dict[str, float]:
+        """Perform Bayesian evidence integration"""
+        return self.bayesian.integrate_evidence(similarities, chunk_metadata)
+    
+    def calculate_causal_strength(
+        self,
+        cause_emb: NDArray[np.floating[Any]],
+        effect_emb: NDArray[np.floating[Any]],
+        context_emb: NDArray[np.floating[Any]]
+    ) -> float:
+        """Calculate causal strength between embeddings"""
+        return self.bayesian.causal_strength(cause_emb, effect_emb, context_emb)
+    
+    def get_posterior_mean(self, evidence: dict[str, float]) -> float:
+        """Extract posterior mean from evidence integration"""
+        return evidence.get("posterior_mean", 0.0)
+    
+    def get_posterior_std(self, evidence: dict[str, float]) -> float:
+        """Extract posterior standard deviation"""
+        return evidence.get("posterior_std", 0.0)
+    
+    def get_information_gain(self, evidence: dict[str, float]) -> float:
+        """Extract information gain (KL divergence)"""
+        return evidence.get("information_gain", 0.0)
+    
+    def get_confidence(self, evidence: dict[str, float]) -> float:
+        """Extract confidence score"""
+        return evidence.get("confidence", 0.0)
+    
+    # ========================================================================
+    # SEMANTIC SEARCH API
+    # ========================================================================
+    
+    def semantic_search(
+        self,
+        query: str,
+        chunks: list[dict[str, Any]],
+        dimension: CausalDimension | None = None,
+        top_k: int = 5
+    ) -> list[tuple[dict[str, Any], float]]:
+        """Search chunks semantically for query"""
+        query_emb = self.semantic.embed_single(query)
+        
+        results = []
+        for chunk in chunks:
+            chunk_emb = chunk.get("embedding")
+            if chunk_emb is not None and len(chunk_emb) > 0:
+                similarity = 1.0 - cosine(query_emb, chunk_emb)
+                
+                # Filter by dimension if specified
+                if dimension is None or chunk.get("section_type") == dimension:
+                    results.append((chunk, float(similarity)))
+        
+        # Sort by similarity descending
+        results.sort(key=lambda x: x[1], reverse=True)
+        
+        return results[:top_k]
+    
+    # ========================================================================
+    # UTILITY API
+    # ========================================================================
+    
+    def list_dimensions(self) -> list[CausalDimension]:
+        """List all causal dimensions"""
+        return list(CausalDimension)
+    
+    def get_dimension_description(self, dimension: CausalDimension) -> str:
+        """Get description for dimension"""
+        descriptions = {
+            CausalDimension.INSUMOS: "Recursos, capacidad institucional",
+            CausalDimension.ACTIVIDADES: "Acciones, procesos, cronogramas",
+            CausalDimension.PRODUCTOS: "Entregables inmediatos",
+            CausalDimension.RESULTADOS: "Efectos mediano plazo",
+            CausalDimension.IMPACTOS: "Transformación estructural largo plazo",
+            CausalDimension.SUPUESTOS: "Condiciones habilitantes"
+        }
+        return descriptions.get(dimension, "")
+    
+    def get_config(self) -> SemanticConfig:
+        """Get current configuration"""
+        return self.config
+    
+    def set_config(self, config: SemanticConfig) -> None:
+        """Update configuration (requires reinitialization)"""
+        self.config = config
+        self.semantic = SemanticProcessor(self.config)
+        self.bayesian = BayesianEvidenceIntegrator(
+            prior_concentration=self.config.bayesian_prior_strength
+        )
+        self.analyzer = PolicyDocumentAnalyzer(self.config)
 
 
 # ========================
