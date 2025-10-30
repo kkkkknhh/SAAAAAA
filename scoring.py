@@ -1,5 +1,5 @@
 """
-SCORING MODULE - ESTRICTAMENTE SEGÚN QUESTIONNAIRE_MONOLITH.JSON
+SCORING MODULE - ESTRICTAMENTE SEGÚN EL MONOLITH DEL CUESTIONARIO
 ==================================================================
 Archivo: scoring.py
 Código: SC
@@ -34,7 +34,7 @@ INTEGRACIÓN:
 - Output: ScoredResult con score 0-3 y nivel de calidad
 
 REFERENCIA:
-questionnaire_monolith.json líneas 34512-34607
+Monolito del cuestionario líneas 34512-34607
 """
 
 import logging
@@ -76,7 +76,7 @@ class QualityLevel(Enum):
 class ScoringConfig:
     """
     Configuración de scoring extraída del monolith.
-    Líneas 34512-34607 del questionnaire_monolith.json
+    Líneas 34512-34607 del monolito del cuestionario
     """
     
     # TYPE_A config (línea 34568)

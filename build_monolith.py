@@ -4,7 +4,7 @@ MonolithForge: Canonical Questionnaire Monolith Builder
 ========================================================
 
 Migrates legacy questionnaire.json and rubric_scoring.json into a single
-questionnaire_monolith.json with 305 questions (300 micro, 4 meso, 1 macro).
+questionnaire monolith with 305 questions (300 micro, 4 meso, 1 macro).
 
 No graceful degradation. No strategic simplification. No atom loss.
 Abort immediately on any inconsistency.
@@ -16,9 +16,13 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
+
+from orchestrator import get_questionnaire_provider
+
+QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
 
 # Configure structured logging
 logging.basicConfig(
@@ -131,10 +135,31 @@ class MonolithForge:
         questionnaire = self.legacy_data['questionnaire.json']
         legacy_clusters = questionnaire.get('metadata', {}).get('clusters', [])
         self.canonical_clusters = {}
+        legacy_to_canonical = {
+            'P1': 'PA01',
+            'P2': 'PA02',
+            'P3': 'PA03',
+            'P4': 'PA04',
+            'P5': 'PA05',
+            'P6': 'PA06',
+            'P7': 'PA07',
+            'P8': 'PA08',
+            'P9': 'PA09',
+            'P10': 'PA10',
+        }
+
         for i, cluster_def in enumerate(legacy_clusters, 1):
-            cluster_id = f'CLUSTER_{i}'
+            cluster_id = cluster_def.get('cluster_id') or f'CL{str(i).zfill(2)}'
             legacy_areas = cluster_def.get('legacy_policy_area_ids', [])
-            self.canonical_clusters[cluster_id] = legacy_areas
+            canonical_areas = cluster_def.get('policy_area_ids', [])
+
+            if not canonical_areas and legacy_areas:
+                canonical_areas = [legacy_to_canonical.get(area, area) for area in legacy_areas]
+
+            self.canonical_clusters[cluster_id] = {
+                'canonical': canonical_areas,
+                'legacy': legacy_areas,
+            }
         
         logger.info(f"Loaded canonical clusters: {self.canonical_clusters}")
         logger.info(f"=== {phase} COMPLETE ===")
@@ -488,17 +513,28 @@ class MonolithForge:
         # Map legacy clusters to canonical
         cluster_mapping = {}
         for i, cluster_def in enumerate(legacy_clusters, 1):
-            cluster_id = f"CLUSTER_{i}"
+            cluster_id = cluster_def.get('cluster_id') or f"CL{str(i).zfill(2)}"
             legacy_areas = cluster_def.get('legacy_policy_area_ids', [])
-            
-            # Verify against canonical (loaded from legacy data)
-            expected = self.canonical_clusters.get(cluster_id)
-            if set(legacy_areas) != set(expected):
-                self.abort('A070', f'{cluster_id} hermeticity violation. Expected {expected}, got {legacy_areas}', phase)
-            
+            canonical_record = self.canonical_clusters.get(cluster_id)
+
+            if not canonical_record:
+                self.abort('A070', f'Cluster {cluster_id} not found in canonical registry', phase)
+
+            canonical_areas = canonical_record.get('canonical', [])
+            expected_legacy = canonical_record.get('legacy', [])
+
+            if expected_legacy and set(legacy_areas) != set(expected_legacy):
+                self.abort(
+                    'A070',
+                    f'{cluster_id} legacy hermeticity violation. '
+                    f'Expected {expected_legacy}, got {legacy_areas}',
+                    phase
+                )
+
             cluster_mapping[cluster_id] = {
                 'cluster_id': cluster_id,
-                'policy_areas': legacy_areas,
+                'policy_area_ids': canonical_areas,
+                'legacy_policy_area_ids': legacy_areas,
                 'label_es': cluster_def.get('i18n', {}).get('keys', {}).get('label_es', ''),
                 'label_en': cluster_def.get('i18n', {}).get('keys', {}).get('label_en', ''),
                 'rationale': cluster_def.get('rationale', '')
@@ -514,13 +550,13 @@ class MonolithForge:
                 'cluster_id': cluster_id,
                 'type': 'MESO',
                 'text': f"¿Cómo se integran las políticas en el cluster {cluster_info['label_es']}?",
-                'policy_areas': cluster_info['policy_areas'],
+                'policy_areas': cluster_info['policy_area_ids'],
                 'scoring_modality': 'MESO_INTEGRATION',
                 'aggregation_method': 'weighted_average',
                 'patterns': [
                     {
                         'type': 'cross_reference',
-                        'description': f'Verificar referencias cruzadas entre áreas {cluster_info["policy_areas"]}'
+                        'description': f'Verificar referencias cruzadas entre áreas {cluster_info["policy_area_ids"]}'
                     },
                     {
                         'type': 'coherence',
@@ -853,13 +889,30 @@ class MonolithForge:
         
         # Validate cluster hermeticity
         clusters_in_monolith = monolith['blocks']['niveles_abstraccion']['clusters']
-        for i, cluster_def in enumerate(clusters_in_monolith, 1):
-            cluster_id = f'CLUSTER_{i}'
-            legacy_areas = cluster_def.get('legacy_policy_area_ids', [])
-            expected = self.canonical_clusters.get(cluster_id)
-            
-            if set(legacy_areas) != set(expected):
-                self.abort('A090', f'{cluster_id} hermeticity violation in final', phase)
+        for cluster_def in clusters_in_monolith:
+            cluster_id = cluster_def.get('cluster_id')
+            canonical_record = self.canonical_clusters.get(cluster_id)
+
+            if not canonical_record:
+                self.abort('A090', f'Cluster {cluster_id} missing from canonical registry', phase)
+
+            canonical_expected = set(canonical_record.get('canonical', []))
+            canonical_present = set(cluster_def.get('policy_area_ids', []))
+            if canonical_expected and canonical_present != canonical_expected:
+                self.abort(
+                    'A090',
+                    f'{cluster_id} canonical hermeticity violation in final',
+                    phase
+                )
+
+            expected_legacy = set(canonical_record.get('legacy', []))
+            legacy_present = set(cluster_def.get('legacy_policy_area_ids', []))
+            if expected_legacy and legacy_present != expected_legacy:
+                self.abort(
+                    'A090',
+                    f'{cluster_id} legacy hermeticity violation in final',
+                    phase
+                )
         
         logger.info(f"Validation PASSED:")
         logger.info(f"  - 300 micro questions")
@@ -873,31 +926,24 @@ class MonolithForge:
     # PHASE 11: FinalEmissionPhase
     # ========================================================================
     
-    def final_emission_phase(self, output_path: str):
-        """
-        Write questionnaire_monolith.json to disk.
-        Postconditions: file accessible, size > 0, hash matches
-        """
+    def final_emission_phase(self, output_path: Optional[str]):
+        """Write the orchestrator-managed questionnaire monolith to disk."""
         phase = "FinalEmissionPhase"
         logger.info(f"=== {phase} START ===")
-        
+
         monolith = self.monolith['final']
-        
-        # Write to file
-        output_file = Path(output_path)
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(monolith, f, indent=2, ensure_ascii=False, sort_keys=True)
-        
-        # Postcondition: size > 0
-        file_size = output_file.stat().st_size
+
+        # Delegate persistence to the orchestrator provider
+        output_file = QUESTIONNAIRE_PROVIDER.save(monolith, output_path=output_path)
+
+        file_info = QUESTIONNAIRE_PROVIDER.describe(output_file)
+        file_size = file_info["size"]
         if file_size == 0:
             self.abort('A100', 'Empty monolith emission', phase)
-        
-        # Verify hash matches
-        # Reload and recalculate hash on the same structure used during sealing (without integrity block)
-        with open(output_file, 'r', encoding='utf-8') as f:
-            reloaded = json.load(f)
-        
+
+        # Verify hash matches by reloading through the provider interface
+        reloaded = QUESTIONNAIRE_PROVIDER.load(force_reload=True, data_path=output_file)
+
         expected_hash = monolith['integrity']['monolith_hash']
         reloaded_without_integrity = {k: v for k, v in reloaded.items() if k != 'integrity'}
         canonical_check = json.dumps(reloaded_without_integrity, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
@@ -945,14 +991,14 @@ class MonolithForge:
         manifest_path = output_file.parent / 'forge_manifest.json'
         with open(manifest_path, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f"Manifest written to {manifest_path}")
     
     # ========================================================================
     # Main Build Pipeline
     # ========================================================================
     
-    def build(self, output_path: str = 'questionnaire_monolith.json'):
+    def build(self, output_path: Optional[str] = None):
         """Execute all construction phases in order."""
         logger.info("=" * 70)
         logger.info("MonolithForge: Starting construction pipeline")
@@ -986,12 +1032,16 @@ def main():
     """Main entry point."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Build questionnaire_monolith.json')
-    parser.add_argument('--output', '-o', default='questionnaire_monolith.json',
-                       help='Output path for monolith file')
-    
+    parser = argparse.ArgumentParser(description='Build questionnaire monolith payload')
+    parser.add_argument(
+        '--output',
+        '-o',
+        default=None,
+        help='Output path for the questionnaire monolith file'
+    )
+
     args = parser.parse_args()
-    
+
     forge = MonolithForge()
     success = forge.build(args.output)
     

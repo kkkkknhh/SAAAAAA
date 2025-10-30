@@ -362,9 +362,9 @@ LEYENDA:
   * cluster1_area_scores = FILTER(all_area_scores, {'area_id': IN cluster1_areas})
   
   * cluster1_score = AG.ClusterAggregator.aggregate_cluster(
-      cluster_id='CLUSTER_1',
+      cluster_id='CL01',
       area_scores=cluster1_area_scores,
-      cluster_def=cluster_definitions['CLUSTER_1'],
+      cluster_def=cluster_definitions['CL01'],
       monolith=monolith
     )
     """
@@ -391,7 +391,7 @@ LEYENDA:
       SYNC
       
       RETURN ClusterScore {
-        cluster_id: 'CLUSTER_1',
+        cluster_id: 'CL01',
         cluster_name: cluster_def['name'],
         areas: cluster1_areas,
         score: weighted_score,
@@ -402,43 +402,43 @@ LEYENDA:
     SYNC
   
   * all_cluster_scores.append(cluster1_score)
-  PRINT "✓ CLUSTER_1 (Seguridad y Paz): {cluster1_score.score}"
+  PRINT "✓ CL01 (Seguridad y Paz): {cluster1_score.score}"
   
   
   # CLUSTER 2: Grupos Poblacionales (P1, P5, P6)
   * cluster2_areas = ['P1', 'P5', 'P6']
   * cluster2_area_scores = FILTER(all_area_scores, {'area_id': IN cluster2_areas})
   * cluster2_score = AG.ClusterAggregator.aggregate_cluster(
-      'CLUSTER_2', cluster2_area_scores, cluster_definitions['CLUSTER_2'], monolith
+      'CL02', cluster2_area_scores, cluster_definitions['CL02'], monolith
     )
     SYNC
   
   * all_cluster_scores.append(cluster2_score)
-  PRINT "✓ CLUSTER_2 (Grupos Poblacionales): {cluster2_score.score}"
+  PRINT "✓ CL02 (Grupos Poblacionales): {cluster2_score.score}"
   
   
   # CLUSTER 3: Territorio-Ambiente (P4, P8)
   * cluster3_areas = ['P4', 'P8']
   * cluster3_area_scores = FILTER(all_area_scores, {'area_id': IN cluster3_areas})
   * cluster3_score = AG.ClusterAggregator.aggregate_cluster(
-      'CLUSTER_3', cluster3_area_scores, cluster_definitions['CLUSTER_3'], monolith
+      'CL03', cluster3_area_scores, cluster_definitions['CL03'], monolith
     )
     SYNC
   
   * all_cluster_scores.append(cluster3_score)
-  PRINT "✓ CLUSTER_3 (Territorio-Ambiente): {cluster3_score.score}"
+  PRINT "✓ CL03 (Territorio-Ambiente): {cluster3_score.score}"
   
   
   # CLUSTER 4: Derechos Sociales & Crisis (P9, P10)
   * cluster4_areas = ['P9', 'P10']
   * cluster4_area_scores = FILTER(all_area_scores, {'area_id': IN cluster4_areas})
   * cluster4_score = AG.ClusterAggregator.aggregate_cluster(
-      'CLUSTER_4', cluster4_area_scores, cluster_definitions['CLUSTER_4'], monolith
+      'CL04', cluster4_area_scores, cluster_definitions['CL04'], monolith
     )
     SYNC
   
   * all_cluster_scores.append(cluster4_score)
-  PRINT "✓ CLUSTER_4 (Derechos Sociales): {cluster4_score.score}"
+  PRINT "✓ CL04 (Derechos Sociales): {cluster4_score.score}"
   
   PRINT "✓ 4 clusters MESO agregados (Q301-Q304 respondidas)"
   

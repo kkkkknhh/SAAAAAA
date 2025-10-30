@@ -63,10 +63,10 @@ Postconditions: archivo accesible; size > 0; hash coincide; logs completos.
 30 base_slots: cada uno con 10 preguntas (una por área).
 scoring_modality ∈ {TYPE_A, TYPE_B, TYPE_C, TYPE_D, TYPE_E, TYPE_F}.
 Clusters:
-CLUSTER_1: [P2,P5,P8]
-CLUSTER_2: [P2,P9,P10]
-CLUSTER_3: [P3,P7,P4]
-CLUSTER_4: [P9,P10,P1,P6]
+CL01: [P2,P5,P8]
+CL02: [P2,P9,P10]
+CL03: [P3,P7,P4]
+CL04: [P9,P10,P1,P6]
 Todas las preguntas micro tienen: question_global, question_id, base_slot, text, scoring_modality, expected_elements[], pattern_refs[].
 Niveles cualitativos micro: EXCELENTE ≥0.85, BUENO ≥0.70, ACEPTABLE ≥0.55, INSUFICIENTE ≥0.
 Rubricación macro incluye fallback MACRO_AMBIGUO (always true, priority lowest).
