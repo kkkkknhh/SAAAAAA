@@ -358,7 +358,10 @@ class MethodContext:
         data = dict(kwargs)
         document = context
         if document is None:
-            raw_text = data.pop("raw_text", data.pop("text", ""))
+            if "raw_text" in data:
+                raw_text = data.pop("raw_text")
+            else:
+                raw_text = data.pop("text", "")
             sentences = data.pop("sentences", []) or []
             tables = data.pop("tables", []) or []
             metadata = data.pop("metadata", {}) or {}
