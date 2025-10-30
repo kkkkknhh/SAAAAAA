@@ -202,13 +202,13 @@ def execute_pipeline(steps: List[PipelineStep],
 - All tools return proper exit codes (0=success, 1=failure)
 - Clear error messages with remediation steps
 
-## Files Created (Total: 13)
+## Files Created (Total: 14)
 
 ### Documentation (4)
 1. `docs/DATA_CONTRACTS.md` - Enhanced with all 5 issues addressed
 2. `docs/API_EXEMPTIONS.md` - API exemption registry
 3. `tools/README.md` - Tools usage guide
-4. *(Summary document you're reading)*
+4. `IMPLEMENTATION_SUMMARY_CONTRACTS.md` - This implementation summary
 
 ### Schemas (1)
 5. `schemas/contract_error_log.schema.json` - Error log schema
