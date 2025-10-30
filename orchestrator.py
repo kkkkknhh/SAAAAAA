@@ -21,6 +21,8 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from recommendation_engine import RecommendationEngine
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -209,7 +211,7 @@ class PreprocessedDocument:
     @classmethod
     def _from_ingestion(
         cls,
-        document: "IngestionPreprocessedDocument" | Any,
+        document: Union["IngestionPreprocessedDocument", Any],
         *,
         document_id: Optional[str] = None,
     ) -> "PreprocessedDocument":
@@ -902,6217 +904,8670 @@ class MethodExecutor:
             raise
 
 
-class D1Q1_Executor:
+class DataFlowExecutor:
+    """Ejecutor base"""
+    def __init__(self, method_executor):
+        self.executor = method_executor
+
+
+class D1Q1_Executor(DataFlowExecutor):
     """
     D1-Q1: Líneas Base y Brechas Cuantificadas
     Flow: PP.O → CD.E+T → CD.V → CD.C → A1.C || EP.C → PP.R
-    Métodos: 18 del catálogo
+    Métodos: 18
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 18 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T → CD.V → CD.C → A1.C || EP.C → PP.R
-        
-        # PASO 1: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 1. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 2. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.R - IndustrialPolicyProcessor._construct_evidence_bundle
-        results['PP__construct_evidence_bundle'] = executor.execute(
+        # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_construct_evidence_bundle',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: PP.C - BayesianEvidenceScorer._calculate_shannon_entropy
-        results['PP__calculate_shannon_entropy'] = executor.execute(
+        # 6. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             '_calculate_shannon_entropy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 7. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 8. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 10. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - PolicyContradictionDetector._statistical_significance_test
-        results['CD__statistical_significance_test'] = executor.execute(
+        # 12. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_statistical_significance_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._statistical_significance_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 13. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 14. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: A1.C - SemanticAnalyzer._calculate_semantic_complexity
-        results['A1__calculate_semantic_complexity'] = executor.execute(
+        # 15. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_calculate_semantic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._calculate_semantic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 16. A1.V - SemanticAnalyzer._classify_policy_domain (P=1)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.V - BayesianNumericalAnalyzer._classify_evidence_strength
-        results['EP__classify_evidence_strength'] = executor.execute(
+        # 18. EP.V - BayesianNumericalAnalyzer._classify_evidence_strength (P=2)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             '_classify_evidence_strength',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer._classify_evidence_strength'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D1Q2_Executor:
+
+class D1Q2_Executor(DataFlowExecutor):
     """
     D1-Q2: Normalización y Fuentes
     Flow: PP.E → PP.T → CD.E+T → CD.V+C → EP.E+C
-    Métodos: 12 del catálogo
+    Métodos: 12
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 12 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E → PP.T → CD.E+T → CD.V+C → EP.E+C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.T - IndustrialPolicyProcessor._compile_pattern_registry
-        results['PP__compile_pattern_registry'] = executor.execute(
+        # 2. PP.T - IndustrialPolicyProcessor._compile_pattern_registry (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_compile_pattern_registry',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._compile_pattern_registry'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.normalize_unicode
-        results['PP_normalize_unicode'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.normalize_unicode (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'normalize_unicode',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.normalize_unicode'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 5. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 8. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 9. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 10. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: EP.E - PolicyAnalysisEmbedder._extract_numerical_values
-        results['EP__extract_numerical_values'] = executor.execute(
+        # 11. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             '_extract_numerical_values',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: EP.C - BayesianNumericalAnalyzer._compute_coherence
-        results['EP__compute_coherence'] = executor.execute(
+        # 12. EP.C - BayesianNumericalAnalyzer._compute_coherence (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             '_compute_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer._compute_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D1Q3_Executor:
+
+class D1Q3_Executor(DataFlowExecutor):
     """
     D1-Q3: Asignación de Recursos
     Flow: PP.O → CD.E → CD.V+C → FV.E → DB.O → EP.C → PP.R
-    Métodos: 22 del catálogo
+    Métodos: 22
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 22 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E → CD.V+C → FV.E → DB.O → EP.C → PP.R
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.E - IndustrialPolicyProcessor._extract_point_evidence
-        results['PP__extract_point_evidence'] = executor.execute(
+        # 3. PP.E - IndustrialPolicyProcessor._extract_point_evidence (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_extract_point_evidence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._extract_point_evidence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.R - IndustrialPolicyProcessor._construct_evidence_bundle
-        results['PP__construct_evidence_bundle'] = executor.execute(
+        # 4. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_construct_evidence_bundle',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_resource_mentions
-        results['CD__extract_resource_mentions'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_resource_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_resource_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 9. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - PolicyContradictionDetector._detect_resource_conflicts
-        results['CD__detect_resource_conflicts'] = executor.execute(
+        # 10. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_resource_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_resource_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - PolicyContradictionDetector._are_conflicting_allocations
-        results['CD__are_conflicting_allocations'] = executor.execute(
+        # 11. CD.V - PolicyContradictionDetector._are_conflicting_allocations (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_conflicting_allocations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_conflicting_allocations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - PolicyContradictionDetector._statistical_significance_test
-        results['CD__statistical_significance_test'] = executor.execute(
+        # 12. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_statistical_significance_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._statistical_significance_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.E - TemporalLogicVerifier._extract_resources
-        results['CD__extract_resources'] = executor.execute(
+        # 14. CD.E - TemporalLogicVerifier._extract_resources (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_extract_resources',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._extract_resources'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 15. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 16. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts
-        results['FV__extract_financial_amounts'] = executor.execute(
+        # 17. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_financial_amounts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: FV.V - PDETMunicipalPlanAnalyzer._identify_funding_source
-        results['FV__identify_funding_source'] = executor.execute(
+        # 18. FV.V - PDETMunicipalPlanAnalyzer._identify_funding_source (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_identify_funding_source',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._identify_funding_source'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources
-        results['FV__analyze_funding_sources'] = executor.execute(
+        # 19. FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_analyze_funding_sources',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._analyze_funding_sources'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: DB.O - FinancialAuditor.trace_financial_allocation
-        results['DB_trace_financial_allocation'] = executor.execute(
+        # 20. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             'trace_financial_allocation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor.trace_financial_allocation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 21. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: EP.C - BayesianNumericalAnalyzer.compare_policies
-        results['EP_compare_policies'] = executor.execute(
+        # 22. EP.C - BayesianNumericalAnalyzer.compare_policies (P=2)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'compare_policies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.compare_policies'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D1Q4_Executor:
+
+class D1Q4_Executor(DataFlowExecutor):
     """
     D1-Q4: Capacidad Institucional
     Flow: PP.E → CD.E+T+V+C → A1.V → FV.E+V
-    Métodos: 16 del catálogo
+    Métodos: 16
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 16 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E → CD.E+T+V+C → A1.V → FV.E+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.T - IndustrialPolicyProcessor._build_point_patterns
-        results['PP__build_point_patterns'] = executor.execute(
+        # 2. PP.T - IndustrialPolicyProcessor._build_point_patterns (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_build_point_patterns',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._build_point_patterns'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 3. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 5. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.C - PolicyContradictionDetector._calculate_graph_fragmentation
-        results['CD__calculate_graph_fragmentation'] = executor.execute(
+        # 6. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_graph_fragmentation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 8. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._calculate_syntactic_complexity
-        results['CD__calculate_syntactic_complexity'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_syntactic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 11. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: A1.V - SemanticAnalyzer._classify_value_chain_link
-        results['A1__classify_value_chain_link'] = executor.execute(
+        # 12. A1.V - SemanticAnalyzer._classify_value_chain_link (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_value_chain_link',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_value_chain_link'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: A1.V - PerformanceAnalyzer._detect_bottlenecks
-        results['A1__detect_bottlenecks'] = executor.execute(
+        # 13. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_detect_bottlenecks',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._detect_bottlenecks'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: A1.E - TextMiningEngine._identify_critical_links
-        results['A1__identify_critical_links'] = executor.execute(
+        # 14. A1.E - TextMiningEngine._identify_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_identify_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._identify_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities
-        results['FV_identify_responsible_entities'] = executor.execute(
+        # 15. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'identify_responsible_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type
-        results['FV__classify_entity_type'] = executor.execute(
+        # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_entity_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D1Q5_Executor:
+
+class D1Q5_Executor(DataFlowExecutor):
     """
     D1-Q5: Restricciones Temporales
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C
-    Métodos: 14 del catálogo
+    Métodos: 14
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 14 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+T → CD.E → CD.V+T+C → A1.C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 2. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 3. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: CD.V - PolicyContradictionDetector._detect_temporal_conflicts
-        results['CD__detect_temporal_conflicts'] = executor.execute(
+        # 4. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_temporal_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 5. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 6. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - TemporalLogicVerifier.verify_temporal_consistency
-        results['CD_verify_temporal_consistency'] = executor.execute(
+        # 7. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             'verify_temporal_consistency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier.verify_temporal_consistency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.T - TemporalLogicVerifier._build_timeline
-        results['CD__build_timeline'] = executor.execute(
+        # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_build_timeline',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._build_timeline'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.T - TemporalLogicVerifier._parse_temporal_marker
-        results['CD__parse_temporal_marker'] = executor.execute(
+        # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_parse_temporal_marker',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._parse_temporal_marker'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - TemporalLogicVerifier._has_temporal_conflict
-        results['CD__has_temporal_conflict'] = executor.execute(
+        # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_has_temporal_conflict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._has_temporal_conflict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - TemporalLogicVerifier._check_deadline_constraints
-        results['CD__check_deadline_constraints'] = executor.execute(
+        # 11. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_check_deadline_constraints',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._check_deadline_constraints'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - TemporalLogicVerifier._classify_temporal_type
-        results['CD__classify_temporal_type'] = executor.execute(
+        # 12. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_classify_temporal_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._classify_temporal_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: A1.C - SemanticAnalyzer._calculate_semantic_complexity
-        results['A1__calculate_semantic_complexity'] = executor.execute(
+        # 13. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_calculate_semantic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._calculate_semantic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: A1.C - PerformanceAnalyzer._calculate_throughput_metrics
-        results['A1__calculate_throughput_metrics'] = executor.execute(
+        # 14. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_calculate_throughput_metrics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D2Q1_Executor:
+
+class D2Q1_Executor(DataFlowExecutor):
     """
     D2-Q1: Formato Tabular y Trazabilidad
     Flow: PP.O → FV.E → FV.T+V → CD.V → SC.E
-    Métodos: 20 del catálogo
+    Métodos: 20
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 20 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E → FV.T+V → CD.V → SC.E
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe
-        results['FV__clean_dataframe'] = executor.execute(
+        # 6. FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_clean_dataframe',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._clean_dataframe'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.V - PDETMunicipalPlanAnalyzer._is_likely_header
-        results['FV__is_likely_header'] = executor.execute(
+        # 7. FV.V - PDETMunicipalPlanAnalyzer._is_likely_header (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_is_likely_header',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._is_likely_header'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.T - PDETMunicipalPlanAnalyzer._deduplicate_tables
-        results['FV__deduplicate_tables'] = executor.execute(
+        # 8. FV.T - PDETMunicipalPlanAnalyzer._deduplicate_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_deduplicate_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._deduplicate_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: FV.T - PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables
-        results['FV__reconstruct_fragmented_tables'] = executor.execute(
+        # 9. FV.T - PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_reconstruct_fragmented_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: FV.V - PDETMunicipalPlanAnalyzer._classify_tables
-        results['FV__classify_tables'] = executor.execute(
+        # 10. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 11. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table
-        results['FV__extract_from_budget_table'] = executor.execute(
+        # 12. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_budget_table',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables
-        results['FV__extract_from_responsibility_tables'] = executor.execute(
+        # 13. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_responsibility_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities
-        results['FV_identify_responsible_entities'] = executor.execute(
+        # 14. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'identify_responsible_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities
-        results['FV__consolidate_entities'] = executor.execute(
+        # 15. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_consolidate_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity
-        results['FV__score_entity_specificity'] = executor.execute(
+        # 16. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_score_entity_specificity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.T - TemporalLogicVerifier._build_timeline
-        results['CD__build_timeline'] = executor.execute(
+        # 17. CD.T - TemporalLogicVerifier._build_timeline (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_build_timeline',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._build_timeline'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.V - TemporalLogicVerifier._check_deadline_constraints
-        results['CD__check_deadline_constraints'] = executor.execute(
+        # 18. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_check_deadline_constraints',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._check_deadline_constraints'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: CD.V - PolicyContradictionDetector._detect_temporal_conflicts
-        results['CD__detect_temporal_conflicts'] = executor.execute(
+        # 19. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_temporal_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: SC.E - SemanticProcessor._detect_table
-        results['SC__detect_table'] = executor.execute(
+        # 20. SC.E - SemanticProcessor._detect_table (P=3)
+        result = self.executor.execute(
             'SemanticProcessor',
             '_detect_table',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticProcessor._detect_table'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D2Q2_Executor:
+
+class D2Q2_Executor(DataFlowExecutor):
     """
     D2-Q2: Causalidad de Actividades
     Flow: PP.E → PP.C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
-    Métodos: 25 del catálogo
+    Métodos: 25
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 25 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E → PP.C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - PolicyContradictionDetector._determine_relation_type
-        results['CD__determine_relation_type'] = executor.execute(
+        # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_relation_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_relation_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._extract_policy_statements
-        results['CD__extract_policy_statements'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_policy_statements',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_policy_statements'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: DB.E - CausalExtractor._extract_goals
-        results['DB__extract_goals'] = executor.execute(
+        # 15. DB.E - CausalExtractor._extract_goals (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_goals',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_goals'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: DB.E - CausalExtractor._extract_goal_text
-        results['DB__extract_goal_text'] = executor.execute(
+        # 16. DB.E - CausalExtractor._extract_goal_text (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_goal_text',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_goal_text'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.V - CausalExtractor._classify_goal_type
-        results['DB__classify_goal_type'] = executor.execute(
+        # 17. DB.V - CausalExtractor._classify_goal_type (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_classify_goal_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._classify_goal_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: DB.T - CausalExtractor._add_node_to_graph
-        results['DB__add_node_to_graph'] = executor.execute(
+        # 18. DB.T - CausalExtractor._add_node_to_graph (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_add_node_to_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._add_node_to_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: DB.E - CausalExtractor._extract_causal_links
-        results['DB__extract_causal_links'] = executor.execute(
+        # 19. DB.E - CausalExtractor._extract_causal_links (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 20. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 21. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: A1.V - TextMiningEngine.diagnose_critical_links
-        results['A1_diagnose_critical_links'] = executor.execute(
+        # 22. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             'diagnose_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine.diagnose_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: A1.C - TextMiningEngine._analyze_link_text
-        results['A1__analyze_link_text'] = executor.execute(
+        # 23. A1.C - TextMiningEngine._analyze_link_text (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_analyze_link_text',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._analyze_link_text'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D2Q3_Executor:
+
+class D2Q3_Executor(DataFlowExecutor):
     """
     D2-Q3: Responsables de Actividades
     Flow: PP.O → FV.E+T+V+C → CD.V → EP.E
-    Métodos: 18 del catálogo
+    Métodos: 18
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 18 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E+T+V+C → CD.V → EP.E
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities
-        results['FV_identify_responsible_entities'] = executor.execute(
+        # 5. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'identify_responsible_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables
-        results['FV__extract_from_responsibility_tables'] = executor.execute(
+        # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_responsibility_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities
-        results['FV__consolidate_entities'] = executor.execute(
+        # 7. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_consolidate_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type
-        results['FV__classify_entity_type'] = executor.execute(
+        # 8. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_entity_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity
-        results['FV__score_entity_specificity'] = executor.execute(
+        # 9. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_score_entity_specificity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 10. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe
-        results['FV__clean_dataframe'] = executor.execute(
+        # 11. FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_clean_dataframe',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._clean_dataframe'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 12. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 13. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: EP.E - PolicyAnalysisEmbedder.semantic_search
-        results['EP_semantic_search'] = executor.execute(
+        # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'semantic_search',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.semantic_search'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D2Q4_Executor:
+
+class D2Q4_Executor(DataFlowExecutor):
     """
     D2-Q4: Cuantificación de Actividades
     Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
-    Métodos: 21 del catálogo
+    Métodos: 21
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 21 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts
-        results['FV__extract_financial_amounts'] = executor.execute(
+        # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_financial_amounts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table
-        results['FV__extract_from_budget_table'] = executor.execute(
+        # 7. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_budget_table',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 8. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 10. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - PolicyContradictionDetector._extract_resource_mentions
-        results['CD__extract_resource_mentions'] = executor.execute(
+        # 11. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_resource_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_resource_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 12. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 14. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 15. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 16. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 17. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D2Q5_Executor:
+
+class D2Q5_Executor(DataFlowExecutor):
     """
     D2-Q5: Eslabón Causal Diagnóstico-Actividades
     Flow: PP.E+C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
-    Métodos: 23 del catálogo
+    Métodos: 23
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 23 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - PolicyContradictionDetector._determine_relation_type
-        results['CD__determine_relation_type'] = executor.execute(
+        # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_relation_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_relation_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._extract_policy_statements
-        results['CD__extract_policy_statements'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_policy_statements',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_policy_statements'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 15. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 16. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 17. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: A1.V - TextMiningEngine.diagnose_critical_links
-        results['A1_diagnose_critical_links'] = executor.execute(
+        # 18. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             'diagnose_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine.diagnose_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: A1.C - TextMiningEngine._analyze_link_text
-        results['A1__analyze_link_text'] = executor.execute(
+        # 19. A1.C - TextMiningEngine._analyze_link_text (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_analyze_link_text',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._analyze_link_text'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D3Q1_Executor:
+
+class D3Q1_Executor(DataFlowExecutor):
     """
     D3-Q1: Indicadores de Producto
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
-    Métodos: 19 del catálogo
+    Métodos: 19
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 19 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.R - IndustrialPolicyProcessor._construct_evidence_bundle
-        results['PP__construct_evidence_bundle'] = executor.execute(
+        # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_construct_evidence_bundle',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict
-        results['FV__indicator_to_dict'] = executor.execute(
+        # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_indicator_to_dict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions
-        results['FV__find_product_mentions'] = executor.execute(
+        # 14. FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_find_product_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._find_product_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 15. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.V - PDETMunicipalPlanAnalyzer._classify_tables
-        results['FV__classify_tables'] = executor.execute(
+        # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.E - PolicyAnalysisEmbedder._extract_numerical_values
-        results['EP__extract_numerical_values'] = executor.execute(
+        # 18. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             '_extract_numerical_values',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D3Q2_Executor:
+
+class D3Q2_Executor(DataFlowExecutor):
     """
     D3-Q2: Cuantificación de Productos
     Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
-    Métodos: 20 del catálogo
+    Métodos: 20
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 20 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts
-        results['FV__extract_financial_amounts'] = executor.execute(
+        # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_financial_amounts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table
-        results['FV__extract_from_budget_table'] = executor.execute(
+        # 7. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_budget_table',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 8. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions
-        results['FV__find_product_mentions'] = executor.execute(
+        # 9. FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_find_product_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._find_product_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 11. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.E - PolicyContradictionDetector._extract_resource_mentions
-        results['CD__extract_resource_mentions'] = executor.execute(
+        # 12. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_resource_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_resource_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 13. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 14. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 15. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 16. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 17. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 19. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D3Q3_Executor:
+
+class D3Q3_Executor(DataFlowExecutor):
     """
     D3-Q3: Responsables de Productos
     Flow: PP.O → FV.E+T+V+C → CD.V+T → EP.E
-    Métodos: 17 del catálogo
+    Métodos: 17
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 17 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E+T+V+C → CD.V+T → EP.E
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities
-        results['FV_identify_responsible_entities'] = executor.execute(
+        # 5. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'identify_responsible_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables
-        results['FV__extract_from_responsibility_tables'] = executor.execute(
+        # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_extract_from_responsibility_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities
-        results['FV__consolidate_entities'] = executor.execute(
+        # 7. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_consolidate_entities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type
-        results['FV__classify_entity_type'] = executor.execute(
+        # 8. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_entity_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity
-        results['FV__score_entity_specificity'] = executor.execute(
+        # 9. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_score_entity_specificity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 10. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 11. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 12. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 13. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: EP.E - PolicyAnalysisEmbedder.semantic_search
-        results['EP_semantic_search'] = executor.execute(
+        # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'semantic_search',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.semantic_search'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D3Q4_Executor:
+
+class D3Q4_Executor(DataFlowExecutor):
     """
     D3-Q4: Plazos de Productos
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
-    Métodos: 19 del catálogo
+    Métodos: 19
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 19 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.V - TemporalLogicVerifier.verify_temporal_consistency
-        results['CD_verify_temporal_consistency'] = executor.execute(
+        # 5. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             'verify_temporal_consistency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier.verify_temporal_consistency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - TemporalLogicVerifier._check_deadline_constraints
-        results['CD__check_deadline_constraints'] = executor.execute(
+        # 6. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_check_deadline_constraints',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._check_deadline_constraints'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - TemporalLogicVerifier._classify_temporal_type
-        results['CD__classify_temporal_type'] = executor.execute(
+        # 7. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_classify_temporal_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._classify_temporal_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.T - TemporalLogicVerifier._build_timeline
-        results['CD__build_timeline'] = executor.execute(
+        # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_build_timeline',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._build_timeline'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.T - TemporalLogicVerifier._parse_temporal_marker
-        results['CD__parse_temporal_marker'] = executor.execute(
+        # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_parse_temporal_marker',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._parse_temporal_marker'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - TemporalLogicVerifier._has_temporal_conflict
-        results['CD__has_temporal_conflict'] = executor.execute(
+        # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_has_temporal_conflict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._has_temporal_conflict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - TemporalLogicVerifier._extract_resources
-        results['CD__extract_resources'] = executor.execute(
+        # 11. CD.E - TemporalLogicVerifier._extract_resources (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_extract_resources',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._extract_resources'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.V - PolicyContradictionDetector._detect_resource_conflicts
-        results['CD__detect_resource_conflicts'] = executor.execute(
+        # 12. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_resource_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_resource_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 13. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 14. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: A1.C - PerformanceAnalyzer._calculate_throughput_metrics
-        results['A1__calculate_throughput_metrics'] = executor.execute(
+        # 15. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_calculate_throughput_metrics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: A1.V - PerformanceAnalyzer._detect_bottlenecks
-        results['A1__detect_bottlenecks'] = executor.execute(
+        # 16. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_detect_bottlenecks',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._detect_bottlenecks'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: A1.V - TextMiningEngine._assess_risks
-        results['A1__assess_risks'] = executor.execute(
+        # 17. A1.V - TextMiningEngine._assess_risks (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_assess_risks',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._assess_risks'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D3Q5_Executor:
+
+class D3Q5_Executor(DataFlowExecutor):
     """
     D3-Q5: Eslabón Causal Producto-Resultado
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Mechanism+Tests) → TC.T+V → A1.V
-    Métodos: 26 del catálogo
+    Métodos: 26
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 26 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Mechanism+Tests) → TC.T+V → A1.V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - PolicyContradictionDetector._determine_relation_type
-        results['CD__determine_relation_type'] = executor.execute(
+        # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_relation_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_relation_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._extract_policy_statements
-        results['CD__extract_policy_statements'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_policy_statements',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_policy_statements'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: DB.E - CausalExtractor._extract_causal_links
-        results['DB__extract_causal_links'] = executor.execute(
+        # 15. DB.E - CausalExtractor._extract_causal_links (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: DB.E - CausalExtractor._extract_causal_justifications
-        results['DB__extract_causal_justifications'] = executor.execute(
+        # 16. DB.E - CausalExtractor._extract_causal_justifications (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_justifications',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_justifications'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.C - CausalExtractor._calculate_confidence
-        results['DB__calculate_confidence'] = executor.execute(
+        # 17. DB.C - CausalExtractor._calculate_confidence (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_calculate_confidence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._calculate_confidence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: DB.E - MechanismPartExtractor.extract_entity_activity
-        results['DB_extract_entity_activity'] = executor.execute(
+        # 18. DB.E - MechanismPartExtractor.extract_entity_activity (P=3)
+        result = self.executor.execute(
             'MechanismPartExtractor',
             'extract_entity_activity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismPartExtractor.extract_entity_activity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: DB.E - MechanismPartExtractor._find_subject_entity
-        results['DB__find_subject_entity'] = executor.execute(
+        # 19. DB.E - MechanismPartExtractor._find_subject_entity (P=3)
+        result = self.executor.execute(
             'MechanismPartExtractor',
             '_find_subject_entity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismPartExtractor._find_subject_entity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: DB.E - MechanismPartExtractor._find_action_verb
-        results['DB__find_action_verb'] = executor.execute(
+        # 20. DB.E - MechanismPartExtractor._find_action_verb (P=3)
+        result = self.executor.execute(
             'MechanismPartExtractor',
             '_find_action_verb',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismPartExtractor._find_action_verb'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: DB.V - MechanismPartExtractor._validate_entity_activity
-        results['DB__validate_entity_activity'] = executor.execute(
+        # 21. DB.V - MechanismPartExtractor._validate_entity_activity (P=3)
+        result = self.executor.execute(
             'MechanismPartExtractor',
             '_validate_entity_activity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismPartExtractor._validate_entity_activity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: DB.C - MechanismPartExtractor._calculate_ea_confidence
-        results['DB__calculate_ea_confidence'] = executor.execute(
+        # 22. DB.C - MechanismPartExtractor._calculate_ea_confidence (P=3)
+        result = self.executor.execute(
             'MechanismPartExtractor',
             '_calculate_ea_confidence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismPartExtractor._calculate_ea_confidence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: DB.O - BayesianMechanismInference.infer_mechanisms
-        results['DB_infer_mechanisms'] = executor.execute(
+        # 23. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             'infer_mechanisms',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference.infer_mechanisms'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: DB.T - BayesianMechanismInference._build_transition_matrix
-        results['DB__build_transition_matrix'] = executor.execute(
+        # 24. DB.T - BayesianMechanismInference._build_transition_matrix (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_build_transition_matrix',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._build_transition_matrix'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 25: DB.V - BayesianMechanismInference._infer_activity_sequence
-        results['DB__infer_activity_sequence'] = executor.execute(
+        # 25. DB.V - BayesianMechanismInference._infer_activity_sequence (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_infer_activity_sequence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._infer_activity_sequence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 26: DB.V - BayesianMechanismInference._test_necessity
-        results['DB__test_necessity'] = executor.execute(
+        # 26. DB.V - BayesianMechanismInference._test_necessity (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_necessity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_necessity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 27: DB.V - BayesianMechanismInference._test_sufficiency
-        results['DB__test_sufficiency'] = executor.execute(
+        # 27. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 28: DB.V - BayesianMechanismInference._classify_mechanism_type
-        results['DB__classify_mechanism_type'] = executor.execute(
+        # 28. DB.V - BayesianMechanismInference._classify_mechanism_type (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_classify_mechanism_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._classify_mechanism_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 29: DB.V - BeachEvidentialTest.apply_test_logic
-        results['DB_apply_test_logic'] = executor.execute(
+        # 29. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
+        result = self.executor.execute(
             'BeachEvidentialTest',
             'apply_test_logic',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BeachEvidentialTest.apply_test_logic'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 30: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 30. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 31: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 31. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 32: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 32. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 33: A1.V - TextMiningEngine.diagnose_critical_links
-        results['A1_diagnose_critical_links'] = executor.execute(
+        # 33. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             'diagnose_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine.diagnose_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 34: A1.C - TextMiningEngine._analyze_link_text
-        results['A1__analyze_link_text'] = executor.execute(
+        # 34. A1.C - TextMiningEngine._analyze_link_text (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_analyze_link_text',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._analyze_link_text'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D4Q1_Executor:
+
+class D4Q1_Executor(DataFlowExecutor):
     """
     D4-Q1: Indicadores de Resultado
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
-    Métodos: 18 del catálogo
+    Métodos: 18
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 18 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.R - IndustrialPolicyProcessor._construct_evidence_bundle
-        results['PP__construct_evidence_bundle'] = executor.execute(
+        # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_construct_evidence_bundle',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict
-        results['FV__indicator_to_dict'] = executor.execute(
+        # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_indicator_to_dict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: FV.E - PDETMunicipalPlanAnalyzer._find_outcome_mentions
-        results['FV__find_outcome_mentions'] = executor.execute(
+        # 14. FV.E - PDETMunicipalPlanAnalyzer._find_outcome_mentions (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_find_outcome_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._find_outcome_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 15. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.V - PDETMunicipalPlanAnalyzer._classify_tables
-        results['FV__classify_tables'] = executor.execute(
+        # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.E - PolicyAnalysisEmbedder._extract_numerical_values
-        results['EP__extract_numerical_values'] = executor.execute(
+        # 18. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             '_extract_numerical_values',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D4Q2_Executor:
+
+class D4Q2_Executor(DataFlowExecutor):
     """
     D4-Q2: Cadena Causal y Supuestos
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Tests) → TC.T+V
-    Métodos: 24 del catálogo
+    Métodos: 24
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 24 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Tests) → TC.T+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 6. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._extract_policy_statements
-        results['CD__extract_policy_statements'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_policy_statements',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_policy_statements'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.C - PolicyContradictionDetector._calculate_syntactic_complexity
-        results['CD__calculate_syntactic_complexity'] = executor.execute(
+        # 14. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_syntactic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 15. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: DB.E - CausalExtractor._extract_causal_links
-        results['DB__extract_causal_links'] = executor.execute(
+        # 16. DB.E - CausalExtractor._extract_causal_links (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.O - BayesianMechanismInference.infer_mechanisms
-        results['DB_infer_mechanisms'] = executor.execute(
+        # 17. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             'infer_mechanisms',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference.infer_mechanisms'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: DB.V - BayesianMechanismInference._test_necessity
-        results['DB__test_necessity'] = executor.execute(
+        # 18. DB.V - BayesianMechanismInference._test_necessity (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_necessity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_necessity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: DB.V - BayesianMechanismInference._test_sufficiency
-        results['DB__test_sufficiency'] = executor.execute(
+        # 19. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: DB.V - BeachEvidentialTest.classify_test
-        results['DB_classify_test'] = executor.execute(
+        # 20. DB.V - BeachEvidentialTest.classify_test (P=3)
+        result = self.executor.execute(
             'BeachEvidentialTest',
             'classify_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BeachEvidentialTest.classify_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 21. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 22. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: TC.V - TeoriaCambio.validacion_completa
-        results['TC_validacion_completa'] = executor.execute(
+        # 23. TC.V - TeoriaCambio.validacion_completa (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'validacion_completa',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.validacion_completa'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: TC.V - TeoriaCambio._validar_orden_causal
-        results['TC__validar_orden_causal'] = executor.execute(
+        # 24. TC.V - TeoriaCambio._validar_orden_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_validar_orden_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._validar_orden_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D4Q3_Executor:
+
+class D4Q3_Executor(DataFlowExecutor):
     """
     D4-Q3: Justificación de Ambición
     Flow: PP.O+C → CD.E+V+C → FV.C+R → DB.C → EP.C+V
-    Métodos: 20 del catálogo
+    Métodos: 20
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 20 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O+C → CD.E+V+C → FV.C+R → DB.C → EP.C+V
-        
-        # PASO 1: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 1. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 3. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer._calculate_shannon_entropy
-        results['PP__calculate_shannon_entropy'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             '_calculate_shannon_entropy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 5. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.C - PolicyContradictionDetector._calculate_objective_alignment
-        results['CD__calculate_objective_alignment'] = executor.execute(
+        # 6. CD.C - PolicyContradictionDetector._calculate_objective_alignment (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_objective_alignment',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_objective_alignment'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 8. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.V - PolicyContradictionDetector._statistical_significance_test
-        results['CD__statistical_significance_test'] = executor.execute(
+        # 9. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_statistical_significance_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._statistical_significance_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - PolicyContradictionDetector._extract_resource_mentions
-        results['CD__extract_resource_mentions'] = executor.execute(
+        # 11. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_resource_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_resource_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 12. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations
-        results['FV_generate_recommendations'] = executor.execute(
+        # 13. FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'generate_recommendations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.generate_recommendations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility
-        results['FV_analyze_financial_feasibility'] = executor.execute(
+        # 14. FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_financial_feasibility',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_financial_feasibility'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability
-        results['FV__assess_financial_sustainability'] = executor.execute(
+        # 15. FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_assess_financial_sustainability',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._assess_financial_sustainability'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference
-        results['FV__bayesian_risk_inference'] = executor.execute(
+        # 16. FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_bayesian_risk_inference',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._bayesian_risk_inference'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.C - FinancialAuditor._calculate_sufficiency
-        results['DB__calculate_sufficiency'] = executor.execute(
+        # 17. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             '_calculate_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor._calculate_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: EP.C - BayesianNumericalAnalyzer.compare_policies
-        results['EP_compare_policies'] = executor.execute(
+        # 19. EP.C - BayesianNumericalAnalyzer.compare_policies (P=2)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'compare_policies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.compare_policies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: EP.V - BayesianNumericalAnalyzer._classify_evidence_strength
-        results['EP__classify_evidence_strength'] = executor.execute(
+        # 20. EP.V - BayesianNumericalAnalyzer._classify_evidence_strength (P=2)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             '_classify_evidence_strength',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer._classify_evidence_strength'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D4Q4_Executor:
+
+class D4Q4_Executor(DataFlowExecutor):
     """
     D4-Q4: Población Objetivo
     Flow: PP.O → CD.E+T+V+C → A1.V+E → EP.E+V
-    Métodos: 15 del catálogo
+    Métodos: 15
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 15 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T+V+C → A1.V+E → EP.E+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 5. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 6. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 9. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 10. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: A1.V - SemanticAnalyzer._classify_cross_cutting_themes
-        results['A1__classify_cross_cutting_themes'] = executor.execute(
+        # 11. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_cross_cutting_themes',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 12. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: A1.E - SemanticAnalyzer.extract_semantic_cube
-        results['A1_extract_semantic_cube'] = executor.execute(
+        # 13. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             'extract_semantic_cube',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer.extract_semantic_cube'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: EP.E - PolicyAnalysisEmbedder.semantic_search
-        results['EP_semantic_search'] = executor.execute(
+        # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'semantic_search',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.semantic_search'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: EP.V - PolicyAnalysisEmbedder._filter_by_pdq
-        results['EP__filter_by_pdq'] = executor.execute(
+        # 15. EP.V - PolicyAnalysisEmbedder._filter_by_pdq (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             '_filter_by_pdq',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder._filter_by_pdq'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D4Q5_Executor:
+
+class D4Q5_Executor(DataFlowExecutor):
     """
     D4-Q5: Alineación con Objetivos Superiores
     Flow: PP.O → CD.C+T → A1.V+E → EP.E+C
-    Métodos: 17 del catálogo
+    Métodos: 17
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 17 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.C+T → A1.V+E → EP.E+C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.C - PolicyContradictionDetector._calculate_objective_alignment
-        results['CD__calculate_objective_alignment'] = executor.execute(
+        # 5. CD.C - PolicyContradictionDetector._calculate_objective_alignment (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_objective_alignment',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_objective_alignment'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 6. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 7. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 8. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 9. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: A1.V - SemanticAnalyzer._classify_cross_cutting_themes
-        results['A1__classify_cross_cutting_themes'] = executor.execute(
+        # 11. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_cross_cutting_themes',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 12. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: A1.E - SemanticAnalyzer.extract_semantic_cube
-        results['A1_extract_semantic_cube'] = executor.execute(
+        # 13. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             'extract_semantic_cube',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer.extract_semantic_cube'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: EP.E - PolicyAnalysisEmbedder.semantic_search
-        results['EP_semantic_search'] = executor.execute(
+        # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'semantic_search',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.semantic_search'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: EP.C - PolicyAnalysisEmbedder.compare_policy_interventions
-        results['EP_compare_policy_interventions'] = executor.execute(
+        # 15. EP.C - PolicyAnalysisEmbedder.compare_policy_interventions (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'compare_policy_interventions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.compare_policy_interventions'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D5Q1_Executor:
+
+class D5Q1_Executor(DataFlowExecutor):
     """
     D5-Q1: Indicadores de Impacto
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.C → PP.R
-    Métodos: 17 del catálogo
+    Métodos: 17
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 17 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.C → PP.R
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.R - IndustrialPolicyProcessor._construct_evidence_bundle
-        results['PP__construct_evidence_bundle'] = executor.execute(
+        # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_construct_evidence_bundle',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict
-        results['FV__indicator_to_dict'] = executor.execute(
+        # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_indicator_to_dict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan
-        results['FV_analyze_municipal_plan'] = executor.execute(
+        # 14. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_municipal_plan',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: FV.V - PDETMunicipalPlanAnalyzer._classify_tables
-        results['FV__classify_tables'] = executor.execute(
+        # 15. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_classify_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 16. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D5Q2_Executor:
+
+class D5Q2_Executor(DataFlowExecutor):
     """
     D5-Q2: Eslabón Causal Resultado-Impacto
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Inference+Tests) → TC.T+V
-    Métodos: 25 del catálogo
+    Métodos: 25
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 25 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Inference+Tests) → TC.T+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - PolicyContradictionDetector._determine_relation_type
-        results['CD__determine_relation_type'] = executor.execute(
+        # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_relation_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_relation_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._extract_policy_statements
-        results['CD__extract_policy_statements'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_policy_statements',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_policy_statements'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: DB.E - CausalExtractor._extract_causal_links
-        results['DB__extract_causal_links'] = executor.execute(
+        # 15. DB.E - CausalExtractor._extract_causal_links (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: DB.E - CausalExtractor._extract_causal_justifications
-        results['DB__extract_causal_justifications'] = executor.execute(
+        # 16. DB.E - CausalExtractor._extract_causal_justifications (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_justifications',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_justifications'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.O - BayesianMechanismInference.infer_mechanisms
-        results['DB_infer_mechanisms'] = executor.execute(
+        # 17. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             'infer_mechanisms',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference.infer_mechanisms'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: DB.V - BayesianMechanismInference._test_necessity
-        results['DB__test_necessity'] = executor.execute(
+        # 18. DB.V - BayesianMechanismInference._test_necessity (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_necessity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_necessity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: DB.V - BayesianMechanismInference._test_sufficiency
-        results['DB__test_sufficiency'] = executor.execute(
+        # 19. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: DB.V - BayesianMechanismInference._classify_mechanism_type
-        results['DB__classify_mechanism_type'] = executor.execute(
+        # 20. DB.V - BayesianMechanismInference._classify_mechanism_type (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_classify_mechanism_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._classify_mechanism_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: DB.V - BeachEvidentialTest.apply_test_logic
-        results['DB_apply_test_logic'] = executor.execute(
+        # 21. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
+        result = self.executor.execute(
             'BeachEvidentialTest',
             'apply_test_logic',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BeachEvidentialTest.apply_test_logic'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 22. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 23. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 24. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 25: A1.V - TextMiningEngine.diagnose_critical_links
-        results['A1_diagnose_critical_links'] = executor.execute(
+        # 25. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             'diagnose_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine.diagnose_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D5Q3_Executor:
+
+class D5Q3_Executor(DataFlowExecutor):
     """
     D5-Q3: Evidencia de Causalidad
     Flow: PP.O → CD.E+T+V+C → DB.O (Extractor+Tests) → EP.C
-    Métodos: 19 del catálogo
+    Métodos: 19
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 19 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.E+T+V+C → DB.O (Extractor+Tests) → EP.C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.E - PolicyContradictionDetector._extract_quantitative_claims
-        results['CD__extract_quantitative_claims'] = executor.execute(
+        # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_quantitative_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.T - PolicyContradictionDetector._parse_number
-        results['CD__parse_number'] = executor.execute(
+        # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_parse_number',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._parse_number'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 8. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.V - PolicyContradictionDetector._statistical_significance_test
-        results['CD__statistical_significance_test'] = executor.execute(
+        # 9. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_statistical_significance_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._statistical_significance_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 10. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 11. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 12. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 13. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.E - CausalExtractor._extract_causal_justifications
-        results['DB__extract_causal_justifications'] = executor.execute(
+        # 14. DB.E - CausalExtractor._extract_causal_justifications (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             '_extract_causal_justifications',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor._extract_causal_justifications'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: DB.O - BayesianMechanismInference.infer_mechanisms
-        results['DB_infer_mechanisms'] = executor.execute(
+        # 15. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             'infer_mechanisms',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference.infer_mechanisms'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: DB.V - BayesianMechanismInference._test_necessity
-        results['DB__test_necessity'] = executor.execute(
+        # 16. DB.V - BayesianMechanismInference._test_necessity (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_necessity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_necessity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: DB.V - BayesianMechanismInference._test_sufficiency
-        results['DB__test_sufficiency'] = executor.execute(
+        # 17. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric
-        results['EP_evaluate_policy_metric'] = executor.execute(
+        # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
+        result = self.executor.execute(
             'BayesianNumericalAnalyzer',
             'evaluate_policy_metric',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D5Q4_Executor:
+
+class D5Q4_Executor(DataFlowExecutor):
     """
     D5-Q4: Plazos de Impacto
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
-    Métodos: 15 del catálogo
+    Métodos: 15
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 15 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.V - TemporalLogicVerifier.verify_temporal_consistency
-        results['CD_verify_temporal_consistency'] = executor.execute(
+        # 5. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             'verify_temporal_consistency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier.verify_temporal_consistency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - TemporalLogicVerifier._check_deadline_constraints
-        results['CD__check_deadline_constraints'] = executor.execute(
+        # 6. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_check_deadline_constraints',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._check_deadline_constraints'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - TemporalLogicVerifier._classify_temporal_type
-        results['CD__classify_temporal_type'] = executor.execute(
+        # 7. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_classify_temporal_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._classify_temporal_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.T - TemporalLogicVerifier._build_timeline
-        results['CD__build_timeline'] = executor.execute(
+        # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_build_timeline',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._build_timeline'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.T - TemporalLogicVerifier._parse_temporal_marker
-        results['CD__parse_temporal_marker'] = executor.execute(
+        # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_parse_temporal_marker',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._parse_temporal_marker'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - TemporalLogicVerifier._has_temporal_conflict
-        results['CD__has_temporal_conflict'] = executor.execute(
+        # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
+        result = self.executor.execute(
             'TemporalLogicVerifier',
             '_has_temporal_conflict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TemporalLogicVerifier._has_temporal_conflict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - PolicyContradictionDetector._extract_temporal_markers
-        results['CD__extract_temporal_markers'] = executor.execute(
+        # 11. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_temporal_markers',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_temporal_markers'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 12. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: A1.C - PerformanceAnalyzer._calculate_throughput_metrics
-        results['A1__calculate_throughput_metrics'] = executor.execute(
+        # 13. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_calculate_throughput_metrics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: A1.V - PerformanceAnalyzer._detect_bottlenecks
-        results['A1__detect_bottlenecks'] = executor.execute(
+        # 14. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_detect_bottlenecks',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._detect_bottlenecks'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D5Q5_Executor:
+
+class D5Q5_Executor(DataFlowExecutor):
     """
     D5-Q5: Sostenibilidad Financiera
     Flow: PP.O → FV.E+C → CD.E+V+C → DB.O+C
-    Métodos: 15 del catálogo
+    Métodos: 15
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 15 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → FV.E+C → CD.E+V+C → DB.O+C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility
-        results['FV_analyze_financial_feasibility'] = executor.execute(
+        # 5. FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'analyze_financial_feasibility',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.analyze_financial_feasibility'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability
-        results['FV__assess_financial_sustainability'] = executor.execute(
+        # 6. FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_assess_financial_sustainability',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._assess_financial_sustainability'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference
-        results['FV__bayesian_risk_inference'] = executor.execute(
+        # 7. FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_bayesian_risk_inference',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._bayesian_risk_inference'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources
-        results['FV__analyze_funding_sources'] = executor.execute(
+        # 8. FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_analyze_funding_sources',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._analyze_funding_sources'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: FV.E - PDETMunicipalPlanAnalyzer.extract_tables
-        results['FV_extract_tables'] = executor.execute(
+        # 9. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'extract_tables',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._extract_resource_mentions
-        results['CD__extract_resource_mentions'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_extract_resource_mentions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._extract_resource_mentions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - PolicyContradictionDetector._detect_resource_conflicts
-        results['CD__detect_resource_conflicts'] = executor.execute(
+        # 11. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_resource_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_resource_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 12. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: DB.O - FinancialAuditor.trace_financial_allocation
-        results['DB_trace_financial_allocation'] = executor.execute(
+        # 13. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             'trace_financial_allocation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor.trace_financial_allocation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: DB.C - FinancialAuditor._calculate_sufficiency
-        results['DB__calculate_sufficiency'] = executor.execute(
+        # 14. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             '_calculate_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor._calculate_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D6Q1_Executor:
+
+class D6Q1_Executor(DataFlowExecutor):
     """
     D6-Q1: Integridad de Teoría de Cambio
     Flow: PP.O → TC.V (validacion_completa) → TC.T (construir_grafo) → CD.T+C → DB.O (CausalExtractor+Auditor+Framework) → FV.T
-    Métodos: 32 del catálogo
+    Métodos: 32
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 32 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → TC.V (validacion_completa) → TC.T (construir_grafo) → CD.T+C → DB.O (CausalExtractor+Auditor+Framework) → FV.T
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions
-        results['PP__analyze_causal_dimensions'] = executor.execute(
+        # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_analyze_causal_dimensions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 3. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 5. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 6. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: TC.V - TeoriaCambio.validacion_completa
-        results['TC_validacion_completa'] = executor.execute(
+        # 7. TC.V - TeoriaCambio.validacion_completa (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'validacion_completa',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.validacion_completa'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 8. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: TC.V - TeoriaCambio._validar_orden_causal
-        results['TC__validar_orden_causal'] = executor.execute(
+        # 9. TC.V - TeoriaCambio._validar_orden_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_validar_orden_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._validar_orden_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 10. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 11. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue
-        results['TC_calculate_acyclicity_pvalue'] = executor.execute(
+        # 12. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             'calculate_acyclicity_pvalue',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: TC.C - AdvancedDAGValidator._calculate_statistical_power
-        results['TC__calculate_statistical_power'] = executor.execute(
+        # 13. TC.C - AdvancedDAGValidator._calculate_statistical_power (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_calculate_statistical_power',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._calculate_statistical_power'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: TC.C - AdvancedDAGValidator._calculate_bayesian_posterior
-        results['TC__calculate_bayesian_posterior'] = executor.execute(
+        # 14. TC.C - AdvancedDAGValidator._calculate_bayesian_posterior (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_calculate_bayesian_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._calculate_bayesian_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal
-        results['TC__perform_sensitivity_analysis_internal'] = executor.execute(
+        # 15. TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_perform_sensitivity_analysis_internal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._perform_sensitivity_analysis_internal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: TC.C - AdvancedDAGValidator.get_graph_stats
-        results['TC_get_graph_stats'] = executor.execute(
+        # 16. TC.C - AdvancedDAGValidator.get_graph_stats (P=2)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             'get_graph_stats',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator.get_graph_stats'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 17. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.C - PolicyContradictionDetector._get_graph_statistics
-        results['CD__get_graph_statistics'] = executor.execute(
+        # 18. CD.C - PolicyContradictionDetector._get_graph_statistics (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_graph_statistics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_graph_statistics'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: CD.C - PolicyContradictionDetector._calculate_graph_fragmentation
-        results['CD__calculate_graph_fragmentation'] = executor.execute(
+        # 19. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_graph_fragmentation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 20. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 21. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: DB.O - CausalExtractor.extract_causal_hierarchy
-        results['DB_extract_causal_hierarchy'] = executor.execute(
+        # 22. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
+        result = self.executor.execute(
             'CausalExtractor',
             'extract_causal_hierarchy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalExtractor.extract_causal_hierarchy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: DB.V - OperationalizationAuditor.audit_evidence_traceability
-        results['DB_audit_evidence_traceability'] = executor.execute(
+        # 23. DB.V - OperationalizationAuditor.audit_evidence_traceability (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             'audit_evidence_traceability',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor.audit_evidence_traceability'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: DB.V - OperationalizationAuditor._audit_systemic_risk
-        results['DB__audit_systemic_risk'] = executor.execute(
+        # 24. DB.V - OperationalizationAuditor._audit_systemic_risk (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             '_audit_systemic_risk',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor._audit_systemic_risk'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 25: DB.V - OperationalizationAuditor.bayesian_counterfactual_audit
-        results['DB_bayesian_counterfactual_audit'] = executor.execute(
+        # 25. DB.V - OperationalizationAuditor.bayesian_counterfactual_audit (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             'bayesian_counterfactual_audit',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor.bayesian_counterfactual_audit'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 26: DB.R - OperationalizationAuditor._generate_optimal_remediations
-        results['DB__generate_optimal_remediations'] = executor.execute(
+        # 26. DB.R - OperationalizationAuditor._generate_optimal_remediations (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             '_generate_optimal_remediations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor._generate_optimal_remediations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 27: DB.O - CDAFFramework.process_document
-        results['DB_process_document'] = executor.execute(
+        # 27. DB.O - CDAFFramework.process_document (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             'process_document',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework.process_document'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 28: DB.V - CDAFFramework._audit_causal_coherence
-        results['DB__audit_causal_coherence'] = executor.execute(
+        # 28. DB.V - CDAFFramework._audit_causal_coherence (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_audit_causal_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._audit_causal_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 29: DB.V - CDAFFramework._validate_dnp_compliance
-        results['DB__validate_dnp_compliance'] = executor.execute(
+        # 29. DB.V - CDAFFramework._validate_dnp_compliance (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_validate_dnp_compliance',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._validate_dnp_compliance'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 30: DB.R - CDAFFramework._generate_extraction_report
-        results['DB__generate_extraction_report'] = executor.execute(
+        # 30. DB.R - CDAFFramework._generate_extraction_report (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_generate_extraction_report',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._generate_extraction_report'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 31: FV.T - PDETMunicipalPlanAnalyzer.construct_causal_dag
-        results['FV_construct_causal_dag'] = executor.execute(
+        # 31. FV.T - PDETMunicipalPlanAnalyzer.construct_causal_dag (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'construct_causal_dag',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.construct_causal_dag'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 32: FV.E - PDETMunicipalPlanAnalyzer._identify_causal_nodes
-        results['FV__identify_causal_nodes'] = executor.execute(
+        # 32. FV.E - PDETMunicipalPlanAnalyzer._identify_causal_nodes (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_identify_causal_nodes',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._identify_causal_nodes'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 33: FV.E - PDETMunicipalPlanAnalyzer._identify_causal_edges
-        results['FV__identify_causal_edges'] = executor.execute(
+        # 33. FV.E - PDETMunicipalPlanAnalyzer._identify_causal_edges (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_identify_causal_edges',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._identify_causal_edges'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D6Q2_Executor:
+
+class D6Q2_Executor(DataFlowExecutor):
     """
     D6-Q2: Proporcionalidad y Continuidad (Anti-Milagro)
     Flow: PP.E+T (3 categorías patrones) → CD.T+V+C → TC.V → DB (Beach Tests + Inference + Setup) → DB.Auditor
-    Métodos: 28 del catálogo
+    Métodos: 28
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 28 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E+T (3 categorías patrones) → CD.T+V+C → TC.V → DB (Beach Tests + Inference + Setup) → DB.Auditor
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.T - IndustrialPolicyProcessor._compile_pattern_registry
-        results['PP__compile_pattern_registry'] = executor.execute(
+        # 2. PP.T - IndustrialPolicyProcessor._compile_pattern_registry (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_compile_pattern_registry',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._compile_pattern_registry'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - IndustrialPolicyProcessor._build_point_patterns
-        results['PP__build_point_patterns'] = executor.execute(
+        # 3. PP.T - IndustrialPolicyProcessor._build_point_patterns (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_build_point_patterns',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._build_point_patterns'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 4. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 5. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 6. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.C - PolicyContradictionDetector._calculate_syntactic_complexity
-        results['CD__calculate_syntactic_complexity'] = executor.execute(
+        # 7. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_syntactic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 8. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.C - PolicyContradictionDetector._get_dependency_depth
-        results['CD__get_dependency_depth'] = executor.execute(
+        # 9. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_dependency_depth',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_dependency_depth'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 10. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - PolicyContradictionDetector._determine_relation_type
-        results['CD__determine_relation_type'] = executor.execute(
+        # 11. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_relation_type',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_relation_type'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - PolicyContradictionDetector._calculate_numerical_divergence
-        results['CD__calculate_numerical_divergence'] = executor.execute(
+        # 12. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_numerical_divergence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.V - PolicyContradictionDetector._statistical_significance_test
-        results['CD__statistical_significance_test'] = executor.execute(
+        # 13. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_statistical_significance_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._statistical_significance_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 14. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: CD.V - PolicyContradictionDetector._are_comparable_claims
-        results['CD__are_comparable_claims'] = executor.execute(
+        # 15. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_are_comparable_claims',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._are_comparable_claims'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: CD.C - PolicyContradictionDetector._calculate_confidence_interval
-        results['CD__calculate_confidence_interval'] = executor.execute(
+        # 16. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 17. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: TC.V - TeoriaCambio.validacion_completa
-        results['TC_validacion_completa'] = executor.execute(
+        # 19. TC.V - TeoriaCambio.validacion_completa (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'validacion_completa',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.validacion_completa'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 20. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: TC.V - TeoriaCambio._validar_orden_causal
-        results['TC__validar_orden_causal'] = executor.execute(
+        # 21. TC.V - TeoriaCambio._validar_orden_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_validar_orden_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._validar_orden_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue
-        results['TC_calculate_acyclicity_pvalue'] = executor.execute(
+        # 22. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             'calculate_acyclicity_pvalue',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: TC.C - AdvancedDAGValidator._calculate_statistical_power
-        results['TC__calculate_statistical_power'] = executor.execute(
+        # 23. TC.C - AdvancedDAGValidator._calculate_statistical_power (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_calculate_statistical_power',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._calculate_statistical_power'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: TC.C - AdvancedDAGValidator._calculate_bayesian_posterior
-        results['TC__calculate_bayesian_posterior'] = executor.execute(
+        # 24. TC.C - AdvancedDAGValidator._calculate_bayesian_posterior (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_calculate_bayesian_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._calculate_bayesian_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 25: DB.V - BeachEvidentialTest.classify_test
-        results['DB_classify_test'] = executor.execute(
+        # 25. DB.V - BeachEvidentialTest.classify_test (P=3)
+        result = self.executor.execute(
             'BeachEvidentialTest',
             'classify_test',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BeachEvidentialTest.classify_test'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 26: DB.V - BeachEvidentialTest.apply_test_logic
-        results['DB_apply_test_logic'] = executor.execute(
+        # 26. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
+        result = self.executor.execute(
             'BeachEvidentialTest',
             'apply_test_logic',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BeachEvidentialTest.apply_test_logic'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 27: DB.V - BayesianMechanismInference._test_necessity
-        results['DB__test_necessity'] = executor.execute(
+        # 27. DB.V - BayesianMechanismInference._test_necessity (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_necessity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_necessity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 28: DB.V - BayesianMechanismInference._test_sufficiency
-        results['DB__test_sufficiency'] = executor.execute(
+        # 28. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_test_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._test_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 29: DB.T - BayesianMechanismInference._build_transition_matrix
-        results['DB__build_transition_matrix'] = executor.execute(
+        # 29. DB.T - BayesianMechanismInference._build_transition_matrix (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_build_transition_matrix',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._build_transition_matrix'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 30: DB.C - BayesianMechanismInference._calculate_type_transition_prior
-        results['DB__calculate_type_transition_prior'] = executor.execute(
+        # 30. DB.C - BayesianMechanismInference._calculate_type_transition_prior (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_calculate_type_transition_prior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._calculate_type_transition_prior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 31: DB.V - BayesianMechanismInference._infer_activity_sequence
-        results['DB__infer_activity_sequence'] = executor.execute(
+        # 31. DB.V - BayesianMechanismInference._infer_activity_sequence (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_infer_activity_sequence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._infer_activity_sequence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 32: DB.C - BayesianMechanismInference._aggregate_bayesian_confidence
-        results['DB__aggregate_bayesian_confidence'] = executor.execute(
+        # 32. DB.C - BayesianMechanismInference._aggregate_bayesian_confidence (P=3)
+        result = self.executor.execute(
             'BayesianMechanismInference',
             '_aggregate_bayesian_confidence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianMechanismInference._aggregate_bayesian_confidence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 33: DB.V - CausalInferenceSetup.classify_goal_dynamics
-        results['DB_classify_goal_dynamics'] = executor.execute(
+        # 33. DB.V - CausalInferenceSetup.classify_goal_dynamics (P=3)
+        result = self.executor.execute(
             'CausalInferenceSetup',
             'classify_goal_dynamics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalInferenceSetup.classify_goal_dynamics'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 34: DB.V - CausalInferenceSetup.identify_failure_points
-        results['DB_identify_failure_points'] = executor.execute(
+        # 34. DB.V - CausalInferenceSetup.identify_failure_points (P=3)
+        result = self.executor.execute(
             'CausalInferenceSetup',
             'identify_failure_points',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalInferenceSetup.identify_failure_points'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 35: DB.C - CausalInferenceSetup.assign_probative_value
-        results['DB_assign_probative_value'] = executor.execute(
+        # 35. DB.C - CausalInferenceSetup.assign_probative_value (P=3)
+        result = self.executor.execute(
             'CausalInferenceSetup',
             'assign_probative_value',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalInferenceSetup.assign_probative_value'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 36: DB.E - CausalInferenceSetup._get_dynamics_pattern
-        results['DB__get_dynamics_pattern'] = executor.execute(
+        # 36. DB.E - CausalInferenceSetup._get_dynamics_pattern (P=3)
+        result = self.executor.execute(
             'CausalInferenceSetup',
             '_get_dynamics_pattern',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CausalInferenceSetup._get_dynamics_pattern'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 37: DB.V - OperationalizationAuditor._audit_systemic_risk
-        results['DB__audit_systemic_risk'] = executor.execute(
+        # 37. DB.V - OperationalizationAuditor._audit_systemic_risk (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             '_audit_systemic_risk',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor._audit_systemic_risk'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 38: DB.V - OperationalizationAuditor.bayesian_counterfactual_audit
-        results['DB_bayesian_counterfactual_audit'] = executor.execute(
+        # 38. DB.V - OperationalizationAuditor.bayesian_counterfactual_audit (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             'bayesian_counterfactual_audit',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor.bayesian_counterfactual_audit'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D6Q3_Executor:
+
+class D6Q3_Executor(DataFlowExecutor):
     """
     D6-Q3: Inconsistencias (Sistema Bicameral - Ruta 1)
     Flow: PP.O → CD.V (detect suite) → CD.R (_suggest_resolutions) → TC.V → A1.V
-    Métodos: 22 del catálogo
+    Métodos: 22
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 22 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → CD.V (detect suite) → CD.R (_suggest_resolutions) → TC.V → A1.V
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: CD.V - PolicyContradictionDetector._detect_logical_incompatibilities
-        results['CD__detect_logical_incompatibilities'] = executor.execute(
+        # 5. CD.V - PolicyContradictionDetector._detect_logical_incompatibilities (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_logical_incompatibilities',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_logical_incompatibilities'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.V - PolicyContradictionDetector.detect
-        results['CD_detect'] = executor.execute(
+        # 6. CD.V - PolicyContradictionDetector.detect (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             'detect',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector.detect'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.V - PolicyContradictionDetector._detect_semantic_contradictions
-        results['CD__detect_semantic_contradictions'] = executor.execute(
+        # 7. CD.V - PolicyContradictionDetector._detect_semantic_contradictions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_semantic_contradictions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_semantic_contradictions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies
-        results['CD__detect_numerical_inconsistencies'] = executor.execute(
+        # 8. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_numerical_inconsistencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.V - PolicyContradictionDetector._detect_temporal_conflicts
-        results['CD__detect_temporal_conflicts'] = executor.execute(
+        # 9. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_temporal_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.V - PolicyContradictionDetector._detect_resource_conflicts
-        results['CD__detect_resource_conflicts'] = executor.execute(
+        # 10. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_detect_resource_conflicts',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._detect_resource_conflicts'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.V - PolicyContradictionDetector._classify_contradiction
-        results['CD__classify_contradiction'] = executor.execute(
+        # 11. CD.V - PolicyContradictionDetector._classify_contradiction (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_classify_contradiction',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._classify_contradiction'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.C - PolicyContradictionDetector._calculate_severity
-        results['CD__calculate_severity'] = executor.execute(
+        # 12. CD.C - PolicyContradictionDetector._calculate_severity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_severity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_severity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.R - PolicyContradictionDetector._generate_resolution_recommendations
-        results['CD__generate_resolution_recommendations'] = executor.execute(
+        # 13. CD.R - PolicyContradictionDetector._generate_resolution_recommendations (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_resolution_recommendations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_resolution_recommendations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: CD.R - PolicyContradictionDetector._suggest_resolutions
-        results['CD__suggest_resolutions'] = executor.execute(
+        # 14. CD.R - PolicyContradictionDetector._suggest_resolutions (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_suggest_resolutions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._suggest_resolutions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: CD.C - PolicyContradictionDetector._calculate_contradiction_entropy
-        results['CD__calculate_contradiction_entropy'] = executor.execute(
+        # 15. CD.C - PolicyContradictionDetector._calculate_contradiction_entropy (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_contradiction_entropy',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_contradiction_entropy'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: CD.C - PolicyContradictionDetector._get_domain_weight
-        results['CD__get_domain_weight'] = executor.execute(
+        # 16. CD.C - PolicyContradictionDetector._get_domain_weight (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_domain_weight',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_domain_weight'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: CD.V - PolicyContradictionDetector._has_logical_conflict
-        results['CD__has_logical_conflict'] = executor.execute(
+        # 17. CD.V - PolicyContradictionDetector._has_logical_conflict (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_has_logical_conflict',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._has_logical_conflict'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: A1.V - TextMiningEngine.diagnose_critical_links
-        results['A1_diagnose_critical_links'] = executor.execute(
+        # 19. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             'diagnose_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine.diagnose_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: A1.E - TextMiningEngine._identify_critical_links
-        results['A1__identify_critical_links'] = executor.execute(
+        # 20. A1.E - TextMiningEngine._identify_critical_links (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_identify_critical_links',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._identify_critical_links'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: TC.V - TeoriaCambio.validacion_completa
-        results['TC_validacion_completa'] = executor.execute(
+        # 21. TC.V - TeoriaCambio.validacion_completa (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'validacion_completa',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.validacion_completa'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: TC.V - TeoriaCambio._validar_orden_causal
-        results['TC__validar_orden_causal'] = executor.execute(
+        # 22. TC.V - TeoriaCambio._validar_orden_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_validar_orden_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._validar_orden_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D6Q4_Executor:
+
+class D6Q4_Executor(DataFlowExecutor):
     """
     D6-Q4: Adaptación (Sistema Bicameral - Ruta 2)
     Flow: PP.O → TC.V+R (_generar_sugerencias_internas) → CD.T+C → DB (CDAF+Auditors) → FV.R
-    Métodos: 26 del catálogo
+    Métodos: 26
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 26 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.O → TC.V+R (_generar_sugerencias_internas) → CD.T+C → DB (CDAF+Auditors) → FV.R
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: TC.V - TeoriaCambio.validacion_completa
-        results['TC_validacion_completa'] = executor.execute(
+        # 6. TC.V - TeoriaCambio.validacion_completa (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'validacion_completa',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.validacion_completa'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: TC.V - TeoriaCambio._validar_orden_causal
-        results['TC__validar_orden_causal'] = executor.execute(
+        # 7. TC.V - TeoriaCambio._validar_orden_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_validar_orden_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._validar_orden_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: TC.V - TeoriaCambio._encontrar_caminos_completos
-        results['TC__encontrar_caminos_completos'] = executor.execute(
+        # 8. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_encontrar_caminos_completos',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._encontrar_caminos_completos'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: TC.R - TeoriaCambio._generar_sugerencias_internas
-        results['TC__generar_sugerencias_internas'] = executor.execute(
+        # 9. TC.R - TeoriaCambio._generar_sugerencias_internas (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_generar_sugerencias_internas',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._generar_sugerencias_internas'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: TC.R - TeoriaCambio._execute_generar_sugerencias_internas
-        results['TC__execute_generar_sugerencias_internas'] = executor.execute(
+        # 10. TC.R - TeoriaCambio._execute_generar_sugerencias_internas (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_execute_generar_sugerencias_internas',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._execute_generar_sugerencias_internas'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: TC.E - TeoriaCambio._extraer_categorias
-        results['TC__extraer_categorias'] = executor.execute(
+        # 11. TC.E - TeoriaCambio._extraer_categorias (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_extraer_categorias',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._extraer_categorias'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: TC.V - TeoriaCambio._es_conexion_valida
-        results['TC__es_conexion_valida'] = executor.execute(
+        # 12. TC.V - TeoriaCambio._es_conexion_valida (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             '_es_conexion_valida',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio._es_conexion_valida'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: TC.T - TeoriaCambio.construir_grafo_causal
-        results['TC_construir_grafo_causal'] = executor.execute(
+        # 13. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
+        result = self.executor.execute(
             'TeoriaCambio',
             'construir_grafo_causal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TeoriaCambio.construir_grafo_causal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue
-        results['TC_calculate_acyclicity_pvalue'] = executor.execute(
+        # 14. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             'calculate_acyclicity_pvalue',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal
-        results['TC__perform_sensitivity_analysis_internal'] = executor.execute(
+        # 15. TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_perform_sensitivity_analysis_internal',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._perform_sensitivity_analysis_internal'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: TC.C - AdvancedDAGValidator._calculate_confidence_interval
-        results['TC__calculate_confidence_interval'] = executor.execute(
+        # 16. TC.C - AdvancedDAGValidator._calculate_confidence_interval (P=3)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             '_calculate_confidence_interval',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator._calculate_confidence_interval'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: TC.C - AdvancedDAGValidator.get_graph_stats
-        results['TC_get_graph_stats'] = executor.execute(
+        # 17. TC.C - AdvancedDAGValidator.get_graph_stats (P=2)
+        result = self.executor.execute(
             'AdvancedDAGValidator',
             'get_graph_stats',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedDAGValidator.get_graph_stats'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 18. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: CD.C - PolicyContradictionDetector._get_graph_statistics
-        results['CD__get_graph_statistics'] = executor.execute(
+        # 19. CD.C - PolicyContradictionDetector._get_graph_statistics (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_graph_statistics',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_graph_statistics'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: CD.C - PolicyContradictionDetector._calculate_graph_fragmentation
-        results['CD__calculate_graph_fragmentation'] = executor.execute(
+        # 20. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_graph_fragmentation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 21. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 22. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: A1.R - PerformanceAnalyzer._generate_recommendations
-        results['A1__generate_recommendations'] = executor.execute(
+        # 23. A1.R - PerformanceAnalyzer._generate_recommendations (P=2)
+        result = self.executor.execute(
             'PerformanceAnalyzer',
             '_generate_recommendations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PerformanceAnalyzer._generate_recommendations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: A1.R - TextMiningEngine._generate_interventions
-        results['A1__generate_interventions'] = executor.execute(
+        # 24. A1.R - TextMiningEngine._generate_interventions (P=2)
+        result = self.executor.execute(
             'TextMiningEngine',
             '_generate_interventions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['TextMiningEngine._generate_interventions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 25: DB.V - CDAFFramework._validate_dnp_compliance
-        results['DB__validate_dnp_compliance'] = executor.execute(
+        # 25. DB.V - CDAFFramework._validate_dnp_compliance (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_validate_dnp_compliance',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._validate_dnp_compliance'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 26: DB.R - CDAFFramework._generate_extraction_report
-        results['DB__generate_extraction_report'] = executor.execute(
+        # 26. DB.R - CDAFFramework._generate_extraction_report (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_generate_extraction_report',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._generate_extraction_report'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 27: DB.R - CDAFFramework._generate_causal_model_json
-        results['DB__generate_causal_model_json'] = executor.execute(
+        # 27. DB.R - CDAFFramework._generate_causal_model_json (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_generate_causal_model_json',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._generate_causal_model_json'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 28: DB.R - CDAFFramework._generate_dnp_compliance_report
-        results['DB__generate_dnp_compliance_report'] = executor.execute(
+        # 28. DB.R - CDAFFramework._generate_dnp_compliance_report (P=3)
+        result = self.executor.execute(
             'CDAFFramework',
             '_generate_dnp_compliance_report',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['CDAFFramework._generate_dnp_compliance_report'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 29: DB.V - OperationalizationAuditor.audit_evidence_traceability
-        results['DB_audit_evidence_traceability'] = executor.execute(
+        # 29. DB.V - OperationalizationAuditor.audit_evidence_traceability (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             'audit_evidence_traceability',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor.audit_evidence_traceability'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 30: DB.V - OperationalizationAuditor._perform_counterfactual_budget_check
-        results['DB__perform_counterfactual_budget_check'] = executor.execute(
+        # 30. DB.V - OperationalizationAuditor._perform_counterfactual_budget_check (P=3)
+        result = self.executor.execute(
             'OperationalizationAuditor',
             '_perform_counterfactual_budget_check',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['OperationalizationAuditor._perform_counterfactual_budget_check'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 31: DB.O - FinancialAuditor.trace_financial_allocation
-        results['DB_trace_financial_allocation'] = executor.execute(
+        # 31. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             'trace_financial_allocation',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor.trace_financial_allocation'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 32: DB.V - FinancialAuditor._match_goal_to_budget
-        results['DB__match_goal_to_budget'] = executor.execute(
+        # 32. DB.V - FinancialAuditor._match_goal_to_budget (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             '_match_goal_to_budget',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor._match_goal_to_budget'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 33: DB.C - FinancialAuditor._calculate_sufficiency
-        results['DB__calculate_sufficiency'] = executor.execute(
+        # 33. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             '_calculate_sufficiency',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor._calculate_sufficiency'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 34: DB.V - FinancialAuditor._detect_allocation_gaps
-        results['DB__detect_allocation_gaps'] = executor.execute(
+        # 34. DB.V - FinancialAuditor._detect_allocation_gaps (P=3)
+        result = self.executor.execute(
             'FinancialAuditor',
             '_detect_allocation_gaps',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['FinancialAuditor._detect_allocation_gaps'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 35: DB.V - MechanismTypeConfig.check_sum_to_one
-        results['DB_check_sum_to_one'] = executor.execute(
+        # 35. DB.V - MechanismTypeConfig.check_sum_to_one (P=3)
+        result = self.executor.execute(
             'MechanismTypeConfig',
             'check_sum_to_one',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MechanismTypeConfig.check_sum_to_one'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 36: FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations
-        results['FV_generate_recommendations'] = executor.execute(
+        # 36. FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             'generate_recommendations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer.generate_recommendations'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 37: FV.R - PDETMunicipalPlanAnalyzer._generate_optimal_remediations
-        results['FV__generate_optimal_remediations'] = executor.execute(
+        # 37. FV.R - PDETMunicipalPlanAnalyzer._generate_optimal_remediations (P=3)
+        result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
             '_generate_optimal_remediations',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PDETMunicipalPlanAnalyzer._generate_optimal_remediations'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-class D6Q5_Executor:
+
+class D6Q5_Executor(DataFlowExecutor):
     """
     D6-Q5: Contextualización y Enfoque Diferencial
     Flow: PP.E (patrones diferenciales) → CD.T+V+C → A1.V+E (_classify_cross_cutting_themes) → EP.E+V+C
-    Métodos: 24 del catálogo
+    Métodos: 24
     """
     
-    @staticmethod
-    def execute(doc: PreprocessedDocument, executor: MethodExecutor) -> Evidence:
-        """Ejecuta los 24 métodos según flow"""
+    def execute(self, doc, method_executor):
+        self.executor = method_executor
         results = {}
+        current_data = doc.raw_text
         
-        # Flow: PP.E (patrones diferenciales) → CD.T+V+C → A1.V+E (_classify_cross_cutting_themes) → EP.E+V+C
-        
-        # PASO 1: PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences
-        results['PP__match_patterns_in_sentences'] = executor.execute(
+        # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             '_match_patterns_in_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 2: PP.O - IndustrialPolicyProcessor.process
-        results['PP_process'] = executor.execute(
+        # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
+        result = self.executor.execute(
             'IndustrialPolicyProcessor',
             'process',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['IndustrialPolicyProcessor.process'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 3: PP.T - PolicyTextProcessor.segment_into_sentences
-        results['PP_segment_into_sentences'] = executor.execute(
+        # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'segment_into_sentences',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 4: PP.E - PolicyTextProcessor.extract_contextual_window
-        results['PP_extract_contextual_window'] = executor.execute(
+        # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
+        result = self.executor.execute(
             'PolicyTextProcessor',
             'extract_contextual_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyTextProcessor.extract_contextual_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 5: PP.C - BayesianEvidenceScorer.compute_evidence_score
-        results['PP_compute_evidence_score'] = executor.execute(
+        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
+        result = self.executor.execute(
             'BayesianEvidenceScorer',
             'compute_evidence_score',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianEvidenceScorer.compute_evidence_score'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 6: CD.T - PolicyContradictionDetector._generate_embeddings
-        results['CD__generate_embeddings'] = executor.execute(
+        # 6. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_generate_embeddings',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._generate_embeddings'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 7: CD.C - PolicyContradictionDetector._calculate_similarity
-        results['CD__calculate_similarity'] = executor.execute(
+        # 7. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_similarity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_similarity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 8: CD.E - PolicyContradictionDetector._identify_dependencies
-        results['CD__identify_dependencies'] = executor.execute(
+        # 8. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_identify_dependencies',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._identify_dependencies'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 9: CD.V - PolicyContradictionDetector._determine_semantic_role
-        results['CD__determine_semantic_role'] = executor.execute(
+        # 9. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_determine_semantic_role',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._determine_semantic_role'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 10: CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence
-        results['CD__calculate_global_semantic_coherence'] = executor.execute(
+        # 10. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_calculate_global_semantic_coherence',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 11: CD.E - PolicyContradictionDetector._get_context_window
-        results['CD__get_context_window'] = executor.execute(
+        # 11. CD.E - PolicyContradictionDetector._get_context_window (P=2)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_get_context_window',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._get_context_window'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 12: CD.T - PolicyContradictionDetector._build_knowledge_graph
-        results['CD__build_knowledge_graph'] = executor.execute(
+        # 12. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
+        result = self.executor.execute(
             'PolicyContradictionDetector',
             '_build_knowledge_graph',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyContradictionDetector._build_knowledge_graph'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 13: CD.C - BayesianConfidenceCalculator.calculate_posterior
-        results['CD_calculate_posterior'] = executor.execute(
+        # 13. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
+        result = self.executor.execute(
             'BayesianConfidenceCalculator',
             'calculate_posterior',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['BayesianConfidenceCalculator.calculate_posterior'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 14: A1.V - SemanticAnalyzer._classify_cross_cutting_themes
-        results['A1__classify_cross_cutting_themes'] = executor.execute(
+        # 14. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_cross_cutting_themes',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 15: A1.V - SemanticAnalyzer._classify_policy_domain
-        results['A1__classify_policy_domain'] = executor.execute(
+        # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_classify_policy_domain',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._classify_policy_domain'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 16: A1.E - SemanticAnalyzer.extract_semantic_cube
-        results['A1_extract_semantic_cube'] = executor.execute(
+        # 16. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             'extract_semantic_cube',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer.extract_semantic_cube'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 17: A1.T - SemanticAnalyzer._process_segment
-        results['A1__process_segment'] = executor.execute(
+        # 17. A1.T - SemanticAnalyzer._process_segment (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_process_segment',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._process_segment'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 18: A1.T - SemanticAnalyzer._vectorize_segments
-        results['A1__vectorize_segments'] = executor.execute(
+        # 18. A1.T - SemanticAnalyzer._vectorize_segments (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_vectorize_segments',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._vectorize_segments'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 19: A1.C - SemanticAnalyzer._calculate_semantic_complexity
-        results['A1__calculate_semantic_complexity'] = executor.execute(
+        # 19. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
+        result = self.executor.execute(
             'SemanticAnalyzer',
             '_calculate_semantic_complexity',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['SemanticAnalyzer._calculate_semantic_complexity'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 20: A1.O - MunicipalOntology.__init__
-        results['A1___init__'] = executor.execute(
+        # 20. A1.O - MunicipalOntology.__init__ (P=2)
+        result = self.executor.execute(
             'MunicipalOntology',
             '__init__',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['MunicipalOntology.__init__'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 21: EP.E - PolicyAnalysisEmbedder.semantic_search
-        results['EP_semantic_search'] = executor.execute(
+        # 21. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'semantic_search',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.semantic_search'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 22: EP.V - PolicyAnalysisEmbedder._filter_by_pdq
-        results['EP__filter_by_pdq'] = executor.execute(
+        # 22. EP.V - PolicyAnalysisEmbedder._filter_by_pdq (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             '_filter_by_pdq',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder._filter_by_pdq'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 23: EP.C - PolicyAnalysisEmbedder.compare_policy_interventions
-        results['EP_compare_policy_interventions'] = executor.execute(
+        # 23. EP.C - PolicyAnalysisEmbedder.compare_policy_interventions (P=3)
+        result = self.executor.execute(
             'PolicyAnalysisEmbedder',
             'compare_policy_interventions',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['PolicyAnalysisEmbedder.compare_policy_interventions'] = result
+        if result is not None:
+            current_data = result
         
-        # PASO 24: EP.V - AdvancedSemanticChunker._infer_pdq_context
-        results['EP__infer_pdq_context'] = executor.execute(
+        # 24. EP.V - AdvancedSemanticChunker._infer_pdq_context (P=3)
+        result = self.executor.execute(
             'AdvancedSemanticChunker',
             '_infer_pdq_context',
+            data=current_data,
             text=doc.raw_text,
             sentences=doc.sentences,
             tables=doc.tables
         )
+        results['AdvancedSemanticChunker._infer_pdq_context'] = result
+        if result is not None:
+            current_data = result
         
-        # Extraer evidencia
-        evidence = Evidence(
-            modality='TYPE_A',  # Ajustar según pregunta
-            elements=[],
-            raw_results=results
-        )
-        
-        return evidence
+        return {
+            'modality': 'TYPE_A',
+            'elements': self._extract(results),
+            'raw': results
+        }
+    
+    def _extract(self, results):
+        vals = [v for v in results.values() if v is not None]
+        return vals[:4] if vals else []
 
-
-# ============================================================================
-# ORQUESTADOR
-# ============================================================================
 
 class Orchestrator:
     """Orquestador robusto de 11 fases con abortabilidad y control de recursos."""
@@ -7232,6 +9687,17 @@ class Orchestrator:
         self._phase_outputs: Dict[int, Any] = {}
         self._context: Dict[str, Any] = {}
         self._start_time: Optional[float] = None
+        
+        # Initialize RecommendationEngine for 3-level recommendations
+        try:
+            self.recommendation_engine = RecommendationEngine(
+                rules_path="config/recommendation_rules.json",
+                schema_path="rules/recommendation_rules.schema.json"
+            )
+            logger.info("RecommendationEngine initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize RecommendationEngine: {e}")
+            self.recommendation_engine = None
 
     def _resolve_path(self, path: Optional[str]) -> Optional[str]:
         if path is None:
@@ -7262,7 +9728,7 @@ class Orchestrator:
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
     def process_development_plan(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+        self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
@@ -7277,7 +9743,7 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+        self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
@@ -7685,7 +10151,8 @@ class Orchestrator:
                     instrumentation.record_error("executor", error_message, base_slot=base_slot)
                 else:
                     try:
-                        evidence = await asyncio.to_thread(executor_class.execute, document, self.executor)
+                        executor_instance = executor_class(self.executor)
+                        evidence = await asyncio.to_thread(executor_instance.execute, document, self.executor)
                         circuit["failures"] = 0
                     except Exception as exc:  # pragma: no cover - dependencias externas
                         circuit["failures"] += 1
@@ -7969,16 +10436,184 @@ class Orchestrator:
         macro_result: Dict[str, Any],
         config: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """
+        Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
+        
+        This phase connects to the orchestrator's 3-level flux:
+        - MICRO: Uses scored question results from phase 3
+        - MESO: Uses cluster aggregations from phase 6
+        - MACRO: Uses macro evaluation from phase 7
+        
+        Args:
+            macro_result: Macro evaluation results from phase 7
+            config: Configuration dictionary
+            
+        Returns:
+            Dictionary with MICRO, MESO, and MACRO recommendations
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[8]
         start = time.perf_counter()
 
         await asyncio.sleep(0)
-        recommendations = {
-            "strategic": [],
-            "tactical": [],
-            "macro_score": macro_result.get("macro_score"),
-        }
+        
+        # If RecommendationEngine is not available, return empty recommendations
+        if self.recommendation_engine is None:
+            logger.warning("RecommendationEngine not available, returning empty recommendations")
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+            }
+            instrumentation.increment(latency=time.perf_counter() - start)
+            return recommendations
+        
+        try:
+            # ========================================================================
+            # MICRO LEVEL: Transform scored results to PA-DIM scores
+            # ========================================================================
+            micro_scores: Dict[str, float] = {}
+            scored_results = self._context.get('scored_results', [])
+            
+            # Group by policy area and dimension to calculate average scores
+            pa_dim_groups: Dict[str, List[float]] = {}
+            for result in scored_results:
+                if hasattr(result, 'metadata') and result.metadata:
+                    pa_id = result.metadata.get('policy_area_id')
+                    dim_id = result.metadata.get('dimension_id')
+                    score = result.normalized_score
+                    
+                    if pa_id and dim_id and score is not None:
+                        key = f"{pa_id}-{dim_id}"
+                        if key not in pa_dim_groups:
+                            pa_dim_groups[key] = []
+                        pa_dim_groups[key].append(score)
+            
+            # Calculate average for each PA-DIM combination
+            for key, scores in pa_dim_groups.items():
+                if scores:
+                    micro_scores[key] = sum(scores) / len(scores)
+            
+            logger.info(f"Extracted {len(micro_scores)} MICRO PA-DIM scores for recommendations")
+            
+            # ========================================================================
+            # MESO LEVEL: Transform cluster scores
+            # ========================================================================
+            cluster_data: Dict[str, Any] = {}
+            cluster_scores = self._context.get('cluster_scores', [])
+            
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score')
+                areas = cluster.get('areas', [])
+                
+                if cluster_id and cluster_score is not None:
+                    # Calculate variance across areas in this cluster
+                    area_scores = [area.get('score', 0) for area in areas if area.get('score') is not None]
+                    variance = statistics.variance(area_scores) if len(area_scores) > 1 else 0.0
+                    
+                    # Find weakest policy area in cluster
+                    weak_pa = None
+                    if area_scores:
+                        min_score = min(area_scores)
+                        for area in areas:
+                            if area.get('score') == min_score:
+                                weak_pa = area.get('area_id')
+                                break
+                    
+                    cluster_data[cluster_id] = {
+                        'score': cluster_score * 100,  # Convert to 0-100 scale
+                        'variance': variance,
+                        'weak_pa': weak_pa
+                    }
+            
+            logger.info(f"Extracted {len(cluster_data)} MESO cluster metrics for recommendations")
+            
+            # ========================================================================
+            # MACRO LEVEL: Transform macro evaluation
+            # ========================================================================
+            macro_score = macro_result.get('macro_score')
+            
+            # Determine macro band based on score
+            macro_band = 'INSUFICIENTE'
+            if macro_score is not None:
+                scaled_score = macro_score * 100
+                if scaled_score >= 75:
+                    macro_band = 'SATISFACTORIO'
+                elif scaled_score >= 55:
+                    macro_band = 'ACEPTABLE'
+                elif scaled_score >= 35:
+                    macro_band = 'DEFICIENTE'
+            
+            # Find clusters below target (< 55%)
+            clusters_below_target = []
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score', 0)
+                if cluster_score * 100 < 55:
+                    clusters_below_target.append(cluster_id)
+            
+            # Calculate overall variance
+            all_cluster_scores = [c.get('score', 0) for c in cluster_scores if c.get('score') is not None]
+            overall_variance = statistics.variance(all_cluster_scores) if len(all_cluster_scores) > 1 else 0.0
+            
+            variance_alert = 'BAJA'
+            if overall_variance >= 0.18:
+                variance_alert = 'ALTA'
+            elif overall_variance >= 0.08:
+                variance_alert = 'MODERADA'
+            
+            # Find priority micro gaps (lowest scoring PA-DIM combinations)
+            sorted_micro = sorted(micro_scores.items(), key=lambda x: x[1])
+            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 1.65]
+            
+            macro_data = {
+                'macro_band': macro_band,
+                'clusters_below_target': clusters_below_target,
+                'variance_alert': variance_alert,
+                'priority_micro_gaps': priority_micro_gaps
+            }
+            
+            logger.info(f"Macro band: {macro_band}, Clusters below target: {len(clusters_below_target)}")
+            
+            # ========================================================================
+            # GENERATE RECOMMENDATIONS AT ALL 3 LEVELS
+            # ========================================================================
+            context = {
+                'generated_at': datetime.utcnow().isoformat(),
+                'macro_score': macro_score
+            }
+            
+            recommendation_sets = self.recommendation_engine.generate_all_recommendations(
+                micro_scores=micro_scores,
+                cluster_data=cluster_data,
+                macro_data=macro_data,
+                context=context
+            )
+            
+            # Convert RecommendationSet objects to dictionaries
+            recommendations = {
+                level: rec_set.to_dict() for level, rec_set in recommendation_sets.items()
+            }
+            recommendations['macro_score'] = macro_score
+            
+            logger.info(
+                f"Generated recommendations: "
+                f"MICRO={len(recommendation_sets['MICRO'].recommendations)}, "
+                f"MESO={len(recommendation_sets['MESO'].recommendations)}, "
+                f"MACRO={len(recommendation_sets['MACRO'].recommendations)}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}", exc_info=True)
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+                "error": str(e)
+            }
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
