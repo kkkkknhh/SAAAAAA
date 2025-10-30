@@ -119,7 +119,7 @@ def execute_chess_strategy(
         repo_root = Path({json.dumps(str(repo_root))})
         plan_path = Path({json.dumps(str(plan_path))})
         plan_document = plan_path.read_text(encoding='utf-8')
-        metadata = json.loads({json.dumps(json.dumps(metadata))})
+        metadata = json.loads({json.dumps(metadata)})
 
         config = OrchestratorConfig(
             questionnaire_path=str(repo_root / 'questionnaire_monolith.json'),
