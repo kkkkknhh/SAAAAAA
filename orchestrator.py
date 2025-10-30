@@ -844,7 +844,7 @@ class MethodExecutor:
         drift_monitor: Optional[PayloadDriftMonitor] = None,
     ) -> None:
         self._class_registry = class_registry or _CLASS_REGISTRY
-        self.arg_router = arg_router or ArgRouter(self._class_registry)
+        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
         self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
         if MODULES_OK:
             self.instances = {
