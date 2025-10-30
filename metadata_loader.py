@@ -264,14 +264,14 @@ def load_cuestionario(
     Load and validate cuestionario_FIXED.json
     
     Args:
-        path: Path to cuestionario file (default: cuestionario_FIXED.json)
+        path: Path to cuestionario file (default: questionnaire_monolith.json)
         required_version: Required version
     
     Returns:
         Validated cuestionario data
     """
     if path is None:
-        path = Path.cwd() / "cuestionario_FIXED.json"
+        path = Path.cwd() / "questionnaire_monolith.json"
     
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
