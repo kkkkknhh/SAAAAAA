@@ -26,6 +26,14 @@ from datetime import datetime
 
 from recommendation_engine import RecommendationEngine
 
+from orchestrator.arg_router import (
+    ArgRouter,
+    ArgRouterError,
+    ArgumentValidationError,
+    PayloadDriftMonitor,
+)
+from orchestrator.class_registry import ClassRegistryError, build_class_registry
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -161,26 +169,14 @@ def get_question_payload(question_global: int) -> Dict[str, Any]:
     """Convenience wrapper returning a single question entry from the monolith."""
     return _questionnaire_provider.get_question(question_global)
 
-# Importar módulos reales
+# Validate dynamic class registry early so missing classes fail fast.
 try:
-    from policy_processor import (
-        BayesianEvidenceScorer,
-        CausalDimension,
-        IndustrialPolicyProcessor,
-        PolicyTextProcessor,
-        ProcessorConfig,
-    )
-    from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
-    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
-    from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
-    from embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
-    from Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
-    from teoria_cambio import TeoriaCambio, AdvancedDAGValidator
-    from semantic_chunking_policy import SemanticChunker
+    _CLASS_REGISTRY = build_class_registry()
     MODULES_OK = True
-except:
+except ClassRegistryError as exc:
     MODULES_OK = False
-    logger.warning("Módulos no disponibles - modo MOCK")
+    _CLASS_REGISTRY = {}
+    logger.warning("Class registry validation failed: %s", exc)
 
 @dataclass(frozen=True)
 class PreprocessedDocumentV2:
@@ -1003,33 +999,22 @@ class ArgRouter:
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
 
-    def __init__(self):
+    def __init__(
+        self,
+        class_registry: Optional[Dict[str, type]] = None,
+        arg_router: Optional[ArgRouter] = None,
+        drift_monitor: Optional[PayloadDriftMonitor] = None,
+    ) -> None:
+        self._class_registry = class_registry or _CLASS_REGISTRY
+        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
+        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
             
             self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
+                name: cls()
+                for name, cls in self._class_registry.items()
             }
         else:
             self.instances = {}
@@ -1091,11 +1076,24 @@ class MethodExecutor:
             logger.exception(f"Catalog invocation failed for {class_name}.{method_name}")
             raise
 
+        self._drift_monitor.maybe_validate(
+            kwargs, producer=class_name, consumer=method_name
+        )
 
-class DataFlowExecutor:
-    """Ejecutor base"""
-    def __init__(self, method_executor):
-        self.executor = method_executor
+        try:
+            result = method(*args, **call_kwargs)
+        except Exception as exc:
+            logger.error(f"Error {class_name}.{method_name}: {exc}")
+            return None
+
+        if isinstance(result, dict):
+            self._drift_monitor.maybe_validate(
+                result,
+                producer=f"{class_name}.{method_name}",
+                consumer="return",
+            )
+
+        return result
 
 
 class D1Q1_Executor(DataFlowExecutor):

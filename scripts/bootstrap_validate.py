@@ -122,7 +122,7 @@ def execute_chess_strategy(
         metadata = json.loads({json.dumps(json.dumps(metadata))})
 
         config = OrchestratorConfig(
-            questionnaire_path=str(repo_root / 'cuestionario_FIXED.json'),
+            questionnaire_path=str(repo_root / 'questionnaire_monolith.json'),
             plan_document_path=str(plan_path),
             execution_mapping_path=str(repo_root / 'execution_mapping.yaml'),
             method_class_map_path=str(repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'),
