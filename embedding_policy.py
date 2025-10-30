@@ -23,7 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Dict, List, Literal, Protocol, TypedDict
+from typing import Any, Iterable, Literal, Protocol, TypedDict, Union
 
 import numpy as np
 import scipy.stats as stats
@@ -98,15 +98,21 @@ class SemanticChunk(TypedDict):
     position: tuple[int, int]  # (start, end) in document
 
 
+class PosteriorSample(TypedDict):
+    """Serialized posterior sample representation."""
+
+    coherence: float
+
+
 class BayesianEvaluation(TypedDict):
     """Bayesian uncertainty-aware evaluation result."""
 
     point_estimate: float  # 0.0-1.0
     credible_interval_95: tuple[float, float]
-    posterior_samples: NDArray[np.float32]
+    posterior_samples: list[PosteriorSample]
     evidence_strength: Literal["weak", "moderate", "strong", "very_strong"]
     numerical_coherence: float  # Statistical consistency score
-    posterior_records: List[PosteriorSampleRecord]
+    posterior_records: list[PosteriorSampleRecord]
 
 
 class EmbeddingProtocol(Protocol):
@@ -115,6 +121,32 @@ class EmbeddingProtocol(Protocol):
     def encode(
         self, texts: list[str], batch_size: int = 32, normalize: bool = True
     ) -> NDArray[np.float32]: ...
+
+
+def to_dict_samples(samples: NDArray[np.float32] | Iterable[float]) -> list[PosteriorSample]:
+    """Convert posterior samples to the serialized TypedDict format."""
+
+    array = np.asarray(list(samples) if not hasattr(samples, "shape") else samples, dtype=np.float32)
+    flat = array.ravel()
+    return [{"coherence": float(value)} for value in flat]
+
+
+def samples_to_array(samples: NDArray[np.float32] | Iterable[PosteriorSample]) -> NDArray[np.float32]:
+    """Normalize posterior samples into a numpy array for computation."""
+
+    if isinstance(samples, np.ndarray):
+        return samples.astype(np.float32)
+    return np.array([sample["coherence"] for sample in samples], dtype=np.float32)
+
+
+def ensure_content_schema(chunk: dict[str, Any]) -> dict[str, Any]:
+    """Ensure chunk dictionaries expose the ``content`` key."""
+
+    if "content" not in chunk and "text" in chunk:
+        upgraded = dict(chunk)
+        upgraded["content"] = upgraded.pop("text")
+        return upgraded
+    return chunk
 
 
 # ============================================================================
@@ -220,7 +252,7 @@ class AdvancedSemanticChunker:
                 "position": (0, len(chunk_text)),  # Updated during splitting
             }
 
-            semantic_chunks.append(semantic_chunk)
+            semantic_chunks.append(ensure_content_schema(semantic_chunk))
 
         self._logger.info(
             "Created %d semantic chunks from document %s",
@@ -482,10 +514,12 @@ class BayesianNumericalAnalyzer:
         # Assess numerical coherence (consistency of observations)
         coherence = self._compute_coherence(obs_array)
 
+        serialized_samples = to_dict_samples(posterior_samples)
+
         return BayesianEvaluation(
             point_estimate=point_estimate,
             credible_interval_95=(ci_lower, ci_upper),
-            posterior_samples=posterior_samples,
+            posterior_samples=serialized_samples,
             evidence_strength=evidence_strength,
             numerical_coherence=coherence,
             posterior_records=self.serialize_posterior_samples(posterior_samples),
@@ -589,10 +623,12 @@ class BayesianNumericalAnalyzer:
 
     def _null_evaluation(self) -> BayesianEvaluation:
         """Return null evaluation when no data available."""
+        null_samples = to_dict_samples(np.array([0.0], dtype=np.float32))
+
         return BayesianEvaluation(
             point_estimate=0.0,
             credible_interval_95=(0.0, 0.0),
-            posterior_samples=np.array([0.0], dtype=np.float32),
+            posterior_samples=null_samples,
             evidence_strength="weak",
             numerical_coherence=0.0,
             posterior_records=[{"coherence": 0.0}],
@@ -637,10 +673,15 @@ class BayesianNumericalAnalyzer:
         eval_a = self.evaluate_policy_metric(policy_a_values)
         eval_b = self.evaluate_policy_metric(policy_b_values)
 
-        # Compute probability that A > B
-        prob_a_better = np.mean(
-            eval_a["posterior_samples"] > eval_b["posterior_samples"]
-        )
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation
+        samples_a = samples_to_array(eval_a["posterior_samples"])
+        samples_b = samples_to_array(eval_b["posterior_samples"])
+
+        # Compute probability that A > B and clip to avoid exact 0/1 which can cause
+        # division-by-zero in subsequent Bayes factor calculation.
+        prob_a_better = float(np.mean(samples_a > samples_b))
+        prob_a_better = float(np.clip(prob_a_better, 1e-6, 1.0 - 1e-6))
 
         # Compute Bayes factor (simplified)
         if prob_a_better > 0.5:
@@ -651,19 +692,17 @@ class BayesianNumericalAnalyzer:
         return {
             "probability_a_better": float(prob_a_better),
             "bayes_factor": float(bayes_factor),
-            "difference_mean": float(
-                np.mean(eval_a["posterior_samples"] - eval_b["posterior_samples"])
-            ),
+            "difference_mean": float(np.mean(samples_a - samples_b)),
             "difference_ci_95": (
                 float(
                     np.percentile(
-                        eval_a["posterior_samples"] - eval_b["posterior_samples"],
+                        samples_a - samples_b,
                         2.5,
                     )
                 ),
                 float(
                     np.percentile(
-                        eval_a["posterior_samples"] - eval_b["posterior_samples"],
+                        samples_a - samples_b,
                         97.5,
                     )
                 ),
