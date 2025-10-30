@@ -7,6 +7,8 @@ Tests all TYPE_A through TYPE_F modalities with various evidence structures.
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -90,7 +92,7 @@ def test_scoring_type_a():
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
     score, metadata = score_type_a(evidence, config)
-    assert score == 4.0, f"Expected 4.0, got {score}"
+    assert score == 3.0, f"Expected 3.0, got {score}"
     assert metadata["element_count"] == 4
     assert metadata["confidence"] == 1.0
     print(f"✓ TYPE_A full score: {score}")
@@ -98,7 +100,7 @@ def test_scoring_type_a():
     # Partial score with lower confidence
     evidence = {"elements": [1, 2], "confidence": 0.5}
     score, metadata = score_type_a(evidence, config)
-    expected = (2/4) * 4.0 * 0.5  # 1.0
+    expected = (2 / 4) * 3.0 * 0.5  # 0.75
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_A partial score: {score}")
     
@@ -250,12 +252,29 @@ def test_apply_scoring_type_a():
     assert result.policy_area == "PA01"
     assert result.dimension == "DIM01"
     assert result.modality == "TYPE_A"
-    assert 0 <= result.score <= 4.0
+    assert 0 <= result.score <= 3.0
     assert 0 <= result.normalized_score <= 1.0
     assert result.quality_level in ["EXCELENTE", "BUENO", "ACEPTABLE", "INSUFICIENTE"]
     assert result.evidence_hash == ScoredResult.compute_evidence_hash(evidence)
     
     print(f"✓ Full scoring workflow TYPE_A: score={result.score:.2f}, quality={result.quality_level}")
+
+
+def test_type_a_not_truncated():
+    """TYPE_A scores should reach the new 3.0 ceiling without truncation."""
+    evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
+
+    result = apply_scoring(
+        question_global=1,
+        base_slot="PA01-DIM01-Q001",
+        policy_area="PA01",
+        dimension="DIM01",
+        evidence=evidence,
+        modality="TYPE_A",
+    )
+
+    assert result.score == pytest.approx(3.0)
+    assert result.normalized_score == pytest.approx(1.0)
 
 
 def test_apply_scoring_invalid_modality():

@@ -182,7 +182,7 @@ class ScoringValidator:
         ScoringModality.TYPE_A: ModalityConfig(
             name="TYPE_A",
             description="Bayesian: Numerical claims, gaps, risks",
-            score_range=(0.0, 4.0),
+            score_range=(0.0, 3.0),
             required_evidence_keys=["elements", "confidence"],
             expected_elements=4,
         ),
@@ -332,8 +332,10 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     element_count = min(len(elements), config.expected_elements or 4)
     
     # Calculate raw score: count weighted by confidence, scale to range
-    raw_score = (element_count / 4.0) * 4.0 * confidence
-    
+    max_elements = config.expected_elements or max(1, len(elements))
+    scale = config.score_range[1] if config.score_range else 3.0
+    raw_score = (element_count / max(1, max_elements)) * scale * confidence
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
     
