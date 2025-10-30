@@ -100,7 +100,7 @@ class CategoriaCausal(Enum):
     """
 
     INSUMOS = 1
-    PROCESOS = 2
+    ACTIVIDADES = 2
     PRODUCTOS = 3
     RESULTADOS = 4
     CAUSALIDAD = 5
