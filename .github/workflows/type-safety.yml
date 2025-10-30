@@ -105,11 +105,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest hypothesis pytest-cov
+          # Install optional dependencies for full testing
+          pip install contradiction_deteccion || echo "Optional contradiction module not available"
       
       - name: Run contract tests
         run: |
           echo "=== Running contract tests ==="
-          pytest tests/test_contracts.py -v -m contract || echo "Contract tests failed (non-blocking during transition)"
+          REQUIRE_CONTRADICTION_MODULE=true pytest tests/test_contracts.py -v -m contract || echo "Contract tests failed (non-blocking during transition)"
       
       - name: Run property-based tests
         run: |
