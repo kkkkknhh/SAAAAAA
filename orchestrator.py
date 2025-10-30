@@ -161,6 +161,7 @@ try:
         CausalDimension,
         IndustrialPolicyProcessor,
         PolicyTextProcessor,
+        ProcessorConfig,
     )
     from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
     from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
@@ -686,6 +687,23 @@ class ArgRouter:
         self, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         signature = inspect.signature(method)
+        normalized = dict(provided_kwargs)
+        
+        # Alias map for common parameter name variations
+        alias_map = {
+            "text": ("raw_text", "document_text"),
+            "raw_text": ("text", "document_text"),
+        }
+        
+        # Apply alias mapping
+        for source, targets in alias_map.items():
+            if source in normalized:
+                for target in targets:
+                    if target in signature.parameters and target not in normalized:
+                        normalized[target] = normalized[source]
+                        break
+        
+        # Filter to only accepted kwargs
         accepted_kwargs: Dict[str, Any] = {}
         allow_extra = False
 
@@ -696,13 +714,11 @@ class ArgRouter:
                 allow_extra = True
                 continue
 
-            if name in provided_kwargs:
-                accepted_kwargs[name] = provided_kwargs[name]
-            elif name == "raw_text" and "text" in provided_kwargs:
-                accepted_kwargs[name] = provided_kwargs["text"]
+            if name in normalized:
+                accepted_kwargs[name] = normalized[name]
 
         if allow_extra:
-            for key, value in provided_kwargs.items():
+            for key, value in normalized.items():
                 accepted_kwargs.setdefault(key, value)
 
         return (), accepted_kwargs
@@ -841,9 +857,12 @@ class MethodExecutor:
     """Ejecuta métodos del catálogo"""
     def __init__(self):
         if MODULES_OK:
+            # Create shared ontology instance for all analyzers
+            ontology = MunicipalOntology()
+            
             self.instances = {
                 'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
                 'BayesianEvidenceScorer': BayesianEvidenceScorer(),
                 'PolicyContradictionDetector': PolicyContradictionDetector(),
                 'TemporalLogicVerifier': TemporalLogicVerifier(),
@@ -856,10 +875,10 @@ class MethodExecutor:
                 'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
                 'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
                 'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'SemanticAnalyzer': SemanticAnalyzer(),
-                'PerformanceAnalyzer': PerformanceAnalyzer(),
-                'TextMiningEngine': TextMiningEngine(),
-                'MunicipalOntology': MunicipalOntology(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
                 'TeoriaCambio': TeoriaCambio(),
                 'AdvancedDAGValidator': AdvancedDAGValidator(),
                 'SemanticChunker': SemanticChunker()
@@ -879,8 +898,8 @@ class MethodExecutor:
             args, routed_kwargs = self._router.route(class_name, instance, method, kwargs)
             return method(*args, **routed_kwargs)
         except Exception as e:
-            logger.error(f"Error {class_name}.{method_name}: {e}")
-            return None
+            logger.exception("Catalog invocation failed")
+            raise
 
 
 class D1Q1_Executor:
