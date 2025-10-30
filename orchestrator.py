@@ -22,6 +22,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from orchestrator.arg_router import ArgRouter
 from orchestrator.arg_router import (
     ArgRouter,
     ArgRouterError,
@@ -845,7 +846,7 @@ class MethodExecutor:
         drift_monitor: Optional[PayloadDriftMonitor] = None,
     ) -> None:
         self._class_registry = class_registry or _CLASS_REGISTRY
-        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
+        self.arg_router = arg_router or ArgRouter(self._class_registry)
         self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
         if MODULES_OK:
             self.instances = {
