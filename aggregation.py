@@ -235,6 +235,16 @@ class DimensionAggregator:
             # Equal weights
             weights = [1.0 / len(scores)] * len(scores)
         
+        # Validate weights length matches scores length
+        if len(weights) != len(scores):
+            msg = (
+                f"Weight length mismatch: {len(weights)} weights for {len(scores)} scores"
+            )
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise WeightValidationError(msg)
+            return 0.0
+        
         # Validate weights
         self.validate_weights(weights)
         
@@ -482,7 +492,12 @@ class AreaPolicyAggregator:
         Returns:
             List of normalized scores
         """
-        normalized = [max(0.0, min(3.0, d.score)) / 3.0 for d in dimension_scores]
+        normalized = []
+        for d in dimension_scores:
+            # Extract max_expected from validation_details or default to 3.0
+            max_expected = d.validation_details.get('score_max', 3.0) if d.validation_details else 3.0
+            normalized.append(max(0.0, min(max_expected, d.score)) / max_expected)
+        
         logger.debug(f"Scores normalized: {normalized}")
         return normalized
     
