@@ -333,6 +333,7 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     
     max_elements = config.expected_elements or 4
     max_score = config.score_range[1] if config.score_range else 3.0
+    min_score = config.score_range[0] if config.score_range else 0.0
 
     # Calculate raw score: count weighted by confidence, scale to range
     max_elements = config.expected_elements if config.expected_elements is not None else 4
@@ -340,7 +341,7 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     raw_score = (element_count / max(1, max_elements)) * scale * confidence
 
     # Clamp to valid range
-    score = max(config.score_range[0], min(config.score_range[1], raw_score))
+    score = max(min_score, min(max_score, raw_score))
 
     metadata = {
         "element_count": element_count,

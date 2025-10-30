@@ -195,13 +195,37 @@ class AdvancedSemanticChunker:
         self._logger = logging.getLogger(self.__class__.__name__)
 
     def chunk_document(
-        self, text: str, document_metadata: dict[str, Any]
+        self,
+        *,
+        text: str,
+        document_metadata: dict[str, Any],
     ) -> list[SemanticChunk]:
         """
-        Chunk document with advanced semantic awareness.
+        Chunk document with advanced semantic awareness (keyword-only params).
 
-        Returns chunks with preserved structure and P-D-Q context.
+        Args:
+            text: Document text to chunk
+            document_metadata: Metadata dict with at least 'doc_id' key
+
+        Returns:
+            List of semantic chunks with preserved structure and P-D-Q context
+        
+        Raises:
+            TypeError: If text is not a string
+            KeyError: If document_metadata missing required keys
         """
+        # Runtime validation at ingress
+        if not isinstance(text, str):
+            raise TypeError(
+                f"ERR_CONTRACT_MISMATCH[fn=chunk_document, param='text', "
+                f"expected=str, got={type(text).__name__}]"
+            )
+        
+        if not isinstance(document_metadata, dict):
+            raise TypeError(
+                f"ERR_CONTRACT_MISMATCH[fn=chunk_document, param='document_metadata', "
+                f"expected=dict, got={type(document_metadata).__name__}]"
+            )
         # Preprocess: normalize whitespace, preserve structure
         normalized_text = self._normalize_text(text)
 

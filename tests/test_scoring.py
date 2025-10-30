@@ -88,6 +88,7 @@ def test_modality_validation_type_a():
 def test_scoring_type_a():
     """Test TYPE_A scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_A)
+    max_score = config.score_range[1]
     
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}

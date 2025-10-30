@@ -9,6 +9,7 @@ SIN brevedad. SIN omisiones. TODO implementado.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
 import json
 import logging
@@ -16,23 +17,20 @@ import os
 import re
 import statistics
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
+from itertools import chain
+from collections import deque
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+import threading
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
-from recommendation_engine import RecommendationEngine
+from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
 
-from orchestrator.arg_router import (
-    ArgRouter,
-    ArgRouterError,
-    ArgumentValidationError,
-    PayloadDriftMonitor,
-)
-from orchestrator.class_registry import ClassRegistryError, build_class_registry
+_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -41,133 +39,6 @@ if TYPE_CHECKING:  # pragma: no cover - type checking only
     from document_ingestion import PreprocessedDocument as PreprocessedDocumentV1
 else:  # pragma: no cover - runtime fallback when ingestion module unavailable
     PreprocessedDocumentV1 = Any
-
-
-class _QuestionnaireProvider:
-    """Centralized access to the questionnaire monolith payload."""
-
-    _DEFAULT_PATH = Path(__file__).resolve().parent / "questionnaire_monolith.json"
-
-    def __init__(self, data_path: Optional[Path] = None) -> None:
-        self._data_path = data_path or self._DEFAULT_PATH
-        self._cache: Optional[Dict[str, Any]] = None
-        self._lock = RLock()
-
-    @property
-    def data_path(self) -> Path:
-        """Return the resolved path of the questionnaire payload."""
-        return self._data_path
-
-    def _resolve_path(self, candidate: Optional[Union[str, Path]] = None) -> Path:
-        """Resolve a candidate path relative to the current working directory."""
-        if candidate is None:
-            return self._data_path
-        if isinstance(candidate, Path):
-            path = candidate
-        else:
-            path = Path(candidate)
-        if not path.is_absolute():
-            path = (Path.cwd() / path).resolve()
-        return path
-
-    def exists(self, data_path: Optional[Union[str, Path]] = None) -> bool:
-        """Check whether the questionnaire payload exists on disk."""
-        return self._resolve_path(data_path).exists()
-
-    def describe(self, data_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
-        """Return metadata about a questionnaire payload on disk."""
-        path = self._resolve_path(data_path)
-        exists = path.exists()
-        size = path.stat().st_size if exists else 0
-        return {"path": path, "exists": exists, "size": size}
-
-    def _read_payload(self, path: Path) -> Dict[str, Any]:
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-
-    def load(
-        self,
-        force_reload: bool = False,
-        data_path: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
-        """Load and optionally cache the questionnaire payload from disk."""
-        target_path = self._resolve_path(data_path)
-        with self._lock:
-            if data_path is None:
-                if force_reload or self._cache is None:
-                    if not target_path.exists():
-                        raise FileNotFoundError(
-                            f"Questionnaire payload missing at {target_path}"
-                        )
-                    self._cache = self._read_payload(target_path)
-                return self._cache
-
-            if not target_path.exists():
-                raise FileNotFoundError(
-                    f"Questionnaire payload missing at {target_path}"
-                )
-            return self._read_payload(target_path)
-
-    def save(
-        self,
-        payload: Dict[str, Any],
-        output_path: Optional[Union[str, Path]] = None,
-    ) -> Path:
-        """Persist a questionnaire payload to disk through the orchestrator."""
-        target_path = self._resolve_path(output_path)
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        with target_path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=True)
-        if output_path is None:
-            with self._lock:
-                self._cache = payload
-        return target_path
-
-    def get_question(self, question_global: int) -> Dict[str, Any]:
-        """Return the monolith entry for a given global question identifier."""
-        payload = self.load()
-        blocks = payload.get("blocks")
-        if not isinstance(blocks, dict):
-            raise ValueError("The questionnaire payload is missing the 'blocks' mapping")
-
-        def _iter_questions():
-            micro = blocks.get("micro_questions") or []
-            if isinstance(micro, list):
-                for item in micro:
-                    if isinstance(item, dict):
-                        yield item
-            meso = blocks.get("meso_questions") or []
-            if isinstance(meso, list):
-                for item in meso:
-                    if isinstance(item, dict):
-                        yield item
-            macro = blocks.get("macro_question")
-            if isinstance(macro, dict):
-                yield macro
-
-        for question in _iter_questions():
-            if question.get("question_global") == question_global:
-                return question
-
-        raise KeyError(f"Question {question_global} not present in questionnaire payload")
-
-
-_questionnaire_provider = _QuestionnaireProvider()
-
-
-def get_questionnaire_provider() -> _QuestionnaireProvider:
-    """Expose the shared questionnaire provider singleton."""
-    return _questionnaire_provider
-
-
-def get_questionnaire_payload(force_reload: bool = False) -> Dict[str, Any]:
-    """Convenience wrapper returning the questionnaire payload as a dictionary."""
-    return _questionnaire_provider.load(force_reload=force_reload)
-
-
-def get_question_payload(question_global: int) -> Dict[str, Any]:
-    """Convenience wrapper returning a single question entry from the monolith."""
-    return _questionnaire_provider.get_question(question_global)
 
 # Validate dynamic class registry early so missing classes fail fast.
 try:
@@ -178,156 +49,11 @@ except ClassRegistryError as exc:
     _CLASS_REGISTRY = {}
     logger.warning("Class registry validation failed: %s", exc)
 
-@dataclass(frozen=True)
-class PreprocessedDocumentV2:
-    document_id: str
-    raw_text: str
-    sentences: Sequence[str]
-    tables: Sequence[Any]
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_ingestion(cls, preprocessed: PreprocessedDocumentV1) -> "PreprocessedDocumentV2":
-        """Adapt ingestion output into the orchestrator v2 schema."""
-
-        raw_doc = getattr(preprocessed, "raw_document", None)
-        document_id = None
-        if raw_doc is not None:
-            document_id = getattr(raw_doc, "file_id", None) or getattr(raw_doc, "file_name", None)
-        if not document_id:
-            document_id = getattr(preprocessed, "document_id", None) or "document"
-
-        raw_text = getattr(preprocessed, "full_text", "")
-        sentences = list(getattr(preprocessed, "sentences", []))
-        tables = list(getattr(preprocessed, "tables", []))
-
-        metadata = dict(getattr(preprocessed, "preprocessing_metadata", {}))
-        language = getattr(preprocessed, "language", None)
-        if language and "language" not in metadata:
-            metadata["language"] = language
-        if raw_doc is not None:
-            source_path = getattr(raw_doc, "file_path", None)
-            if source_path and "source_path" not in metadata:
-                metadata["source_path"] = source_path
-
-        return cls(
-            document_id=document_id,
-            raw_text=raw_text,
-            sentences=sentences,
-            tables=tables,
-            metadata=metadata,
-        )
-
-
-OrchestratorDocument = PreprocessedDocumentV2
-PreprocessedDocument = PreprocessedDocumentV2
-
-    @staticmethod
-    def _dataclass_to_dict(value: Any) -> Any:
-        if is_dataclass(value):
-            return asdict(value)
-        return value
-
-    @classmethod
-    def ensure(
-        cls, document: Any, *, document_id: Optional[str] = None
-    ) -> "PreprocessedDocument":
-        """Normalize arbitrary ingestion payloads into orchestrator documents."""
-
-        if isinstance(document, cls):
-            return document
-
-        if hasattr(document, "raw_document") and hasattr(document, "full_text"):
-            return cls._from_ingestion(document, document_id=document_id)
-
-        raise TypeError(
-            "Unsupported preprocessed document payload: "
-            f"expected orchestrator or document_ingestion schema, got {type(document)!r}"
-        )
-
-    @classmethod
-    def _from_ingestion(
-        cls,
-        document: Union["IngestionPreprocessedDocument", Any],
-        *,
-        document_id: Optional[str] = None,
-    ) -> "PreprocessedDocument":
-        """Build an orchestrator document from the ingestion schema."""
-
-        raw_doc = getattr(document, "raw_document", None)
-        derived_id: Optional[str] = document_id or getattr(document, "document_id", None)
-
-        if not derived_id and raw_doc is not None:
-            derived_id = getattr(raw_doc, "file_name", None)
-
-        if not derived_id and hasattr(document, "preprocessing_metadata"):
-            derived_id = getattr(document.preprocessing_metadata, "get", lambda _key, _default=None: None)(
-                "document_id"
-            )
-
-        if not derived_id and hasattr(document, "metadata"):
-            derived_id = getattr(document.metadata, "get", lambda _key, _default=None: None)("document_id")
-
-        if not derived_id and raw_doc is not None:
-            source_path = getattr(raw_doc, "file_path", "")
-            if source_path:
-                derived_id = os.path.splitext(os.path.basename(str(source_path)))[0]
-
-        if not derived_id:
-            derived_id = "document_1"
-
-        metadata: Dict[str, Any] = {}
-        preprocessing_block: Optional[Dict[str, Any]] = None
-        if hasattr(document, "preprocessing_metadata"):
-            preprocessing_metadata = document.preprocessing_metadata
-            if isinstance(preprocessing_metadata, dict):
-                preprocessing_block = preprocessing_metadata
-            else:
-                maybe_dict = cls._dataclass_to_dict(preprocessing_metadata)
-                if isinstance(maybe_dict, dict):
-                    preprocessing_block = maybe_dict
-        if preprocessing_block:
-            metadata["preprocessing_metadata"] = preprocessing_block
-
-        sentence_metadata = getattr(document, "sentence_metadata", None)
-        if sentence_metadata is not None:
-            metadata["sentence_metadata"] = list(sentence_metadata)
-
-        indexes = getattr(document, "indexes", None)
-        if indexes is not None:
-            metadata["indexes"] = cls._dataclass_to_dict(indexes)
-
-        structured_text = getattr(document, "structured_text", None)
-        if structured_text is not None:
-            metadata["structured_text"] = cls._dataclass_to_dict(structured_text)
-
-        language = getattr(document, "language", None)
-        if language:
-            metadata["language"] = language
-
-        raw_doc_dict = cls._dataclass_to_dict(raw_doc) if raw_doc is not None else None
-        if isinstance(raw_doc_dict, dict):
-            metadata.setdefault("raw_document", raw_doc_dict)
-            source_path = raw_doc_dict.get("file_path")
-            if source_path:
-                metadata.setdefault("source_path", source_path)
-
-        metadata.setdefault("document_id", str(derived_id))
-        metadata.setdefault("adapter_source", "document_ingestion.PreprocessedDocument")
-
-        return cls(
-            document_id=str(derived_id),
-            raw_text=getattr(document, "full_text", "") or "",
-            sentences=list(getattr(document, "sentences", [])),
-            tables=list(getattr(document, "tables", [])),
-            metadata=metadata,
-        )
-
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Evidence:
     modality: str
-    elements: List = field(default_factory=list)
-    raw_results: Dict = field(default_factory=dict)
+    elements: Tuple[Any, ...] = field(default_factory=tuple)
+    raw_results: Mapping[str, Any] = _EMPTY_MAPPING
 
 
 @dataclass(frozen=True)
@@ -644,12 +370,38 @@ class PhaseInstrumentation:
         snapshot["items_processed"] = self.items_processed
         self.resource_snapshots.append(snapshot)
 
-    def record_warning(self, category: str, message: str, **extra: Any) -> None:
-        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
+    def record_warning(
+        self,
+        *,
+        category: str,
+        message: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record warning with keyword-only parameters."""
+        entry: Dict[str, Any] = {
+            "category": category,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        if extra:
+            entry.update(extra)
         self.warnings.append(entry)
 
-    def record_error(self, category: str, message: str, **extra: Any) -> None:
-        entry = {"category": category, "message": message, **extra, "timestamp": datetime.utcnow().isoformat()}
+    def record_error(
+        self,
+        *,
+        category: str,
+        message: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record error with keyword-only parameters."""
+        entry: Dict[str, Any] = {
+            "category": category,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        if extra:
+            entry.update(extra)
         self.errors.append(entry)
 
     def _detect_latency_anomaly(self, latency: float) -> None:
@@ -977,59 +729,94 @@ class MethodExecutor:
         self,
         class_registry: Optional[Dict[str, type]] = None,
         arg_router: Optional[ArgRouter] = None,
-        drift_monitor: Optional[PayloadDriftMonitor] = None,
-    ) -> None:
-        self._class_registry = class_registry or _CLASS_REGISTRY
-        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
-        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
-        if MODULES_OK:
+    def __init__(self):
+        modules_ok = globals().get('MODULES_OK', False)
+        if modules_ok:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
-            
+        
             self.instances = {
-                name: cls()
-                for name, cls in self._class_registry.items()
+                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
+                'PolicyContradictionDetector': PolicyContradictionDetector(),
+                'TemporalLogicVerifier': TemporalLogicVerifier(),
+                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
+                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
+                'CDAFFramework': CDAFFramework(),
+                'OperationalizationAuditor': OperationalizationAuditor(),
+                'FinancialAuditor': FinancialAuditor(),
+                'BayesianMechanismInference': BayesianMechanismInference(),
+                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
+                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
+                'TeoriaCambio': TeoriaCambio(),
+                'AdvancedDAGValidator': AdvancedDAGValidator(),
+                'SemanticChunker': SemanticChunker()
             }
         else:
             self.instances = {}
-
-    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
+        self._router = ArgRouter()
+    
+    def execute(
+        self,
+        *,
+        class_name: str,
+        method_name: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """
+        Execute method with keyword-only parameters (refactored for type safety).
+        
+        Args:
+            class_name: Name of the class to execute
+            method_name: Name of the method to execute
+            kwargs: Optional kwargs dict to pass to method
+        
+        Returns:
+            Method execution result
+        
+        Raises:
+            TypeError: If contract mismatch detected
+            AttributeError: If class or method not found
+        """
         if not MODULES_OK:
             return None
-
-        instance = self.instances.get(class_name)
-        if instance is None:
-            logger.error("Class '%s' not registered in executor", class_name)
-            return None
-
-        method = getattr(instance, method_name, None)
-        if method is None:
-            logger.error("Method '%s.%s' not available", class_name, method_name)
-            return None
-
+        
+        # Use empty dict if no kwargs provided
+        method_kwargs = kwargs or {}
+        
         try:
-            args, call_kwargs = self.arg_router.route(
-                class_name, method_name, dict(kwargs)
-            )
-        except ArgumentValidationError as error:
-            expected = self.arg_router.expected_arguments(class_name, method_name)
-            logger.error(
-                "Argument validation failed [%s -> %s]: missing=%s unexpected=%s "
-                "type_mismatches=%s provided=%s expected=%s",
-                class_name,
-                method_name,
-                sorted(error.missing),
-                sorted(error.unexpected),
-                error.type_mismatches,
-                sorted(kwargs.keys()),
-                sorted(expected),
-            )
-            return None
-        except ArgRouterError as error:
-            logger.error(
-                "Routing failure for %s.%s: %s", class_name, method_name, error
-            )
-            return None
+            instance = self.instances.get(class_name)
+            if not instance:
+                logger.warning(f"Class '{class_name}' not found in instances")
+                return None
+            
+            method = getattr(instance, method_name, None)
+            if method is None:
+                logger.warning(f"Method '{method_name}' not found on class '{class_name}'")
+                return None
+            
+            # Route arguments through adapter
+            method_context = MethodContext.from_inputs(context, method_kwargs)
+            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+            routed_kwargs = router(method_context)
+            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
+            
+            return method(**filtered_kwargs)
+        except TypeError as e:
+            if "unexpected keyword argument" in str(e) or "required positional argument" in str(e):
+                logger.error(
+                    f"ERR_CONTRACT_MISMATCH[class={class_name}, method={method_name}]: {e}"
+                )
+            raise
+        except Exception as e:
+            logger.exception(f"Catalog invocation failed for {class_name}.{method_name}")
+            raise
 
         self._drift_monitor.maybe_validate(
             kwargs, producer=class_name, consumer=method_name
@@ -1103,54 +890,58 @@ class D1Q1_Executor(DataFlowExecutor):
             current_data = result
         
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
-        result = self.executor.execute(
-            'PolicyTextProcessor',
-            'segment_into_sentences',
-            data=current_data,
-            text=doc.raw_text,
+    def __init__(self):
+        if MODULES_OK:
+            # Create shared ontology instance for all analyzers
+            ontology = MunicipalOntology()
+            
+            self.instances = {
+                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
+                'PolicyContradictionDetector': PolicyContradictionDetector(),
+                'TemporalLogicVerifier': TemporalLogicVerifier(),
+                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
+                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
+                'CDAFFramework': CDAFFramework(),
+                'OperationalizationAuditor': OperationalizationAuditor(),
+                'FinancialAuditor': FinancialAuditor(),
+                'BayesianMechanismInference': BayesianMechanismInference(),
+                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
+                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
+                'TeoriaCambio': TeoriaCambio(),
+                'AdvancedDAGValidator': AdvancedDAGValidator(),
+                'SemanticChunker': SemanticChunker()
+            }
+        else:
+            self.instances = {}
+        self._router = ArgRouter()
+        # Expose routing context for other methods, preventing NameError
+        global context
+        context = self._router
             sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['PolicyTextProcessor.segment_into_sentences'] = result
-        if result is not None:
-            current_data = result
-        
-        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
-        result = self.executor.execute(
-            'BayesianEvidenceScorer',
-            'compute_evidence_score',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['BayesianEvidenceScorer.compute_evidence_score'] = result
-        if result is not None:
-            current_data = result
-        
-        # 6. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
-        result = self.executor.execute(
-            'BayesianEvidenceScorer',
-            '_calculate_shannon_entropy',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
-        if result is not None:
-            current_data = result
-        
-        # 7. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
-        result = self.executor.execute(
-            'PolicyContradictionDetector',
-            '_extract_quantitative_claims',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
+            if not MODULES_OK:
+                return None
+            try:
+                instance = self.instances.get(class_name)
+                if not instance:
+                    return None
+                method = getattr(instance, method_name)
+                ctx = kwargs.get("context")  # Safely retrieve context if provided
+                method_context = MethodContext.from_inputs(ctx, kwargs)
+                router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+                routed_kwargs = router(method_context)
+                filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
+                return method(**filtered_kwargs)
+            except Exception as e:
+                logger.exception("Catalog invocation failed")
+                raise
         if result is not None:
             current_data = result
         
@@ -10173,34 +9964,34 @@ class Orchestrator:
             "area_cluster_map": area_cluster_map,
         }
 
-    def _ingest_document(self, pdf_path: str, config: Dict[str, Any]) -> PreprocessedDocument:
+    def _ingest_document(self, pdf_path: str, config: Mapping[str, Any]) -> PreprocessedDocument:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[1]
         start = time.perf_counter()
 
         document_id = os.path.splitext(os.path.basename(pdf_path))[0] or "doc_1"
-        override_payload = self._context.get("preprocessed_override")
-        if override_payload is not None:
-            try:
-                preprocessed = PreprocessedDocument.ensure(
-                    override_payload, document_id=document_id
-                )
-            except TypeError as exc:
-                instrumentation.record_error(
-                    "ingestion", "Documento preprocesado incompatible", reason=str(exc)
-                )
-                raise
-        else:
-            preprocessed = PreprocessedDocument(
-                document_id=document_id,
-                raw_text="",
-                sentences=[],
-                tables=[],
-                metadata={
-                    "source_path": pdf_path,
-                    "ingested_at": datetime.utcnow().isoformat(),
-                },
-            )
+        ingested_at = datetime.utcnow()
+        metadata_payload: Dict[str, Any] = {
+            "source_path": pdf_path,
+            "ingested_at": ingested_at.isoformat(),
+        }
+        extra_metadata = config.get("metadata") if isinstance(config, Mapping) else None
+        if isinstance(extra_metadata, Mapping):
+            metadata_payload.update(dict(extra_metadata))
+
+        structured_text = StructuredTextV1(full_text="", sections=tuple(), page_boundaries=tuple())
+        preprocessed = PreprocessedDocument(
+            document_id=document_id,
+            full_text="",
+            sentences=tuple(),
+            language=str(config.get("default_language", "unknown")),
+            structured_text=structured_text,
+            sentence_metadata=tuple(),
+            tables=tuple(),
+            indexes=DocumentIndexesV1(),
+            metadata=MappingProxyType(metadata_payload),
+            ingested_at=ingested_at,
+        )
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
