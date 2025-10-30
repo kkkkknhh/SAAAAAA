@@ -42,133 +42,6 @@ if TYPE_CHECKING:  # pragma: no cover - type checking only
 else:  # pragma: no cover - runtime fallback when ingestion module unavailable
     PreprocessedDocumentV1 = Any
 
-
-class _QuestionnaireProvider:
-    """Centralized access to the questionnaire monolith payload."""
-
-    _DEFAULT_PATH = Path(__file__).resolve().parent / "questionnaire_monolith.json"
-
-    def __init__(self, data_path: Optional[Path] = None) -> None:
-        self._data_path = data_path or self._DEFAULT_PATH
-        self._cache: Optional[Dict[str, Any]] = None
-        self._lock = RLock()
-
-    @property
-    def data_path(self) -> Path:
-        """Return the resolved path of the questionnaire payload."""
-        return self._data_path
-
-    def _resolve_path(self, candidate: Optional[Union[str, Path]] = None) -> Path:
-        """Resolve a candidate path relative to the current working directory."""
-        if candidate is None:
-            return self._data_path
-        if isinstance(candidate, Path):
-            path = candidate
-        else:
-            path = Path(candidate)
-        if not path.is_absolute():
-            path = (Path.cwd() / path).resolve()
-        return path
-
-    def exists(self, data_path: Optional[Union[str, Path]] = None) -> bool:
-        """Check whether the questionnaire payload exists on disk."""
-        return self._resolve_path(data_path).exists()
-
-    def describe(self, data_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
-        """Return metadata about a questionnaire payload on disk."""
-        path = self._resolve_path(data_path)
-        exists = path.exists()
-        size = path.stat().st_size if exists else 0
-        return {"path": path, "exists": exists, "size": size}
-
-    def _read_payload(self, path: Path) -> Dict[str, Any]:
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-
-    def load(
-        self,
-        force_reload: bool = False,
-        data_path: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
-        """Load and optionally cache the questionnaire payload from disk."""
-        target_path = self._resolve_path(data_path)
-        with self._lock:
-            if data_path is None:
-                if force_reload or self._cache is None:
-                    if not target_path.exists():
-                        raise FileNotFoundError(
-                            f"Questionnaire payload missing at {target_path}"
-                        )
-                    self._cache = self._read_payload(target_path)
-                return self._cache
-
-            if not target_path.exists():
-                raise FileNotFoundError(
-                    f"Questionnaire payload missing at {target_path}"
-                )
-            return self._read_payload(target_path)
-
-    def save(
-        self,
-        payload: Dict[str, Any],
-        output_path: Optional[Union[str, Path]] = None,
-    ) -> Path:
-        """Persist a questionnaire payload to disk through the orchestrator."""
-        target_path = self._resolve_path(output_path)
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        with target_path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=True)
-        if output_path is None:
-            with self._lock:
-                self._cache = payload
-        return target_path
-
-    def get_question(self, question_global: int) -> Dict[str, Any]:
-        """Return the monolith entry for a given global question identifier."""
-        payload = self.load()
-        blocks = payload.get("blocks")
-        if not isinstance(blocks, dict):
-            raise ValueError("The questionnaire payload is missing the 'blocks' mapping")
-
-        def _iter_questions():
-            micro = blocks.get("micro_questions") or []
-            if isinstance(micro, list):
-                for item in micro:
-                    if isinstance(item, dict):
-                        yield item
-            meso = blocks.get("meso_questions") or []
-            if isinstance(meso, list):
-                for item in meso:
-                    if isinstance(item, dict):
-                        yield item
-            macro = blocks.get("macro_question")
-            if isinstance(macro, dict):
-                yield macro
-
-        for question in _iter_questions():
-            if question.get("question_global") == question_global:
-                return question
-
-        raise KeyError(f"Question {question_global} not present in questionnaire payload")
-
-
-_questionnaire_provider = _QuestionnaireProvider()
-
-
-def get_questionnaire_provider() -> _QuestionnaireProvider:
-    """Expose the shared questionnaire provider singleton."""
-    return _questionnaire_provider
-
-
-def get_questionnaire_payload(force_reload: bool = False) -> Dict[str, Any]:
-    """Convenience wrapper returning the questionnaire payload as a dictionary."""
-    return _questionnaire_provider.load(force_reload=force_reload)
-
-
-def get_question_payload(question_global: int) -> Dict[str, Any]:
-    """Convenience wrapper returning a single question entry from the monolith."""
-    return _questionnaire_provider.get_question(question_global)
-
 # Validate dynamic class registry early so missing classes fail fast.
 try:
     _CLASS_REGISTRY = build_class_registry()
@@ -977,37 +850,38 @@ class MethodExecutor:
         self,
         class_registry: Optional[Dict[str, type]] = None,
         arg_router: Optional[ArgRouter] = None,
-        drift_monitor: Optional[PayloadDriftMonitor] = None,
-    ) -> None:
-        self._class_registry = class_registry or _CLASS_REGISTRY
-        self.arg_router = arg_router or ExternalArgRouter(self._class_registry)
-        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
-        if MODULES_OK:
+    def __init__(self):
+        modules_ok = globals().get('MODULES_OK', False)
+        if modules_ok:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
-            
+        
             self.instances = {
-                name: cls()
-                for name, cls in self._class_registry.items()
+                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
+                'PolicyContradictionDetector': PolicyContradictionDetector(),
+                'TemporalLogicVerifier': TemporalLogicVerifier(),
+                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
+                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
+                'CDAFFramework': CDAFFramework(),
+                'OperationalizationAuditor': OperationalizationAuditor(),
+                'FinancialAuditor': FinancialAuditor(),
+                'BayesianMechanismInference': BayesianMechanismInference(),
+                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
+                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
+                'TeoriaCambio': TeoriaCambio(),
+                'AdvancedDAGValidator': AdvancedDAGValidator(),
+                'SemanticChunker': SemanticChunker()
             }
         else:
             self.instances = {}
-
-    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
-        if not MODULES_OK:
-            return None
-
-        instance = self.instances.get(class_name)
-        if instance is None:
-            logger.error("Class '%s' not registered in executor", class_name)
-            return None
-
-        method = getattr(instance, method_name, None)
-        if method is None:
-            logger.error("Method '%s.%s' not available", class_name, method_name)
-            return None
-
-        try:
+        self._router = ArgRouter()
             args, call_kwargs = self.arg_router.route(
                 class_name, method_name, dict(kwargs)
             )
@@ -1103,54 +977,58 @@ class D1Q1_Executor(DataFlowExecutor):
             current_data = result
         
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
-        result = self.executor.execute(
-            'PolicyTextProcessor',
-            'segment_into_sentences',
-            data=current_data,
-            text=doc.raw_text,
+    def __init__(self):
+        if MODULES_OK:
+            # Create shared ontology instance for all analyzers
+            ontology = MunicipalOntology()
+            
+            self.instances = {
+                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
+                'PolicyContradictionDetector': PolicyContradictionDetector(),
+                'TemporalLogicVerifier': TemporalLogicVerifier(),
+                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
+                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
+                'CDAFFramework': CDAFFramework(),
+                'OperationalizationAuditor': OperationalizationAuditor(),
+                'FinancialAuditor': FinancialAuditor(),
+                'BayesianMechanismInference': BayesianMechanismInference(),
+                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
+                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
+                'TeoriaCambio': TeoriaCambio(),
+                'AdvancedDAGValidator': AdvancedDAGValidator(),
+                'SemanticChunker': SemanticChunker()
+            }
+        else:
+            self.instances = {}
+        self._router = ArgRouter()
+        # Expose routing context for other methods, preventing NameError
+        global context
+        context = self._router
             sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['PolicyTextProcessor.segment_into_sentences'] = result
-        if result is not None:
-            current_data = result
-        
-        # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
-        result = self.executor.execute(
-            'BayesianEvidenceScorer',
-            'compute_evidence_score',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['BayesianEvidenceScorer.compute_evidence_score'] = result
-        if result is not None:
-            current_data = result
-        
-        # 6. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
-        result = self.executor.execute(
-            'BayesianEvidenceScorer',
-            '_calculate_shannon_entropy',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
-        if result is not None:
-            current_data = result
-        
-        # 7. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
-        result = self.executor.execute(
-            'PolicyContradictionDetector',
-            '_extract_quantitative_claims',
-            data=current_data,
-            text=doc.raw_text,
-            sentences=doc.sentences,
-            tables=doc.tables
-        )
-        results['PolicyContradictionDetector._extract_quantitative_claims'] = result
+    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
+            if not MODULES_OK:
+                return None
+            try:
+                instance = self.instances.get(class_name)
+                if not instance:
+                    return None
+                method = getattr(instance, method_name)
+                ctx = kwargs.get("context")  # Safely retrieve context if provided
+                method_context = MethodContext.from_inputs(ctx, kwargs)
+                router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+                routed_kwargs = router(method_context)
+                filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
+                return method(**filtered_kwargs)
+            except Exception as e:
+                logger.exception("Catalog invocation failed")
+                raise
         if result is not None:
             current_data = result
         
