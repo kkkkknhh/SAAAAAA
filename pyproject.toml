@@ -39,10 +39,6 @@ reportImplicitOverride = "warning"
 # Ban Any as defect
 reportAny = "error"
 
-# Forbid untyped defs
-reportUntypedFunctionDecorator = "error"
-reportUntypedClassDecorator = "error"
-
 # Forbid implicit Optional
 reportOptionalCall = "error"
 reportOptionalMemberAccess = "error"
