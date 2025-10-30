@@ -21,6 +21,8 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from recommendation_engine import RecommendationEngine
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -209,7 +211,7 @@ class PreprocessedDocument:
     @classmethod
     def _from_ingestion(
         cls,
-        document: "IngestionPreprocessedDocument" | Any,
+        document: Union["IngestionPreprocessedDocument", Any],
         *,
         document_id: Optional[str] = None,
     ) -> "PreprocessedDocument":
@@ -9685,6 +9687,17 @@ class Orchestrator:
         self._phase_outputs: Dict[int, Any] = {}
         self._context: Dict[str, Any] = {}
         self._start_time: Optional[float] = None
+        
+        # Initialize RecommendationEngine for 3-level recommendations
+        try:
+            self.recommendation_engine = RecommendationEngine(
+                rules_path="config/recommendation_rules.json",
+                schema_path="rules/recommendation_rules.schema.json"
+            )
+            logger.info("RecommendationEngine initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize RecommendationEngine: {e}")
+            self.recommendation_engine = None
 
     def _resolve_path(self, path: Optional[str]) -> Optional[str]:
         if path is None:
@@ -9715,7 +9728,7 @@ class Orchestrator:
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
     def process_development_plan(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+        self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
@@ -9730,7 +9743,7 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+        self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
@@ -10423,16 +10436,184 @@ class Orchestrator:
         macro_result: Dict[str, Any],
         config: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """
+        Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
+        
+        This phase connects to the orchestrator's 3-level flux:
+        - MICRO: Uses scored question results from phase 3
+        - MESO: Uses cluster aggregations from phase 6
+        - MACRO: Uses macro evaluation from phase 7
+        
+        Args:
+            macro_result: Macro evaluation results from phase 7
+            config: Configuration dictionary
+            
+        Returns:
+            Dictionary with MICRO, MESO, and MACRO recommendations
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[8]
         start = time.perf_counter()
 
         await asyncio.sleep(0)
-        recommendations = {
-            "strategic": [],
-            "tactical": [],
-            "macro_score": macro_result.get("macro_score"),
-        }
+        
+        # If RecommendationEngine is not available, return empty recommendations
+        if self.recommendation_engine is None:
+            logger.warning("RecommendationEngine not available, returning empty recommendations")
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+            }
+            instrumentation.increment(latency=time.perf_counter() - start)
+            return recommendations
+        
+        try:
+            # ========================================================================
+            # MICRO LEVEL: Transform scored results to PA-DIM scores
+            # ========================================================================
+            micro_scores: Dict[str, float] = {}
+            scored_results = self._context.get('scored_results', [])
+            
+            # Group by policy area and dimension to calculate average scores
+            pa_dim_groups: Dict[str, List[float]] = {}
+            for result in scored_results:
+                if hasattr(result, 'metadata') and result.metadata:
+                    pa_id = result.metadata.get('policy_area_id')
+                    dim_id = result.metadata.get('dimension_id')
+                    score = result.normalized_score
+                    
+                    if pa_id and dim_id and score is not None:
+                        key = f"{pa_id}-{dim_id}"
+                        if key not in pa_dim_groups:
+                            pa_dim_groups[key] = []
+                        pa_dim_groups[key].append(score)
+            
+            # Calculate average for each PA-DIM combination
+            for key, scores in pa_dim_groups.items():
+                if scores:
+                    micro_scores[key] = sum(scores) / len(scores)
+            
+            logger.info(f"Extracted {len(micro_scores)} MICRO PA-DIM scores for recommendations")
+            
+            # ========================================================================
+            # MESO LEVEL: Transform cluster scores
+            # ========================================================================
+            cluster_data: Dict[str, Any] = {}
+            cluster_scores = self._context.get('cluster_scores', [])
+            
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score')
+                areas = cluster.get('areas', [])
+                
+                if cluster_id and cluster_score is not None:
+                    # Calculate variance across areas in this cluster
+                    area_scores = [area.get('score', 0) for area in areas if area.get('score') is not None]
+                    variance = statistics.variance(area_scores) if len(area_scores) > 1 else 0.0
+                    
+                    # Find weakest policy area in cluster
+                    weak_pa = None
+                    if area_scores:
+                        min_score = min(area_scores)
+                        for area in areas:
+                            if area.get('score') == min_score:
+                                weak_pa = area.get('area_id')
+                                break
+                    
+                    cluster_data[cluster_id] = {
+                        'score': cluster_score * 100,  # Convert to 0-100 scale
+                        'variance': variance,
+                        'weak_pa': weak_pa
+                    }
+            
+            logger.info(f"Extracted {len(cluster_data)} MESO cluster metrics for recommendations")
+            
+            # ========================================================================
+            # MACRO LEVEL: Transform macro evaluation
+            # ========================================================================
+            macro_score = macro_result.get('macro_score')
+            
+            # Determine macro band based on score
+            macro_band = 'INSUFICIENTE'
+            if macro_score is not None:
+                scaled_score = macro_score * 100
+                if scaled_score >= 75:
+                    macro_band = 'SATISFACTORIO'
+                elif scaled_score >= 55:
+                    macro_band = 'ACEPTABLE'
+                elif scaled_score >= 35:
+                    macro_band = 'DEFICIENTE'
+            
+            # Find clusters below target (< 55%)
+            clusters_below_target = []
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score', 0)
+                if cluster_score * 100 < 55:
+                    clusters_below_target.append(cluster_id)
+            
+            # Calculate overall variance
+            all_cluster_scores = [c.get('score', 0) for c in cluster_scores if c.get('score') is not None]
+            overall_variance = statistics.variance(all_cluster_scores) if len(all_cluster_scores) > 1 else 0.0
+            
+            variance_alert = 'BAJA'
+            if overall_variance >= 0.18:
+                variance_alert = 'ALTA'
+            elif overall_variance >= 0.08:
+                variance_alert = 'MODERADA'
+            
+            # Find priority micro gaps (lowest scoring PA-DIM combinations)
+            sorted_micro = sorted(micro_scores.items(), key=lambda x: x[1])
+            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 1.65]
+            
+            macro_data = {
+                'macro_band': macro_band,
+                'clusters_below_target': clusters_below_target,
+                'variance_alert': variance_alert,
+                'priority_micro_gaps': priority_micro_gaps
+            }
+            
+            logger.info(f"Macro band: {macro_band}, Clusters below target: {len(clusters_below_target)}")
+            
+            # ========================================================================
+            # GENERATE RECOMMENDATIONS AT ALL 3 LEVELS
+            # ========================================================================
+            context = {
+                'generated_at': datetime.utcnow().isoformat(),
+                'macro_score': macro_score
+            }
+            
+            recommendation_sets = self.recommendation_engine.generate_all_recommendations(
+                micro_scores=micro_scores,
+                cluster_data=cluster_data,
+                macro_data=macro_data,
+                context=context
+            )
+            
+            # Convert RecommendationSet objects to dictionaries
+            recommendations = {
+                level: rec_set.to_dict() for level, rec_set in recommendation_sets.items()
+            }
+            recommendations['macro_score'] = macro_score
+            
+            logger.info(
+                f"Generated recommendations: "
+                f"MICRO={len(recommendation_sets['MICRO'].recommendations)}, "
+                f"MESO={len(recommendation_sets['MESO'].recommendations)}, "
+                f"MACRO={len(recommendation_sets['MACRO'].recommendations)}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}", exc_info=True)
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+                "error": str(e)
+            }
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
