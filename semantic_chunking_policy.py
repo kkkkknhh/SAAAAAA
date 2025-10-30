@@ -590,8 +590,7 @@ class SemanticChunkingProducer:
     
     def chunk_document(self, text: str, preserve_structure: bool = True) -> list[dict[str, Any]]:
         """Chunk document into semantic units with embeddings"""
-        chunks = self.semantic.chunk_text(text, preserve_structure)
-        return [_upgrade_chunk_schema(chunk) for chunk in chunks]
+        return self.semantic.chunk_text(text, preserve_structure)
     
     def get_chunk_count(self, chunks: list[dict[str, Any]]) -> int:
         """Get number of chunks"""
