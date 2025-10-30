@@ -6,6 +6,8 @@ TODAS las preguntas base con sus métodos REALES del catálogo.
 SIN brevedad. SIN omisiones. TODO implementado.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import json
@@ -14,12 +16,14 @@ import os
 import re
 import statistics
 import time
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
 from itertools import chain
 from typing import Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
