@@ -19,9 +19,7 @@ considered complete.
   parity across paths.
 - **Registry boot:** Verify that the registry starts without `Class not found`
   errors.
-- **Error logging:** Intentionally break a contract in a canary test and observe
-  standardized `ERR_CONTRACT_MISMATCH` logs that include both producer and
-  consumer context.
+- **Error logging:** Intentionally break a contract in a canary test and observe standardized `ERR_CONTRACT_MISMATCH` logs; logs must be structured (e.g., JSON) and include `producer`, `consumer`, `contract_id`, `payload_sample`, and `environment` fields to enable reliable triage.
 
 These gates provide concrete, pass/fail validation to keep contract changes
 safe, observable, and reversible.
