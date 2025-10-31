@@ -35,6 +35,9 @@ import numpy as np
 from functools import lru_cache
 from itertools import chain
 
+# Import runtime error fixes for defensive programming
+from runtime_error_fixes import ensure_list_return, safe_text_extract
+
 try:
     from contradiction_deteccion import (
         BayesianConfidenceCalculator,
@@ -905,7 +908,9 @@ class IndustrialPolicyProcessor:
             total_contradictions = int(report.get("total_contradictions", 0))
             if total_contradictions:
                 keywords = []
-                for contradiction in report.get("contradictions", []):
+                # Defensive: ensure contradictions is a list
+                contradictions_list = ensure_list_return(report.get("contradictions", []))
+                for contradiction in contradictions_list:
                     ctype = contradiction.get("contradiction_type")
                     if ctype:
                         keywords.append(ctype)

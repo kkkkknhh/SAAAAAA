@@ -22,6 +22,9 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import statistics
 
+# Import runtime error fixes for defensive programming
+from runtime_error_fixes import ensure_list_return, safe_weighted_multiply
+
 logger = logging.getLogger(__name__)
 
 
@@ -321,8 +324,8 @@ class ContradictionScanner:
         # Align claims by entity/theme/dimension
         aligned_claims = self._align_claims(micro_claims, meso_summary_signals, macro_narratives)
         
-        # Detect contradictions
-        contradictions = self._detect_contradictions(aligned_claims)
+        # Detect contradictions (defensive: ensure returns list)
+        contradictions = ensure_list_return(self._detect_contradictions(aligned_claims))
         
         # Generate suggested actions
         suggested_actions = self._generate_actions(contradictions)

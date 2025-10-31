@@ -38,6 +38,9 @@ import spacy
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
+# Import runtime error fixes for defensive programming
+from runtime_error_fixes import ensure_list_return, safe_text_extract
+
 # Configure logging with structured format
 logging.basicConfig(
     level=logging.INFO,
@@ -376,23 +379,23 @@ class PolicyContradictionDetector:
 
         # 1. Contradicciones semánticas usando transformers
         semantic_contradictions = self._detect_semantic_contradictions(statements)
-        contradictions.extend(semantic_contradictions)
+        contradictions.extend(ensure_list_return(semantic_contradictions))
 
         # 2. Inconsistencias numéricas con pruebas estadísticas
         numerical_contradictions = self._detect_numerical_inconsistencies(statements)
-        contradictions.extend(numerical_contradictions)
+        contradictions.extend(ensure_list_return(numerical_contradictions))
 
         # 3. Conflictos temporales con verificación lógica
         temporal_conflicts = self._detect_temporal_conflicts(statements)
-        contradictions.extend(temporal_conflicts)
+        contradictions.extend(ensure_list_return(temporal_conflicts))
 
         # 4. Incompatibilidades lógicas usando razonamiento en grafo
         logical_contradictions = self._detect_logical_incompatibilities(statements)
-        contradictions.extend(logical_contradictions)
+        contradictions.extend(ensure_list_return(logical_contradictions))
 
         # 5. Conflictos de asignación de recursos
         resource_conflicts = self._detect_resource_conflicts(statements)
-        contradictions.extend(resource_conflicts)
+        contradictions.extend(ensure_list_return(resource_conflicts))
 
         # Calcular métricas agregadas
         coherence_metrics = self._calculate_coherence_metrics(
@@ -1186,7 +1189,8 @@ class PolicyContradictionDetector:
 
     def _determine_semantic_role(self, sent) -> Optional[str]:
         """Determina el rol semántico de una oración"""
-        text_lower = sent.text.lower()
+        # Safely extract text (handles both strings and spacy objects)
+        text_lower = safe_text_extract(sent).lower()
 
         role_patterns = {
             'objective': ['objetivo', 'meta', 'propósito', 'finalidad'],
