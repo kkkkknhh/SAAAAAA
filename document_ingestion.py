@@ -1,5 +1,10 @@
 """
-DOCUMENT INGESTION MODULE - ESTRICTAMENTE SEGÚN PSEUDOCÓDIGO
+DOCUMENT INGESTION MODULE import logging
+from datetime import datetime
+from dataclasses import dataclass
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any, Dict, List, Mapping, Optional, Sequence, TupleICTAMENTE SEGÚN PSEUDOCÓDIGO
 ==============================================================
 Archivo: document_ingestion.py
 Código: DI
@@ -33,7 +38,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from schemas.preprocessed_document import (
     DocumentIndexesV1,
@@ -422,7 +427,7 @@ class TextExtractor:
             self.logger.error(f"Error extrayendo página {page}: {e}")
             return ""
     
-    def preserve_structure(self, *, text: str) -> StructuredText:
+    def preserve_structure(self, *, text: str) -> StructuredTextV1:
         """
         MÉTODO 6: Preserva estructura del documento.
         

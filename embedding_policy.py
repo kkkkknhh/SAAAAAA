@@ -1886,7 +1886,3 @@ def example_pdm_analysis():
     print("\n" + "=" * 80)
     print("ANALYSIS COMPLETE")
     print("=" * 80)
-
-
-if __name__ == "__main__":
-    example_pdm_analysis()

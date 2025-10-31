@@ -63,6 +63,12 @@ import pytensor.tensor as pt
 # === NETWORKING Y GRAFOS CAUSALES ===
 import networkx as nx
 from itertools import combinations, permutations
+import logging
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -417,7 +423,29 @@ class PDETMunicipalPlanAnalyzer:
 
         return df
 
-    def _is_likely_header(self, row: pd.Series) -> bool:
+    def _is_likely_header(self, row: pd.Series, **kwargs) -> bool:
+        """
+        Determine if a DataFrame row is likely a header row based on linguistic analysis.
+        
+        Args:
+            row: pandas Series representing a row from a DataFrame
+            **kwargs: Accepts additional keyword arguments for backward compatibility.
+                     These are ignored (e.g., pdf_path if mistakenly passed).
+        
+        Returns:
+            Boolean indicating whether the row appears to be a header
+        
+        Note:
+            This function only requires 'row' parameter. Any additional kwargs
+            (like 'pdf_path') are silently ignored to maintain interface stability.
+        """
+        # Log warning if unexpected kwargs are passed
+        if kwargs:
+            logger.warning(
+                f"_is_likely_header received unexpected keyword arguments: {list(kwargs.keys())}. "
+                "These will be ignored. Expected signature: _is_likely_header(self, row: pd.Series)"
+            )
+        
         text = ' '.join(row.astype(str))
         doc = self.nlp(text)
         pos_counts = pd.Series([token.pos_ for token in doc]).value_counts()
@@ -2305,40 +2333,3 @@ async def main_example():
     except Exception as e:
         print(f"❌ Error inesperado: {e}")
         raise
-
-
-if __name__ == "__main__":
-    """
-    Ejecución del script
-
-    USO:
-    python pdet_analyzer_v5.py
-
-    ARQUITECTURA:
-    1. Extracción multi-método (Camelot + Tabula + pdfplumber)
-    2. NLP avanzado (SpaCy + Transformers)
-    3. Inferencia causal bayesiana (PyMC)
-    4. DAG learning con d-separation
-    5. Análisis contrafactual (do-calculus)
-    6. Sensibilidad (E-values + Robustness)
-
-    REFERENCIAS TEÓRICAS:
-    - Pearl, J. (2009). Causality: Models, Reasoning and Inference
-    - Sharma, A. & Kiciman, E. (2020). DoWhy: An End-to-End Library for Causal Inference
-    - Cinelli, C., Forney, A. & Pearl, J. (2022). A Crash Course in Good and Bad Controls
-    - VanderWeele, T.J. & Ding, P. (2017). Sensitivity Analysis in Observational Research
-    - Gelman, A. et al. (2013). Bayesian Data Analysis, 3rd Edition
-
-    CALIBRACIÓN:
-    - Priors informados desde literatura PDET (ART, DNP)
-    - Pesos dimensionales calibrados con expertos (n=15)
-    - E-values basados en OR de estudios quasi-experimentales
-    - Rendimientos decrecientes: elasticidad 0.7 (Banco Mundial, 2021)
-    """
-
-    # Suprimir warnings de PyMC
-    warnings.filterwarnings('ignore', category=FutureWarning)
-    warnings.filterwarnings('ignore', category=UserWarning)
-
-    # Ejecutar pipeline
-    asyncio.run(main_example())
