@@ -1,4 +1,5 @@
 """Orchestrator utilities with contract validation on import."""
+import inspect
 import json
 from pathlib import Path
 from threading import RLock
@@ -49,6 +50,11 @@ def get_questionnaire_provider() -> _QuestionnaireProvider:
     return _questionnaire_provider
 
 def get_questionnaire_payload(force_reload: bool = False) -> Dict[str, Any]:
+    """Get questionnaire payload with caller boundary enforcement."""
+    caller_frame = inspect.currentframe().f_back
+    caller_module = caller_frame.f_globals.get('__name__', '')
+    if not caller_module.startswith('orchestrator'):
+        raise RuntimeError("Questionnaire provider access restricted to orchestrator package")
     return _questionnaire_provider.load(force_reload=force_reload)
 
 # Import utilities from submodules
@@ -66,21 +72,20 @@ from .contract_loader import (
     LoadResult,
 )
 
-# Import main classes from root orchestrator.py
-import sys
-from pathlib import Path as _Path
-_root = _Path(__file__).resolve().parent.parent
-if str(_root) not in sys.path:
-    sys.path.insert(0, str(_root))
-
-# Import from orchestrator.py at root
-import importlib.util as _util
-_spec = _util.spec_from_file_location("_orch_main", _root / "orchestrator.py")
-_orch_main = _util.module_from_spec(_spec)
-_spec.loader.exec_module(_orch_main)
-
-Orchestrator = _orch_main.Orchestrator
-MethodExecutor = _orch_main.MethodExecutor
+# Import core classes from the refactored package
+from .core import (
+    Orchestrator,
+    MethodExecutor,
+    PreprocessedDocument,
+    Evidence,
+    AbortSignal,
+    AbortRequested,
+    ResourceLimits,
+    PhaseInstrumentation,
+    PhaseResult,
+    MicroQuestionRun,
+    ScoredMicroQuestion,
+)
 
 __all__ = [
     "EvidenceRecord",
@@ -95,4 +100,13 @@ __all__ = [
     "get_questionnaire_payload",
     "Orchestrator",
     "MethodExecutor",
+    "PreprocessedDocument",
+    "Evidence",
+    "AbortSignal",
+    "AbortRequested",
+    "ResourceLimits",
+    "PhaseInstrumentation",
+    "PhaseResult",
+    "MicroQuestionRun",
+    "ScoredMicroQuestion",
 ]
