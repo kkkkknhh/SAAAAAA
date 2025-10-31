@@ -80,7 +80,12 @@ class SignatureRegistry:
                 for name in parameters
             }
             return_type = str(type_hints.get('return', 'Any'))
-        except Exception:
+        except (TypeError, AttributeError, NameError) as e:
+            # get_type_hints can fail for various reasons:
+            # - TypeError: if func is not a callable
+            # - AttributeError: if func doesn't have required attributes
+            # - NameError: if type hints reference undefined names
+            logger.debug(f"Could not extract type hints for {func.__name__}: {e}")
             parameter_types = {name: 'Any' for name in parameters}
             return_type = 'Any'
         
@@ -286,6 +291,13 @@ class SignatureAuditor:
         """
         logger.info(f"Auditing module: {module_path}")
         
+        # Skip test files, virtual environments, and build directories
+        exclude_patterns = ['test', 'venv', '.venv', '__pycache__', '.git', 'build', 'dist']
+        if any(module_path.match(f'*/{pattern}/*') or module_path.match(f'*/{pattern}') 
+               for pattern in exclude_patterns):
+            logger.debug(f"Skipping excluded path: {module_path}")
+            return []
+        
         try:
             with open(module_path, 'r', encoding='utf-8') as f:
                 source_code = f.read()
@@ -443,10 +455,14 @@ def audit_project_signatures(project_root: Path, output_path: Optional[Path] = N
     python_files = list(project_root.glob("**/*.py"))
     logger.info(f"Auditing {len(python_files)} Python files")
     
+    # Define patterns to exclude
+    exclude_patterns = ['test', 'venv', '.venv', '__pycache__', '.git', 'build', 'dist']
+    
     all_mismatches = []
     for py_file in python_files:
-        # Skip test files and virtual environments
-        if 'test' in str(py_file) or 'venv' in str(py_file) or '.venv' in str(py_file):
+        # Skip excluded patterns
+        if any(py_file.match(f'*/{pattern}/*') or py_file.match(f'*/{pattern}') 
+               for pattern in exclude_patterns):
             continue
         
         mismatches = auditor.audit_module(py_file)

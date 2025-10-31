@@ -1065,8 +1065,6 @@ class IndustrialPolicyProcessor:
         """
         # Defensive validation: ensure sentences parameter is provided
         if sentences is None:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(
                 "_analyze_causal_dimensions called without 'sentences' parameter. "
                 "Automatically extracting sentences from text. "
@@ -1081,9 +1079,9 @@ class IndustrialPolicyProcessor:
             total_matches = 0
             category_results = {}
 
-            for category, patterns in categories.items():
+            for category, compiled_patterns in categories.items():
                 matches = []
-                for pattern in patterns:
+                for pattern in compiled_patterns:
                     for sentence in sentences:
                         matches.extend(pattern.findall(sentence))
 

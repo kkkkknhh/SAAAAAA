@@ -2541,8 +2541,7 @@ class BayesianMechanismInference:
         """
         # Log warning if unexpected kwargs are passed
         if kwargs:
-            logger = logging.getLogger(__name__)
-            logger.warning(
+            logging.getLogger(__name__).warning(
                 f"BayesianMechanismInference.__init__ received unexpected keyword arguments: {list(kwargs.keys())}. "
                 "These will be ignored. Expected signature: __init__(self, config: ConfigLoader, nlp_model: spacy.Language)"
             )

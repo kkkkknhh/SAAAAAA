@@ -63,6 +63,12 @@ import pytensor.tensor as pt
 # === NETWORKING Y GRAFOS CAUSALES ===
 import networkx as nx
 from itertools import combinations, permutations
+import logging
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -435,8 +441,6 @@ class PDETMunicipalPlanAnalyzer:
         """
         # Log warning if unexpected kwargs are passed
         if kwargs:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(
                 f"_is_likely_header received unexpected keyword arguments: {list(kwargs.keys())}. "
                 "These will be ignored. Expected signature: _is_likely_header(self, row: pd.Series)"
