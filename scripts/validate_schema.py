@@ -27,7 +27,13 @@ from validation.schema_validator import (
     SchemaInitializationError,
     validate_monolith_schema
 )
-from orchestrator import get_questionnaire_provider
+
+# Try to import orchestrator, but make it optional
+try:
+    from orchestrator import get_questionnaire_provider
+    HAS_ORCHESTRATOR = True
+except ImportError:
+    HAS_ORCHESTRATOR = False
 
 
 def load_monolith(monolith_path: str = None):
@@ -44,7 +50,11 @@ def load_monolith(monolith_path: str = None):
         with open(monolith_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     else:
-        # Use orchestrator provider
+        # Use orchestrator provider if available
+        if not HAS_ORCHESTRATOR:
+            raise ImportError(
+                "Orchestrator module not available. Please provide a monolith file path."
+            )
         provider = get_questionnaire_provider()
         return provider.load()
 

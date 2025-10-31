@@ -182,6 +182,14 @@ class TestClusterAggregationConfig:
                 cluster_id="CL01",
                 policy_area_ids=[]
             )
+    
+    def test_short_policy_area_id_rejected(self):
+        """Test that policy area IDs shorter than 3 characters are rejected."""
+        with pytest.raises(ValidationError, match="Invalid policy area ID"):
+            ClusterAggregationConfig(
+                cluster_id="CL01",
+                policy_area_ids=["PA"]  # Too short
+            )
 
 
 class TestMacroAggregationConfig:
@@ -199,6 +207,13 @@ class TestMacroAggregationConfig:
         with pytest.raises(ValidationError, match="Invalid cluster ID"):
             MacroAggregationConfig(
                 cluster_ids=["CL01", "INVALID"]
+            )
+    
+    def test_short_cluster_id_rejected(self):
+        """Test that cluster IDs shorter than 3 characters are rejected."""
+        with pytest.raises(ValidationError, match="Invalid cluster ID"):
+            MacroAggregationConfig(
+                cluster_ids=["CL"]  # Too short
             )
 
 

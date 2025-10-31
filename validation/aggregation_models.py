@@ -89,7 +89,7 @@ class ClusterAggregationConfig(BaseModel):
     def validate_policy_areas(cls, v: List[str]) -> List[str]:
         """Ensure all policy area IDs follow the correct pattern."""
         for pa_id in v:
-            if not pa_id.startswith('PA') or not pa_id[2:].isdigit():
+            if len(pa_id) < 3 or not pa_id.startswith('PA') or not pa_id[2:].isdigit():
                 raise ValueError(f"Invalid policy area ID: {pa_id}. Expected format: PA##")
         return v
 
@@ -107,7 +107,7 @@ class MacroAggregationConfig(BaseModel):
     def validate_clusters(cls, v: List[str]) -> List[str]:
         """Ensure all cluster IDs follow the correct pattern."""
         for cl_id in v:
-            if not cl_id.startswith('CL') or not cl_id[2:].isdigit():
+            if len(cl_id) < 3 or not cl_id.startswith('CL') or not cl_id[2:].isdigit():
                 raise ValueError(f"Invalid cluster ID: {cl_id}. Expected format: CL##")
         return v
 
