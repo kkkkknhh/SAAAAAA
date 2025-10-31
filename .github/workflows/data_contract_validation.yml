@@ -9,6 +9,8 @@
 # 4. All validation failures are blocking conditions
 
 name: Data Contract Validation
+permissions:
+  contents: read
 
 on:
   push:
