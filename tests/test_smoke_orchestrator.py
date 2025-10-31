@@ -124,6 +124,9 @@ def internal_access():
 
 def test_orchestrator_instantiation():
     """Test that Orchestrator can be instantiated."""
+    # Skip if required dependencies are missing (dereck_beach.py sys.exit(1))
+    pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
+    
     from orchestrator import Orchestrator
     
     # Should be able to create instance (might fail on file access, that's OK)
@@ -140,6 +143,9 @@ def test_orchestrator_instantiation():
 
 def test_orchestrator_health_check():
     """Test that health_check method works."""
+    # Skip if required dependencies are missing
+    pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
+    
     from orchestrator import Orchestrator
     
     try:

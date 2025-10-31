@@ -581,8 +581,8 @@ class MethodExecutor:
         # Build the class registry
         try:
             registry = build_class_registry()
-        except ClassRegistryError as exc:
-            logger.error("Failed to build class registry: %s", exc)
+        except (ClassRegistryError, ModuleNotFoundError, ImportError) as exc:
+            logger.warning("Some modules unavailable - operating in limited mode: %s", exc)
             registry = {}
 
         # Instantiate all classes
@@ -820,6 +820,20 @@ class Orchestrator:
         """Resolve a relative or absolute path, searching multiple candidate locations."""
         if path is None:
             return None
+
+        candidates = [path]
+        if not os.path.isabs(path):
+            base_dir = os.path.dirname(__file__)
+            candidates.append(os.path.join(base_dir, path))
+            candidates.append(os.path.join(os.getcwd(), path))
+            if not path.startswith("rules"):
+                candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))
+
+        for candidate in candidates:
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+        return path
 
     def process_development_plan(
             self, pdf_path: str, preprocessed_document: Optional[Any] = None
