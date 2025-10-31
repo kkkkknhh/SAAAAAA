@@ -9,14 +9,19 @@ This module contains fixes for three critical runtime errors:
 These fixes are applied defensively to prevent crashes in production.
 """
 
-from typing import Any, List, Union
+from typing import Any, List, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+    NumpyArray = np.ndarray
+else:
+    NumpyArray = Any  # type: ignore[misc]
 
 try:
     import numpy as np
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
-    np = None  # type: ignore[assignment]
 
 
 def ensure_list_return(value: Any) -> List[Any]:
@@ -63,15 +68,12 @@ def safe_text_extract(obj: Any) -> str:
         text_value = getattr(obj, 'text')
         if isinstance(text_value, str):
             return text_value
-        # If .text is callable (shouldn't be, but defensive)
-        if callable(text_value):
-            return str(obj)
     
     # Fallback: convert to string
     return str(obj)
 
 
-def safe_weighted_multiply(items: Union[List[float], Any], weight: float) -> Union[List[float], Any]:
+def safe_weighted_multiply(items: Union[List[float], NumpyArray], weight: float) -> Union[List[float], NumpyArray]:
     """
     Safely multiply a list or array by a weight.
     
@@ -85,8 +87,10 @@ def safe_weighted_multiply(items: Union[List[float], Any], weight: float) -> Uni
         New list/array with each element multiplied by weight
     """
     # If it's a numpy array, use numpy multiplication
-    if HAS_NUMPY and np is not None and isinstance(items, np.ndarray):
-        return items * weight
+    if HAS_NUMPY and hasattr(items, '__array_interface__'):
+        import numpy as np  # Import here for runtime use
+        if isinstance(items, np.ndarray):
+            return items * weight
     
     # If it's a list, use list comprehension
     if isinstance(items, list):
