@@ -14,7 +14,6 @@ import os
 import re
 import statistics
 import time
-from collections import deque
 from datetime import datetime
 from dataclasses import dataclass, field, asdict, is_dataclass
 from pathlib import Path
@@ -22,14 +21,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from orchestrator.arg_router import ArgRouter
-from orchestrator.arg_router import (
-    ArgRouter,
-    ArgRouterError,
-    ArgumentValidationError,
-    PayloadDriftMonitor,
-)
-from orchestrator.class_registry import ClassRegistryError, build_class_registry
+from recommendation_engine import RecommendationEngine
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -81,9 +73,9 @@ class _QuestionnaireProvider:
             return json.load(f)
 
     def load(
-        self,
-        force_reload: bool = False,
-        data_path: Optional[Union[str, Path]] = None,
+            self,
+            force_reload: bool = False,
+            data_path: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Any]:
         """Load and optionally cache the questionnaire payload from disk."""
         target_path = self._resolve_path(data_path)
@@ -104,9 +96,9 @@ class _QuestionnaireProvider:
             return self._read_payload(target_path)
 
     def save(
-        self,
-        payload: Dict[str, Any],
-        output_path: Optional[Union[str, Path]] = None,
+            self,
+            payload: Dict[str, Any],
+            output_path: Optional[Union[str, Path]] = None,
     ) -> Path:
         """Persist a questionnaire payload to disk through the orchestrator."""
         target_path = self._resolve_path(output_path)
@@ -164,14 +156,29 @@ def get_question_payload(question_global: int) -> Dict[str, Any]:
     """Convenience wrapper returning a single question entry from the monolith."""
     return _questionnaire_provider.get_question(question_global)
 
-# Validate dynamic class registry early so missing classes fail fast.
+
+# Importar módulos reales
 try:
-    _CLASS_REGISTRY = build_class_registry()
+    from policy_processor import (
+        BayesianEvidenceScorer,
+        CausalDimension,
+        IndustrialPolicyProcessor,
+        PolicyTextProcessor,
+        ProcessorConfig,
+    )
+    from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
+    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
+    from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
+    from embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
+    from Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
+    from teoria_cambio import TeoriaCambio, AdvancedDAGValidator
+    from semantic_chunking_policy import SemanticChunker
+
     MODULES_OK = True
-except ClassRegistryError as exc:
+except:
     MODULES_OK = False
-    _CLASS_REGISTRY = {}
-    logger.warning("Class registry validation failed: %s", exc)
+    logger.warning("Módulos no disponibles - modo MOCK")
+
 
 @dataclass
 class PreprocessedDocument:
@@ -189,7 +196,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: Optional[str] = None
+            cls, document: Any, *, document_id: Optional[str] = None
     ) -> "PreprocessedDocument":
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
 
@@ -206,10 +213,10 @@ class PreprocessedDocument:
 
     @classmethod
     def _from_ingestion(
-        cls,
-        document: "IngestionPreprocessedDocument" | Any,
-        *,
-        document_id: Optional[str] = None,
+            cls,
+            document: Union["IngestionPreprocessedDocument", Any],
+            *,
+            document_id: Optional[str] = None,
     ) -> "PreprocessedDocument":
         """Build an orchestrator document from the ingestion schema."""
 
@@ -282,6 +289,7 @@ class PreprocessedDocument:
             metadata=metadata,
         )
 
+
 @dataclass
 class Evidence:
     modality: str
@@ -335,13 +343,13 @@ class ResourceLimits:
     """Runtime resource guard with adaptive worker prediction."""
 
     def __init__(
-        self,
-        max_memory_mb: Optional[float] = 4096.0,
-        max_cpu_percent: float = 85.0,
-        max_workers: int = 32,
-        min_workers: int = 4,
-        hard_max_workers: int = 64,
-        history: int = 120,
+            self,
+            max_memory_mb: Optional[float] = 4096.0,
+            max_cpu_percent: float = 85.0,
+            max_workers: int = 32,
+            min_workers: int = 4,
+            hard_max_workers: int = 64,
+            history: int = 120,
     ) -> None:
         self.max_memory_mb = max_memory_mb
         self.max_cpu_percent = max_cpu_percent
@@ -477,12 +485,12 @@ class PhaseInstrumentation:
     """Collects granular telemetry for each orchestration phase."""
 
     def __init__(
-        self,
-        phase_id: int,
-        name: str,
-        items_total: Optional[int] = None,
-        snapshot_interval: int = 10,
-        resource_limits: Optional[ResourceLimits] = None,
+            self,
+            phase_id: int,
+            name: str,
+            items_total: Optional[int] = None,
+            snapshot_interval: int = 10,
+            resource_limits: Optional[ResourceLimits] = None,
     ) -> None:
         self.phase_id = phase_id
         self.name = name
@@ -566,7 +574,8 @@ class PhaseInstrumentation:
     def throughput(self) -> Optional[float]:
         if self.start_time is None:
             return None
-        elapsed = (time.perf_counter() - self.start_time) if self.end_time is None else (self.end_time - self.start_time)
+        elapsed = (time.perf_counter() - self.start_time) if self.end_time is None else (
+                self.end_time - self.start_time)
         if not elapsed:
             return None
         return self.items_processed / elapsed
@@ -667,11 +676,11 @@ class ArgRouter:
         }
 
     def route(
-        self,
-        class_name: str,
-        instance: Any,
-        method: Any,
-        provided_kwargs: Dict[str, Any],
+            self,
+            class_name: str,
+            instance: Any,
+            method: Any,
+            provided_kwargs: Dict[str, Any],
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         """Return positional and keyword args compatible with the target method."""
 
@@ -682,9 +691,26 @@ class ArgRouter:
         return self._default_route(method, provided_kwargs)
 
     def _default_route(
-        self, method: Any, provided_kwargs: Dict[str, Any]
+            self, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         signature = inspect.signature(method)
+        normalized = dict(provided_kwargs)
+
+        # Alias map for common parameter name variations
+        alias_map = {
+            "text": ("raw_text", "document_text"),
+            "raw_text": ("text", "document_text"),
+        }
+
+        # Apply alias mapping
+        for source, targets in alias_map.items():
+            if source in normalized:
+                for target in targets:
+                    if target in signature.parameters and target not in normalized:
+                        normalized[target] = normalized[source]
+                        break
+
+        # Filter to only accepted kwargs
         accepted_kwargs: Dict[str, Any] = {}
         allow_extra = False
 
@@ -695,13 +721,11 @@ class ArgRouter:
                 allow_extra = True
                 continue
 
-            if name in provided_kwargs:
-                accepted_kwargs[name] = provided_kwargs[name]
-            elif name == "raw_text" and "text" in provided_kwargs:
-                accepted_kwargs[name] = provided_kwargs["text"]
+            if name in normalized:
+                accepted_kwargs[name] = normalized[name]
 
         if allow_extra:
-            for key, value in provided_kwargs.items():
+            for key, value in normalized.items():
                 accepted_kwargs.setdefault(key, value)
 
         return (), accepted_kwargs
@@ -741,7 +765,7 @@ class ArgRouter:
         return dimension, category, compiled_patterns
 
     def _route_policy_process(
-        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         text = provided_kwargs.get("text")
         if text is None:
@@ -749,7 +773,7 @@ class ArgRouter:
         return (), {"raw_text": text}
 
     def _route_match_patterns(
-        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         compiled_patterns = self._extract_all_patterns(instance)
         sentences = [
@@ -760,7 +784,7 @@ class ArgRouter:
         return (compiled_patterns, sentences), {}
 
     def _route_construct_bundle(
-        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
         sentences = [
@@ -804,7 +828,7 @@ class ArgRouter:
         }
 
     def _route_segment_sentences(
-        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         text = provided_kwargs.get("text")
         if text is None:
@@ -812,7 +836,7 @@ class ArgRouter:
         return (text,), {}
 
     def _route_evidence_score(
-        self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
+            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
     ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
         text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
         sentences = [
@@ -838,101 +862,57 @@ class ArgRouter:
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
-
-    def __init__(
-        self,
-        class_registry: Optional[Dict[str, type]] = None,
-        arg_router: Optional[ArgRouter] = None,
-        drift_monitor: Optional[PayloadDriftMonitor] = None,
-    ) -> None:
-        self._class_registry = class_registry or _CLASS_REGISTRY
-        self.arg_router = arg_router or ArgRouter(self._class_registry)
-        self._drift_monitor = drift_monitor or PayloadDriftMonitor.from_env()
+    def __init__(self):
         if MODULES_OK:
+            # Create shared ontology instance for all analyzers
+            ontology = MunicipalOntology()
+            
             self.instances = {
-                name: cls()
-                for name, cls in self._class_registry.items()
+                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
+                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
+                'PolicyContradictionDetector': PolicyContradictionDetector(),
+                'TemporalLogicVerifier': TemporalLogicVerifier(),
+                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
+                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
+                'CDAFFramework': CDAFFramework(),
+                'OperationalizationAuditor': OperationalizationAuditor(),
+                'FinancialAuditor': FinancialAuditor(),
+                'BayesianMechanismInference': BayesianMechanismInference(),
+                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
+                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
+                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
+                'MunicipalOntology': ontology,
+                'SemanticAnalyzer': SemanticAnalyzer(ontology),
+                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
+                'TextMiningEngine': TextMiningEngine(ontology),
+                'TeoriaCambio': TeoriaCambio(),
+                'AdvancedDAGValidator': AdvancedDAGValidator(),
+                'SemanticChunker': SemanticChunker()
             }
         else:
             self.instances = {}
-
+        self._router = ArgRouter()
+    
     def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
         if not MODULES_OK:
             return None
-
-        instance = self.instances.get(class_name)
-        if instance is None:
-            logger.error("Class '%s' not registered in executor", class_name)
-            return None
-
-        method = getattr(instance, method_name, None)
-        if method is None:
-            logger.error("Method '%s.%s' not available", class_name, method_name)
-            return None
-
         try:
-            args, call_kwargs = self.arg_router.route(
-                class_name, method_name, dict(kwargs)
-            )
-        except ArgumentValidationError as error:
-            expected = self.arg_router.expected_arguments(class_name, method_name)
-            logger.error(
-                "Argument validation failed [%s -> %s]: missing=%s unexpected=%s "
-                "type_mismatches=%s provided=%s expected=%s",
-                class_name,
-                method_name,
-                sorted(error.missing),
-                sorted(error.unexpected),
-                error.type_mismatches,
-                sorted(kwargs.keys()),
-                sorted(expected),
-            )
-            return None
-        except ArgRouterError as error:
-            logger.error(
-                "Routing failure for %s.%s: %s", class_name, method_name, error
-            )
-            return None
-
-        self._drift_monitor.maybe_validate(
-            kwargs, producer=class_name, consumer=method_name
-        )
-
-        try:
-            result = method(*args, **call_kwargs)
-        except Exception as exc:
-            logger.error(f"Error {class_name}.{method_name}: {exc}")
-            return None
-
-        if isinstance(result, dict):
-            self._drift_monitor.maybe_validate(
-                result,
-                producer=f"{class_name}.{method_name}",
-                consumer="return",
-            )
-
-        return result
-
-
-
+            instance = self.instances.get(class_name)
+            if not instance:
+                return None
+            method = getattr(instance, method_name)
+            args, routed_kwargs = self._router.route(class_name, instance, method, kwargs)
+            return method(*args, **routed_kwargs)
+        except Exception as e:
+            logger.exception("Catalog invocation failed")
+            raise
 
 
 class DataFlowExecutor:
-    """Ejecutor base con composición funcional"""
-    
+    """Ejecutor base"""
     def __init__(self, method_executor):
         self.executor = method_executor
-    
-    def execute_sequential(self, steps, initial_input):
-        """Ejecuta una secuencia de pasos con flujo de datos"""
-        current_data = initial_input
-        for class_name, method_name, param_name in steps:
-            result = self.executor.execute(
-                class_name, method_name,
-                **{param_name: current_data}
-            )
-            current_data = result
-        return current_data
 
 
 class D1Q1_Executor(DataFlowExecutor):
@@ -9595,104 +9575,8 @@ class D6Q5_Executor(DataFlowExecutor):
 
 
 # ============================================================================
-# CASOS ESPECIALES
+# ORQUESTADOR
 # ============================================================================
-
-class D6Q2_Executor_AntiMilagro(D6Q2_Executor):
-    """D6-Q2 con validación anti-milagro"""
-    
-    def execute(self, doc, method_executor):
-        result = super().execute(doc, method_executor)
-        
-        # Detectar saltos causales
-        if self._detect_miracle(result):
-            logger.warning("⚠️ SALTO CAUSAL DETECTADO")
-            result['miracle_penalty'] = 0.5
-        
-        return result
-    
-    def _detect_miracle(self, result):
-        # TODO: Implementar lógica de detección
-        return False
-
-
-class D6Q3_Executor_Bicameral(D6Q3_Executor):
-    """D6-Q3 con sistema bicameral"""
-    
-    def execute(self, doc, method_executor):
-        self.executor = method_executor
-        
-        # Ruta normal
-        base_result = super().execute(doc, method_executor)
-        
-        # RUTA 1: Detección Local (CD._suggest_resolutions)
-        route1 = self.executor.execute(
-            'PolicyContradictionDetector',
-            '_suggest_resolutions',
-            data=base_result['raw']
-        )
-        
-        # RUTA 2: Inferencia Estructural (TC._generar_sugerencias_internas)
-        route2 = self.executor.execute(
-            'TeoriaCambio',
-            '_generar_sugerencias_internas',
-            data=base_result['raw']
-        )
-        
-        # Consolidar
-        base_result['route1'] = route1
-        base_result['route2'] = route2
-        base_result['bicameral'] = True
-        
-        return base_result
-
-
-class D6Q4_Executor_Bicameral(D6Q4_Executor):
-    """D6-Q4 con sistema bicameral"""
-    
-    def execute(self, doc, method_executor):
-        self.executor = method_executor
-        
-        base_result = super().execute(doc, method_executor)
-        
-        route1 = self.executor.execute(
-            'PolicyContradictionDetector',
-            '_suggest_resolutions',
-            data=base_result['raw']
-        )
-        
-        route2 = self.executor.execute(
-            'TeoriaCambio',
-            '_generar_sugerencias_internas',
-            data=base_result['raw']
-        )
-        
-        base_result['route1'] = route1
-        base_result['route2'] = route2
-        base_result['bicameral'] = True
-        
-        return base_result
-
-
-# Derek Beach se aplica donde se necesite
-class ProcessTracingMixin:
-    """Mixin para process tracing"""
-    
-    def apply_hoop_test(self, evidence, hypothesis):
-        return self.executor.execute(
-            'BayesianMechanismInference',
-            '_test_necessity',
-            evidence=evidence,
-            hypothesis=hypothesis
-        )
-    
-    def apply_smoking_gun(self, evidence, hypothesis):
-        return self.executor.execute(
-            'BayesianMechanismInference',
-            '_test_sufficiency',
-            evidence=evidence,
-            hypothesis=hypothesis
-        )
 
 class Orchestrator:
     """Orquestador robusto de 11 fases con abortabilidad y control de recursos."""
@@ -9753,13 +9637,13 @@ class Orchestrator:
     }
 
     def __init__(
-        self,
-        catalog_path: str = "rules/METODOS/metodos_completos_nivel3.json",
-        monolith_path: str = "questionnaire_monolith.json",
-        method_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json",
-        schema_path: Optional[str] = "schemas/questionnaire.schema.json",
-        resource_limits: Optional[ResourceLimits] = None,
-        resource_snapshot_interval: int = 10,
+            self,
+            catalog_path: str = "rules/METODOS/metodos_completos_nivel3.json",
+            monolith_path: str = "questionnaire_monolith.json",
+            method_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json",
+            schema_path: Optional[str] = "schemas/questionnaire.schema.json",
+            resource_limits: Optional[ResourceLimits] = None,
+            resource_snapshot_interval: int = 10,
     ) -> None:
         self.catalog_path = self._resolve_path(catalog_path)
         self.monolith_path = self._resolve_path(monolith_path)
@@ -9813,6 +9697,26 @@ class Orchestrator:
         self._context: Dict[str, Any] = {}
         self._start_time: Optional[float] = None
 
+        # Initialize RecommendationEngine for 3-level recommendations
+        try:
+            # Try to load enhanced rules first (v2.0), fallback to v1.0
+            try:
+                self.recommendation_engine = RecommendationEngine(
+                    rules_path="config/recommendation_rules_enhanced.json",
+                    schema_path="rules/recommendation_rules_enhanced.schema.json"
+                )
+                logger.info("RecommendationEngine initialized with enhanced v2.0 rules")
+            except Exception as e_enhanced:
+                logger.info(f"Enhanced rules not available ({e_enhanced}), falling back to v1.0")
+                self.recommendation_engine = RecommendationEngine(
+                    rules_path="config/recommendation_rules.json",
+                    schema_path="rules/recommendation_rules.schema.json"
+                )
+                logger.info("RecommendationEngine initialized with v1.0 rules")
+        except Exception as e:
+            logger.warning(f"Failed to initialize RecommendationEngine: {e}")
+            self.recommendation_engine = None
+
     def _resolve_path(self, path: Optional[str]) -> Optional[str]:
         if path is None:
             return None
@@ -9842,7 +9746,7 @@ class Orchestrator:
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
     def process_development_plan(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+            self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
@@ -9857,7 +9761,7 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-        self, pdf_path: str, preprocessed_document: Any | None = None
+            self, pdf_path: str, preprocessed_document: Optional[Any] = None
     ) -> List[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
@@ -10081,7 +9985,8 @@ class Orchestrator:
 
         return config
 
-    def _validate_contract_structure(self, monolith: Dict[str, Any], instrumentation: PhaseInstrumentation) -> Dict[str, Any]:
+    def _validate_contract_structure(self, monolith: Dict[str, Any], instrumentation: PhaseInstrumentation) -> Dict[
+        str, Any]:
         micro_questions = monolith["blocks"].get("micro_questions", [])
         base_slots = {question.get("base_slot") for question in micro_questions}
         modalities = {question.get("scoring_modality") for question in micro_questions}
@@ -10171,9 +10076,9 @@ class Orchestrator:
         return preprocessed
 
     async def _execute_micro_questions_async(
-        self,
-        document: PreprocessedDocument,
-        config: Dict[str, Any],
+            self,
+            document: PreprocessedDocument,
+            config: Dict[str, Any],
     ) -> List[MicroQuestionRun]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[2]
@@ -10265,7 +10170,8 @@ class Orchestrator:
                     instrumentation.record_error("executor", error_message, base_slot=base_slot)
                 else:
                     try:
-                        evidence = await asyncio.to_thread(executor_class.execute, document, self.executor)
+                        executor_instance = executor_class(self.executor)
+                        evidence = await asyncio.to_thread(executor_instance.execute, document, self.executor)
                         circuit["failures"] = 0
                     except Exception as exc:  # pragma: no cover - dependencias externas
                         circuit["failures"] += 1
@@ -10321,9 +10227,9 @@ class Orchestrator:
         return results
 
     async def _score_micro_results_async(
-        self,
-        micro_results: List[MicroQuestionRun],
-        config: Dict[str, Any],
+            self,
+            micro_results: List[MicroQuestionRun],
+            config: Dict[str, Any],
     ) -> List[ScoredMicroQuestion]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[3]
@@ -10427,9 +10333,9 @@ class Orchestrator:
         return results
 
     async def _aggregate_dimensions_async(
-        self,
-        scored_results: List[ScoredMicroQuestion],
-        config: Dict[str, Any],
+            self,
+            scored_results: List[ScoredMicroQuestion],
+            config: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[4]
@@ -10462,9 +10368,9 @@ class Orchestrator:
         return dimension_scores
 
     async def _aggregate_policy_areas_async(
-        self,
-        dimension_scores: List[Dict[str, Any]],
-        config: Dict[str, Any],
+            self,
+            dimension_scores: List[Dict[str, Any]],
+            config: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[5]
@@ -10496,9 +10402,9 @@ class Orchestrator:
         return area_scores
 
     def _aggregate_clusters(
-        self,
-        policy_area_scores: List[Dict[str, Any]],
-        config: Dict[str, Any],
+            self,
+            policy_area_scores: List[Dict[str, Any]],
+            config: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[6]
@@ -10545,20 +10451,188 @@ class Orchestrator:
         }
 
     async def _generate_recommendations(
-        self,
-        macro_result: Dict[str, Any],
-        config: Dict[str, Any],
+            self,
+            macro_result: Dict[str, Any],
+            config: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """
+        Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
+        
+        This phase connects to the orchestrator's 3-level flux:
+        - MICRO: Uses scored question results from phase 3
+        - MESO: Uses cluster aggregations from phase 6
+        - MACRO: Uses macro evaluation from phase 7
+        
+        Args:
+            macro_result: Macro evaluation results from phase 7
+            config: Configuration dictionary
+            
+        Returns:
+            Dictionary with MICRO, MESO, and MACRO recommendations
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[8]
         start = time.perf_counter()
 
         await asyncio.sleep(0)
-        recommendations = {
-            "strategic": [],
-            "tactical": [],
-            "macro_score": macro_result.get("macro_score"),
-        }
+
+        # If RecommendationEngine is not available, return empty recommendations
+        if self.recommendation_engine is None:
+            logger.warning("RecommendationEngine not available, returning empty recommendations")
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+            }
+            instrumentation.increment(latency=time.perf_counter() - start)
+            return recommendations
+
+        try:
+            # ========================================================================
+            # MICRO LEVEL: Transform scored results to PA-DIM scores
+            # ========================================================================
+            micro_scores: Dict[str, float] = {}
+            scored_results = self._context.get('scored_results', [])
+
+            # Group by policy area and dimension to calculate average scores
+            pa_dim_groups: Dict[str, List[float]] = {}
+            for result in scored_results:
+                if hasattr(result, 'metadata') and result.metadata:
+                    pa_id = result.metadata.get('policy_area_id')
+                    dim_id = result.metadata.get('dimension_id')
+                    score = result.normalized_score
+
+                    if pa_id and dim_id and score is not None:
+                        key = f"{pa_id}-{dim_id}"
+                        if key not in pa_dim_groups:
+                            pa_dim_groups[key] = []
+                        pa_dim_groups[key].append(score)
+
+            # Calculate average for each PA-DIM combination
+            for key, scores in pa_dim_groups.items():
+                if scores:
+                    micro_scores[key] = sum(scores) / len(scores)
+
+            logger.info(f"Extracted {len(micro_scores)} MICRO PA-DIM scores for recommendations")
+
+            # ========================================================================
+            # MESO LEVEL: Transform cluster scores
+            # ========================================================================
+            cluster_data: Dict[str, Any] = {}
+            cluster_scores = self._context.get('cluster_scores', [])
+
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score')
+                areas = cluster.get('areas', [])
+
+                if cluster_id and cluster_score is not None:
+                    # Calculate variance across areas in this cluster
+                    area_scores = [area.get('score', 0) for area in areas if area.get('score') is not None]
+                    variance = statistics.variance(area_scores) if len(area_scores) > 1 else 0.0
+
+                    # Find weakest policy area in cluster
+                    weak_pa = None
+                    if area_scores:
+                        min_score = min(area_scores)
+                        for area in areas:
+                            if area.get('score') == min_score:
+                                weak_pa = area.get('area_id')
+                                break
+
+                    cluster_data[cluster_id] = {
+                        'score': cluster_score * 100,  # Convert to 0-100 scale
+                        'variance': variance,
+                        'weak_pa': weak_pa
+                    }
+
+            logger.info(f"Extracted {len(cluster_data)} MESO cluster metrics for recommendations")
+
+            # ========================================================================
+            # MACRO LEVEL: Transform macro evaluation
+            # ========================================================================
+            macro_score = macro_result.get('macro_score')
+
+            # Determine macro band based on score
+            macro_band = 'INSUFICIENTE'
+            if macro_score is not None:
+                scaled_score = macro_score * 100
+                if scaled_score >= 75:
+                    macro_band = 'SATISFACTORIO'
+                elif scaled_score >= 55:
+                    macro_band = 'ACEPTABLE'
+                elif scaled_score >= 35:
+                    macro_band = 'DEFICIENTE'
+
+            # Find clusters below target (< 55%)
+            clusters_below_target = []
+            for cluster in cluster_scores:
+                cluster_id = cluster.get('cluster_id')
+                cluster_score = cluster.get('score', 0)
+                if cluster_score * 100 < 55:
+                    clusters_below_target.append(cluster_id)
+
+            # Calculate overall variance
+            all_cluster_scores = [c.get('score', 0) for c in cluster_scores if c.get('score') is not None]
+            overall_variance = statistics.variance(all_cluster_scores) if len(all_cluster_scores) > 1 else 0.0
+
+            variance_alert = 'BAJA'
+            if overall_variance >= 0.18:
+                variance_alert = 'ALTA'
+            elif overall_variance >= 0.08:
+                variance_alert = 'MODERADA'
+
+            # Find priority micro gaps (lowest scoring PA-DIM combinations)
+            sorted_micro = sorted(micro_scores.items(), key=lambda x: x[1])
+            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 1.65]
+
+            macro_data = {
+                'macro_band': macro_band,
+                'clusters_below_target': clusters_below_target,
+                'variance_alert': variance_alert,
+                'priority_micro_gaps': priority_micro_gaps
+            }
+
+            logger.info(f"Macro band: {macro_band}, Clusters below target: {len(clusters_below_target)}")
+
+            # ========================================================================
+            # GENERATE RECOMMENDATIONS AT ALL 3 LEVELS
+            # ========================================================================
+            context = {
+                'generated_at': datetime.utcnow().isoformat(),
+                'macro_score': macro_score
+            }
+
+            recommendation_sets = self.recommendation_engine.generate_all_recommendations(
+                micro_scores=micro_scores,
+                cluster_data=cluster_data,
+                macro_data=macro_data,
+                context=context
+            )
+
+            # Convert RecommendationSet objects to dictionaries
+            recommendations = {
+                level: rec_set.to_dict() for level, rec_set in recommendation_sets.items()
+            }
+            recommendations['macro_score'] = macro_score
+
+            logger.info(
+                f"Generated recommendations: "
+                f"MICRO={len(recommendation_sets['MICRO'].recommendations)}, "
+                f"MESO={len(recommendation_sets['MESO'].recommendations)}, "
+                f"MACRO={len(recommendation_sets['MACRO'].recommendations)}"
+            )
+
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}", exc_info=True)
+            recommendations = {
+                "MICRO": {"level": "MICRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MESO": {"level": "MESO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "MACRO": {"level": "MACRO", "recommendations": [], "generated_at": datetime.utcnow().isoformat()},
+                "macro_score": macro_result.get("macro_score"),
+                "error": str(e)
+            }
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
