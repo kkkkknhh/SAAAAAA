@@ -61,7 +61,7 @@ class TestScoringContracts:
         assert isinstance(metadata, dict)
         
         # Invalid precondition - not a dict
-        with pytest.raises(Exception):  # Should raise TypeError or similar
+        with pytest.raises((TypeError, AttributeError, KeyError)):
             score_type_a("not a dict", config)  # type: ignore
     
     def test_scoring_postcondition_score_range(self):
