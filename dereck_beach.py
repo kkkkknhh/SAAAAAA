@@ -2525,7 +2525,28 @@ class BayesianMechanismInference:
     Legacy methods are preserved for backward compatibility.
     """
 
-    def __init__(self, config: ConfigLoader, nlp_model: spacy.Language) -> None:
+    def __init__(self, config: ConfigLoader, nlp_model: spacy.Language, **kwargs) -> None:
+        """
+        Initialize Bayesian Mechanism Inference engine.
+        
+        Args:
+            config: Configuration loader instance
+            nlp_model: spaCy NLP model for text processing
+            **kwargs: Accepts additional keyword arguments for backward compatibility.
+                     Unexpected arguments (e.g., 'causal_hierarchy') are logged and ignored.
+        
+        Note:
+            This function signature has been made defensive to handle unexpected
+            keyword arguments that may be passed due to interface drift.
+        """
+        # Log warning if unexpected kwargs are passed
+        if kwargs:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"BayesianMechanismInference.__init__ received unexpected keyword arguments: {list(kwargs.keys())}. "
+                "These will be ignored. Expected signature: __init__(self, config: ConfigLoader, nlp_model: spacy.Language)"
+            )
+        
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
         self.nlp = nlp_model

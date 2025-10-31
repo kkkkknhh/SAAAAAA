@@ -417,7 +417,31 @@ class PDETMunicipalPlanAnalyzer:
 
         return df
 
-    def _is_likely_header(self, row: pd.Series) -> bool:
+    def _is_likely_header(self, row: pd.Series, **kwargs) -> bool:
+        """
+        Determine if a DataFrame row is likely a header row based on linguistic analysis.
+        
+        Args:
+            row: pandas Series representing a row from a DataFrame
+            **kwargs: Accepts additional keyword arguments for backward compatibility.
+                     These are ignored (e.g., pdf_path if mistakenly passed).
+        
+        Returns:
+            Boolean indicating whether the row appears to be a header
+        
+        Note:
+            This function only requires 'row' parameter. Any additional kwargs
+            (like 'pdf_path') are silently ignored to maintain interface stability.
+        """
+        # Log warning if unexpected kwargs are passed
+        if kwargs:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"_is_likely_header received unexpected keyword arguments: {list(kwargs.keys())}. "
+                "These will be ignored. Expected signature: _is_likely_header(self, row: pd.Series)"
+            )
+        
         text = ' '.join(row.astype(str))
         doc = self.nlp(text)
         pos_counts = pd.Series([token.pos_ for token in doc]).value_counts()

@@ -1046,9 +1046,35 @@ class IndustrialPolicyProcessor:
         return evidence_by_dimension
 
     def _analyze_causal_dimensions(
-        self, text: str, sentences: List[str]
+        self, text: str, sentences: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Perform global analysis of causal dimensions across entire document."""
+        """
+        Perform global analysis of causal dimensions across entire document.
+        
+        Args:
+            text: Full document text
+            sentences: Optional pre-segmented sentences. If not provided, will be 
+                      automatically extracted from text using the text processor.
+        
+        Returns:
+            Dictionary containing dimension scores and confidence metrics
+        
+        Note:
+            This function requires 'sentences' for optimal performance. If not provided,
+            sentences will be extracted from text automatically, which may impact performance.
+        """
+        # Defensive validation: ensure sentences parameter is provided
+        if sentences is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "_analyze_causal_dimensions called without 'sentences' parameter. "
+                "Automatically extracting sentences from text. "
+                "Expected signature: _analyze_causal_dimensions(self, text: str, sentences: List[str])"
+            )
+            # Auto-extract sentences if not provided
+            sentences = self.text_processor.segment_into_sentences(text)
+        
         dimension_scores = {}
 
         for dimension, categories in self._pattern_registry.items():
