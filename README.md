@@ -28,7 +28,10 @@ saaaaaa/
 └── data/              # Data files
 ```
 
-**📖 See [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md) for detailed structure documentation**
+**📖 Important Documentation:**
+- [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md) - Detailed structure documentation
+- [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) - Import migration reference
+- [docs/POST_REORGANIZATION_STEPS.md](docs/POST_REORGANIZATION_STEPS.md) - **Next steps to complete setup**
 
 ---
 
