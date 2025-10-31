@@ -1,9 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "saaaaaa"
 version = "0.1.0"
 description = "Municipal policy analysis system with strict type safety"
 requires-python = ">=3.10"
 dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pyright]
 # Strict type checking configuration
@@ -48,12 +55,7 @@ reportOptionalOperand = "error"
 
 # Include and exclude paths
 include = [
-    "orchestrator.py",
-    "document_ingestion.py",
-    "embedding_policy.py",
-    "semantic_chunking_policy.py",
-    "scoring/",
-    "concurrency/",
+    "src/saaaaaa/",
 ]
 
 exclude = [
@@ -63,6 +65,7 @@ exclude = [
     "tests/",
     "examples/",
     ".git",
+    "minipdm/",
 ]
 
 [tool.mypy]
@@ -92,12 +95,10 @@ strict_equality = true
 # Core packages with strict enforcement
 [[tool.mypy.overrides]]
 module = [
-    "orchestrator",
-    "document_ingestion",
-    "embedding_policy",
-    "semantic_chunking_policy",
-    "scoring.*",
-    "concurrency.*",
+    "saaaaaa.core.*",
+    "saaaaaa.processing.*",
+    "saaaaaa.analysis.*",
+    "saaaaaa.concurrency.*",
 ]
 strict = true
 disallow_any_expr = false
@@ -145,6 +146,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ANN", "ARG"]
 "examples/**/*.py" = ["ANN"]
+"scripts/**/*.py" = ["ANN"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -159,8 +161,8 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["."]
-omit = ["tests/*", "examples/*", ".venv/*"]
+source = ["src/saaaaaa"]
+omit = ["tests/*", "examples/*", ".venv/*", "minipdm/*"]
 
 [tool.coverage.report]
 exclude_lines = [
