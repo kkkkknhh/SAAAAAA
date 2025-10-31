@@ -1048,6 +1048,33 @@ class CausalExtractor:
 
         return goal
 
+    def _extract_goal_text(self, goal_id: str, text: str) -> Optional[str]:
+        """
+        Extract the text content associated with a specific goal ID.
+        
+        Args:
+            goal_id: The goal identifier (e.g., 'MP-001', 'MR-002')
+            text: The full document text
+            
+        Returns:
+            The extracted text for the goal, or None if not found
+        """
+        goal_pattern = re.compile(
+            rf'\b{re.escape(goal_id)}\b',
+            re.IGNORECASE
+        )
+        
+        match = goal_pattern.search(text)
+        if not match:
+            return None
+            
+        # Extract context around the goal ID
+        context_start = max(0, match.start() - 500)
+        context_end = min(len(text), match.end() + 500)
+        context = text[context_start:context_end]
+        
+        return context.strip()
+
     def _add_node_to_graph(self, node: MetaNode) -> None:
         """Add node to causal graph"""
         node_dict = asdict(node)

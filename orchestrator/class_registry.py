@@ -19,6 +19,7 @@ _CLASS_PATHS: Mapping[str, str] = {
     "BayesianConfidenceCalculator": "contradiction_deteccion.BayesianConfidenceCalculator",
     "PDETMunicipalPlanAnalyzer": "financiero_viabilidad_tablas.PDETMunicipalPlanAnalyzer",
     "CDAFFramework": "dereck_beach.CDAFFramework",
+    "CausalExtractor": "dereck_beach.CausalExtractor",
     "OperationalizationAuditor": "dereck_beach.OperationalizationAuditor",
     "FinancialAuditor": "dereck_beach.FinancialAuditor",
     "BayesianMechanismInference": "dereck_beach.BayesianMechanismInference",
