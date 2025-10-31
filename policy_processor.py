@@ -1046,18 +1046,42 @@ class IndustrialPolicyProcessor:
         return evidence_by_dimension
 
     def _analyze_causal_dimensions(
-        self, text: str, sentences: List[str]
+        self, text: str, sentences: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Perform global analysis of causal dimensions across entire document."""
+        """
+        Perform global analysis of causal dimensions across entire document.
+        
+        Args:
+            text: Full document text
+            sentences: Optional pre-segmented sentences. If not provided, will be 
+                      automatically extracted from text using the text processor.
+        
+        Returns:
+            Dictionary containing dimension scores and confidence metrics
+        
+        Note:
+            This function requires 'sentences' for optimal performance. If not provided,
+            sentences will be extracted from text automatically, which may impact performance.
+        """
+        # Defensive validation: ensure sentences parameter is provided
+        if sentences is None:
+            logger.warning(
+                "_analyze_causal_dimensions called without 'sentences' parameter. "
+                "Automatically extracting sentences from text. "
+                "Expected signature: _analyze_causal_dimensions(self, text: str, sentences: List[str])"
+            )
+            # Auto-extract sentences if not provided
+            sentences = self.text_processor.segment_into_sentences(text)
+        
         dimension_scores = {}
 
         for dimension, categories in self._pattern_registry.items():
             total_matches = 0
             category_results = {}
 
-            for category, patterns in categories.items():
+            for category, compiled_patterns in categories.items():
                 matches = []
-                for pattern in patterns:
+                for pattern in compiled_patterns:
                     for sentence in sentences:
                         matches.extend(pattern.findall(sentence))
 
