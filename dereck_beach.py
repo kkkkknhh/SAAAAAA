@@ -1048,6 +1048,57 @@ class CausalExtractor:
 
         return goal
 
+    def _extract_goal_text(self, text: str, **kwargs) -> Optional[str]:
+        """
+        Extract the text content associated with a specific goal ID.
+        
+        This method extracts goal text from the provided document text. It can work
+        in two modes:
+        1. If a goal_id is provided in kwargs, it extracts text for that specific goal
+        2. Otherwise, it returns the first goal text found in the document
+        
+        Args:
+            text: The full document text
+            **kwargs: Additional parameters including optional 'goal_id', 'data', 
+                     'sentences', 'tables'
+            
+        Returns:
+            The extracted text for the goal, or None if not found
+        """
+        # Get goal_id from kwargs if provided, otherwise look for data parameter
+        goal_id = kwargs.get('goal_id')
+        data = kwargs.get('data')
+        
+        # If no goal_id specified, try to extract the first goal from text
+        if not goal_id:
+            goal_pattern = re.compile(
+                r'\b[MP][RIP]-\d{3}\b',
+                re.IGNORECASE
+            )
+            match = goal_pattern.search(text)
+            if match:
+                goal_id = match.group().upper()
+            else:
+                # No goal found in text
+                return None
+        
+        # Now extract the context around the goal_id
+        goal_pattern = re.compile(
+            rf'\b{re.escape(goal_id)}\b',
+            re.IGNORECASE
+        )
+        
+        match = goal_pattern.search(text)
+        if not match:
+            return None
+            
+        # Extract context around the goal ID
+        context_start = max(0, match.start() - 500)
+        context_end = min(len(text), match.end() + 500)
+        context = text[context_start:context_end]
+        
+        return context.strip()
+
     def _add_node_to_graph(self, node: MetaNode) -> None:
         """Add node to causal graph"""
         node_dict = asdict(node)
@@ -2525,7 +2576,27 @@ class BayesianMechanismInference:
     Legacy methods are preserved for backward compatibility.
     """
 
-    def __init__(self, config: ConfigLoader, nlp_model: spacy.Language) -> None:
+    def __init__(self, config: ConfigLoader, nlp_model: spacy.Language, **kwargs) -> None:
+        """
+        Initialize Bayesian Mechanism Inference engine.
+        
+        Args:
+            config: Configuration loader instance
+            nlp_model: spaCy NLP model for text processing
+            **kwargs: Accepts additional keyword arguments for backward compatibility.
+                     Unexpected arguments (e.g., 'causal_hierarchy') are logged and ignored.
+        
+        Note:
+            This function signature has been made defensive to handle unexpected
+            keyword arguments that may be passed due to interface drift.
+        """
+        # Log warning if unexpected kwargs are passed
+        if kwargs:
+            logging.getLogger(__name__).warning(
+                f"BayesianMechanismInference.__init__ received unexpected keyword arguments: {list(kwargs.keys())}. "
+                "These will be ignored. Expected signature: __init__(self, config: ConfigLoader, nlp_model: spacy.Language)"
+            )
+        
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
         self.nlp = nlp_model
@@ -5813,7 +5884,3 @@ class DerekBeachProducer:
     def get_refutation_recommendation(self, refutation: Dict[str, Any]) -> str:
         """Extract recommendation from refutation"""
         return refutation.get("recommendation", "")
-
-
-if __name__ == "__main__":
-    sys.exit(main())

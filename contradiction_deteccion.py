@@ -1471,28 +1471,3 @@ class PolicyContradictionDetector:
             severity += 0.1
         
         return min(1.0, severity)
-
-
-# Punto de entrada para uso directo
-if __name__ == "__main__":
-    # Configurar logging
-    logging.basicConfig(level=logging.INFO)
-
-    # Ejemplo de uso
-    detector = PolicyContradictionDetector()
-
-    sample_text = """
-    El municipio aumentará la cobertura educativa al 95% para 2027, 
-    sin embargo los recursos del SGP educación serán de 1500 millones.
-    En el primer trimestre de 2025 se ejecutará el 40% del presupuesto.
-    Para el segundo trimestre de 2025 se proyecta ejecutar el 70% del presupuesto total.
-    La meta es beneficiar a 10000 familias, pero el programa solo tiene capacidad para 5000 beneficiarios.
-    """
-
-    result = detector.detect(
-        sample_text,
-        plan_name="PDM Ejemplo 2024-2027",
-        dimension=PolicyDimension.ESTRATEGICO
-    )
-
-    print(result)
