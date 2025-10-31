@@ -1662,38 +1662,7 @@ class ResultsExporter:
 # 7. MAIN EXECUTION
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    """Main execution example."""
 
-    print("Municipal Development Plan Analyzer")
-    print("Python 3.11+ Compatible Version")
-    print("=" * 50)
-
-    # Run example
-    results = example_usage()
-
-    if results:
-        print("\nExporting results...")
-
-        # Export to different formats
-        exporter = ResultsExporter()
-
-        try:
-            # JSON export
-            exporter.export_to_json(results, "analysis_results.json")
-
-            # Excel export (if openpyxl available)
-            exporter.export_to_excel(results, "analysis_results.xlsx")
-
-            # Text summary
-            exporter.export_summary_report(results, "analysis_summary.txt")
-
-            print("Exports completed successfully!")
-
-        except Exception as e:
-            print(f"Export error: {e}")
-
-    print("\nAnalysis complete!")
 
 
 # ---------------------------------------------------------------------------
@@ -1882,7 +1851,3 @@ def main():
         exporter.export_summary_report(results, f"{output_base}_summary.txt")
 
         print(f"Analysis complete. Results in: {args.output}")
-
-
-if __name__ == "__main__":
-    main()

@@ -534,6 +534,9 @@ class PolicyDocumentAnalyzer:
                 "has_numerical": sum(1 for c in chunks if c["has_numerical"])
             },
             "causal_dimensions": dimension_results,
+            "key_excerpts": key_excerpts
+        }
+
     def _extract_key_excerpts(
         self,
         chunks: list[dict[str, Any]],
@@ -554,9 +557,6 @@ class PolicyDocumentAnalyzer:
             excerpts[dim.value] = [
                 _get_chunk_content(c)[:300]
                 + ("..." if len(_get_chunk_content(c)) > 300 else "")
-                for c in top_chunks
-            ]
-        return excerpts
                 for c in top_chunks
             ]
         return excerpts
@@ -816,7 +816,3 @@ Se implementará sistema de indicadores alineado con ODS, con mediciones semestr
             for k, v in results["causal_dimensions"].items()
         }
     }, indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()
