@@ -123,7 +123,7 @@ class SignatureRegistry:
         """Check if a function's signature has changed from the registered version"""
         module = func.__module__ if hasattr(func, '__module__') else 'unknown'
         class_name = None
-        if hasattr(func, '__qualname__') and '.' in func.__qualname__':
+        if hasattr(func, '__qualname__') and '.' in func.__qualname__:
             class_name = func.__qualname__.rsplit('.', 1)[0]
         
         old_sig = self.get_signature(module, class_name, func.__name__)
