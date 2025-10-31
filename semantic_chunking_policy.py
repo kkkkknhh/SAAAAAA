@@ -816,7 +816,3 @@ Se implementará sistema de indicadores alineado con ODS, con mediciones semestr
             for k, v in results["causal_dimensions"].items()
         }
     }, indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()

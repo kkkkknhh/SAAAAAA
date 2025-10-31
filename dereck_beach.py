@@ -5813,7 +5813,3 @@ class DerekBeachProducer:
     def get_refutation_recommendation(self, refutation: Dict[str, Any]) -> str:
         """Extract recommendation from refutation"""
         return refutation.get("recommendation", "")
-
-
-if __name__ == "__main__":
-    sys.exit(main())
