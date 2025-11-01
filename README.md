@@ -8,44 +8,77 @@
 
 ---
 
+## 📁 REPOSITORY STRUCTURE
+
+This repository now follows Python best practices with a hierarchical package structure:
+
+```
+saaaaaa/
+├── src/saaaaaa/       # Main Python package
+│   ├── core/          # Orchestration & execution
+│   ├── processing/    # Data processing
+│   ├── analysis/      # Analysis & ML
+│   ├── api/           # API server
+│   └── utils/         # Utilities
+├── tests/             # Test suite
+├── docs/              # Documentation
+├── examples/          # Example scripts
+├── scripts/           # Utility scripts
+├── config/            # Configuration files
+└── data/              # Data files
+```
+
+**📖 Important Documentation:**
+- [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md) - Detailed structure documentation
+- [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) - Import migration reference
+- [docs/POST_REORGANIZATION_STEPS.md](docs/POST_REORGANIZATION_STEPS.md) - **Next steps to complete setup**
+
+---
+
 ## 📚 DOCUMENTATION STRUCTURE
 
 ### **Core Inventory (Commit 1 ✅)**
-- [`inventory.json`](inventory.json) - Machine-readable exhaustive inventory of all 8 files, 67 classes, 584 methods
-- [`INVENTORY_COMPLETE.md`](INVENTORY_COMPLETE.md) - Human-readable summary with statistics
+- [`config/inventory.json`](config/inventory.json) - Machine-readable exhaustive inventory of all 8 files, 67 classes, 584 methods
+- [`docs/INVENTORY_COMPLETE.md`](docs/INVENTORY_COMPLETE.md) - Human-readable summary with statistics
 
 ### **Dependency Mapping (Commit 2 ✅)**
-- [`dependency_graph.dot`](dependency_graph.dot) - Graphviz visualization of 7 producers → 1 aggregator architecture (8.6KB)
-- [`interaction_matrix.csv`](interaction_matrix.csv) - Method-to-method interaction matrix with 584 methods (14KB)
+- [`docs/dependency_graph.dot`](docs/dependency_graph.dot) - Graphviz visualization of 7 producers → 1 aggregator architecture (8.6KB)
+- [`data/interaction_matrix.csv`](data/interaction_matrix.csv) - Method-to-method interaction matrix with 584 methods (14KB)
 - [`question_component_map.json`](question_component_map.json) - Strategic method-to-question mappings (15KB)
-- [`COMMIT_2_SUMMARY.md`](COMMIT_2_SUMMARY.md) - Complete Commit 2 deliverables summary (13KB)
+- [`docs/COMMIT_2_SUMMARY.md`](docs/COMMIT_2_SUMMARY.md) - Complete Commit 2 deliverables summary (13KB)
 
 ### **Strategic Orchestration (Commit 1-2 ✅)**
-- [`STRATEGIC_METHOD_ORCHESTRATION.md`](STRATEGIC_METHOD_ORCHESTRATION.md) - Chess-based optimization strategy (9.4KB)
-- [`CHESS_TACTICAL_SUMMARY.md`](CHESS_TACTICAL_SUMMARY.md) - Tactical patterns and checkmate conditions (9.2KB)
+- [`docs/STRATEGIC_METHOD_ORCHESTRATION.md`](docs/STRATEGIC_METHOD_ORCHESTRATION.md) - Chess-based optimization strategy (9.4KB)
+- [`docs/CHESS_TACTICAL_SUMMARY.md`](docs/CHESS_TACTICAL_SUMMARY.md) - Tactical patterns and checkmate conditions (9.2KB)
 
 ### **Integration Status & Progress**
-- [`INTEGRATION_STATUS.md`](INTEGRATION_STATUS.md) - Progress tracking: ✅ Commits 1-2 COMPLETE, ⏳ Commits 3-8 PENDING
-- [`COMMIT_2_SUMMARY.md`](COMMIT_2_SUMMARY.md) - Detailed Commit 2 completion summary
-- [`cuestionario_FIXED.json`](cuestionario_FIXED.json) - The 300 questions defining all requirements (814KB)
+- [`docs/INTEGRATION_STATUS.md`](docs/INTEGRATION_STATUS.md) - Progress tracking: ✅ Commits 1-2 COMPLETE, ⏳ Commits 3-8 PENDING
+- [`docs/COMMIT_2_SUMMARY.md`](docs/COMMIT_2_SUMMARY.md) - Detailed Commit 2 completion summary
+- [`data/questionnaire_monolith.json`](data/questionnaire_monolith.json) - The 300 questions defining all requirements (814KB)
 
 ### **Data Contracts**
-- [`DATA_CONTRACTS.md`](docs/DATA_CONTRACTS.md) - Operational rules, validation commands, and migration workflow
+- [`docs/DATA_CONTRACTS.md`](docs/DATA_CONTRACTS.md) - Operational rules, validation commands, and migration workflow
 
 ---
 
 ## 🎯 QUICK START
 
+### **Installation**
+```bash
+# Install in development mode
+pip install -e .
+```
+
 ### **Understand the Architecture**
 ```bash
 # Read the strategic overview
-cat CHESS_TACTICAL_SUMMARY.md
+cat docs/CHESS_TACTICAL_SUMMARY.md
 
 # Review method mappings
 cat question_component_map.json | jq '.dimension_mappings'
 
 # Check inventory statistics
-cat inventory.json | jq '.statistics'
+cat config/inventory.json | jq '.statistics'
 ```
 
 ### **Key Numbers**
@@ -63,13 +96,13 @@ cat inventory.json | jq '.statistics'
 
 ### **OPENING: Evidence Collection (Parallel)**
 7 producers execute independently:
-1. `financiero_viabilidad_tablas.py` (65 methods) - Financial + Causal DAG
-2. `Analyzer_one.py` (34 methods) - Semantic Cube + Value Chain
-3. `contradiction_deteccion.py` (62 methods) - Contradictions + Coherence
-4. `embedding_policy.py` (36 methods) - Semantic Search + Bayesian
-5. `teoria_cambio.py` (30 methods) - DAG Validation + Monte Carlo
-6. `dereck_beach.py` (99 methods) - Beach Tests + Mechanisms
-7. `policy_processor.py` (32 methods) - Pattern Matching + Evidence
+1. `src/saaaaaa/analysis/financiero_viabilidad_tablas.py` (65 methods) - Financial + Causal DAG
+2. `src/saaaaaa/analysis/Analyzer_one.py` (34 methods) - Semantic Cube + Value Chain
+3. `src/saaaaaa/analysis/contradiction_deteccion.py` (62 methods) - Contradictions + Coherence
+4. `src/saaaaaa/processing/embedding_policy.py` (36 methods) - Semantic Search + Bayesian
+5. `src/saaaaaa/analysis/teoria_cambio.py` (30 methods) - DAG Validation + Monte Carlo
+6. `src/saaaaaa/analysis/dereck_beach.py` (99 methods) - Beach Tests + Mechanisms
+7. `src/saaaaaa/processing/policy_processor.py` (32 methods) - Pattern Matching + Evidence
 
 **Output:** 7 independent JSON artifacts with typed evidence
 
@@ -155,7 +188,7 @@ PDETMunicipalPlanAnalyzer.analyze_financial_feasibility
         → 150-300 word explanation with COP amounts
 ```
 
-See [`CHESS_TACTICAL_SUMMARY.md`](CHESS_TACTICAL_SUMMARY.md) for complete tactical patterns.
+See [`docs/CHESS_TACTICAL_SUMMARY.md`](docs/CHESS_TACTICAL_SUMMARY.md) for complete tactical patterns.
 
 ---
 
@@ -172,17 +205,18 @@ Following the 8-commit sequence:
 7. ⏳ **Commit 7:** Multi-level report generation (MICRO/MESO/MACRO)
 8. ⏳ **Commit 8:** Integration tests + validation suite
 
-See [`INTEGRATION_STATUS.md`](INTEGRATION_STATUS.md) for detailed progress.
+See [`docs/INTEGRATION_STATUS.md`](docs/INTEGRATION_STATUS.md) for detailed progress.
 
 ---
 
 ## 📖 FURTHER READING
 
-- **Strategic Overview:** [`CHESS_TACTICAL_SUMMARY.md`](CHESS_TACTICAL_SUMMARY.md) - Visual patterns and checkmate conditions
-- **Detailed Strategy:** [`STRATEGIC_METHOD_ORCHESTRATION.md`](STRATEGIC_METHOD_ORCHESTRATION.md) - Complete method chains
+- **Repository Structure:** [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) - Detailed package organization
+- **Strategic Overview:** [`docs/CHESS_TACTICAL_SUMMARY.md`](docs/CHESS_TACTICAL_SUMMARY.md) - Visual patterns and checkmate conditions
+- **Detailed Strategy:** [`docs/STRATEGIC_METHOD_ORCHESTRATION.md`](docs/STRATEGIC_METHOD_ORCHESTRATION.md) - Complete method chains
 - **Method Mappings:** [`question_component_map.json`](question_component_map.json) - Machine-readable execution chains
-- **Complete Inventory:** [`inventory.json`](inventory.json) - All 67 classes, 584 methods
-- **Canonical Truth:** [`cuestionario_FIXED.json`](cuestionario_FIXED.json) - The 300 questions
+- **Complete Inventory:** [`config/inventory.json`](config/inventory.json) - All 67 classes, 584 methods
+- **Canonical Truth:** [`data/questionnaire_monolith.json`](data/questionnaire_monolith.json) - The 300 questions
 
 ---
 
