@@ -13,13 +13,28 @@ from types import ModuleType
 from typing import List
 
 _SOURCE_MODULE_NAME = "saaaaaa.processing.aggregation"
-_source: ModuleType = import_module(_SOURCE_MODULE_NAME)
+_source = None
+public_names = None
 
-if hasattr(_source, "__all__"):
-    public_names: List[str] = list(getattr(_source, "__all__"))  # type: ignore[list-item]
-else:
-    public_names = [name for name in dir(_source) if not name.startswith("_")]
+def _load_source():
+    global _source, public_names
+    if _source is not None:
+        return
+    _source = import_module(_SOURCE_MODULE_NAME)
+    if hasattr(_source, "__all__"):
+        public_names = list(getattr(_source, "__all__"))  # type: ignore[list-item]
+    else:
+        public_names = [name for name in dir(_source) if not name.startswith("_")]
+    globals().update({name: getattr(_source, name) for name in public_names})
+    globals()["__all__"] = public_names
 
-globals().update({name: getattr(_source, name) for name in public_names})
+def __getattr__(name):
+    _load_source()
+    try:
+        return globals()[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__} has no attribute {name}") from exc
 
-__all__ = public_names
+def __dir__():
+    _load_source()
+    return sorted(list(globals().keys()))
