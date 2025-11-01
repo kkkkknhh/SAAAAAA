@@ -66,4 +66,11 @@ _SUBMODULE_ALIASES: Dict[str, str] = {
 
 for alias, target in _SUBMODULE_ALIASES.items():
     if alias not in sys.modules:
-        sys.modules[alias] = importlib.import_module(target)
+        try:
+            sys.modules[alias] = importlib.import_module(target)
+        except ModuleNotFoundError:
+            import warnings
+            warnings.warn(
+                f"Optional orchestrator submodule '{target}' not found; skipping alias '{alias}'",
+                ImportWarning,
+            )
