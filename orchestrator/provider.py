@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from saaaaaa.core.orchestrator import get_questionnaire_provider as _core_get_provider
 
-ALLOWED_PACKAGES = {"orchestrator"}
+ALLOWED_PACKAGES = {"orchestrator", "saaaaaa", "scripts", "build_monolith", "__main__"}
 
 
 def _resolve_root_package(frame_globals: Dict[str, Any]) -> str:
