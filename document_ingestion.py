@@ -18,10 +18,13 @@ try:
 except Exception as e:
     raise ImportError(f"Failed to import compatibility source module '{_SOURCE_MODULE_NAME}'") from e
 
-if hasattr(_source, "__all__"):
-    public_names: List[str] = list(getattr(_source, "__all__"))  # type: ignore[list-item]
+_all = getattr(_source, "__all__", None)
+if isinstance(_all, (list, tuple)):
+    public_names = [name for name in _all if isinstance(name, str)]
 else:
     public_names = [name for name in dir(_source) if not name.startswith("_")]
+# Remove duplicates while preserving order
+public_names = list(dict.fromkeys(public_names))
 
 globals().update({name: getattr(_source, name) for name in public_names})
 
