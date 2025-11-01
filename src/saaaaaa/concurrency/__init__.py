@@ -5,7 +5,9 @@ This module provides a deterministic WorkerPool for parallel task execution
 with controlled max_workers, backoff, abortability, and per-task instrumentation.
 """
 
-from concurrency.concurrency import (
+"""Public re-export of the deterministic worker pool implementation."""
+
+from .concurrency import (
     WorkerPool,
     TaskResult,
     WorkerPoolConfig,

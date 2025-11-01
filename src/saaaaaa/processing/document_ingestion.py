@@ -1,7 +1,7 @@
 """
 DOCUMENT INGESTION MODULE import logging
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Sequence, TupleICTAMENTE SEGÚN PSEUDOCÓDIGO
@@ -35,7 +35,7 @@ DEPENDENCIAS:
 
 import logging
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Tuple
@@ -170,7 +170,7 @@ class RawDocument:
     num_pages: int
     file_size_bytes: int
     file_hash: str
-    metadata: Mapping[str, Any] = _EMPTY_MAPPING
+    metadata: Mapping[str, Any] = field(default_factory=lambda: _EMPTY_MAPPING)
     is_valid: bool = True
 
 
