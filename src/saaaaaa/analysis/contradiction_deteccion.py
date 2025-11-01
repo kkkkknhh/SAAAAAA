@@ -39,7 +39,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassifica
 import torch
 
 # Import runtime error fixes for defensive programming
-from runtime_error_fixes import ensure_list_return, safe_text_extract
+from saaaaaa.utils.runtime_error_fixes import ensure_list_return, safe_text_extract
 
 # Configure logging with structured format
 logging.basicConfig(

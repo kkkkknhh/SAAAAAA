@@ -5,7 +5,7 @@ Implements TYPE_A through TYPE_F scoring modalities with strict validation
 and reproducible results.
 """
 
-from scoring.scoring import (
+from .scoring import (
     ScoringModality,
     QualityLevel,
     ScoringError,

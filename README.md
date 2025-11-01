@@ -69,6 +69,22 @@ saaaaaa/
 pip install -e .
 ```
 
+### **Verification Runbook**
+Execute the full verification pipeline in sequence to ensure governance:
+
+```bash
+pip install -r requirements.txt  # or: poetry install
+python -m compileall -q core orchestrator executors
+python tools/scan_core_purity.py
+lint-imports --config contracts/importlinter.ini
+ruff check .
+mypy . --strict
+pycycle core orchestrator executors
+python tools/import_all.py
+pytest -q -ra
+coverage run -m pytest >/dev/null 2>&1 || true && coverage report -m
+```
+
 ### **Understand the Architecture**
 ```bash
 # Read the strategic overview
