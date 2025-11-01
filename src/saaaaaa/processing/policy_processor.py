@@ -36,10 +36,10 @@ from functools import lru_cache
 from itertools import chain
 
 # Import runtime error fixes for defensive programming
-from runtime_error_fixes import ensure_list_return, safe_text_extract
+from saaaaaa.utils.runtime_error_fixes import ensure_list_return, safe_text_extract
 
 try:
-    from contradiction_deteccion import (
+    from saaaaaa.analysis.contradiction_deteccion import (
         BayesianConfidenceCalculator,
         PolicyContradictionDetector,
         TemporalLogicVerifier,
@@ -111,25 +111,21 @@ except Exception as import_error:  # pragma: no cover - safety net for heavy dep
         SEGUIMIENTO = "seguimiento y evaluación"
         TERRITORIAL = "ordenamiento territorial"
 
-from Analyzer_one import (
+from saaaaaa.analysis.Analyzer_one import (
     DocumentProcessor,
     MunicipalAnalyzer,
     MunicipalOntology,
     PerformanceAnalyzer,
     SemanticAnalyzer,
 )
-from financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
-from orchestrator import get_questionnaire_provider
+from saaaaaa.analysis.financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
+from saaaaaa.core.orchestrator import get_questionnaire_provider
 
 # ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# Note: logging.basicConfig should be called by the application entry point,
+# not at module import time to avoid side effects
 logger = logging.getLogger(__name__)
 
 
@@ -414,6 +410,7 @@ class BayesianEvidenceScorer:
         matches: List[str],
         total_corpus_size: int,
         pattern_specificity: float = 0.8,
+        **kwargs: Any
     ) -> float:
         """
         Compute probabilistic confidence score for evidence matches.
@@ -422,6 +419,7 @@ class BayesianEvidenceScorer:
             matches: List of matched text segments
             total_corpus_size: Total document size in characters
             pattern_specificity: Pattern discrimination power [0,1]
+            **kwargs: Additional optional parameters for compatibility
 
         Returns:
             Calibrated confidence score in [0, 1]
@@ -450,8 +448,16 @@ class BayesianEvidenceScorer:
         return np.clip(final_score, 0.0, 1.0)
 
     @staticmethod
-    def _calculate_shannon_entropy(values: np.ndarray) -> float:
-        """Calculate normalized Shannon entropy for value distribution."""
+    def _calculate_shannon_entropy(values: np.ndarray, **kwargs: Any) -> float:
+        """Calculate normalized Shannon entropy for value distribution.
+        
+        Args:
+            values: Array of numerical values
+            **kwargs: Additional optional parameters for compatibility
+        
+        Returns:
+            Normalized Shannon entropy
+        """
         if len(values) < 2:
             return 0.0
 
@@ -487,10 +493,17 @@ class PolicyTextProcessor:
         """Apply canonical Unicode normalization (NFC/NFKC)."""
         return unicodedata.normalize(self.config.utf8_normalization_form, text)
 
-    def segment_into_sentences(self, text: str) -> List[str]:
+    def segment_into_sentences(self, text: str, **kwargs: Any) -> List[str]:
         """
         Segment text into sentences with context-aware boundary detection.
         Handles abbreviations, numerical lists, and Colombian naming conventions.
+        
+        Args:
+            text: Input text to segment
+            **kwargs: Additional optional parameters for compatibility
+        
+        Returns:
+            List of sentence strings
         """
         # Protect common abbreviations
         protected = text
@@ -568,7 +581,6 @@ class IndustrialPolicyProcessor:
     """
 
     QUESTIONNAIRE_PATH: ClassVar[Path] = Path("decalogo-industrial.latest.clean.json")
-    QUESTIONNAIRE_PROVIDER: ClassVar = get_questionnaire_provider()
 
     def __init__(
         self,
@@ -668,12 +680,13 @@ class IndustrialPolicyProcessor:
 
         logger.info(f"Compiled patterns for {len(self.point_patterns)} policy points")
 
-    def process(self, raw_text: str) -> Dict[str, Any]:
+    def process(self, raw_text: str, **kwargs: Any) -> Dict[str, Any]:
         """
         Execute comprehensive policy plan analysis.
 
         Args:
             raw_text: Sanitized policy document text
+            **kwargs: Additional optional parameters (e.g., text, sentences, tables) for compatibility
 
         Returns:
             Structured analysis results with evidence bundles and confidence scores
@@ -761,7 +774,7 @@ class IndustrialPolicyProcessor:
         }
 
     def _match_patterns_in_sentences(
-        self, compiled_patterns: List, relevant_sentences: List[str]
+        self, compiled_patterns: List, relevant_sentences: List[str], **kwargs: Any
     ) -> Tuple[List[str], List[int]]:
         """
         Execute pattern matching across relevant sentences and collect matches with positions.
@@ -769,6 +782,7 @@ class IndustrialPolicyProcessor:
         Args:
             compiled_patterns: List of compiled regex patterns to match
             relevant_sentences: Filtered sentences to search within
+            **kwargs: Additional optional parameters for compatibility
             
         Returns:
             Tuple of (matched_strings, match_positions)
@@ -785,7 +799,7 @@ class IndustrialPolicyProcessor:
         return matches, positions
 
     def _compute_evidence_confidence(
-        self, matches: List[str], text_length: int, pattern_specificity: float
+        self, matches: List[str], text_length: int, pattern_specificity: float, **kwargs: Any
     ) -> float:
         """
         Calculate confidence score for evidence based on pattern matches and contextual factors.
@@ -794,6 +808,7 @@ class IndustrialPolicyProcessor:
             matches: List of matched pattern strings
             text_length: Total length of the document text
             pattern_specificity: Specificity coefficient for pattern weighting
+            **kwargs: Additional optional parameters for compatibility
             
         Returns:
             Computed confidence score
@@ -810,6 +825,7 @@ class IndustrialPolicyProcessor:
         matches: List[str],
         positions: List[int],
         confidence: float,
+        **kwargs: Any
     ) -> Dict[str, Any]:
         """
         Assemble evidence bundle from matched patterns and computed confidence.
@@ -820,6 +836,7 @@ class IndustrialPolicyProcessor:
             matches: List of matched pattern strings
             positions: List of match positions in text
             confidence: Computed confidence score
+            **kwargs: Additional optional parameters for compatibility
             
         Returns:
             Serialized evidence bundle dictionary
@@ -1537,7 +1554,3 @@ def main():
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise
-
-
-if __name__ == "__main__":
-    main()

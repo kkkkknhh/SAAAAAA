@@ -1,29 +1,36 @@
-"""
-Test suite for semantic_chunking_policy module.
+"""Regression tests for ``semantic_chunking_policy``."""
 
-Ensures that the syntax error fix (duplicate lines 555-562) stays fixed
-and tests basic functionality.
-"""
+from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 
 import pytest
 
 
-def test_semantic_chunking_syntax():
-    """Test that semantic_chunking_policy.py has valid syntax."""
-    module_path = Path(__file__).parent.parent / "semantic_chunking_policy.py"
-    
-    if not module_path.exists():
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+MODULE_PATH = SRC_ROOT / "saaaaaa" / "processing" / "semantic_chunking_policy.py"
+
+
+def _load_source() -> str:
+    if not MODULE_PATH.exists():
         pytest.skip("semantic_chunking_policy.py not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    
+    return MODULE_PATH.read_text(encoding="utf-8")
+
+
+def test_semantic_chunking_syntax() -> None:
+    """The module must stay syntactically valid."""
+
+    source = _load_source()
+
     # This will raise SyntaxError if the file has syntax errors
     try:
-        ast.parse(source, filename=str(module_path))
+        ast.parse(source, filename=str(MODULE_PATH))
     except SyntaxError as e:
         pytest.fail(
             f"Syntax error in semantic_chunking_policy.py at line {e.lineno}: {e.msg}\n"
@@ -40,16 +47,10 @@ def test_no_duplicate_return_statements():
     
     This test ensures that pattern doesn't reoccur.
     """
-    module_path = Path(__file__).parent.parent / "semantic_chunking_policy.py"
-    
-    if not module_path.exists():
-        pytest.skip("semantic_chunking_policy.py not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    
+    source = _load_source()
+
     try:
-        tree = ast.parse(source, filename=str(module_path))
+        tree = ast.parse(source, filename=str(MODULE_PATH))
     except SyntaxError:
         pytest.fail("File has syntax errors")
     
@@ -79,13 +80,7 @@ def test_no_duplicate_return_statements():
 
 def test_extract_key_excerpts_method_structure():
     """Test the structure of _extract_key_excerpts to catch similar bugs."""
-    module_path = Path(__file__).parent.parent / "semantic_chunking_policy.py"
-    
-    if not module_path.exists():
-        pytest.skip("semantic_chunking_policy.py not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    lines = _load_source().splitlines()
     
     # Look for the method definition
     method_start = None
@@ -132,13 +127,7 @@ def test_extract_key_excerpts_method_structure():
 
 def test_no_main_block():
     """Test that semantic_chunking_policy.py has no __main__ block."""
-    module_path = Path(__file__).parent.parent / "semantic_chunking_policy.py"
-    
-    if not module_path.exists():
-        pytest.skip("semantic_chunking_policy.py not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
+    source = _load_source()
     
     # Simple check for __main__ block
     assert 'if __name__ == "__main__"' not in source, (

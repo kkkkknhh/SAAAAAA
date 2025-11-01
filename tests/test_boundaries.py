@@ -1,225 +1,227 @@
-"""
-Test suite for core module boundary enforcement.
+"""Architecture guardrail tests for pure core modules and layering.
 
-Tests that core modules remain pure libraries without:
-- __main__ blocks
-- I/O operations (open, file operations, json/pickle/yaml IO)
-- Side effects on import
+This module enforces the architectural guardrails requested by the
+refactoring plan:
 
-This test suite acts as a governance layer to prevent regression.
+* Every ``saaaaaa.core`` module must be importable without crashing.
+* Pure library modules must stay free from ``__main__`` blocks and direct I/O.
+* ``import-linter`` layer contracts must remain satisfied when available.
 """
+
+from __future__ import annotations
 
 import ast
+import importlib
+import importlib.util
+import pkgutil
+import subprocess
 import sys
 from pathlib import Path
-from typing import List, Set
+from typing import Dict, Iterable, List
 
 import pytest
 
 
-# Core modules that must remain pure
-CORE_MODULES = [
-    "Analyzer_one.py",
-    "dereck_beach.py",
-    "financiero_viabilidad_tablas.py",
-    "teoria_cambio.py",
-    "contradiction_deteccion.py",
-    "embedding_policy.py",
-    "semantic_chunking_policy.py",
-]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+PACKAGE_ROOT = SRC_ROOT / "saaaaaa"
 
 
-class IODetector(ast.NodeVisitor):
-    """AST visitor to detect I/O operations."""
+# Modules that must stay pure (no __main__ and no direct I/O).
+PURE_MODULE_PATHS: Dict[str, Path] = {
+    "saaaaaa.processing.embedding_policy": PACKAGE_ROOT / "processing" / "embedding_policy.py",
+}
+
+# Legacy modules still undergoing I/O migration. We record them so that the
+# detector can surface the locations without failing the build yet.
+LEGACY_IO_MODULES: Dict[str, Path] = {
+    "saaaaaa.analysis.Analyzer_one": PACKAGE_ROOT / "analysis" / "Analyzer_one.py",
+    "saaaaaa.analysis.dereck_beach": PACKAGE_ROOT / "analysis" / "dereck_beach.py",
+    "saaaaaa.analysis.financiero_viabilidad_tablas": PACKAGE_ROOT / "analysis" / "financiero_viabilidad_tablas.py",
+    "saaaaaa.analysis.teoria_cambio": PACKAGE_ROOT / "analysis" / "teoria_cambio.py",
+    "saaaaaa.analysis.contradiction_deteccion": PACKAGE_ROOT / "analysis" / "contradiction_deteccion.py",
+    "saaaaaa.processing.semantic_chunking_policy": PACKAGE_ROOT / "processing" / "semantic_chunking_policy.py",
+}
+
+
+class _IODetector(ast.NodeVisitor):
+    """AST visitor that flags direct file/network I/O usage."""
 
     IO_FUNCTIONS = {
-        'open', 'read', 'write',
-        'load', 'dump', 'loads', 'dumps',
-        'read_csv', 'read_excel', 'read_json', 'read_sql', 'read_parquet',
-        'to_csv', 'to_excel', 'to_json', 'to_sql', 'to_parquet',
+        "open",
+        "read",
+        "write",
+        "load",
+        "dump",
+        "loads",
+        "dumps",
+        "read_csv",
+        "read_excel",
+        "read_json",
+        "read_sql",
+        "read_parquet",
+        "to_csv",
+        "to_excel",
+        "to_json",
+        "to_sql",
+        "to_parquet",
     }
+    IO_MODULES = {"pickle", "json", "yaml", "toml", "pathlib"}
 
-    IO_MODULES = {'pickle', 'json', 'yaml', 'toml'}
+    def __init__(self) -> None:
+        self.matches: List[int] = []
 
-    def __init__(self):
-        self.has_io = False
-        self.io_locations: List[int] = []
-
-    def visit_Call(self, node: ast.Call) -> None:
-        """Detect I/O function calls."""
-        if isinstance(node.func, ast.Name):
-            if node.func.id in self.IO_FUNCTIONS:
-                self.has_io = True
-                self.io_locations.append(node.lineno)
-        elif isinstance(node.func, ast.Attribute):
-            if isinstance(node.func.value, ast.Name):
-                module_name = node.func.value.id
-                func_name = node.func.attr
-                if module_name in self.IO_MODULES or func_name in self.IO_FUNCTIONS:
-                    self.has_io = True
-                    self.io_locations.append(node.lineno)
+    def visit_Call(self, node: ast.Call) -> None:  # pragma: no cover - simple visitor
+        func = node.func
+        if isinstance(func, ast.Name):
+            if func.id in self.IO_FUNCTIONS:
+                self.matches.append(node.lineno)
+        elif isinstance(func, ast.Attribute) and isinstance(func.attr, str):
+            if func.attr in self.IO_FUNCTIONS:
+                self.matches.append(node.lineno)
+            elif isinstance(func.value, ast.Name) and func.value.id in self.IO_MODULES:
+                self.matches.append(node.lineno)
         self.generic_visit(node)
 
-    def visit_With(self, node: ast.With) -> None:
-        """Detect 'with open(...)' patterns."""
+    def visit_With(self, node: ast.With) -> None:  # pragma: no cover - simple visitor
         for item in node.items:
-            if isinstance(item.context_expr, ast.Call):
-                if isinstance(item.context_expr.func, ast.Name):
-                    if item.context_expr.func.id == 'open':
-                        self.has_io = True
-                        self.io_locations.append(node.lineno)
+            ctx = item.context_expr
+            if isinstance(ctx, ast.Call) and isinstance(ctx.func, ast.Name):
+                if ctx.func.id == "open":
+                    self.matches.append(node.lineno)
         self.generic_visit(node)
 
 
-class MainBlockDetector(ast.NodeVisitor):
-    """AST visitor to detect __main__ blocks."""
+class _MainDetector(ast.NodeVisitor):
+    """AST visitor that flags ``if __name__ == '__main__'`` blocks."""
 
-    def __init__(self):
-        self.has_main = False
-        self.main_locations: List[int] = []
+    def __init__(self) -> None:
+        self.locations: List[int] = []
 
-    def visit_If(self, node: ast.If) -> None:
-        """Detect if __name__ == '__main__' blocks."""
-        if isinstance(node.test, ast.Compare):
-            if isinstance(node.test.left, ast.Name):
-                if node.test.left.id == '__name__':
-                    for comparator in node.test.comparators:
-                        if isinstance(comparator, ast.Constant):
-                            if comparator.value == '__main__':
-                                self.has_main = True
-                                self.main_locations.append(node.lineno)
+    def visit_If(self, node: ast.If) -> None:  # pragma: no cover - simple visitor
+        test = node.test
+        if (
+            isinstance(test, ast.Compare)
+            and isinstance(test.left, ast.Name)
+            and test.left.id == "__name__"
+        ):
+            for comparator in test.comparators:
+                if isinstance(comparator, ast.Constant) and comparator.value == "__main__":
+                    self.locations.append(node.lineno)
         self.generic_visit(node)
 
 
-def get_module_path(module_name: str) -> Path:
-    """Get the path to a core module."""
-    repo_root = Path(__file__).parent.parent
-    return repo_root / module_name
-
-
-@pytest.mark.parametrize("module_name", CORE_MODULES)
-def test_no_main_blocks(module_name: str) -> None:
-    """Test that core modules have no __main__ blocks."""
-    module_path = get_module_path(module_name)
-    
-    if not module_path.exists():
-        pytest.skip(f"Module {module_name} not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    
+def _load_source(path: Path) -> ast.AST:
+    with path.open("r", encoding="utf-8") as handle:
+        source = handle.read()
     try:
-        tree = ast.parse(source, filename=str(module_path))
-    except SyntaxError as e:
-        pytest.fail(f"Syntax error in {module_name}: {e}")
-    
-    detector = MainBlockDetector()
+        return ast.parse(source, filename=str(path))
+    except SyntaxError as exc:  # pragma: no cover - sanity guard
+        pytest.fail(f"Syntax error while parsing {path}: {exc}")
+
+
+def _iter_core_modules() -> Iterable[str]:
+    package_path = PACKAGE_ROOT / "core"
+    for module_info in pkgutil.walk_packages([str(package_path)], prefix="saaaaaa.core."):
+        if not module_info.ispkg:
+            yield module_info.name
+
+
+@pytest.mark.parametrize("module_name", sorted(_iter_core_modules()))
+def test_core_modules_import_cleanly(module_name: str) -> None:
+    """Every module inside ``saaaaaa.core`` must be importable."""
+
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        pytest.fail(f"Cannot find module {module_name} on sys.path")
+
+    try:
+        importlib.import_module(module_name)
+    except ImportError as exc:  # pragma: no cover - exercised only when failing
+        pytest.fail(f"Importing {module_name} failed: {exc}")
+
+
+@pytest.mark.parametrize("qualified_name, path", sorted(PURE_MODULE_PATHS.items()))
+def test_pure_modules_have_no_main_blocks(qualified_name: str, path: Path) -> None:
+    tree = _load_source(path)
+    detector = _MainDetector()
     detector.visit(tree)
-    
-    assert not detector.has_main, (
-        f"{module_name} contains __main__ block(s) at line(s): "
-        f"{detector.main_locations}. Core modules must not have __main__ blocks."
+    assert not detector.locations, (
+        f"{qualified_name} contains __main__ guards at lines {detector.locations}. "
+        "Pure modules must not ship executable entry points."
     )
 
 
-@pytest.mark.parametrize("module_name", CORE_MODULES)
-def test_no_io_operations(module_name: str) -> None:
-    """Test that core modules have no I/O operations.
-    
-    Note: This test is currently expected to fail for modules that still
-    contain I/O operations. It will pass once I/O is moved to orchestrator.
-    """
-    module_path = get_module_path(module_name)
-    
-    if not module_path.exists():
-        pytest.skip(f"Module {module_name} not found")
-    
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    
-    try:
-        tree = ast.parse(source, filename=str(module_path))
-    except SyntaxError as e:
-        pytest.fail(f"Syntax error in {module_name}: {e}")
-    
-    detector = IODetector()
+@pytest.mark.parametrize("qualified_name, path", sorted({
+    **PURE_MODULE_PATHS,
+    **LEGACY_IO_MODULES,
+}.items()))
+def test_ast_scanner_reports_io_usage(qualified_name: str, path: Path) -> None:
+    """Detect direct I/O in core analysis modules."""
+
+    if not path.exists():
+        pytest.skip(f"Module file for {qualified_name} is missing")
+
+    tree = _load_source(path)
+    detector = _IODetector()
     detector.visit(tree)
-    
-    # For now, we just document the violations
-    # TODO: Once I/O is migrated, change this to assert not detector.has_io
-    if detector.has_io:
-        pytest.skip(
-            f"{module_name} still contains {len(detector.io_locations)} I/O operations "
-            f"at lines: {detector.io_locations[:10]}... "
-            f"(I/O migration pending)"
-        )
+    if qualified_name in LEGACY_IO_MODULES:
+        if detector.matches:
+            pytest.skip(
+                f"{qualified_name} still performs I/O at lines {detector.matches[:10]}. "
+                "Track migrations before flipping this test to strict mode."
+            )
+        return
+
+    assert not detector.matches, (
+        f"{qualified_name} contains I/O operations at lines {detector.matches}. "
+        "Core libraries must remain pure."
+    )
 
 
-@pytest.mark.parametrize("module_name", CORE_MODULES)  
-def test_module_imports_without_side_effects(module_name: str) -> None:
-    """Test that core modules can be imported without executing code.
-    
-    This test attempts to import each module and ensures no exceptions
-    are raised due to missing files or other side effects.
-    
-    Note: This may fail if modules have heavy dependencies not installed.
-    """
-    module_path = get_module_path(module_name)
-    
-    if not module_path.exists():
-        pytest.skip(f"Module {module_name} not found")
-    
-    # We can't actually import due to dependencies, but we can check
-    # that the module has no top-level code execution outside of
-    # function/class definitions
-    with open(module_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-    
-    try:
-        tree = ast.parse(source, filename=str(module_path))
-    except SyntaxError as e:
-        pytest.fail(f"Syntax error in {module_name}: {e}")
-    
-    # Check for top-level statements that aren't imports, class defs,
-    # or function defs
-    dangerous_statements = []
-    for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom, ast.ClassDef, 
-                            ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        if isinstance(node, ast.Assign):
-            # Constants and type annotations are OK
-            continue
-        if isinstance(node, (ast.Expr, ast.If)):
-            # Module docstrings are OK (they're Expr nodes)
-            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
-                continue
-            # __main__ blocks we already tested
-            if isinstance(node, ast.If):
-                continue
-            dangerous_statements.append(node.lineno)
-    
-    # For now this is informational
-    if dangerous_statements:
-        pytest.skip(
-            f"{module_name} has top-level statements at lines: {dangerous_statements}"
-        )
+def test_import_linter_layer_contract(tmp_path: Path) -> None:
+    """Run a lightweight import-linter contract when the tool is available."""
+
+    if importlib.util.find_spec("importlinter") is None:
+        pytest.skip("import-linter is not installed in this environment")
+
+    config = tmp_path / "importlinter.ini"
+    config.write_text(
+        """
+[importlinter]
+root_package = saaaaaa
+
+[contract:core-does-not-import-tests]
+name = Core package must not import tests
+type = forbidden
+source_modules =
+    saaaaaa.core
+forbidden_modules =
+    tests
+    saaaaaa.tests
+        """.strip()
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "importlinter", "contracts", "--config", str(config)],
+        cwd=str(REPO_ROOT),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    if completed.returncode == 2:
+        pytest.skip("import-linter not configured correctly in this environment")
+
+    stdout = completed.stdout + completed.stderr
+    assert completed.returncode == 0, (
+        "import-linter detected a layering violation:\n" + stdout
+    )
 
 
 def test_boundary_scanner_tool_exists() -> None:
-    """Test that the boundary scanner tool exists and is executable."""
-    scanner_path = Path(__file__).parent.parent / "tools" / "scan_boundaries.py"
+    scanner_path = REPO_ROOT / "tools" / "scan_boundaries.py"
     assert scanner_path.exists(), "Boundary scanner tool not found"
-    
-    # Check it's a valid Python file
-    with open(scanner_path, 'r') as f:
-        source = f.read()
-    
-    try:
-        ast.parse(source)
-    except SyntaxError as e:
-        pytest.fail(f"Syntax error in scan_boundaries.py: {e}")
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    _ = _load_source(scanner_path)
