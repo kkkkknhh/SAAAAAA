@@ -26,7 +26,12 @@ else:
 # Remove duplicates while preserving order
 public_names = list(dict.fromkeys(public_names))
 
-globals().update({name: getattr(_source, name) for name in public_names})
+for name in public_names:
+    try:
+        globals()[name] = getattr(_source, name)
+    except AttributeError:
+        # Skip names that may be listed but not actually present on the source module
+        continue
 
 _ALIASES = {
     "DocumentIndexes": "DocumentIndexesV1",
