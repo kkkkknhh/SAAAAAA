@@ -59,6 +59,5 @@ __all__ = [
 
 
 def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
-    if name in globals():
-        return globals()[name]
+    """Delegate unknown attributes to the core module."""
     return getattr(core, name)
