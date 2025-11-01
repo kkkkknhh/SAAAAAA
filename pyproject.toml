@@ -160,6 +160,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --strict-markers --tb=short"
+pythonpath = ["src"]
 markers = [
     "contract: Contract tests for API boundaries",
     "property: Property-based tests with Hypothesis",
