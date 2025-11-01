@@ -1,0 +1,38 @@
+"""Compatibility package for scoring utilities."""
+from saaaaaa.analysis.scoring.scoring import (  # noqa: F401
+    EvidenceStructureError,
+    ModalityConfig,
+    ModalityValidationError,
+    QualityLevel,
+    ScoredResult,
+    ScoringError,
+    ScoringModality,
+    ScoringValidator,
+    apply_scoring,
+    determine_quality_level,
+    score_type_a,
+    score_type_b,
+    score_type_c,
+    score_type_d,
+    score_type_e,
+    score_type_f,
+)
+
+__all__ = [
+    "EvidenceStructureError",
+    "ModalityConfig",
+    "ModalityValidationError",
+    "QualityLevel",
+    "ScoredResult",
+    "ScoringError",
+    "ScoringModality",
+    "ScoringValidator",
+    "apply_scoring",
+    "determine_quality_level",
+    "score_type_a",
+    "score_type_b",
+    "score_type_c",
+    "score_type_d",
+    "score_type_e",
+    "score_type_f",
+]
