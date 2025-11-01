@@ -124,12 +124,8 @@ from saaaaaa.core.orchestrator import get_questionnaire_provider
 # ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# Note: logging.basicConfig should be called by the application entry point,
+# not at module import time to avoid side effects
 logger = logging.getLogger(__name__)
 
 
@@ -585,7 +581,6 @@ class IndustrialPolicyProcessor:
     """
 
     QUESTIONNAIRE_PATH: ClassVar[Path] = Path("decalogo-industrial.latest.clean.json")
-    QUESTIONNAIRE_PROVIDER: ClassVar = get_questionnaire_provider()
 
     def __init__(
         self,
@@ -1559,7 +1554,3 @@ def main():
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise
-
-
-if __name__ == "__main__":
-    main()
