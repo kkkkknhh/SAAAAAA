@@ -4,18 +4,18 @@ from __future__ import annotations
 import pytest
 
 from orchestrator.arg_router import ArgRouter, ArgumentValidationError
-def _load_orchestrator_module():
-    module_path = Path(__file__).parent.parent / "orchestrator.py"
-    spec = importlib.util.spec_from_file_location("orchestrator_root", module_path)
-    if spec is None:
-        raise ImportError(f"Cannot create a module spec for '{module_path}'.")
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
-    spec.loader.exec_module(module)
-    return module
-        return x, y
+
+
+class SampleExecutor:
+    """Test executor for routing validation."""
+    
+    def compute(self, x: int, y: int, *, flag: bool = False) -> int:
+        """Compute a sample value."""
+        return x + y if flag else x - y
+    
+    def optional(self, x: int, y: int = 10) -> int:
+        """Compute with optional parameter."""
+        return x + y
 
 
 @pytest.fixture()
@@ -55,28 +55,3 @@ def test_type_mismatch_raises(router: ArgRouter) -> None:
     type_msgs = excinfo.value.type_mismatches
     assert "x" in type_msgs
     assert "expected int" in type_msgs["x"]
-@pytest.fixture
-def executor(monkeypatch):
-    original_init = getattr(DummyProcessor, "__init__", None)
-
-    def _dp_init(self, *args, **kwargs):
-        if original_init is not None:
-            original_init(self, *args, **kwargs)
-        self.calls = []
-
-    monkeypatch.setattr(DummyProcessor, "__init__", _dp_init, raising=False)
-
-    exec_inst = orchestrator.MethodExecutor()
-    exec_inst.instances = {
-        "IndustrialPolicyProcessor": DummyProcessor(),
-        "PolicyTextProcessor": DummyTextProcessor(),
-    }
-    monkeypatch.setattr(orchestrator, "MODULES_OK", True, raising=False)
-    yield exec_inst
-    monkeypatch.setattr(orchestrator, "MODULES_OK", False, raising=False)
-        "IndustrialPolicyProcessor": industrial_proc,
-        "PolicyTextProcessor": text_proc,
-    }
-    monkeypatch.setattr(orchestrator, "MODULES_OK", True, raising=False)
-    yield exec_inst
-    monkeypatch.setattr(orchestrator, "MODULES_OK", False, raising=False)
