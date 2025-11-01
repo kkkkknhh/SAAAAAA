@@ -20,6 +20,9 @@ if hasattr(_source, "__all__"):
 else:
     public_names = [name for name in dir(_source) if not name.startswith("_")]
 
-globals().update({name: getattr(_source, name) for name in public_names})
-
-__all__ = public_names
+_actual_exports: List[str] = []
+for name in public_names:
+    if hasattr(_source, name):
+        globals()[name] = getattr(_source, name)
+        _actual_exports.append(name)
+__all__ = _actual_exports
