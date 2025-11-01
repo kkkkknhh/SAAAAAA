@@ -56,7 +56,12 @@ _SUBMODULE_ALIASES: Dict[str, str] = {
 }
 
 for alias, target in _SUBMODULE_ALIASES.items():
-    if alias not in sys.modules:
+    if alias in sys.modules:
+        continue
+    try:
         sys.modules[alias] = importlib.import_module(target)
+    except ImportError:
+        # If a target submodule is not available, skip creating the alias to keep the shim importable.
+        continue
 
 __all__ = sorted(set(_PUBLIC_EXPORTS + _ADDITIONAL_EXPORTS))
