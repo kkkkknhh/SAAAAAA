@@ -4,6 +4,7 @@ src/saaaaaa/__init__.py
 src/saaaaaa.egg-info/PKG-INFO
 src/saaaaaa.egg-info/SOURCES.txt
 src/saaaaaa.egg-info/dependency_links.txt
+src/saaaaaa.egg-info/requires.txt
 src/saaaaaa.egg-info/top_level.txt
 src/saaaaaa/analysis/Analyzer_one.py
 src/saaaaaa/analysis/__init__.py
@@ -30,6 +31,7 @@ src/saaaaaa/core/executors_COMPLETE_FIXED.py
 src/saaaaaa/core/ports.py
 src/saaaaaa/core/orchestrator/__init__.py
 src/saaaaaa/core/orchestrator/arg_router.py
+src/saaaaaa/core/orchestrator/choreographer.py
 src/saaaaaa/core/orchestrator/class_registry.py
 src/saaaaaa/core/orchestrator/contract_loader.py
 src/saaaaaa/core/orchestrator/core.py
@@ -80,6 +82,7 @@ tests/test_contract_runtime.py
 tests/test_contracts.py
 tests/test_contracts_comprehensive.py
 tests/test_coreographer.py
+tests/test_defensive_signatures.py
 tests/test_embedding_policy_contracts.py
 tests/test_enhanced_recommendations.py
 tests/test_gold_canario_integration.py

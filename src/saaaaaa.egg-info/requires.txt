@@ -1,0 +1,5 @@
+hypothesis>=6
+pandas>=2
+pydantic>=1.10
+scipy>=1.11
+scikit-learn>=1.4
