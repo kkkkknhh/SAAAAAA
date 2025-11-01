@@ -786,29 +786,4 @@ def ingest_document(*, pdf_path: str) -> PreprocessedDocument:
 # ============================================================================
 # EJEMPLO DE USO
 # ============================================================================
-
-if __name__ == "__main__":
-    # Configurar logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    # Ejemplo de uso
-    pdf_path = "plan_desarrollo_municipal.pdf"
-    
-    try:
-        preprocessed_doc = ingest_document(pdf_path=pdf_path)
-        
-        print(f"\n✅ DOCUMENTO PREPROCESADO:")
-        print(f"   - Archivo: {preprocessed_doc.raw_document.file_name}")
-        print(f"   - Páginas: {preprocessed_doc.raw_document.num_pages}")
-        print(f"   - Oraciones: {len(preprocessed_doc.sentences)}")
-        print(f"   - Tablas: {len(preprocessed_doc.tables)}")
-        print(f"   - Idioma: {preprocessed_doc.language}")
-        print(f"   - Hash: {preprocessed_doc.raw_document.file_hash[:16]}...")
-        
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+# Example usage has been moved to examples/ directory to keep core modules pure
