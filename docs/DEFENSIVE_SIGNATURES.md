@@ -14,7 +14,7 @@ All three functions have been updated with **defensive signatures** that gracefu
 
 ### 1. PDETMunicipalPlanAnalyzer._is_likely_header()
 
-**Location:** `src/saaaaaa/analysis/financiero_viabilidad_tablas.py:426`
+**Location:** `src/saaaaaa/analysis/financiero_viabilidad_tablas.py` (class PDETMunicipalPlanAnalyzer)
 
 **Signature:**
 ```python
@@ -61,7 +61,7 @@ def _is_likely_header(self, row: pd.Series, **kwargs) -> bool:
 
 ### 2. IndustrialPolicyProcessor._analyze_causal_dimensions()
 
-**Location:** `src/saaaaaa/processing/policy_processor.py:1053`
+**Location:** `src/saaaaaa/processing/policy_processor.py` (class IndustrialPolicyProcessor)
 
 **Signature:**
 ```python
@@ -110,7 +110,7 @@ def _analyze_causal_dimensions(
 
 ### 3. BayesianMechanismInference.__init__()
 
-**Location:** `src/saaaaaa/analysis/dereck_beach.py:2579`
+**Location:** `src/saaaaaa/analysis/dereck_beach.py` (class BayesianMechanismInference)
 
 **Signature:**
 ```python
