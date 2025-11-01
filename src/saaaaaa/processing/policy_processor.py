@@ -36,10 +36,10 @@ from functools import lru_cache
 from itertools import chain
 
 # Import runtime error fixes for defensive programming
-from runtime_error_fixes import ensure_list_return, safe_text_extract
+from saaaaaa.utils.runtime_error_fixes import ensure_list_return, safe_text_extract
 
 try:
-    from contradiction_deteccion import (
+    from saaaaaa.analysis.contradiction_deteccion import (
         BayesianConfidenceCalculator,
         PolicyContradictionDetector,
         TemporalLogicVerifier,
@@ -111,15 +111,15 @@ except Exception as import_error:  # pragma: no cover - safety net for heavy dep
         SEGUIMIENTO = "seguimiento y evaluación"
         TERRITORIAL = "ordenamiento territorial"
 
-from Analyzer_one import (
+from saaaaaa.analysis.Analyzer_one import (
     DocumentProcessor,
     MunicipalAnalyzer,
     MunicipalOntology,
     PerformanceAnalyzer,
     SemanticAnalyzer,
 )
-from financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
-from orchestrator import get_questionnaire_provider
+from saaaaaa.analysis.financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
+from saaaaaa.core.orchestrator import get_questionnaire_provider
 
 # ============================================================================
 # LOGGING CONFIGURATION

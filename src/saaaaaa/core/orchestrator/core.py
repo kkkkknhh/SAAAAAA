@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from recommendation_engine import RecommendationEngine
+from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
 from .class_registry import build_class_registry, ClassRegistryError
