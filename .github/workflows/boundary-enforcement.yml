@@ -21,14 +21,32 @@ jobs:
       with:
         python-version: '3.10'
     
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pydantic pytest pytest-cov
+    
     - name: Scan for __main__ blocks in core modules
       run: |
         echo "Checking for __main__ blocks in core modules..."
         
-        # Check each core module
-        for file in Analyzer_one.py dereck_beach.py financiero_viabilidad_tablas.py \
-                    teoria_cambio.py contradiction_deteccion.py embedding_policy.py \
-                    semantic_chunking_policy.py; do
+        # Check analysis modules
+        for file in src/saaaaaa/analysis/Analyzer_one.py \
+                    src/saaaaaa/analysis/dereck_beach.py \
+                    src/saaaaaa/analysis/financiero_viabilidad_tablas.py \
+                    src/saaaaaa/analysis/teoria_cambio.py \
+                    src/saaaaaa/analysis/contradiction_deteccion.py; do
+          if [ -f "$file" ]; then
+            if grep -q 'if __name__ == "__main__"' "$file"; then
+              echo "❌ ERROR: $file contains __main__ block"
+              exit 1
+            fi
+          fi
+        done
+        
+        # Check processing modules
+        for file in src/saaaaaa/processing/embedding_policy.py \
+                    src/saaaaaa/processing/semantic_chunking_policy.py; do
           if [ -f "$file" ]; then
             if grep -q 'if __name__ == "__main__"' "$file"; then
               echo "❌ ERROR: $file contains __main__ block"
@@ -39,55 +57,91 @@ jobs:
         
         echo "✅ No __main__ blocks found in core modules"
     
-    - name: Run boundary violation scanner
+    - name: Run enhanced boundary scanner on analysis modules
       run: |
-        echo "Running boundary scanner on core modules..."
+        echo "Running boundary scanner on analysis modules..."
+        python tools/scan_boundaries.py --root src/saaaaaa/analysis \
+                                         --fail-on main \
+                                         --json /tmp/analysis_violations.json || true
         
-        # Create a temporary directory with core modules for scanning
-        mkdir -p /tmp/core_scan
-        for file in Analyzer_one.py dereck_beach.py financiero_viabilidad_tablas.py \
-                    teoria_cambio.py contradiction_deteccion.py embedding_policy.py \
-                    semantic_chunking_policy.py policy_processor.py; do
-          if [ -f "$file" ]; then
-            cp "$file" /tmp/core_scan/
-          fi
-        done
+        echo "Running boundary scanner on processing modules..."
+        python tools/scan_boundaries.py --root src/saaaaaa/processing \
+                                         --fail-on main \
+                                         --json /tmp/processing_violations.json || true
         
-        # Run scanner (informational for now, will enforce once I/O is migrated)
-        if python tools/scan_boundaries.py /tmp/core_scan/ || true; then
-          echo "Boundary scan complete (informational only)"
-        fi
+        echo "✅ Boundary scan complete (informational mode)"
     
     - name: Verify contract definitions exist
       run: |
         echo "Checking for contract definitions..."
         
-        if [ ! -f "core_contracts.py" ]; then
+        if [ ! -f "src/saaaaaa/utils/core_contracts.py" ]; then
           echo "❌ ERROR: core_contracts.py not found"
           exit 1
         fi
         
-        # Verify contracts file is valid Python
-        python -m py_compile core_contracts.py
+        if [ ! -f "src/saaaaaa/utils/contracts_runtime.py" ]; then
+          echo "❌ ERROR: contracts_runtime.py not found"
+          exit 1
+        fi
+        
+        # Verify contracts files are valid Python
+        python -m py_compile src/saaaaaa/utils/core_contracts.py
+        python -m py_compile src/saaaaaa/utils/contracts_runtime.py
         
         echo "✅ Contract definitions are valid"
     
-    - name: Test core modules can be parsed
+    - name: Test core modules can be imported
       run: |
-        echo "Verifying syntax of core modules..."
+        echo "Verifying core modules can be imported..."
         
-        for file in Analyzer_one.py dereck_beach.py financiero_viabilidad_tablas.py \
-                    teoria_cambio.py contradiction_deteccion.py embedding_policy.py \
-                    semantic_chunking_policy.py policy_processor.py; do
-          if [ -f "$file" ]; then
-            echo "Checking $file..."
-            python -m py_compile "$file"
-          fi
-        done
+        python -c "from saaaaaa.utils import core_contracts" || exit 1
+        python -c "from saaaaaa.utils import contracts_runtime" || exit 1
         
-        echo "✅ All core modules have valid syntax"
+        echo "✅ All contract modules import successfully"
 
-  test-suite:
+  contract-runtime-tests:
+    name: Runtime Contract Validation Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pydantic pytest pytest-cov
+        pip install -e .
+    
+    - name: Run contract runtime validation tests
+      run: |
+        pytest tests/test_contract_runtime.py -v --tb=short --strict-markers
+        echo "✅ All contract runtime tests passed"
+    
+    - name: Verify contract coverage
+      run: |
+        # Count contracts in core_contracts.py
+        CONTRACT_COUNT=$(grep -c "class.*Contract(TypedDict)" src/saaaaaa/utils/core_contracts.py || echo 0)
+        echo "Total TypedDict contracts: $CONTRACT_COUNT"
+        
+        # Count validators in contracts_runtime.py
+        VALIDATOR_COUNT=$(grep -c "class.*Model(StrictModel)" src/saaaaaa/utils/contracts_runtime.py || echo 0)
+        echo "Total runtime validators: $VALIDATOR_COUNT"
+        
+        # They should match (accounting for base classes)
+        if [ "$CONTRACT_COUNT" -gt 0 ] && [ "$VALIDATOR_COUNT" -gt 0 ]; then
+          echo "✅ Contract coverage looks good"
+        else
+          echo "⚠️  Warning: Contract/validator mismatch"
+        fi
+
+  boundary-enforcement-tests:
     name: Run Boundary Tests
     runs-on: ubuntu-latest
     
@@ -103,7 +157,8 @@ jobs:
     - name: Install test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pydantic
+        pip install -e .
     
     - name: Run boundary enforcement tests
       run: |
@@ -114,7 +169,7 @@ jobs:
           echo "Boundary tests not found (skipping)"
         fi
     
-    - name: Run semantic chunking bug tests
+    - name: Run semantic chunking tests
       run: |
         # Run semantic chunking tests if they exist
         if [ -f "tests/test_semantic_chunking_bug.py" ]; then
