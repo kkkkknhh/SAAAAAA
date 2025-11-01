@@ -1,10 +1,24 @@
-"""Facade exposing the recommendation engine implementation."""
+"""Compatibility wrapper for the recommendation engine."""
 from __future__ import annotations
 
-from saaaaaa.analysis.recommendation_engine import *  # noqa: F401,F403
+from saaaaaa.analysis.recommendation_engine import (
+    Recommendation,
+    RecommendationEngine,
+    RecommendationSet,
+    load_recommendation_engine,
+)
+
+# Backwards compatible aliases for legacy names
+RecommendationResultSet = RecommendationSet
+RecommendationRule = Recommendation
+RecommendationRuleSet = RecommendationSet
 
 __all__ = [
-    name
-    for name in dir()
-    if not name.startswith("_") and name not in {"annotations"}
+    "Recommendation",
+    "RecommendationEngine",
+    "RecommendationResultSet",
+    "RecommendationRule",
+    "RecommendationRuleSet",
+    "RecommendationSet",
+    "load_recommendation_engine",
 ]

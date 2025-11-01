@@ -6,8 +6,14 @@ build-backend = "setuptools.build_meta"
 name = "saaaaaa"
 version = "0.1.0"
 description = "Municipal policy analysis system with strict type safety"
-requires-python = "~=3.11.0"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "hypothesis>=6",
+    "pandas>=2",
+    "pydantic>=1.10",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

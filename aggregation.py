@@ -1,0 +1,36 @@
+"""Compatibility wrapper for the refactored aggregation module."""
+from saaaaaa.processing.aggregation import (  # noqa: F401
+    AggregationError,
+    AreaPolicyAggregator,
+    AreaScore,
+    ClusterAggregator,
+    ClusterScore,
+    CoverageError,
+    DimensionAggregator,
+    DimensionScore,
+    HermeticityValidationError,
+    MacroAggregator,
+    MacroScore,
+    ScoredResult,
+    ThresholdValidationError,
+    ValidationError,
+    WeightValidationError,
+)
+
+__all__ = [
+    "AggregationError",
+    "AreaPolicyAggregator",
+    "AreaScore",
+    "ClusterAggregator",
+    "ClusterScore",
+    "CoverageError",
+    "DimensionAggregator",
+    "DimensionScore",
+    "HermeticityValidationError",
+    "MacroAggregator",
+    "MacroScore",
+    "ScoredResult",
+    "ThresholdValidationError",
+    "ValidationError",
+    "WeightValidationError",
+]
