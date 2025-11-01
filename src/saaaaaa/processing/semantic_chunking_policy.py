@@ -29,9 +29,8 @@ import scipy.stats as stats
 from scipy.spatial.distance import cosine
 from scipy.special import rel_entr
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s")
+# Note: logging.basicConfig should be called by the application entry point,
+# not at module import time to avoid side effects
 logger = logging.getLogger("policy_framework")
 
 
