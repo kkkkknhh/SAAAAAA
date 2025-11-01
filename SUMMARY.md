@@ -10,7 +10,7 @@ The pipeline was experiencing frequent runtime errors:
 
 1. **PDETMunicipalPlanAnalyzer._is_likely_header()** got an unexpected keyword argument 'pdf_path'
 2. **IndustrialPolicyProcessor._analyze_causal_dimensions()** missing 1 required positional argument: 'sentences'
-3. **BayesianMechanismInference.init()** got an unexpected keyword argument 'causal_hierarchy'
+3. **BayesianMechanismInference.__init__()** got an unexpected keyword argument 'causal_hierarchy'
 
 ## Investigation Results
 
