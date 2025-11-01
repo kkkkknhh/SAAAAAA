@@ -80,42 +80,42 @@ jobs:
           # Create .importlinter config if it doesn't exist
           if [ ! -f ".importlinter" ]; then
             echo "Creating .importlinter configuration..."
-            cat > .importlinter << 'EOF'
-[importlinter]
-root_package = saaaaaa
-include_external_packages = False
-
-[importlinter:contract:1]
-name = Core modules should not depend on API
-type = forbidden
-source_modules =
-    saaaaaa.core
-forbidden_modules =
-    saaaaaa.api
-
-[importlinter:contract:2]
-name = Core modules should not depend on infrastructure
-type = forbidden
-source_modules =
-    saaaaaa.core
-forbidden_modules =
-    saaaaaa.infrastructure
-
-[importlinter:contract:3]
-name = Processing depends only on core
-type = layers
-layers =
-    saaaaaa.core
-    saaaaaa.processing
-
-[importlinter:contract:4]
-name = Analysis depends on processing and core
-type = layers
-layers =
-    saaaaaa.core
-    saaaaaa.processing
-    saaaaaa.analysis
-EOF
+            cat > .importlinter << 'EOFIMPORT'
+          [importlinter]
+          root_package = saaaaaa
+          include_external_packages = False
+          
+          [importlinter:contract:1]
+          name = Core modules should not depend on API
+          type = forbidden
+          source_modules =
+              saaaaaa.core
+          forbidden_modules =
+              saaaaaa.api
+          
+          [importlinter:contract:2]
+          name = Core modules should not depend on infrastructure
+          type = forbidden
+          source_modules =
+              saaaaaa.core
+          forbidden_modules =
+              saaaaaa.infrastructure
+          
+          [importlinter:contract:3]
+          name = Processing depends only on core
+          type = layers
+          layers =
+              saaaaaa.core
+              saaaaaa.processing
+          
+          [importlinter:contract:4]
+          name = Analysis depends on processing and core
+          type = layers
+          layers =
+              saaaaaa.core
+              saaaaaa.processing
+              saaaaaa.analysis
+          EOFIMPORT
           fi
           
           # Try running import-linter
@@ -193,45 +193,12 @@ EOF
         run: |
           echo "=== Step 7: Bulk Import Test ==="
           export PYTHONPATH="${GITHUB_WORKSPACE}/src:$PYTHONPATH"
-          python -c "
-import sys
-sys.path.insert(0, 'src')
-import importlib
-from pathlib import Path
-
-errors = []
-success = []
-
-# Find all Python modules
-src_path = Path('src/saaaaaa')
-for py_file in src_path.rglob('*.py'):
-    if py_file.name == '__init__.py':
-        continue
-    
-    # Convert path to module name
-    rel_path = py_file.relative_to('src')
-    module_name = str(rel_path.with_suffix('')).replace('/', '.')
-    
-    try:
-        importlib.import_module(module_name)
-        success.append(module_name)
-        print(f'✓ {module_name}')
-    except Exception as e:
-        errors.append((module_name, str(e)))
-        print(f'✗ {module_name}: {e}')
-
-print(f'\n=== Bulk Import Results ===')
-print(f'Success: {len(success)} modules')
-print(f'Errors: {len(errors)} modules')
-
-if errors:
-    print('\nFailed imports:')
-    for module, error in errors:
-        print(f'  - {module}: {error}')
-    sys.exit(1)
-else:
-    print('✅ All modules imported successfully')
-          "
+          python tools/bulk_import_test.py
+          if [ $? -ne 0 ]; then
+            echo "❌ Bulk import test failed"
+            exit 1
+          fi
+          echo "✅ All modules imported successfully"
       
       # Step 8: Pytest -q
       - name: 8. Pytest - Run Tests
