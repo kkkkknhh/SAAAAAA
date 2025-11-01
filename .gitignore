@@ -3,3 +3,4 @@ artifacts/
 *.pyc
 forge.log
 venv/
+*.egg-info/

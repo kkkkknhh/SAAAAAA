@@ -2,11 +2,11 @@
 from saaaaaa.utils.qmcm_hooks import (  # noqa: F401
     QMCMRecorder,
     get_global_recorder,
-    record_qmcm_call,
+    qmcm_record,
 )
 
 __all__ = [
     "QMCMRecorder",
     "get_global_recorder",
-    "record_qmcm_call",
+    "qmcm_record",
 ]
