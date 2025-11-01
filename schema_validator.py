@@ -1,5 +1,5 @@
 """Compatibility wrapper for direct schema validator imports."""
-from validation.schema_validator import (  # noqa: F401
+from saaaaaa.utils.validation.schema_validator import (  # noqa: F401
     MonolithIntegrityReport,
     MonolithSchemaValidator,
     SchemaInitializationError,

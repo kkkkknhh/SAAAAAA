@@ -10689,7 +10689,4 @@ def main() -> None:
     print(f"Fases completadas: {len(completed)}/{len(phase_results)}")
     status = orchestrator.get_processing_status()
     print(f"Estado final: {status['status']} - Abortado: {status['abort_status']}")
-
-
-if __name__ == "__main__":
-    main()
+# CLI entry point has been moved to examples/ or orchestrator/cli.py to keep core modules pure

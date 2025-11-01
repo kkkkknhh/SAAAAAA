@@ -1,5 +1,7 @@
 """Compatibility wrapper for the recommendation engine."""
-from saaaaaa.analysis.recommendation_engine import (  # noqa: F401
+from __future__ import annotations
+
+from saaaaaa.analysis.recommendation_engine import (
     Recommendation,
     RecommendationEngine,
     RecommendationSet,

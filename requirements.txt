@@ -1,0 +1,70 @@
+# Core Python Dependencies - All versions pinned
+# Web Framework
+flask==3.0.0
+flask-cors==6.0.0
+flask-socketio==5.3.5
+
+# WebSocket Support
+python-socketio==5.14.0
+gevent==23.9.1
+gevent-websocket==0.10.1
+
+# Authentication
+pyjwt==2.8.0
+
+# Configuration
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Core Scientific Computing
+numpy==1.26.4
+scipy==1.11.4
+pandas==2.1.4
+
+# Machine Learning
+scikit-learn==1.5.0
+tensorflow==2.15.0
+torch==2.8.0
+
+# NLP
+transformers==4.53.0
+sentence-transformers==2.2.2
+spacy==3.7.2
+
+# Graph Analysis
+networkx==3.2.1
+igraph==0.11.3
+python-louvain==0.16
+
+# Bayesian Analysis
+pymc==5.10.3
+arviz==0.17.0
+
+# Causal Inference
+dowhy==0.11.1
+econml==0.15.0
+
+# PDF Processing
+pdfplumber==0.10.3
+PyPDF2==3.0.1
+
+# Data Validation
+jsonschema==4.20.0
+pydantic==2.5.3
+
+# Database
+redis==5.0.1
+sqlalchemy==2.0.25
+
+# Production Server
+gunicorn==22.0.0
+
+# Development
+pytest==7.4.3
+pytest-cov==4.1.0
+black==24.3.0
+flake8==7.0.0
+hypothesis==6.92.2
+
+# Monitoring
+prometheus-client==0.19.0
