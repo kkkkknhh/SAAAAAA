@@ -27,6 +27,7 @@ src/saaaaaa/concurrency/concurrency.py
 src/saaaaaa/core/ORCHESTRATOR_MONILITH.py
 src/saaaaaa/core/__init__.py
 src/saaaaaa/core/executors_COMPLETE_FIXED.py
+src/saaaaaa/core/ports.py
 src/saaaaaa/core/orchestrator/__init__.py
 src/saaaaaa/core/orchestrator/arg_router.py
 src/saaaaaa/core/orchestrator/class_registry.py
@@ -35,6 +36,11 @@ src/saaaaaa/core/orchestrator/core.py
 src/saaaaaa/core/orchestrator/evidence_registry.py
 src/saaaaaa/core/orchestrator/executors.py
 src/saaaaaa/core/orchestrator/factory.py
+src/saaaaaa/infrastructure/__init__.py
+src/saaaaaa/infrastructure/clock.py
+src/saaaaaa/infrastructure/environment.py
+src/saaaaaa/infrastructure/filesystem.py
+src/saaaaaa/infrastructure/logging.py
 src/saaaaaa/processing/__init__.py
 src/saaaaaa/processing/aggregation.py
 src/saaaaaa/processing/document_ingestion.py
@@ -82,6 +88,7 @@ tests/test_gold_canario_meso_reporting.py
 tests/test_gold_canario_micro_bayesian.py
 tests/test_gold_canario_micro_provenance.py
 tests/test_gold_canario_micro_stress.py
+tests/test_infrastructure.py
 tests/test_integration_failures.py
 tests/test_orchestrator_fixes.py
 tests/test_orchestrator_integration.py

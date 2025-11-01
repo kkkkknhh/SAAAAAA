@@ -501,11 +501,20 @@ class BayesianNumericalAnalyzer:
         self,
         observed_values: list[float],
         n_posterior_samples: int = 10000,
+        **kwargs: Any
     ) -> BayesianEvaluation:
         """
         Bayesian evaluation of policy metric with uncertainty quantification.
 
         Returns posterior distribution, credible intervals, and evidence strength.
+        
+        Args:
+            observed_values: List of observed metric values
+            n_posterior_samples: Number of posterior samples to generate
+            **kwargs: Additional optional parameters for compatibility
+        
+        Returns:
+            BayesianEvaluation with posterior samples and credible intervals
         """
         if not observed_values:
             return self._null_evaluation()
@@ -610,9 +619,17 @@ class BayesianNumericalAnalyzer:
         return posterior_samples.astype(np.float32)
 
     def _classify_evidence_strength(
-        self, credible_interval_width: float
+        self, credible_interval_width: float, **kwargs: Any
     ) -> Literal["weak", "moderate", "strong", "very_strong"]:
-        """Classify evidence strength based on posterior uncertainty."""
+        """Classify evidence strength based on posterior uncertainty.
+        
+        Args:
+            credible_interval_width: Width of the 95% credible interval
+            **kwargs: Additional optional parameters for compatibility
+        
+        Returns:
+            Evidence strength classification
+        """
         if credible_interval_width > 0.5:
             return "weak"
         elif credible_interval_width > 0.3:
@@ -622,11 +639,18 @@ class BayesianNumericalAnalyzer:
         else:
             return "very_strong"
 
-    def _compute_coherence(self, observations: NDArray[np.float32]) -> float:
+    def _compute_coherence(self, observations: NDArray[np.float32], **kwargs: Any) -> float:
         """
         Compute numerical coherence (consistency) score.
 
         Uses coefficient of variation and statistical tests.
+        
+        Args:
+            observations: Array of observed values
+            **kwargs: Additional optional parameters for compatibility
+        
+        Returns:
+            Coherence score in [0, 1]
         """
         if len(observations) < 2:
             return 1.0
