@@ -17,12 +17,15 @@ Version: 1.0.0
 Status: Skeleton implementation (to be expanded with I/O migration)
 """
 
+from dataclasses import dataclass
+import copy
 from pathlib import Path
-from typing import Any, Dict, Optional
+from types import MappingProxyType
+from typing import Any, Dict, Mapping, Optional
 import json
 import logging
 
-from core_contracts import (
+from ..contracts import (
     DocumentData,
     SemanticAnalyzerInputContract,
     CDAFFrameworkInputContract,
@@ -34,7 +37,31 @@ from core_contracts import (
     PolicyProcessorInputContract,
 )
 
+from .core import MethodExecutor
+
 logger = logging.getLogger(__name__)
+
+
+_DEFAULT_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
+
+
+@dataclass(frozen=True)
+class ProcessorBundle:
+    """Aggregated orchestrator dependencies built by the factory.
+
+    Attributes:
+        method_executor: Preconfigured :class:`MethodExecutor` instance ready for
+            execution.  This object encapsulates dynamic class loading via the
+            orchestrator registry.
+        questionnaire: Read-only view of the questionnaire monolith payload.
+            Consumers must treat this mapping as immutable.
+        factory: The :class:`CoreModuleFactory` used to construct ancillary
+            input contracts for downstream processors.
+    """
+
+    method_executor: MethodExecutor
+    questionnaire: Mapping[str, Any]
+    factory: "CoreModuleFactory"
 
 
 # ============================================================================
@@ -58,12 +85,19 @@ def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
         json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
-        path = Path(__file__).parent.parent / "questionnaire_monolith.json"
+        path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
     
     logger.info(f"Loading questionnaire from {path}")
     
     with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        payload = json.load(f)
+
+    if not isinstance(payload, dict):
+        raise TypeError(
+            "questionnaire_monolith.json must contain a JSON object at the top level"
+        )
+
+    return payload
 
 
 def load_document(file_path: Path) -> DocumentData:
@@ -321,7 +355,7 @@ class CoreModuleFactory:
         Args:
             data_dir: Optional directory for data files
         """
-        self.data_dir = data_dir or Path(__file__).parent.parent
+        self.data_dir = data_dir or _DEFAULT_DATA_DIR
         self.questionnaire_cache: Optional[Dict[str, Any]] = None
     
     def get_questionnaire(self) -> Dict[str, Any]:
@@ -345,7 +379,7 @@ class CoreModuleFactory:
             Parsed document data
         """
         return load_document(file_path)
-    
+
     def save_results(self, results: Dict[str, Any], output_path: Path) -> None:
         """Save analysis results.
         
@@ -364,6 +398,47 @@ class CoreModuleFactory:
     construct_embedding_policy_input = construct_embedding_policy_input
     construct_semantic_chunking_input = construct_semantic_chunking_input
     construct_policy_processor_input = construct_policy_processor_input
+
+
+def build_processor(
+    *,
+    questionnaire_path: Optional[Path] = None,
+    data_dir: Optional[Path] = None,
+    factory: Optional["CoreModuleFactory"] = None,
+) -> ProcessorBundle:
+    """Create a processor bundle with orchestrator dependencies wired together.
+
+    Args:
+        questionnaire_path: Optional path to the questionnaire monolith. When
+            provided, it overrides the factory's default resolution logic.
+        data_dir: Optional directory for ancillary data files such as the
+            questionnaire. Useful for tests that operate inside temporary
+            directories.
+        factory: Pre-existing :class:`CoreModuleFactory` instance. When omitted
+            the function creates a new factory configured with ``data_dir``.
+
+    Returns:
+        A :class:`ProcessorBundle` containing a ready-to-use method executor,
+        the questionnaire payload (as an immutable mapping) and the factory.
+    """
+
+    core_factory = factory or CoreModuleFactory(data_dir=data_dir)
+
+    if questionnaire_path is not None:
+        questionnaire_data = load_questionnaire_monolith(questionnaire_path)
+        core_factory.questionnaire_cache = copy.deepcopy(questionnaire_data)
+    else:
+        questionnaire_data = core_factory.get_questionnaire()
+
+    questionnaire_snapshot = MappingProxyType(copy.deepcopy(questionnaire_data))
+
+    executor = MethodExecutor()
+
+    return ProcessorBundle(
+        method_executor=executor,
+        questionnaire=questionnaire_snapshot,
+        factory=core_factory,
+    )
 
 
 # ============================================================================
@@ -397,6 +472,7 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 
 __all__ = [
     'CoreModuleFactory',
+    'ProcessorBundle',
     'load_questionnaire_monolith',
     'load_document',
     'save_results',
@@ -408,4 +484,5 @@ __all__ = [
     'construct_embedding_policy_input',
     'construct_semantic_chunking_input',
     'construct_policy_processor_input',
+    'build_processor',
 ]
