@@ -20,8 +20,9 @@ except ImportError as e:
         f"Could not import compatibility source module '{_SOURCE_MODULE_NAME}': {e}"
     ) from e
 
-if hasattr(_source, "__all__"):
-    public_names: List[str] = list(getattr(_source, "__all__"))  # type: ignore[list-item]
+__all_from_source = getattr(_source, "__all__", None)
+if __all_from_source is not None:
+    public_names: List[str] = list(__all_from_source)  # type: ignore[list-item]
 else:
     public_names = [name for name in dir(_source) if not name.startswith("_")]
 
