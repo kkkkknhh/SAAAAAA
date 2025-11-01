@@ -10,6 +10,14 @@ from pathlib import Path
 from typing import Dict, List, Set
 from datetime import datetime
 
+# Shared configuration
+EXCLUDED_DIRS = {'__pycache__', '.git', 'minipdm', '.augment', '.venv'}
+API_SERVER_PATHS = [
+    'src/saaaaaa/api/api_server.py',
+    'api/api_server.py',
+    'saaaaaa/api/api_server.py',
+]
+
 
 class Colors:
     """ANSI color codes for terminal output."""
@@ -55,8 +63,7 @@ class SystemVerifier:
         self.print_header("1. COMPILATION VERIFICATION")
         
         files = list(self.root.rglob("*.py"))
-        files = [f for f in files if not any(d in f.parts for d in 
-                 ['__pycache__', '.git', 'minipdm', '.augment', '.venv'])]
+        files = [f for f in files if not any(d in f.parts for d in EXCLUDED_DIRS)]
         
         success = 0
         failures = []
@@ -89,8 +96,7 @@ class SystemVerifier:
         self.print_header("2. IMPORT VERIFICATION")
         
         files = list(self.root.rglob("*.py"))
-        files = [f for f in files if not any(d in f.parts for d in 
-                 ['__pycache__', '.git', 'minipdm', '.augment'])]
+        files = [f for f in files if not any(d in f.parts for d in EXCLUDED_DIRS)]
         
         total_imports = 0
         import_errors = []
@@ -120,9 +126,15 @@ class SystemVerifier:
         """Verify API routes."""
         self.print_header("3. ROUTE VERIFICATION")
         
-        api_file = self.root / 'src' / 'saaaaaa' / 'api' / 'api_server.py'
+        # Try to find API server file dynamically
+        api_file = None
+        for path in API_SERVER_PATHS:
+            candidate = self.root / path
+            if candidate.exists():
+                api_file = candidate
+                break
         
-        if not api_file.exists():
+        if api_file is None:
             self.print_check("API server exists", False, "File not found")
             return False
         

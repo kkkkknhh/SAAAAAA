@@ -8,6 +8,14 @@ from typing import List, Tuple
 
 import pytest
 
+# Shared configuration
+EXCLUDED_DIRS = {'__pycache__', '.git', 'minipdm', '.augment', '.venv'}
+API_SERVER_PATHS = [
+    'src/saaaaaa/api/api_server.py',
+    'api/api_server.py',
+    'saaaaaa/api/api_server.py',
+]
+
 
 class TestCompilation:
     """Test that all Python files compile successfully."""
@@ -22,7 +30,7 @@ class TestCompilation:
         files = []
         for py_file in root.rglob("*.py"):
             # Skip excluded directories
-            if any(d in py_file.parts for d in ['__pycache__', '.git', 'minipdm', '.augment', '.venv']):
+            if any(d in py_file.parts for d in EXCLUDED_DIRS):
                 continue
             files.append(py_file)
         return files
@@ -104,7 +112,7 @@ class TestImports:
         errors = []
         
         for py_file in root_path.rglob("*.py"):
-            if any(d in py_file.parts for d in ['__pycache__', '.git', 'minipdm', '.augment']):
+            if any(d in py_file.parts for d in EXCLUDED_DIRS):
                 continue
             
             try:
@@ -137,9 +145,15 @@ class TestRoutes:
     
     def test_api_routes_exist(self, root_path: Path) -> None:
         """Test that API server file exists and defines routes."""
-        api_server = root_path / 'src' / 'saaaaaa' / 'api' / 'api_server.py'
+        # Try to find API server file dynamically
+        api_server = None
+        for path in API_SERVER_PATHS:
+            candidate = root_path / path
+            if candidate.exists():
+                api_server = candidate
+                break
         
-        if not api_server.exists():
+        if api_server is None:
             pytest.skip("API server file not found")
         
         with open(api_server, 'r', encoding='utf-8') as f:
@@ -216,7 +230,7 @@ class TestSystemIntegrity:
         empty_files = []
         
         for py_file in root_path.rglob("*.py"):
-            if any(d in py_file.parts for d in ['__pycache__', '.git', 'minipdm', '.augment']):
+            if any(d in py_file.parts for d in EXCLUDED_DIRS):
                 continue
             
             if py_file.stat().st_size == 0:
