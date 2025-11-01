@@ -2,9 +2,10 @@ Metadata-Version: 2.4
 Name: saaaaaa
 Version: 0.1.0
 Summary: Municipal policy analysis system with strict type safety
-Requires-Python: >=3.10
+Requires-Python: ~=3.11.0
 Requires-Dist: hypothesis>=6
 Requires-Dist: pandas>=2
 Requires-Dist: pydantic>=1.10
 Requires-Dist: scipy>=1.11
 Requires-Dist: scikit-learn>=1.4
+Dynamic: requires-python
