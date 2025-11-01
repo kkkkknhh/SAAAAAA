@@ -42,8 +42,6 @@ class TestDefensiveSignatures:
             assert 'kwargs' in params, "_is_likely_header should accept **kwargs"
             assert params['kwargs'].kind == inspect.Parameter.VAR_KEYWORD, \
                 "kwargs should be VAR_KEYWORD type"
-            
-            print("✓ _is_likely_header signature correctly accepts **kwargs")
         except ImportError:
             pytest.skip("financiero_viabilidad_tablas module not available")
     
@@ -61,8 +59,6 @@ class TestDefensiveSignatures:
             assert 'sentences' in params, "_analyze_causal_dimensions should have sentences parameter"
             assert params['sentences'].default is not inspect.Parameter.empty, \
                 "sentences parameter should have a default value (None)"
-            
-            print("✓ _analyze_causal_dimensions signature has optional sentences parameter")
         except ImportError:
             pytest.skip("policy_processor module not available")
     
@@ -80,8 +76,6 @@ class TestDefensiveSignatures:
             assert 'kwargs' in params, "BayesianMechanismInference.__init__ should accept **kwargs"
             assert params['kwargs'].kind == inspect.Parameter.VAR_KEYWORD, \
                 "kwargs should be VAR_KEYWORD type"
-            
-            print("✓ BayesianMechanismInference.__init__ signature correctly accepts **kwargs")
         except ImportError:
             pytest.skip("dereck_beach module not available")
     
@@ -111,8 +105,6 @@ class TestSignatureDocumentation:
                 "Docstring should document **kwargs parameter"
             assert 'backward compatibility' in docstring.lower() or 'ignored' in docstring.lower(), \
                 "Docstring should explain that extra kwargs are ignored"
-            
-            print("✓ _is_likely_header docstring properly documents **kwargs")
         except ImportError:
             pytest.skip("financiero_viabilidad_tablas module not available")
     
@@ -127,8 +119,6 @@ class TestSignatureDocumentation:
                 "Docstring should mention sentences is optional"
             assert 'auto' in docstring.lower() or 'extract' in docstring.lower(), \
                 "Docstring should explain auto-extraction behavior"
-            
-            print("✓ _analyze_causal_dimensions docstring explains optional parameter")
         except ImportError:
             pytest.skip("policy_processor module not available")
     
@@ -143,8 +133,6 @@ class TestSignatureDocumentation:
                 "Docstring should document **kwargs parameter"
             assert 'backward compatibility' in docstring.lower() or 'ignored' in docstring.lower(), \
                 "Docstring should explain that extra kwargs are ignored"
-            
-            print("✓ BayesianMechanismInference.__init__ docstring properly documents **kwargs")
         except ImportError:
             pytest.skip("dereck_beach module not available")
 
