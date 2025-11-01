@@ -1,5 +1,7 @@
 """Compatibility wrapper for policy processor components."""
-from saaaaaa.processing.policy_processor import (  # noqa: F401
+from __future__ import annotations
+
+from saaaaaa.processing.policy_processor import (
     BayesianEvidenceScorer,
     IndustrialPolicyProcessor,
     PolicyTextProcessor,
