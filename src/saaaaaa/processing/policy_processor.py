@@ -123,12 +123,8 @@ from financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
 # ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# Note: logging.basicConfig should be called by the application entry point,
+# not at module import time to avoid side effects
 logger = logging.getLogger(__name__)
 
 
