@@ -11,8 +11,9 @@ Architectural Principles:
 - All I/O happens in orchestrator/factory.py
 - Type-safe contracts with strict typing
 
-Version: 1.0.0
-Status: Initial contract definitions (to be expanded)
+Version: 1.1.0
+Schema Version: sem-1.0 (initial stable release)
+Status: Active - Runtime validation available in contracts_runtime.py
 """
 
 from typing import TypedDict, List, Dict, Any, Optional
