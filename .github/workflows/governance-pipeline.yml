@@ -1,0 +1,325 @@
+name: CI/CD Governance Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance-checks:
+    name: CI/CD Governance - All Steps
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install core dependencies
+          pip install mypy ruff pytest pytest-cov coverage
+          # Install optional dependencies (allow failures)
+          pip install import-linter || echo "import-linter installation failed, using alternative"
+          pip install pycycle || echo "pycycle installation failed, using alternative implementation"
+          # Install project in editable mode
+          pip install -e . || echo "Package installation failed, continuing with available modules"
+      
+      # Step 1: Compile
+      - name: 1. Compile - python -m compileall
+        run: |
+          set -e  # Fail on first error
+          echo "=== Step 1: Compile all Python files ==="
+          python -m compileall src/saaaaaa -f -q
+          if [ $? -ne 0 ]; then
+            echo "❌ Compilation failed"
+            exit 1
+          fi
+          echo "✅ All Python files compiled successfully"
+      
+      # Step 2: Scanner AST - anti-I/O and anti-__main__ in core
+      - name: 2. AST Scanner - Core Module Boundaries
+        run: |
+          echo "=== Step 2: AST Scanner - anti-I/O and anti-__main__ in core ==="
+          
+          # Scan core modules for __main__ blocks
+          echo "Checking for __main__ blocks in core modules..."
+          if grep -r 'if __name__ == "__main__"' src/saaaaaa/core/; then
+            echo "❌ ERROR: Found __main__ blocks in core modules"
+            exit 1
+          fi
+          echo "✅ No __main__ blocks in core modules"
+          
+          # Run AST boundary scanner if it exists
+          if [ -f "tools/scan_boundaries.py" ]; then
+            echo "Running AST boundary scanner on core modules..."
+            python tools/scan_boundaries.py --root src/saaaaaa/core --fail-on main,io --json /tmp/core_violations.json
+            if [ $? -ne 0 ]; then
+              echo "❌ Core module boundary violations detected"
+              exit 1
+            fi
+            echo "✅ Core modules passed boundary checks"
+          else
+            echo "⚠️  Boundary scanner not found, skipping detailed AST scan"
+          fi
+      
+      # Step 3: Import-linter - layer contracts
+      - name: 3. Import-linter - Layer Contracts
+        run: |
+          echo "=== Step 3: Import-linter - Layer Contracts ==="
+          
+          # Create .importlinter config if it doesn't exist
+          if [ ! -f ".importlinter" ]; then
+            echo "Creating .importlinter configuration..."
+            cat > .importlinter << 'EOF'
+[importlinter]
+root_package = saaaaaa
+include_external_packages = False
+
+[importlinter:contract:1]
+name = Core modules should not depend on API
+type = forbidden
+source_modules =
+    saaaaaa.core
+forbidden_modules =
+    saaaaaa.api
+
+[importlinter:contract:2]
+name = Core modules should not depend on infrastructure
+type = forbidden
+source_modules =
+    saaaaaa.core
+forbidden_modules =
+    saaaaaa.infrastructure
+
+[importlinter:contract:3]
+name = Processing depends only on core
+type = layers
+layers =
+    saaaaaa.core
+    saaaaaa.processing
+
+[importlinter:contract:4]
+name = Analysis depends on processing and core
+type = layers
+layers =
+    saaaaaa.core
+    saaaaaa.processing
+    saaaaaa.analysis
+EOF
+          fi
+          
+          # Try running import-linter
+          if command -v lint-imports &> /dev/null; then
+            lint-imports
+            if [ $? -ne 0 ]; then
+              echo "❌ Import layer contract violations detected"
+              exit 1
+            fi
+            echo "✅ Import layer contracts validated"
+          else
+            echo "⚠️  import-linter not available, using basic import validation"
+            
+            # Basic validation: ensure core doesn't import from api or infrastructure
+            echo "Checking core module imports..."
+            if grep -r "from saaaaaa.api" src/saaaaaa/core/ 2>/dev/null; then
+              echo "❌ Core modules importing from API (forbidden)"
+              exit 1
+            fi
+            if grep -r "from saaaaaa.infrastructure" src/saaaaaa/core/ 2>/dev/null; then
+              echo "❌ Core modules importing from infrastructure (forbidden)"
+              exit 1
+            fi
+            echo "✅ Basic import layer contracts validated"
+          fi
+      
+      # Step 4: Ruff - lint/bugs
+      - name: 4. Ruff - Lint and Bug Detection
+        run: |
+          echo "=== Step 4: Ruff - Lint and Bug Detection ==="
+          ruff check . --config pyproject.toml
+          if [ $? -ne 0 ]; then
+            echo "❌ Ruff linting failed"
+            exit 1
+          fi
+          echo "✅ Ruff linting passed"
+      
+      # Step 5: Mypy --strict
+      - name: 5. Mypy - Strict Type Checking
+        run: |
+          echo "=== Step 5: Mypy --strict Type Checking ==="
+          mypy --strict --config-file pyproject.toml src/saaaaaa
+          if [ $? -ne 0 ]; then
+            echo "❌ Mypy strict type checking failed"
+            exit 1
+          fi
+          echo "✅ Mypy strict type checking passed"
+      
+      # Step 6: Pycycle - Circular dependency detection
+      - name: 6. Pycycle - Circular Dependency Detection
+        run: |
+          echo "=== Step 6: Pycycle - Circular Dependency Detection ==="
+          
+          # Try using pycycle if available
+          if command -v pycycle &> /dev/null; then
+            pycycle --here src/saaaaaa
+            if [ $? -ne 0 ]; then
+              echo "❌ Circular dependencies detected"
+              exit 1
+            fi
+          else
+            # Use our custom implementation
+            echo "Using custom cycle detector..."
+            python tools/detect_cycles.py src/saaaaaa
+            if [ $? -ne 0 ]; then
+              echo "❌ Circular dependencies detected"
+              exit 1
+            fi
+          fi
+          
+          echo "✅ No circular dependencies found"
+      
+      # Step 7: Bulk import - Test all imports
+      - name: 7. Bulk Import - Import All Modules
+        run: |
+          echo "=== Step 7: Bulk Import Test ==="
+          export PYTHONPATH="${GITHUB_WORKSPACE}/src:$PYTHONPATH"
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+import importlib
+from pathlib import Path
+
+errors = []
+success = []
+
+# Find all Python modules
+src_path = Path('src/saaaaaa')
+for py_file in src_path.rglob('*.py'):
+    if py_file.name == '__init__.py':
+        continue
+    
+    # Convert path to module name
+    rel_path = py_file.relative_to('src')
+    module_name = str(rel_path.with_suffix('')).replace('/', '.')
+    
+    try:
+        importlib.import_module(module_name)
+        success.append(module_name)
+        print(f'✓ {module_name}')
+    except Exception as e:
+        errors.append((module_name, str(e)))
+        print(f'✗ {module_name}: {e}')
+
+print(f'\n=== Bulk Import Results ===')
+print(f'Success: {len(success)} modules')
+print(f'Errors: {len(errors)} modules')
+
+if errors:
+    print('\nFailed imports:')
+    for module, error in errors:
+        print(f'  - {module}: {error}')
+    sys.exit(1)
+else:
+    print('✅ All modules imported successfully')
+          "
+      
+      # Step 8: Pytest -q
+      - name: 8. Pytest - Run Tests
+        run: |
+          echo "=== Step 8: Pytest - Run All Tests ==="
+          export PYTHONPATH="${GITHUB_WORKSPACE}/src:$PYTHONPATH"
+          pytest -q
+          if [ $? -ne 0 ]; then
+            echo "❌ Tests failed"
+            exit 1
+          fi
+          echo "✅ All tests passed"
+      
+      # Step 9: Coverage report -m (≥80% threshold for orchestrator and contracts)
+      - name: 9. Coverage Report - 80% Threshold
+        run: |
+          echo "=== Step 9: Coverage Report with 80% Threshold ==="
+          export PYTHONPATH="${GITHUB_WORKSPACE}/src:$PYTHONPATH"
+          
+          # Run coverage on tests
+          pytest --cov=src/saaaaaa --cov-report=term-missing --cov-report=html -q
+          
+          # Generate coverage report
+          coverage report -m > /tmp/coverage_report.txt
+          
+          # Check orchestrator coverage
+          ORCHESTRATOR_COV=$(coverage report | grep "saaaaaa/core/orchestrator" | awk '{sum+=$4; count++} END {if(count>0) print sum/count; else print 0}')
+          echo "Orchestrator coverage: ${ORCHESTRATOR_COV}%"
+          
+          # Check contracts coverage
+          CONTRACTS_COV=$(coverage report | grep "contracts" | awk '{sum+=$4; count++} END {if(count>0) print sum/count; else print 0}')
+          echo "Contracts coverage: ${CONTRACTS_COV}%"
+          
+          # Verify thresholds
+          if (( $(echo "$ORCHESTRATOR_COV < 80" | bc -l) )); then
+            echo "❌ Orchestrator coverage ${ORCHESTRATOR_COV}% is below 80% threshold"
+            exit 1
+          fi
+          
+          if [ ! -z "$CONTRACTS_COV" ]; then
+            if (( $(echo "$CONTRACTS_COV < 80" | bc -l) )); then
+              echo "❌ Contracts coverage ${CONTRACTS_COV}% is below 80% threshold"
+              exit 1
+            fi
+          fi
+          
+          echo "✅ Coverage thresholds met (≥80%)"
+          
+          # Display full report
+          cat /tmp/coverage_report.txt
+      
+      # Upload artifacts
+      - name: Upload Pipeline Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs
+          path: |
+            /tmp/core_violations.json
+            /tmp/coverage_report.txt
+          retention-days: 30
+      
+      - name: Upload Coverage HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-report
+          path: htmlcov/
+          retention-days: 30
+      
+      - name: Pipeline Success Summary
+        if: success()
+        run: |
+          echo "=================================="
+          echo "✅ CI/CD Governance Pipeline PASSED"
+          echo "=================================="
+          echo ""
+          echo "All steps completed successfully:"
+          echo "  1. ✅ Compile"
+          echo "  2. ✅ AST Scanner (anti-I/O, anti-__main__)"
+          echo "  3. ✅ Import-linter (layer contracts)"
+          echo "  4. ✅ Ruff (lint/bugs)"
+          echo "  5. ✅ Mypy --strict"
+          echo "  6. ✅ Pycycle (no circular dependencies)"
+          echo "  7. ✅ Bulk import"
+          echo "  8. ✅ Pytest"
+          echo "  9. ✅ Coverage ≥80% (orchestrator & contracts)"
+          echo ""
+          echo "Artifacts published:"
+          echo "  - Pipeline logs"
+          echo "  - HTML coverage report"
