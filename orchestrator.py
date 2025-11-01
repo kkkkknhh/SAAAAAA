@@ -31,7 +31,9 @@ _PUBLIC_EXPORTS = [
     "get_questionnaire_provider",
 ]
 
-globals().update({name: getattr(_core, name) for name in _PUBLIC_EXPORTS})
+for name in _PUBLIC_EXPORTS:
+    if hasattr(_core, name):
+        globals()[name] = getattr(_core, name)
 
 _ADDITIONAL_EXPORTS = [
     "D1Q1_Executor",
