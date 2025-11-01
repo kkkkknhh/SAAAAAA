@@ -13,7 +13,10 @@ from types import ModuleType
 from typing import List
 
 _SOURCE_MODULE_NAME = "saaaaaa.processing.document_ingestion"
-_source: ModuleType = import_module(_SOURCE_MODULE_NAME)
+try:
+    _source: ModuleType = import_module(_SOURCE_MODULE_NAME)
+except Exception as e:
+    raise ImportError(f"Failed to import compatibility source module '{_SOURCE_MODULE_NAME}'") from e
 
 if hasattr(_source, "__all__"):
     public_names: List[str] = list(getattr(_source, "__all__"))  # type: ignore[list-item]
