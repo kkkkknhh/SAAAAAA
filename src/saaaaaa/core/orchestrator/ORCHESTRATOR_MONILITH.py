@@ -159,20 +159,20 @@ def get_question_payload(question_global: int) -> Dict[str, Any]:
 
 # Importar módulos reales
 try:
-    from policy_processor import (
+    from saaaaaa.processing.policy_processor import (
         BayesianEvidenceScorer,
         CausalDimension,
         IndustrialPolicyProcessor,
         PolicyTextProcessor,
         ProcessorConfig,
     )
-    from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
-    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
-    from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
-    from embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
-    from Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
-    from teoria_cambio import TeoriaCambio, AdvancedDAGValidator
-    from semantic_chunking_policy import SemanticChunker
+    from saaaaaa.analysis.contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
+    from saaaaaa.analysis.financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
+    from saaaaaa.analysis.dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
+    from saaaaaa.processing.embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
+    from saaaaaa.analysis.Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
+    from saaaaaa.analysis.teoria_cambio import TeoriaCambio, AdvancedDAGValidator
+    from saaaaaa.processing.semantic_chunking_policy import SemanticChunker
 
     MODULES_OK = True
 except:

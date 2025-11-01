@@ -1977,7 +1977,7 @@ class OperationalizationAuditor:
         """
         # Import for quantitative claims extraction
         try:
-            from contradiction_deteccion import PolicyContradictionDetectorV2
+            from saaaaaa.analysis.contradiction_deteccion import PolicyContradictionDetectorV2
             has_detector = True
         except ImportError:
             has_detector = False
@@ -3112,7 +3112,7 @@ class CausalInferenceSetup:
         """Assign probative test types to nodes"""
         # Import INDICATOR_STRUCTURE from financiero_viabilidad_tablas
         try:
-            from financiero_viabilidad_tablas import ColombianMunicipalContext
+            from saaaaaa.analysis.financiero_viabilidad_tablas import ColombianMunicipalContext
             indicator_structure = ColombianMunicipalContext.INDICATOR_STRUCTURE
         except ImportError:
             indicator_structure = {

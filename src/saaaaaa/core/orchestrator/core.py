@@ -606,7 +606,7 @@ class MethodExecutor:
                 # PolicyTextProcessor needs ProcessorConfig
                 elif class_name == "PolicyTextProcessor":
                     try:
-                        from policy_processor import ProcessorConfig
+                        from saaaaaa.processing.policy_processor import ProcessorConfig
                         self.instances[class_name] = cls(ProcessorConfig())
                     except ImportError:
                         logger.warning("Cannot instantiate PolicyTextProcessor: ProcessorConfig unavailable")

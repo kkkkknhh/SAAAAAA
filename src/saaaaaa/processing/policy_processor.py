@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 if TYPE_CHECKING:
-    from contradiction_deteccion import PolicyContradictionDetector as _PolicyContradictionDetector
+    from saaaaaa.analysis.contradiction_deteccion import PolicyContradictionDetector as _PolicyContradictionDetector
 
 import numpy as np
 from functools import lru_cache
