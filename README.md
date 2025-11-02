@@ -8,6 +8,24 @@
 
 ---
 
+## 🚀 NEW: Complete Operational Guide
+
+**📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with all necessary commands!**
+
+**📋 [QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - **Essential commands at a glance**
+
+The operational guide includes:
+- ✅ **Step-by-step installation** and system activation
+- ✅ **Development plan analysis** walkthrough with full commands
+- ✅ **Complete pipeline execution** instructions
+- ✅ **Verification and testing** procedures
+- ✅ **Troubleshooting** guide for common issues
+- ✅ **Advanced usage** and customization
+
+**Start here:** [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)
+
+---
+
 ## 📁 REPOSITORY STRUCTURE
 
 This repository now follows Python best practices with a hierarchical package structure:
@@ -72,6 +90,8 @@ compatibility shims for backward compatibility. **All new code should go in src/
 
 ## 🎯 QUICK START
 
+**📖 For complete instructions, see [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)**
+
 ### **Quick Setup (Recommended)**
 
 Use the automated setup script to install all dependencies:
@@ -82,6 +102,16 @@ bash scripts/setup.sh
 
 # Verify installation
 python scripts/verify_dependencies.py
+```
+
+### **Run Your First Analysis**
+
+```bash
+# Analyze a development plan (after setup)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/your_plan.pdf \
+  --output-dir data/results \
+  --mode full --parallel
 ```
 
 ### **Manual Installation**
@@ -104,6 +134,7 @@ pip install -e .
 ```
 
 **📖 For detailed setup information, see:**
+- **[OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Complete operational guide with all commands**
 - [DEPENDENCY_SETUP.md](DEPENDENCY_SETUP.md) - Complete dependency installation guide
 - [IMPORT_RESOLUTION_SUMMARY.md](IMPORT_RESOLUTION_SUMMARY.md) - Import fixes and troubleshooting
 
@@ -265,10 +296,18 @@ See [`docs/INTEGRATION_STATUS.md`](docs/INTEGRATION_STATUS.md) for detailed prog
 
 ## 📖 FURTHER READING
 
+### **Getting Started**
+- **[OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Complete operational guide with all commands (START HERE!)**
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - **Essential commands reference card**
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start for developers
+
+### **Architecture & Strategy**
 - **Repository Structure:** [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) - Detailed package organization
 - **Strategic Overview:** [`docs/CHESS_TACTICAL_SUMMARY.md`](docs/CHESS_TACTICAL_SUMMARY.md) - Visual patterns and checkmate conditions
 - **Detailed Strategy:** [`docs/STRATEGIC_METHOD_ORCHESTRATION.md`](docs/STRATEGIC_METHOD_ORCHESTRATION.md) - Complete method chains
 - **Method Mappings:** [`question_component_map.json`](question_component_map.json) - Machine-readable execution chains
+
+### **System Inventory**
 - **Complete Inventory:** [`config/inventory.json`](config/inventory.json) - All 67 classes, 584 methods
 - **Canonical Truth:** [`data/questionnaire_monolith.json`](data/questionnaire_monolith.json) - The 300 questions
 

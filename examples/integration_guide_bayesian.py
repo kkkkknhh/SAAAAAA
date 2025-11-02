@@ -222,7 +222,7 @@ class EnhancedReportAssembler:
                 peer_comparison=None,
                 peer_penalty=m['peer_penalty'],
                 total_penalty=m['total_penalty'],
-                final_posterior=m['raw_meso_score'],
+                final_posterior=m['adjusted_score'],
                 adjusted_score=m['adjusted_score']
             )
             for m in meso_analyses
