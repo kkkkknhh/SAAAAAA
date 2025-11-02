@@ -45,6 +45,6 @@ if __name__ == "__main__":  # pragma: no cover - manual invocation only
     try:
         main()
     except _PurityViolation as exc:
-        raise SystemExit(str(exc))
+        raise SystemExit(str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive catch
-        raise SystemExit(str(exc))
+        raise SystemExit(str(exc)) from exc

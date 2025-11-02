@@ -30,12 +30,12 @@ def _no_duplicate_object_pairs(pairs: Iterable[tuple[str, Any]]) -> dict[str, An
     return obj
 
 
-def load_json_strict(path: Path) -> Any:
+def load_json_strict(path: Path) -> object:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle, object_pairs_hook=_no_duplicate_object_pairs)
 
 
-def find_empty_strings(payload: Any, path: str = "") -> Iterable[str]:
+def find_empty_strings(payload: object, path: str = "") -> Iterable[str]:
     if isinstance(payload, str):
         if not payload.strip():
             yield path
@@ -49,12 +49,11 @@ def find_empty_strings(payload: Any, path: str = "") -> Iterable[str]:
             yield from find_empty_strings(value, next_path)
 
 
-def find_out_of_range_numbers(payload: Any, path: str = "") -> Iterable[str]:
+def find_out_of_range_numbers(payload: object, path: str = "") -> Iterable[str]:
     if isinstance(payload, (int, float)):
         key_lower = path.lower()
-        if any(token in key_lower for token in ("weight", "min_score")):
-            if payload < 0 or payload > 1:
-                yield path
+        if any(token in key_lower for token in ("weight", "min_score")) and (payload < 0 or payload > 1):
+            yield path
     elif isinstance(payload, dict):
         for key, value in payload.items():
             next_path = f"{path}.{key}" if path else key
