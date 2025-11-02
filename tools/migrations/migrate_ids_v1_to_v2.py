@@ -431,7 +431,7 @@ def migrate_rubric(
     migrated_questionnaire: dict[str, Any],
     legacy_to_new_qid: Mapping[str, str],
     pa_mapping: Mapping[str, str],
-    cluster_by_pa: Mapping[str, str],
+    _cluster_by_pa: Mapping[str, str],
 ) -> dict[str, Any]:
     legacy_dimensions = legacy_questionnaire.get("dimensiones", {})
     modality_definitions = rubric.get("scoring_modalities", {})
@@ -475,7 +475,7 @@ def migrate_rubric(
         qid = question["question_id"]
         dimension_question_weights[dim_id].setdefault(qid, 0.0)
 
-    for dim_id, questions_dict in dimension_question_weights.items():
+    for _dim_id, questions_dict in dimension_question_weights.items():
         count = len(questions_dict)
         if not count:
             continue

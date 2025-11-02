@@ -12,15 +12,15 @@ from pathlib import Path
 def validate_strategic_wiring() -> bool:
     """
     Validate strategic wiring across all files.
-    
+
     Returns:
         True if validation passes, False otherwise
     """
     root = Path(__file__).parent
-    
+
     print("=== Strategic Wiring Validation ===")
     print()
-    
+
     # Check strategic files exist
     strategic_files = [
         "demo_macro_prompts.py",
@@ -40,7 +40,7 @@ def validate_strategic_wiring() -> bool:
         "micro_prompts.py",
         "coverage_gate.py",
     ]
-    
+
     missing = []
     for file_path in strategic_files:
         full_path = root / file_path
@@ -49,9 +49,9 @@ def validate_strategic_wiring() -> bool:
         else:
             print(f"✗ {file_path} MISSING")
             missing.append(file_path)
-    
+
     print()
-    
+
     if missing:
         print(f"❌ Validation FAILED: {len(missing)} files missing")
         return False

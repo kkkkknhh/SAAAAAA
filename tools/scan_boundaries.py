@@ -58,17 +58,15 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
     def visit_If(self, node: ast.If) -> None:
         """Detect if __name__ == '__main__' blocks."""
         # Check for __name__ == '__main__' pattern
-        if isinstance(node.test, ast.Compare) and isinstance(node.test.left, ast.Name):
-            if node.test.left.id == '__name__':
-                for comparator in node.test.comparators:
-                    if isinstance(comparator, ast.Constant):
-                        if comparator.value == '__main__':
-                            self.has_main_block = True
-                            self.violations.append({
-                                'type': 'main_block',
-                                'line': node.lineno,
-                                'message': f'__main__ block found at line {node.lineno}'
-                            })
+        if isinstance(node.test, ast.Compare) and isinstance(node.test.left, ast.Name) and node.test.left.id == '__name__':
+            for comparator in node.test.comparators:
+                if isinstance(comparator, ast.Constant) and comparator.value == '__main__':
+                    self.has_main_block = True
+                    self.violations.append({
+                        'type': 'main_block',
+                        'line': node.lineno,
+                        'message': f'__main__ block found at line {node.lineno}'
+                    })
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -124,16 +122,16 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
     def visit_With(self, node: ast.With) -> None:
         """Detect 'with open(...)' patterns."""
         for item in node.items:
-            if isinstance(item.context_expr, ast.Call):
-                if isinstance(item.context_expr.func, ast.Name):
-                    if item.context_expr.func.id == 'open':
-                        self.io_calls.append((node.lineno, 'open (with)'))
-                        self.violations.append({
-                            'type': 'io_call',
-                            'line': node.lineno,
-                            'function': 'open',
-                            'message': f'I/O operation: with open(...) at line {node.lineno}'
-                        })
+            if (isinstance(item.context_expr, ast.Call) and
+                isinstance(item.context_expr.func, ast.Name) and
+                item.context_expr.func.id == 'open'):
+                self.io_calls.append((node.lineno, 'open (with)'))
+                self.violations.append({
+                    'type': 'io_call',
+                    'line': node.lineno,
+                    'function': 'open',
+                    'message': f'I/O operation: with open(...) at line {node.lineno}'
+                })
         self.generic_visit(node)
 
 

@@ -123,10 +123,9 @@ class TestImports:
                     if isinstance(node, ast.Import):
                         for alias in node.names:
                             assert alias.name is not None
-                    elif isinstance(node, ast.ImportFrom):
+                    elif isinstance(node, ast.ImportFrom) and node.level > 0:
                         # Relative imports should have level > 0
-                        if node.level > 0:
-                            assert node.level <= 5  # Reasonable depth
+                        assert node.level <= 5  # Reasonable depth
             except Exception as e:
                 rel_path = py_file.relative_to(root_path)
                 errors.append(f"{rel_path}: {e}")
