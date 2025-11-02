@@ -162,10 +162,14 @@ class DimensionAggregator:
             Tuple of (is_valid, message)
             
         Raises:
-            WeightValidationError: If weights don't sum to 1.0
+            WeightValidationError: If weights don't sum to 1.0 or if no weights provided
         """
         if not weights:
-            return False, "No weights provided"
+            msg = "No weights provided"
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise WeightValidationError(msg)
+            return False, msg
         
         weight_sum = sum(weights)
         tolerance = 1e-6
@@ -241,12 +245,15 @@ class DimensionAggregator:
                 f"Weight length mismatch: {len(weights)} weights for {len(scores)} scores"
             )
             logger.error(msg)
-            if self.abort_on_insufficient:
-                raise WeightValidationError(msg)
-            return 0.0
+            raise WeightValidationError(msg)
         
-        # Validate weights
-        self.validate_weights(weights)
+        # Validate weights sum to 1.0
+        valid, msg = self.validate_weights(weights)
+        if not valid:
+            # If validation failed and abort_on_insufficient is False,
+            # validate_weights already logged the error and returned False
+            # We should raise here to avoid silent failure
+            raise WeightValidationError(msg)
         
         # Calculate weighted sum
         weighted_sum = sum(s * w for s, w in zip(scores, weights))
@@ -261,14 +268,15 @@ class DimensionAggregator:
     def apply_rubric_thresholds(
         self,
         score: float,
-        thresholds: Optional[List[Dict[str, Any]]] = None
+        thresholds: Optional[Dict[str, float]] = None
     ) -> str:
         """
         Apply rubric thresholds to determine quality level.
         
         Args:
             score: Aggregated score (0-3 range)
-            thresholds: Optional threshold definitions
+            thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
+                       Each value should be a normalized threshold (0-1 range)
             
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
@@ -279,12 +287,22 @@ class DimensionAggregator:
         # Normalize to 0-1 range
         normalized_score = clamped_score / 3.0
         
-        # Apply standard thresholds
-        if normalized_score >= 0.85:
+        # Use provided thresholds or defaults
+        if thresholds:
+            excellent_threshold = thresholds.get('EXCELENTE', 0.85)
+            good_threshold = thresholds.get('BUENO', 0.70)
+            acceptable_threshold = thresholds.get('ACEPTABLE', 0.55)
+        else:
+            excellent_threshold = 0.85
+            good_threshold = 0.70
+            acceptable_threshold = 0.55
+        
+        # Apply thresholds
+        if normalized_score >= excellent_threshold:
             quality = "EXCELENTE"
-        elif normalized_score >= 0.70:
+        elif normalized_score >= good_threshold:
             quality = "BUENO"
-        elif normalized_score >= 0.55:
+        elif normalized_score >= acceptable_threshold:
             quality = "ACEPTABLE"
         else:
             quality = "INSUFICIENTE"
@@ -391,6 +409,8 @@ class DimensionAggregator:
             "score": avg_score,
             "quality_level": quality_level
         }
+        # Add score_max for downstream normalization
+        validation_details["score_max"] = 3.0
         
         logger.info(
             f"✓ Dimension {dimension_id}/{area_id}: "
@@ -445,6 +465,7 @@ class AreaPolicyAggregator:
     ) -> Tuple[bool, str]:
         """
         Validate hermeticity (no dimension overlap/gaps).
+        Uses scoped validation based on policy_area.dimension_ids from monolith.
         
         Args:
             dimension_scores: List of dimension scores for the area
@@ -456,14 +477,40 @@ class AreaPolicyAggregator:
         Raises:
             HermeticityValidationError: If hermeticity is violated
         """
-        # Check that we have exactly 6 dimensions
-        expected_count = len(self.dimensions)
+        # Get expected dimensions for this specific policy area
+        area_def = next(
+            (a for a in self.policy_areas if a["policy_area_id"] == area_id),
+            None
+        )
+        
+        if area_def and "dimension_ids" in area_def:
+            expected_dimension_ids = set(area_def["dimension_ids"])
+        else:
+            # Fallback to all global dimensions if not specified
+            expected_dimension_ids = set(d["dimension_id"] for d in self.dimensions)
+        
+        actual_dimension_ids = set(d.dimension_id for d in dimension_scores)
+        expected_count = len(expected_dimension_ids)
         actual_count = len(dimension_scores)
         
-        if actual_count != expected_count:
+        # Check for missing dimensions
+        missing_dims = expected_dimension_ids - actual_dimension_ids
+        if missing_dims:
             msg = (
                 f"Hermeticity violation for area {area_id}: "
-                f"expected {expected_count} dimensions, got {actual_count}"
+                f"missing dimensions {missing_dims}"
+            )
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise HermeticityValidationError(msg)
+            return False, msg
+        
+        # Check for unexpected dimensions
+        extra_dims = actual_dimension_ids - expected_dimension_ids
+        if extra_dims:
+            msg = (
+                f"Hermeticity violation for area {area_id}: "
+                f"unexpected dimensions {extra_dims}"
             )
             logger.error(msg)
             if self.abort_on_insufficient:
@@ -504,14 +551,15 @@ class AreaPolicyAggregator:
     def apply_rubric_thresholds(
         self,
         score: float,
-        thresholds: Optional[List[Dict[str, Any]]] = None
+        thresholds: Optional[Dict[str, float]] = None
     ) -> str:
         """
         Apply area-level rubric thresholds.
         
         Args:
             score: Aggregated score (0-3 range)
-            thresholds: Optional threshold definitions
+            thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
+                       Each value should be a normalized threshold (0-1 range)
             
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
@@ -522,12 +570,22 @@ class AreaPolicyAggregator:
         # Normalize to 0-1 range
         normalized_score = clamped_score / 3.0
         
-        # Apply standard thresholds
-        if normalized_score >= 0.85:
+        # Use provided thresholds or defaults
+        if thresholds:
+            excellent_threshold = thresholds.get('EXCELENTE', 0.85)
+            good_threshold = thresholds.get('BUENO', 0.70)
+            acceptable_threshold = thresholds.get('ACEPTABLE', 0.55)
+        else:
+            excellent_threshold = 0.85
+            good_threshold = 0.70
+            acceptable_threshold = 0.55
+        
+        # Apply thresholds
+        if normalized_score >= excellent_threshold:
             quality = "EXCELENTE"
-        elif normalized_score >= 0.70:
+        elif normalized_score >= good_threshold:
             quality = "BUENO"
-        elif normalized_score >= 0.55:
+        elif normalized_score >= acceptable_threshold:
             quality = "ACEPTABLE"
         else:
             quality = "INSUFICIENTE"
@@ -700,6 +758,17 @@ class ClusterAggregator:
         expected_areas = cluster_def.get("policy_area_ids", [])
         actual_areas = [a.area_id for a in area_scores]
         
+        # Check for duplicate areas
+        if len(actual_areas) != len(set(actual_areas)):
+            msg = (
+                f"Cluster hermeticity violation: "
+                f"duplicate areas found for cluster {cluster_def['cluster_id']}"
+            )
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise HermeticityValidationError(msg)
+            return False, msg
+        
         # Check that all expected areas are present
         missing_areas = set(expected_areas) - set(actual_areas)
         if missing_areas:
@@ -741,12 +810,25 @@ class ClusterAggregator:
             
         Returns:
             Weighted average score
+            
+        Raises:
+            WeightValidationError: If weights validation fails
         """
         scores = [a.score for a in area_scores]
         
         if weights is None:
             # Equal weights
             weights = [1.0 / len(scores)] * len(scores)
+        
+        # Validate weights length matches scores length
+        if len(weights) != len(scores):
+            msg = (
+                f"Cluster weight length mismatch: "
+                f"{len(weights)} weights for {len(scores)} area scores"
+            )
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise WeightValidationError(msg)
         
         # Validate weights sum to 1.0
         weight_sum = sum(weights)
@@ -1061,14 +1143,15 @@ class MacroAggregator:
     def apply_rubric_thresholds(
         self,
         score: float,
-        thresholds: Optional[List[Dict[str, Any]]] = None
+        thresholds: Optional[Dict[str, float]] = None
     ) -> str:
         """
         Apply macro-level rubric thresholds.
         
         Args:
             score: Aggregated macro score (0-3 range)
-            thresholds: Optional threshold definitions
+            thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
+                       Each value should be a normalized threshold (0-1 range)
             
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
@@ -1079,8 +1162,32 @@ class MacroAggregator:
         # Normalize to 0-1 range
         normalized_score = clamped_score / 3.0
         
-        # Apply standard thresholds
-        if normalized_score >= 0.85:
+        # Use provided thresholds or defaults
+        if thresholds:
+            excellent_threshold = thresholds.get('EXCELENTE', 0.85)
+            good_threshold = thresholds.get('BUENO', 0.70)
+            acceptable_threshold = thresholds.get('ACEPTABLE', 0.55)
+        else:
+            excellent_threshold = 0.85
+            good_threshold = 0.70
+            acceptable_threshold = 0.55
+        
+        # Apply thresholds
+        if normalized_score >= excellent_threshold:
+            quality = "EXCELENTE"
+        elif normalized_score >= good_threshold:
+            quality = "BUENO"
+        elif normalized_score >= acceptable_threshold:
+            quality = "ACEPTABLE"
+        else:
+            quality = "INSUFICIENTE"
+        
+        logger.debug(
+            f"Macro rubric applied: score={score:.4f}, "
+            f"normalized={normalized_score:.4f}, quality={quality}"
+        )
+        
+        return quality
             quality = "EXCELENTE"
         elif normalized_score >= 0.70:
             quality = "BUENO"
