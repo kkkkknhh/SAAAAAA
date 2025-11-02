@@ -891,7 +891,7 @@ class MethodExecutor:
         arg_router: Optional[ArgRouter] = None,
     ) -> None:
         self._class_registry: Dict[str, type] = dict(class_registry or _CLASS_REGISTRY)
-        self._arg_router = arg_router or ArgRouter(self._class_registry)
+        self._arg_router = arg_router or ArgRouter()
         self._instances: Dict[str, Any] = {}
         self._lock = RLock()
         self._payload_monitor = PayloadDriftMonitor()
