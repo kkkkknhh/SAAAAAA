@@ -1,5 +1,8 @@
 name: data-contracts
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
@@ -8,6 +11,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -15,12 +19,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+          cache: 'pip'
 
       - name: Install requirements
         run: |
           python -m pip install --upgrade pip
-          python -m pip install jsonschema
+          python -m pip install jsonschema pyyaml
+
+      - name: Validate execution_mapping.yaml
+        run: python tools/validate_execution_mapping.py
 
       - name: Schema validation
         run: python schema_validator.py

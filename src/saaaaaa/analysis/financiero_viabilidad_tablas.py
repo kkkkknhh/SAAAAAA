@@ -2242,6 +2242,135 @@ class PDETMunicipalPlanAnalyzer:
             'evidence': quality.evidence
         }
 
+    def _find_product_mentions(self, text: str) -> List[str]:
+        """
+        Find mentions of products in text.
+        
+        Args:
+            text: Text to search
+            
+        Returns:
+            List of product mentions
+        """
+        products = []
+        
+        # Common product keywords
+        product_patterns = [
+            r'producto\s+(\d+)',
+            r'servicio\s+(\d+)',
+            r'bien\s+(\d+)',
+            r'actividad\s+(\d+)',
+        ]
+        
+        for pattern in product_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                products.append(match.group(0))
+        
+        # Also look for numbered lists that might be products
+        list_pattern = r'^\s*\d+\.\s+([^\n]+)'
+        for match in re.finditer(list_pattern, text, re.MULTILINE):
+            item_text = match.group(1).lower()
+            if any(word in item_text for word in ['producto', 'servicio', 'actividad', 'bien']):
+                products.append(match.group(1))
+        
+        return products
+
+    def _generate_optimal_remediations(self, gaps: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """
+        Generate optimal remediations for identified gaps.
+        
+        Args:
+            gaps: List of identified gaps
+            
+        Returns:
+            List of remediation recommendations
+        """
+        remediations = []
+        
+        for gap in gaps:
+            remediation = {
+                'gap_type': gap.get('type', 'unknown'),
+                'priority': 'high' if gap.get('severity') == 'high' else 'medium',
+                'recommendation': ''
+            }
+            
+            gap_type = gap.get('type', '')
+            
+            if gap_type == 'missing_baseline':
+                remediation['recommendation'] = "Establecer línea base cuantitativa basada en diagnóstico actual"
+            elif gap_type == 'missing_target':
+                remediation['recommendation'] = "Definir meta cuantitativa con horizonte temporal claro"
+            elif gap_type == 'missing_entity':
+                remediation['recommendation'] = "Asignar entidad responsable específica"
+            elif gap_type == 'missing_budget':
+                remediation['recommendation'] = "Asignar presupuesto específico con fuente de financiación"
+            elif gap_type == 'missing_indicator':
+                remediation['recommendation'] = "Definir indicador medible con fórmula de cálculo"
+            else:
+                remediation['recommendation'] = f"Completar {gap_type} según estándares DNP"
+            
+            remediations.append(remediation)
+        
+        return remediations
+
+    def generate_recommendations(self, analysis_results: Dict[str, Any]) -> List[str]:
+        """
+        Generate recommendations based on analysis results.
+        
+        Args:
+            analysis_results: Results from municipal plan analysis
+            
+        Returns:
+            List of actionable recommendations
+        """
+        recommendations = []
+        
+        # Check financial feasibility
+        if analysis_results.get('financial_feasibility', 0) < 0.7:
+            recommendations.append(
+                "Revisar sostenibilidad financiera y diversificar fuentes de financiación"
+            )
+        
+        # Check indicator quality
+        if analysis_results.get('indicator_quality', 0) < 0.7:
+            recommendations.append(
+                "Mejorar calidad de indicadores: asegurar línea base, meta y fuente de información"
+            )
+        
+        # Check responsibility clarity
+        if analysis_results.get('responsibility_clarity', 0) < 0.7:
+            recommendations.append(
+                "Clarificar entidades responsables para cada producto y resultado"
+            )
+        
+        # Check temporal consistency
+        if analysis_results.get('temporal_consistency', 0) < 0.7:
+            recommendations.append(
+                "Establecer cronograma claro con hitos y plazos definidos"
+            )
+        
+        # Check causal coherence
+        if analysis_results.get('causal_coherence', 0) < 0.7:
+            recommendations.append(
+                "Fortalecer coherencia causal: vincular productos con resultados e impactos"
+            )
+        
+        # PDET-specific recommendations
+        if analysis_results.get('is_pdet_municipality', False):
+            if analysis_results.get('pdet_alignment', 0) < 0.7:
+                recommendations.append(
+                    "Alinear intervenciones con lineamientos PDET y enfoque territorial"
+                )
+        
+        # Generic recommendation if no specific issues
+        if not recommendations:
+            recommendations.append(
+                "El plan cumple con estándares mínimos. Considerar monitoreo continuo."
+            )
+        
+        return recommendations
+
 
 # ============================================================================
 # UTILIDADES Y HELPERS

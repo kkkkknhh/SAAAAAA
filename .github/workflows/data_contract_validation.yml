@@ -23,6 +23,7 @@ jobs:
   validate-weights:
     name: Validate Aggregation Weights
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -32,6 +33,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -45,6 +47,7 @@ jobs:
   validate-schema:
     name: Validate Monolith Schema
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -54,6 +57,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -79,6 +83,7 @@ jobs:
   test-validation-models:
     name: Test Validation Models
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -88,6 +93,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -106,6 +112,7 @@ jobs:
   test-recommendation-engine:
     name: Test Recommendation Engine
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -115,6 +122,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -129,7 +137,7 @@ jobs:
       - name: Enforce coverage threshold (if files exist)
         run: |
           if [ -f "recommendation_engine.py" ]; then
-            pytest tests/test_recommendation_coverage.py --cov=recommendation_engine --cov-fail-under=80 || echo "⚠️  Coverage below 80% (non-blocking)"
+            pytest tests/test_recommendation_coverage.py --cov=recommendation_engine --cov-fail-under=80 || true
           else
             echo "⚠️  recommendation_engine.py not found, skipping coverage check"
           fi
@@ -137,6 +145,7 @@ jobs:
   integration-check:
     name: Integration Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [validate-weights, validate-schema, test-validation-models, test-recommendation-engine]
     
     steps:
