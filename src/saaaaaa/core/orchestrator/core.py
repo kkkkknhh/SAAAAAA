@@ -1566,9 +1566,8 @@ class Orchestrator:
         macro_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
 
         instrumentation.increment(latency=time.perf_counter() - start)
-        macro_score_normalized = (
-            macro_score / 3.0 if macro_score is not None else None
-        )
+        # macro_score is already normalized to 0-1 range from averaging cluster scores
+        macro_score_normalized = macro_score
 
         return {
             "macro_score": macro_score,
@@ -1654,11 +1653,13 @@ class Orchestrator:
                 areas = cluster.get('areas', [])
 
                 if cluster_id and cluster_score is not None:
-                    normalized_cluster_score = cluster_score / 3.0
+                    # cluster_score is already normalized to 0-1 range from aggregation
+                    normalized_cluster_score = cluster_score
 
                     # Calculate variance across areas in this cluster using normalized scores
+                    # area scores are already normalized to 0-1 range from aggregation
                     valid_area_scores = [
-                        (area, area.get('score') / 3.0)
+                        (area, area.get('score'))
                         for area in areas
                         if area.get('score') is not None
                     ]
@@ -1691,8 +1692,9 @@ class Orchestrator:
             macro_score = macro_result.get('macro_score')
             macro_score_normalized = macro_result.get('macro_score_normalized')
 
+            # macro_score is already normalized to 0-1 range
             if macro_score is not None and macro_score_normalized is None:
-                macro_score_normalized = macro_score / 3.0
+                macro_score_normalized = macro_score
 
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
@@ -1706,16 +1708,18 @@ class Orchestrator:
                     macro_band = 'DEFICIENTE'
 
             # Find clusters below target (< 55%)
+            # cluster scores are already normalized to 0-1 range
             clusters_below_target = []
             for cluster in cluster_scores:
                 cluster_id = cluster.get('cluster_id')
                 cluster_score = cluster.get('score', 0)
-                if cluster_score is not None and (cluster_score / 3.0) * 100 < 55:
+                if cluster_score is not None and cluster_score * 100 < 55:
                     clusters_below_target.append(cluster_id)
 
             # Calculate overall variance
+            # cluster scores are already normalized to 0-1 range
             normalized_cluster_scores = [
-                c.get('score') / 3.0
+                c.get('score')
                 for c in cluster_scores
                 if c.get('score') is not None
             ]
