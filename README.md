@@ -147,11 +147,11 @@ pip install -r requirements.txt
 python -m spacy download es_core_news_lg
 python -m spacy download es_dep_news_trf
 
-# 3. Verify installation
-python scripts/verify_dependencies.py
-
-# 4. Install in development mode (optional)
+# 3. Install the package in development mode (required)
 pip install -e .
+
+# 4. Verify installation
+python scripts/verify_dependencies.py
 ```
 
 **📖 For detailed setup information, see:**

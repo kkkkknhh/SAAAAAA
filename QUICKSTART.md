@@ -34,7 +34,7 @@ python -m spacy download es_dep_news_trf
 # 4. Copy environment template
 cp .env.example .env
 
-# 5. Install in editable mode
+# 5. Install the package in editable mode (required)
 pip install -e .
 
 # 6. Verify setup
