@@ -38,6 +38,7 @@ from ..contracts import (
 )
 
 from .core import MethodExecutor
+from . import get_questionnaire_provider
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,60 @@ def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
         )
 
     return payload
+
+
+def load_catalog(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load method catalog JSON file.
+    
+    Args:
+        path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+        
+    Returns:
+        Loaded catalog data
+    """
+    if path is None:
+        path = Path("rules/METODOS/metodos_completos_nivel3.json")
+    
+    logger.info(f"Loading catalog from {path}")
+    
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def load_method_map(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load method-class mapping JSON file.
+    
+    Args:
+        path: Path to method map file. Defaults to COMPLETE_METHOD_CLASS_MAP.json
+        
+    Returns:
+        Loaded method map data
+    """
+    if path is None:
+        path = Path("COMPLETE_METHOD_CLASS_MAP.json")
+    
+    logger.info(f"Loading method map from {path}")
+    
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def load_schema(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load questionnaire schema JSON file.
+    
+    Args:
+        path: Path to schema file. Defaults to schemas/questionnaire.schema.json
+        
+    Returns:
+        Loaded schema data
+    """
+    if path is None:
+        path = Path("schemas/questionnaire.schema.json")
+    
+    logger.info(f"Loading schema from {path}")
+    
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 def load_document(file_path: Path) -> DocumentData:
@@ -367,6 +422,8 @@ class CoreModuleFactory:
         if self.questionnaire_cache is None:
             questionnaire_path = self.data_dir / "questionnaire_monolith.json"
             self.questionnaire_cache = load_questionnaire_monolith(questionnaire_path)
+            # Also set it in the global provider for backward compatibility
+            get_questionnaire_provider().set_data(self.questionnaire_cache)
         return self.questionnaire_cache
     
     def load_document(self, file_path: Path) -> DocumentData:
@@ -427,6 +484,8 @@ def build_processor(
     if questionnaire_path is not None:
         questionnaire_data = load_questionnaire_monolith(questionnaire_path)
         core_factory.questionnaire_cache = copy.deepcopy(questionnaire_data)
+        # Initialize the global provider with this data
+        get_questionnaire_provider().set_data(questionnaire_data)
     else:
         questionnaire_data = core_factory.get_questionnaire()
 
@@ -474,6 +533,9 @@ __all__ = [
     'CoreModuleFactory',
     'ProcessorBundle',
     'load_questionnaire_monolith',
+    'load_catalog',
+    'load_method_map',
+    'load_schema',
     'load_document',
     'save_results',
     'construct_semantic_analyzer_input',
