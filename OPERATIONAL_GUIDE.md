@@ -6,12 +6,16 @@
 2. [System Requirements](#system-requirements)
 3. [Installation & Setup](#installation--setup)
 4. [System Activation](#system-activation)
-5. [Development Plan Analysis](#development-plan-analysis)
-6. [Running the Full Pipeline](#running-the-full-pipeline)
-7. [Verification & Testing](#verification--testing)
-8. [Common Operations](#common-operations)
-9. [Troubleshooting](#troubleshooting)
-10. [Advanced Usage](#advanced-usage)
+5. [Import Conflict Resolution](#import-conflict-resolution)
+6. [Development Plan Analysis](#development-plan-analysis)
+7. [Running the Full Pipeline](#running-the-full-pipeline)
+8. [Component Execution Commands](#component-execution-commands)
+9. [Verification & Testing](#verification--testing)
+10. [Test Classification & Selection](#test-classification--selection)
+11. [Common Operations](#common-operations)
+12. [Troubleshooting](#troubleshooting)
+13. [Advanced Usage](#advanced-usage)
+14. [Command Reference](#command-reference)
 
 ---
 
@@ -96,12 +100,14 @@ venv\Scripts\activate
 #### Step 3: Install Python Dependencies
 
 ```bash
-# Install all required packages with pinned versions
+# Install all required packages with pinned versions (RECOMMENDED)
 pip install -r requirements.txt
 
 # Or with constraints for stricter version control
 pip install -r requirements.txt -c constraints.txt
 ```
+
+**Note**: The project has 82+ dependencies defined in `requirements.txt`. While `pyproject.toml` exists for packaging metadata, **always use `requirements.txt` for installation** to ensure all dependencies are installed with correct versions.
 
 #### Step 4: Install SpaCy Language Models
 
@@ -228,6 +234,140 @@ Run this comprehensive check:
 python3 scripts/validate_system.py
 
 # Expected output: All system components validated ✓
+```
+
+---
+
+## Import Conflict Resolution
+
+### Common Import Issues and Solutions
+
+The SAAAAAA system has undergone repository reorganization. All core code now lives in `src/saaaaaa/` but backward compatibility shims exist at the root level.
+
+#### Understanding the Import Structure
+
+**New Structure (Preferred)**:
+```python
+# Core orchestration
+from saaaaaa.core.orchestrator import Orchestrator, MethodExecutor
+from saaaaaa.core.orchestrator.ORCHESTRATOR_MONILITH import OrchestrationEngine
+
+# Analysis modules (7 producers)
+from saaaaaa.analysis.financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
+from saaaaaa.analysis.Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer
+from saaaaaa.analysis.contradiction_deteccion import PolicyContradictionDetector
+from saaaaaa.analysis.embedding_policy import BayesianNumericalAnalyzer
+from saaaaaa.analysis.teoria_cambio import TeoriaCambio, AdvancedDAGValidator
+from saaaaaa.analysis.dereck_beach import CDAFFramework, BeachEvidentialTest
+from saaaaaa.analysis.bayesian_multilevel_system import BayesianMultilevelScorer
+
+# Processing modules
+from saaaaaa.processing.document_ingestion import DocumentIngestionEngine
+from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
+from saaaaaa.processing.embedding_policy import PolicyAnalysisEmbedder
+
+# Utilities
+from saaaaaa.utils.contracts import ProducerContract, ScoringModality
+from saaaaaa.utils.validation.schema_validator import SchemaValidator
+```
+
+**Legacy Structure (Backward Compatible)**:
+```python
+# Still works via compatibility shims
+from orchestrator.core import Orchestrator
+from concurrency import TaskExecutor
+```
+
+#### Resolving Import Conflicts
+
+##### Issue 1: ModuleNotFoundError for Internal Modules
+
+**Problem**: `ModuleNotFoundError: No module named 'recommendation_engine'`
+
+**Cause**: Root-level modules not being found after reorganization
+
+**Solution**:
+```bash
+# Option 1: Install package in development mode (recommended)
+pip install -e .
+
+# Option 2: Update imports to use new structure
+python3 scripts/update_imports.py src/ tests/ examples/
+
+# Option 3: Add PYTHONPATH temporarily
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/src"
+```
+
+##### Issue 2: Circular Import Dependencies
+
+**Problem**: Circular imports between orchestrator and producer modules
+
+**Cause**: Direct imports creating dependency cycles
+
+**Solution**:
+```python
+# Use TYPE_CHECKING to avoid runtime circular imports
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from saaaaaa.analysis.teoria_cambio import TeoriaCambio
+else:
+    TeoriaCambio = None  # type: ignore
+
+# Or use lazy imports
+def get_teoria_cambio():
+    from saaaaaa.analysis.teoria_cambio import TeoriaCambio
+    return TeoriaCambio
+```
+
+##### Issue 3: Missing SpaCy Language Models
+
+**Problem**: `OSError: [E050] Can't find model 'es_core_news_lg'`
+
+**Cause**: SpaCy language models not downloaded
+
+**Solution**:
+```bash
+# Download Spanish language models
+python3 -m spacy download es_core_news_lg
+python3 -m spacy download es_dep_news_trf
+
+# Verify installation
+python3 -c "import spacy; nlp = spacy.load('es_core_news_lg'); print('✓ Models loaded')"
+```
+
+##### Issue 4: Import Linting Violations
+
+**Problem**: `lint-imports` reports boundary violations
+
+**Cause**: Imports crossing architectural boundaries
+
+**Solution**:
+```bash
+# Check import boundaries
+lint-imports --config contracts/importlinter.ini
+
+# Fix violations by updating import paths
+# Example: core/ should not import from orchestrator/
+# Instead, both should import from src/saaaaaa/core/
+```
+
+### Import Best Practices
+
+1. **Always use `src/saaaaaa/` imports** for new code
+2. **Install in development mode**: `pip install -e .`
+3. **Check imports before committing**: `python3 scripts/validate_imports.py`
+4. **Avoid circular dependencies**: Use TYPE_CHECKING or lazy imports
+5. **Update legacy imports**: `python3 scripts/update_imports.py <directory>`
+
+### Verifying Import Health
+
+```bash
+# Complete import verification sequence
+python3 -m compileall -q src/saaaaaa
+python3 scripts/validate_imports.py
+lint-imports --config contracts/importlinter.ini
+python3 -c "from saaaaaa.core.orchestrator import Orchestrator; print('✓ Imports OK')"
 ```
 
 ---
@@ -470,6 +610,298 @@ data/results/YYYYMMDD_HHMMSS/
 
 ---
 
+## Component Execution Commands
+
+### Individual Producer Execution
+
+Execute individual producer modules for targeted analysis or debugging:
+
+#### Producer 1: Financial Viability & Causal DAG
+```bash
+# Standalone execution
+python3 -m saaaaaa.analysis.financiero_viabilidad_tablas \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_1_financial.json \
+  --verbose
+
+# With specific analysis modes
+python3 -m saaaaaa.analysis.financiero_viabilidad_tablas \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_1_financial.json \
+  --mode financial_audit \
+  --enable-dag-analysis
+```
+
+**Key Methods**: `analyze_financial_feasibility`, `trace_financial_allocation`, `build_causal_dag`
+
+#### Producer 2: Semantic Cube & Value Chain
+```bash
+# Semantic analysis
+python3 -m saaaaaa.analysis.Analyzer_one \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_2_semantic.json \
+  --enable-value-chain
+
+# With ontology mapping
+python3 -m saaaaaa.analysis.Analyzer_one \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_2_semantic.json \
+  --use-municipal-ontology
+```
+
+**Key Methods**: `build_semantic_cube`, `analyze_value_chain`, `extract_semantic_relations`
+
+#### Producer 3: Contradictions & Coherence
+```bash
+# Contradiction detection
+python3 -m saaaaaa.analysis.contradiction_deteccion \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_3_contradictions.json \
+  --coherence-threshold 0.85
+
+# With temporal logic verification
+python3 -m saaaaaa.analysis.contradiction_deteccion \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_3_contradictions.json \
+  --enable-temporal-logic
+```
+
+**Key Methods**: `detect_contradictions`, `verify_temporal_coherence`, `calculate_coherence_score`
+
+#### Producer 4: Semantic Search & Bayesian Embedding
+```bash
+# Embedding-based analysis
+python3 -m saaaaaa.processing.embedding_policy \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_4_embedding.json \
+  --model sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+
+# With Bayesian scoring
+python3 -m saaaaaa.processing.embedding_policy \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_4_embedding.json \
+  --enable-bayesian-scoring \
+  --confidence-level 0.95
+```
+
+**Key Methods**: `compute_embeddings`, `semantic_search`, `bayesian_evidence_score`
+
+#### Producer 5: Theory of Change & DAG Validation
+```bash
+# ToC construction
+python3 -m saaaaaa.analysis.teoria_cambio \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_5_toc.json \
+  --validate-dag
+
+# With Monte Carlo simulation
+python3 -m saaaaaa.analysis.teoria_cambio \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_5_toc.json \
+  --monte-carlo-runs 10000 \
+  --simulate-interventions
+```
+
+**Key Methods**: `construir_grafo_causal`, `validacion_completa`, `monte_carlo_simulation`
+
+#### Producer 6: Beach Evidential Tests
+```bash
+# Beach test execution
+python3 -m saaaaaa.analysis.dereck_beach \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_6_beach.json \
+  --test-types straw_in_the_wind,hoop,smoking_gun,doubly_decisive
+
+# With mechanism inference
+python3 -m saaaaaa.analysis.dereck_beach \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_6_beach.json \
+  --infer-mechanisms \
+  --bayesian-updating
+```
+
+**Key Methods**: `apply_beach_tests`, `infer_causal_mechanisms`, `assess_test_strength`
+
+#### Producer 7: Pattern Matching & Evidence Processing
+```bash
+# Pattern-based analysis
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_7_patterns.json \
+  --mode evidence \
+  --extract-baseline-data
+
+# With advanced pattern matching
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_7_patterns.json \
+  --pattern-library config/patterns.json \
+  --fuzzy-matching
+```
+
+**Key Methods**: `match_patterns_in_sentences`, `extract_evidence`, `formalize_baseline_data`
+
+### Core System Components
+
+#### Document Ingestion
+```bash
+# PDF ingestion
+python3 -m saaaaaa.processing.document_ingestion \
+  --input data/input_plans/plan.pdf \
+  --output data/processed/document_parsed.json \
+  --extract-tables \
+  --detect-language
+
+# Multiple document formats
+python3 -m saaaaaa.processing.document_ingestion \
+  --input data/input_plans/ \
+  --output data/processed/batch_ingestion.json \
+  --formats pdf,txt,docx \
+  --parallel
+```
+
+#### Policy Processing
+```bash
+# Basic processing
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/document_parsed.json \
+  --output data/processed/policy_analysis.json
+
+# Advanced processing with all features
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/document_parsed.json \
+  --output data/processed/policy_analysis.json \
+  --enable-semantic-chunking \
+  --extract-metadata \
+  --validate-structure
+```
+
+#### Aggregation
+```bash
+# Standard aggregation
+python3 -m saaaaaa.processing.aggregation \
+  --producer-dir data/producers \
+  --output data/aggregated/report_assembly.json
+
+# With triangulation settings
+python3 -m saaaaaa.processing.aggregation \
+  --producer-dir data/producers \
+  --output data/aggregated/report_assembly.json \
+  --min-sources 3 \
+  --confidence-threshold 0.90 \
+  --enable-cross-validation
+```
+
+#### Report Generation
+```bash
+# Generate all report levels
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output-dir data/reports \
+  --levels micro,meso,macro
+
+# Generate specific level with options
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output data/reports/micro_detailed.json \
+  --level micro \
+  --word-count 250 \
+  --include-citations \
+  --format json,pdf
+```
+
+### Parallel Execution of Producers
+
+```bash
+# Execute all producers in parallel (recommended)
+bash scripts/run_all_producers.sh \
+  --input data/processed/policy_analysis.json \
+  --output-dir data/producers \
+  --parallel \
+  --workers 7
+
+# Execute specific producers
+bash scripts/run_all_producers.sh \
+  --input data/processed/policy_analysis.json \
+  --output-dir data/producers \
+  --producers 1,2,3,4 \
+  --parallel
+```
+
+### Orchestrator Modes
+
+```bash
+# Full orchestration (all steps)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/plan.pdf \
+  --output-dir data/results \
+  --mode full \
+  --parallel
+
+# Partial orchestration (specific phases)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/processed/policy_analysis.json \
+  --output-dir data/results \
+  --mode producers_only \
+  --parallel
+
+# Debug mode (verbose logging)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/plan.pdf \
+  --output-dir data/results \
+  --mode full \
+  --debug \
+  --log-level DEBUG \
+  --save-intermediates
+```
+
+### Utility Scripts
+
+#### Validation Scripts
+```bash
+# Validate entire system
+python3 scripts/validate_system.py
+
+# Validate specific components
+python3 scripts/validate_d1_orchestration.py        # Orchestration layer
+python3 scripts/validate_d2_concurrence.py          # Concurrency module
+python3 scripts/validate_strategic_wiring.py        # Method wiring
+python3 scripts/validate_registry.py                # Class registry
+python3 scripts/validate_schema.py                  # Data schemas
+python3 scripts/validate_imports.py                 # Import structure
+
+# Validate monolith integrity
+python3 scripts/validate_monolith.py
+```
+
+#### Build and Generate Scripts
+```bash
+# Build monolith
+python3 scripts/build_monolith.py --output data/monolith.json
+
+# Generate inventory
+python3 scripts/generate_inventory.py --output config/inventory.json
+
+# Generate all reports
+bash scripts/generate_all_reports.sh \
+  --input data/aggregated/report_assembly.json \
+  --output-dir data/reports
+```
+
+#### Recommendation Engine
+```bash
+# Generate recommendations CLI
+python3 scripts/recommendation_cli.py \
+  --analysis data/reports/macro_report.json \
+  --level MACRO \
+  --output data/recommendations.json
+
+# Interactive mode
+python3 scripts/recommendation_cli.py --interactive
+```
+
+---
+
 ## Verification & Testing
 
 ### Pre-Execution Verification
@@ -584,6 +1016,297 @@ python tools/import_all.py
 pytest -q -ra
 coverage run -m pytest
 coverage report -m
+```
+
+---
+
+## Test Classification & Selection
+
+### Test Suite Organization
+
+The SAAAAAA test suite contains 40+ test files organized by category and purpose. Understanding which tests to run is critical for efficient development and debugging.
+
+### Test Categories
+
+#### 1. Core/Orchestrator Tests (Critical - Always Run Before Deployment)
+
+**Purpose**: Validate the orchestration engine and core execution flow
+
+```bash
+# Golden path tests (MUST PASS)
+pytest tests/test_orchestrator_golden.py -v
+
+# Smoke tests (MUST PASS)
+pytest tests/test_smoke_orchestrator.py -v
+
+# Integration tests
+pytest tests/test_orchestrator_integration.py -v
+
+# Fix validation tests
+pytest tests/test_orchestrator_fixes.py -v
+```
+
+**When to Run**:
+- Before every commit to orchestrator code
+- Before deployments
+- After import structure changes
+- Daily in CI/CD
+
+**Expected Behavior**: All tests should PASS. These verify core system functionality.
+
+#### 2. Integration Tests (Run After Component Changes)
+
+**Purpose**: Validate multi-component interactions and end-to-end flows
+
+```bash
+# Gold standard integration tests
+pytest tests/test_gold_canario_integration.py -v
+
+# Macro reporting integration
+pytest tests/test_gold_canario_macro_reporting.py -v
+
+# Meso reporting integration
+pytest tests/test_gold_canario_meso_reporting.py -v
+
+# Micro analysis tests
+pytest tests/test_gold_canario_micro_bayesian.py -v
+pytest tests/test_gold_canario_micro_provenance.py -v
+pytest tests/test_gold_canario_micro_stress.py -v
+
+# Known failure tests (document integration issues)
+pytest tests/test_integration_failures.py -v --continue-on-collection-errors
+```
+
+**When to Run**:
+- After changes to any producer module
+- After aggregation logic changes
+- Before major releases
+- Weekly in integration testing
+
+**Expected Behavior**: Gold standard tests should PASS. Known failure tests may have expected failures documented.
+
+#### 3. Contract & Validation Tests (Run Before Commits)
+
+**Purpose**: Ensure data contracts, type signatures, and schemas are correct
+
+```bash
+# Comprehensive contract tests (PRIORITY)
+pytest tests/test_contracts_comprehensive.py -v
+
+# Runtime contract validation
+pytest tests/test_contract_runtime.py -v
+
+# Schema validation
+pytest tests/test_schema_validation.py -v
+
+# Signature validation
+pytest tests/test_signature_validation.py -v
+
+# Defensive signatures
+pytest tests/test_defensive_signatures.py -v
+
+# Aggregation validation
+pytest tests/test_aggregation_validation.py -v
+
+# Embedding policy contracts
+pytest tests/test_embedding_policy_contracts.py -v
+
+# Contract snapshots
+pytest tests/test_contract_snapshots.py -v
+```
+
+**When to Run**:
+- Before every commit
+- After changing function signatures
+- After modifying data schemas
+- After adding new producers
+
+**Expected Behavior**: All should PASS. Contract violations indicate breaking changes.
+
+#### 4. Property-Based & Fuzzing Tests (Run Nightly)
+
+**Purpose**: Discover edge cases through randomized testing
+
+```bash
+# Property-based testing with Hypothesis
+pytest tests/test_property_based.py -v --hypothesis-seed=random
+
+# With specific seed for reproducibility
+pytest tests/test_property_based.py -v --hypothesis-seed=12345
+```
+
+**When to Run**:
+- Nightly automated runs
+- Before major releases
+- When investigating mysterious bugs
+
+**Expected Behavior**: Should discover and report any edge cases.
+
+#### 5. Operational Tests (Run in Staging/Production)
+
+**Purpose**: Validate system behavior under operational conditions
+
+```bash
+# Boot checks
+pytest tests/operational/test_boot_checks.py -v
+
+# Synthetic traffic tests
+pytest tests/operational/test_synthetic_traffic.py -v
+```
+
+**When to Run**:
+- During deployment validation
+- In staging environments
+- For production readiness checks
+
+#### 6. Component-Specific Tests
+
+```bash
+# Concurrency module
+pytest tests/test_concurrency.py -v
+
+# Scoring module
+pytest tests/test_scoring.py -v
+
+# Aggregation
+pytest tests/test_aggregation.py -v
+
+# Boundaries
+pytest tests/test_boundaries.py -v
+
+# Infrastructure
+pytest tests/test_infrastructure.py -v
+```
+
+**When to Run**: After changes to specific components
+
+#### 7. Regression Tests (Run Always)
+
+```bash
+# Semantic chunking regression
+pytest tests/test_regression_semantic_chunking.py -v
+
+# Score normalization fix
+pytest tests/test_score_normalization_fix.py -v
+
+# Runtime error fixes
+pytest tests/test_runtime_error_fixes.py -v
+```
+
+**When to Run**:
+- Every test run
+- These prevent previously fixed bugs from returning
+
+### Recommended Test Sequences
+
+#### Quick Validation (Pre-Commit) - 2-5 minutes
+```bash
+# Essential tests before committing
+pytest tests/test_orchestrator_golden.py \
+       tests/test_smoke_orchestrator.py \
+       tests/test_contracts_comprehensive.py \
+       -v --tb=short
+```
+
+#### Standard Validation (Pre-Push) - 10-15 minutes
+```bash
+# Comprehensive validation before pushing
+pytest tests/test_orchestrator_*.py \
+       tests/test_contracts*.py \
+       tests/test_schema_validation.py \
+       tests/test_signature_validation.py \
+       -v
+```
+
+#### Full Validation (Pre-Release) - 30-60 minutes
+```bash
+# Complete test suite
+pytest tests/ -v --cov=src/saaaaaa --cov-report=html
+```
+
+#### Targeted Component Testing
+```bash
+# When working on specific producers
+pytest tests/ -k "financial" -v  # Financial module tests
+pytest tests/ -k "bayesian" -v   # Bayesian analysis tests
+pytest tests/ -k "beach" -v      # Beach evidential tests
+pytest tests/ -k "toc" -v        # Theory of Change tests
+```
+
+### Test Priority Matrix
+
+| Test Category | Priority | Frequency | Must Pass | Time |
+|---------------|----------|-----------|-----------|------|
+| Orchestrator Golden | **CRITICAL** | Every commit | ✅ YES | 1 min |
+| Smoke Tests | **CRITICAL** | Every commit | ✅ YES | 30 sec |
+| Contract Comprehensive | **HIGH** | Every commit | ✅ YES | 2 min |
+| Integration Gold | **HIGH** | Daily | ✅ YES | 5 min |
+| Signature Validation | **MEDIUM** | Before push | ✅ YES | 1 min |
+| Property-Based | **MEDIUM** | Nightly | ⚠️ Explore | 10 min |
+| Operational | **LOW** | Pre-deploy | ✅ YES | 2 min |
+
+### Test Selection Guide
+
+**Before Making Changes**:
+```bash
+# Establish baseline - these should all pass
+pytest tests/test_orchestrator_golden.py tests/test_smoke_orchestrator.py -v
+```
+
+**During Development**:
+```bash
+# Run relevant component tests frequently
+pytest tests/ -k "<your_component>" -v --tb=short
+```
+
+**Before Committing**:
+```bash
+# Quick validation
+pytest tests/test_orchestrator_golden.py \
+       tests/test_contracts_comprehensive.py \
+       tests/test_smoke_orchestrator.py -v
+```
+
+**Before Pushing**:
+```bash
+# Standard validation
+pytest tests/test_orchestrator*.py tests/test_contracts*.py -v
+```
+
+**Before Deploying**:
+```bash
+# Full validation
+pytest tests/ -v --cov=src/saaaaaa
+```
+
+### Handling Test Failures
+
+#### Expected Failures
+Some tests document known issues:
+- `test_integration_failures.py`: Documents integration challenges
+- Check test docstrings for expected failure conditions
+
+#### Debugging Failed Tests
+```bash
+# Run with verbose output and stop on first failure
+pytest tests/test_failing.py -vv -x
+
+# Run with debugger on failure
+pytest tests/test_failing.py --pdb
+
+# Run with maximum output
+pytest tests/test_failing.py -vv --tb=long --capture=no
+```
+
+### Test Data Location
+```
+tests/data/                          # Test data files
+  ├── test_questionnaire_and_rubric.py
+  └── sample_*.json
+examples/                            # Integration test data
+  ├── all_data_sample.json
+  ├── cluster_data_sample.json
+  └── macro_data_sample.json
 ```
 
 ---
@@ -924,6 +1647,367 @@ python3 scripts/run_distributed_producers.py \
 # Central server: Aggregation
 python3 scripts/run_distributed_aggregator.py \
   --redis-url redis://localhost:6379
+```
+
+---
+
+## Command Reference
+
+### Complete Command Index
+
+This comprehensive reference lists all key commands for the SAAAAAA system, organized by function.
+
+#### Installation & Setup Commands
+```bash
+# Initial setup
+git clone https://github.com/kkkkknhh/SAAAAAA.git
+cd SAAAAAA
+bash scripts/setup.sh
+
+# Manual setup
+pip install -r requirements.txt
+python3 -m spacy download es_core_news_lg
+python3 -m spacy download es_dep_news_trf
+pip install -e .
+
+# Verify installation
+python3 scripts/verify_dependencies.py
+python3 -c "from saaaaaa.core.orchestrator import Orchestrator; print('✓ OK')"
+```
+
+#### System Validation Commands
+```bash
+# Quick validation
+python3 scripts/validate_system.py
+
+# Component validation
+python3 scripts/validate_imports.py
+python3 scripts/validate_registry.py
+python3 scripts/validate_schema.py
+python3 scripts/validate_strategic_wiring.py
+python3 scripts/validate_d1_orchestration.py
+python3 scripts/validate_d2_concurrence.py
+
+# Contract validation
+bash scripts/validate_contracts_local.sh
+python3 scripts/signature_ci_check.py
+
+# Complete validation sequence
+python3 -m compileall -q src/saaaaaa
+lint-imports --config contracts/importlinter.ini
+ruff check .
+mypy src/saaaaaa --strict
+pycycle src/saaaaaa
+pytest -q -ra
+coverage run -m pytest && coverage report -m
+```
+
+#### Orchestrator Execution Commands
+```bash
+# Full pipeline (recommended)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/plan.pdf \
+  --output-dir data/results \
+  --mode full \
+  --parallel
+
+# Debug mode
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/plan.pdf \
+  --output-dir data/results \
+  --mode full \
+  --debug \
+  --log-level DEBUG
+
+# Producers only
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/processed/policy_analysis.json \
+  --output-dir data/results \
+  --mode producers_only \
+  --parallel
+```
+
+#### Individual Producer Commands
+```bash
+# Producer 1: Financial & DAG
+python3 -m saaaaaa.analysis.financiero_viabilidad_tablas \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_1.json
+
+# Producer 2: Semantic Analysis
+python3 -m saaaaaa.analysis.Analyzer_one \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_2.json
+
+# Producer 3: Contradictions
+python3 -m saaaaaa.analysis.contradiction_deteccion \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_3.json
+
+# Producer 4: Embeddings
+python3 -m saaaaaa.processing.embedding_policy \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_4.json
+
+# Producer 5: Theory of Change
+python3 -m saaaaaa.analysis.teoria_cambio \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_5.json
+
+# Producer 6: Beach Tests
+python3 -m saaaaaa.analysis.dereck_beach \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_6.json
+
+# Producer 7: Pattern Matching
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/policy_analysis.json \
+  --output data/producers/producer_7.json \
+  --mode evidence
+```
+
+#### Processing Commands
+```bash
+# Document ingestion
+python3 -m saaaaaa.processing.document_ingestion \
+  --input data/input_plans/plan.pdf \
+  --output data/processed/document_parsed.json
+
+# Policy processing
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/document_parsed.json \
+  --output data/processed/policy_analysis.json
+
+# Aggregation
+python3 -m saaaaaa.processing.aggregation \
+  --producer-dir data/producers \
+  --output data/aggregated/report_assembly.json
+```
+
+#### Report Generation Commands
+```bash
+# All report levels
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output-dir data/reports \
+  --levels micro,meso,macro
+
+# MICRO level (300 questions)
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output data/reports/micro_report.json \
+  --level micro
+
+# MESO level (60 clusters)
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output data/reports/meso_report.json \
+  --level meso
+
+# MACRO level (overall)
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/report_assembly.json \
+  --output data/reports/macro_report.json \
+  --level macro
+```
+
+#### Testing Commands
+```bash
+# Quick pre-commit tests
+pytest tests/test_orchestrator_golden.py \
+       tests/test_smoke_orchestrator.py \
+       tests/test_contracts_comprehensive.py -v
+
+# Standard pre-push tests
+pytest tests/test_orchestrator*.py \
+       tests/test_contracts*.py -v
+
+# Full test suite
+pytest tests/ -v --cov=src/saaaaaa --cov-report=html
+
+# Specific test categories
+pytest tests/test_gold_canario_*.py -v              # Integration tests
+pytest tests/test_contracts*.py -v                   # Contract tests
+pytest tests/operational/ -v                         # Operational tests
+pytest tests/test_property_based.py -v              # Property-based tests
+
+# With debugging
+pytest tests/test_name.py -vv --pdb
+pytest tests/test_name.py -vv --tb=long --capture=no
+```
+
+#### API & Dashboard Commands
+```bash
+# Start API server (development)
+python3 -m saaaaaa.api.api_server --dev
+
+# Start API server (production)
+gunicorn --worker-class gevent \
+  --workers 4 \
+  --bind 0.0.0.0:5000 \
+  saaaaaa.api.api_server:app
+
+# Start AtroZ dashboard
+bash atroz_quickstart.sh dev
+
+# Test API health
+curl http://localhost:5000/api/v1/health
+
+# Submit analysis via API
+curl -X POST http://localhost:5000/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"document_path": "data/input_plans/plan.pdf"}'
+```
+
+#### Utility & Helper Commands
+```bash
+# Update imports
+python3 scripts/update_imports.py src/ tests/ examples/
+
+# Generate inventory
+python3 scripts/generate_inventory.py --output config/inventory.json
+
+# Build monolith
+python3 scripts/build_monolith.py --output data/monolith.json
+
+# Recommendation CLI
+python3 scripts/recommendation_cli.py \
+  --analysis data/reports/macro_report.json \
+  --level MACRO
+
+# Verify system complete
+python3 scripts/verify_system_complete.py
+python3 scripts/verify_complete_implementation.py
+
+# Count producer methods
+python3 scripts/count_producer_methods.py
+```
+
+#### Batch Processing Commands
+```bash
+# Process multiple PDFs
+for pdf in data/input_plans/*.pdf; do
+  python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+    --input "$pdf" \
+    --output-dir "data/results/$(basename $pdf .pdf)" \
+    --mode full --parallel
+done
+
+# Run all producers in parallel
+bash scripts/run_all_producers.sh \
+  --input data/processed/policy_analysis.json \
+  --output-dir data/producers \
+  --parallel
+
+# Generate all reports
+bash scripts/generate_all_reports.sh \
+  --input data/aggregated/report_assembly.json \
+  --output-dir data/reports
+```
+
+#### Import Troubleshooting Commands
+```bash
+# Fix import structure
+pip install -e .
+export PYTHONPATH="${PYTHONPATH}:$(pwd):$(pwd)/src"
+
+# Update legacy imports
+python3 scripts/update_imports.py src/ tests/
+
+# Validate import structure
+python3 scripts/validate_imports.py
+lint-imports --config contracts/importlinter.ini
+python3 -m compileall -q src/saaaaaa
+```
+
+#### Monitoring & Logging Commands
+```bash
+# View logs
+tail -f logs/orchestrator.log
+tail -f logs/api_server.log
+tail -f logs/*.log
+
+# Search for errors
+grep -r "ERROR" logs/
+
+# Monitor resources
+htop  # or top
+
+# Check disk usage
+du -sh data/*
+```
+
+#### Code Quality Commands
+```bash
+# Linting
+ruff check .
+ruff check . --fix
+
+# Type checking
+mypy src/saaaaaa --strict
+mypy src/saaaaaa --strict --show-error-codes
+
+# Import analysis
+lint-imports --config contracts/importlinter.ini
+pycycle src/saaaaaa
+
+# Format code
+black src/ tests/
+```
+
+### Common Command Sequences
+
+#### Complete Analysis Workflow
+```bash
+# 1. Setup
+pip install -e .
+
+# 2. Ingest document
+python3 -m saaaaaa.processing.document_ingestion \
+  --input data/input_plans/plan.pdf \
+  --output data/processed/parsed.json
+
+# 3. Process policy
+python3 -m saaaaaa.processing.policy_processor \
+  --input data/processed/parsed.json \
+  --output data/processed/policy.json
+
+# 4. Run all producers
+bash scripts/run_all_producers.sh \
+  --input data/processed/policy.json \
+  --output-dir data/producers --parallel
+
+# 5. Aggregate
+python3 -m saaaaaa.processing.aggregation \
+  --producer-dir data/producers \
+  --output data/aggregated/assembly.json
+
+# 6. Generate reports
+python3 -m saaaaaa.core.report_generator \
+  --input data/aggregated/assembly.json \
+  --output-dir data/reports \
+  --levels micro,meso,macro
+```
+
+#### Development Workflow
+```bash
+# 1. Make code changes
+# ...
+
+# 2. Quick validation
+pytest tests/test_orchestrator_golden.py -v
+
+# 3. Full validation
+python3 scripts/validate_system.py
+pytest tests/ -v
+
+# 4. Code quality
+ruff check . --fix
+mypy src/saaaaaa --strict
+
+# 5. Commit
+git add .
+git commit -m "Description"
 ```
 
 ---

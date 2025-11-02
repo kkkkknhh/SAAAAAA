@@ -8,21 +8,42 @@
 
 ---
 
-## 🚀 NEW: Complete Operational Guide
+## 🚀 Complete Operational Runbook
 
-**📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with all necessary commands!**
+**📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with ALL necessary commands!**
 
 **📋 [QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - **Essential commands at a glance**
 
-The operational guide includes:
-- ✅ **Step-by-step installation** and system activation
-- ✅ **Development plan analysis** walkthrough with full commands
-- ✅ **Complete pipeline execution** instructions
-- ✅ **Verification and testing** procedures
-- ✅ **Troubleshooting** guide for common issues
-- ✅ **Advanced usage** and customization
+### What's in the Operational Guide
 
-**Start here:** [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)
+- ✅ **Step-by-step installation** and system activation with dependency management
+- ✅ **Import conflict resolution** strategies for all common issues  
+- ✅ **Development plan analysis** walkthrough with full commands
+- ✅ **Component execution commands** - run full system OR individual parts
+- ✅ **Complete pipeline execution** instructions for all 7 producers + aggregator
+- ✅ **Test classification & selection** - 40+ tests organized by priority
+- ✅ **Verification and testing** procedures with recommended sequences
+- ✅ **Troubleshooting** guide for common issues and solutions
+- ✅ **Advanced usage** and customization options
+- ✅ **Complete command reference** - every command in one place
+
+### Quick Start
+
+```bash
+# 1. Install system
+bash scripts/setup.sh
+
+# 2. Run analysis
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/your_plan.pdf \
+  --output-dir data/results \
+  --mode full --parallel
+
+# 3. Validate system
+python3 scripts/validate_system.py
+```
+
+**For complete instructions:** [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)
 
 ---
 
