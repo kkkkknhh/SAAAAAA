@@ -14,7 +14,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import micro prompts
-# Import existing system components (when available)
 import importlib.util
 
 from micro_prompts import (
@@ -29,15 +28,16 @@ from micro_prompts import (
     create_stress_tester,
 )
 
+# Import existing system components (when available)
 BAYESIAN_AVAILABLE = importlib.util.find_spec("bayesian_multilevel_system") is not None
 if not BAYESIAN_AVAILABLE:
     print("Note: bayesian_multilevel_system not fully imported")
 
 # Check for evidence_registry availability
-REGISTRY_AVAILABLE = (
-    importlib.util.find_spec("saaaaaa.core.orchestrator.evidence_registry") is not None
-    or importlib.util.find_spec("orchestrator.evidence_registry") is not None
-)
+_registry_spec = importlib.util.find_spec("saaaaaa.core.orchestrator.evidence_registry")
+if _registry_spec is None:
+    _registry_spec = importlib.util.find_spec("orchestrator.evidence_registry")
+REGISTRY_AVAILABLE = _registry_spec is not None
 if not REGISTRY_AVAILABLE:
     print("Note: evidence_registry not fully imported")
 
