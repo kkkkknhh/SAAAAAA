@@ -83,7 +83,7 @@ class TestStrategicWiring(unittest.TestCase):
         provenance_path = root / "provenance.csv"
         if not provenance_path.exists():
             provenance_path = root / "data" / "provenance.csv"
-        
+
         self.assertTrue(provenance_path.exists(), "provenance.csv not found")
 
         with open(provenance_path) as f:
@@ -208,13 +208,14 @@ class TestStrategicWiring(unittest.TestCase):
 
     def test_evidence_registry_immutability(self):
         """Verify evidence_registry maintains immutability."""
-        from evidence_registry import EvidenceRegistry
         import tempfile
-        
+
+        from evidence_registry import EvidenceRegistry
+
         # Use temporary directory for storage
         with tempfile.TemporaryDirectory() as tmpdir:
             registry = EvidenceRegistry(storage_path=Path(tmpdir) / "test_evidence.jsonl")
-            
+
             # Record evidence
             registry.record_evidence(
                 evidence_type="test_type_1",
@@ -223,18 +224,18 @@ class TestStrategicWiring(unittest.TestCase):
                 parent_evidence_ids=[],
                 metadata={"key": "value"}
             )
-            
+
             # Verify record can be retrieved by method
             records = registry.query_by_method("test_method_1")
-            
+
             self.assertEqual(len(records), 1, "Should have 1 record for test_method_1")
             self.assertEqual(records[0].source_method, "test_method_1")
             self.assertEqual(records[0].evidence_type, "test_type_1")
-            
+
             # Verify record can be retrieved by type
             type_records = registry.query_by_type("test_type_1")
             self.assertEqual(len(type_records), 1, "Should have 1 record of test_type_1")
-    
+
     def test_validation_engine_preconditions(self):
         """Verify validation_engine properly validates preconditions."""
         from validation_engine import ValidationEngine

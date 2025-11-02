@@ -62,11 +62,11 @@ def check_pinned_dependencies() -> bool:
         # Check for wildcard or open ranges in version specifiers
         # Look for these patterns after package name and optional extras
         # Match patterns like: package>=1.0, package~=1.0, package>1.0, package<2.0, package*
-        if re.search(r'(>=|~=|>|<|\*)', line):
+        if (re.search(r'(>=|~=|>|<|\*)', line) and
+            re.search(r'[^\[]*(\[.*\])?\s*(>=|~=|>|<|\*)', line)):
             # Further validate it's in version spec position, not in package name
             # Package name format: name[extras]==version
-            if re.search(r'[^\[]*(\[.*\])?\s*(>=|~=|>|<|\*)', line):
-                bad_patterns.append(line)
+            bad_patterns.append(line)
 
     if bad_patterns:
         print("  ✗ Found wildcards or open ranges in requirements.txt:")
