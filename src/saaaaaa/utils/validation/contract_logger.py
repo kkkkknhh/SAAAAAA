@@ -287,40 +287,5 @@ class ContractErrorLogger:
 
 
 # Example usage
-if __name__ == "__main__":
-    # Demo the logger
-    logger = ContractErrorLogger(module_name="demo_module")
-    
-    # Example 1: Contract mismatch
-    logger.log_contract_mismatch(
-        function="process_evidence",
-        key="pdq_context",
-        needed=True,
-        got=None,
-        index=0,
-        file="demo.py",
-        line=42,
-        remediation="Ensure pdq_context is provided in the evidence dictionary"
-    )
-    
-    # Example 2: Type violation
-    logger.log_type_violation(
-        function="calculate_score",
-        key="confidence",
-        expected_type="float",
-        got="high",
-        file="demo.py",
-        line=123,
-        remediation="Convert confidence value to float between 0.0 and 1.0"
-    )
-    
-    # Example 3: Invalid modality
-    logger.log_invalid_modality(
-        function="validate_modality",
-        modality="TYPE_X",
-        allowed_modalities=["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F"],
-        file="demo.py",
-        line=89
-    )
-    
-    print("\n✓ Contract error logger demo completed", file=sys.stderr)
+# Note: Example usage removed to maintain I/O boundary separation.
+# For usage examples, see examples/ directory.

@@ -142,9 +142,11 @@ class RecommendationEngine:
     
     def _load_schema(self):
         """Load JSON schema for rule validation"""
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
-            with open(self.schema_path, 'r', encoding='utf-8') as f:
-                self.schema = json.load(f)
+            self.schema = load_json(self.schema_path)
             logger.info(f"Loaded recommendation rules schema from {self.schema_path}")
         except Exception as e:
             logger.error(f"Failed to load schema: {e}")
@@ -152,9 +154,11 @@ class RecommendationEngine:
     
     def _load_rules(self):
         """Load and validate recommendation rules"""
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
-            with open(self.rules_path, 'r', encoding='utf-8') as f:
-                self.rules = json.load(f)
+            self.rules = load_json(self.rules_path)
             
             # Validate against schema
             jsonschema.validate(instance=self.rules, schema=self.schema)
@@ -605,17 +609,19 @@ class RecommendationEngine:
             output_path: Path to output file
             format: Output format ('json' or 'markdown')
         """
+        # Delegate to factory for I/O operation
+        from .factory import save_json, write_text_file
+        
         if format == 'json':
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(
-                    {level: rec_set.to_dict() for level, rec_set in recommendations.items()},
-                    f,
-                    indent=2,
-                    ensure_ascii=False
-                )
+            save_json(
+                {level: rec_set.to_dict() for level, rec_set in recommendations.items()},
+                output_path
+            )
         elif format == 'markdown':
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(self._format_as_markdown(recommendations))
+            write_text_file(
+                self._format_as_markdown(recommendations),
+                output_path
+            )
         else:
             raise ValueError(f"Unsupported format: {format}")
         
@@ -674,50 +680,6 @@ def load_recommendation_engine(
     return RecommendationEngine(rules_path=rules_path, schema_path=schema_path)
 
 
-if __name__ == '__main__':
-    # Example usage
-    logging.basicConfig(level=logging.INFO)
-    
-    # Initialize engine
-    engine = load_recommendation_engine()
-    
-    # Example MICRO recommendations
-    micro_scores = {
-        'PA01-DIM01': 1.2,  # Below threshold of 1.65
-        'PA02-DIM03': 1.8,  # Above threshold
-        'PA03-DIM05': 1.4,  # Below threshold
-    }
-    
-    micro_recs = engine.generate_micro_recommendations(micro_scores)
-    print(f"\n=== MICRO Recommendations ===")
-    print(f"Rules evaluated: {micro_recs.total_rules_evaluated}")
-    print(f"Recommendations: {micro_recs.rules_matched}")
-    
-    for rec in micro_recs.recommendations[:2]:  # Show first 2
-        print(f"\n{rec.rule_id}:")
-        print(f"Problem: {rec.problem[:100]}...")
-        print(f"Intervention: {rec.intervention[:100]}...")
-    
-    # Example MESO recommendations
-    cluster_data = {
-        'CL01': {'score': 72.0, 'variance': 0.25, 'weak_pa': 'PA02'},
-        'CL02': {'score': 58.0, 'variance': 0.12},
-    }
-    
-    meso_recs = engine.generate_meso_recommendations(cluster_data)
-    print(f"\n=== MESO Recommendations ===")
-    print(f"Rules evaluated: {meso_recs.total_rules_evaluated}")
-    print(f"Recommendations: {meso_recs.rules_matched}")
-    
-    # Example MACRO recommendations
-    macro_data = {
-        'macro_band': 'SATISFACTORIO',
-        'clusters_below_target': ['CL02', 'CL03'],
-        'variance_alert': 'MODERADA',
-        'priority_micro_gaps': ['PA01-DIM05', 'PA05-DIM04', 'PA04-DIM04', 'PA08-DIM05']
-    }
-    
-    macro_recs = engine.generate_macro_recommendations(macro_data)
-    print(f"\n=== MACRO Recommendations ===")
-    print(f"Rules evaluated: {macro_recs.total_rules_evaluated}")
-    print(f"Recommendations: {macro_recs.rules_matched}")
+
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For usage examples, see examples/ directory.

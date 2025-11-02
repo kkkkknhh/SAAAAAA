@@ -335,13 +335,9 @@ class DocumentLoader:
     
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calcula hash SHA-256 del archivo para trazabilidad."""
-        sha256_hash = hashlib.sha256()
-        
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        
-        return sha256_hash.hexdigest()
+        # Delegate to factory for I/O operation
+        from .factory import calculate_file_hash
+        return calculate_file_hash(file_path)
 
 
 # ============================================================================
@@ -377,22 +373,13 @@ class TextExtractor:
         """
         self.logger.info(f"Extrayendo texto completo de: {raw_doc.file_name}")
         
-        all_text = []
+        # Delegate to factory for I/O operation
+        from .factory import extract_pdf_text_all_pages
         
         try:
-            with pdfplumber.open(raw_doc.file_path) as pdf:
-                for page_num, page in enumerate(pdf.pages, start=1):
-                    try:
-                        text = page.extract_text() or ""
-                        
-                        if text.strip():
-                            # Preservar separación entre páginas
-                            all_text.append(f"\n--- Página {page_num} ---\n")
-                            all_text.append(text)
-                    
-                    except Exception as e:
-                        self.logger.warning(f"Error extrayendo página {page_num}: {e}")
-                        continue
+            text = extract_pdf_text_all_pages(raw_doc.file_path)
+            self.logger.info(f"✓ Texto extraído: {len(text)} caracteres")
+            return text
         
         except Exception as e:
             self.logger.error(f"Error abriendo PDF con pdfplumber: {e}")
@@ -418,10 +405,12 @@ class TextExtractor:
         if page < 1 or page > raw_doc.num_pages:
             raise ValueError(f"Página {page} fuera de rango (1-{raw_doc.num_pages})")
         
+        # Delegate to factory for I/O operation
+        from .factory import extract_pdf_text_single_page
+        
         try:
-            with pdfplumber.open(raw_doc.file_path) as pdf:
-                text = pdf.pages[page - 1].extract_text() or ""
-                return text
+            text = extract_pdf_text_single_page(raw_doc.file_path, page, raw_doc.num_pages)
+            return text
         
         except Exception as e:
             self.logger.error(f"Error extrayendo página {page}: {e}")

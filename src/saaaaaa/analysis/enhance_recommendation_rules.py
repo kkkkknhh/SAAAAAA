@@ -338,10 +338,12 @@ def enhance_rule(rule: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     """Main enhancement process"""
+    # Delegate to factory for I/O operations
+    from .factory import load_json, save_json
+    
     # Load existing rules
     rules_path = Path('config/recommendation_rules.json')
-    with open(rules_path, 'r', encoding='utf-8') as f:
-        rules_data = json.load(f)
+    rules_data = load_json(rules_path)
     
     print(f"Loaded {len(rules_data['rules'])} rules from {rules_path}")
     
@@ -374,8 +376,7 @@ def main():
     
     # Save enhanced rules
     output_path = Path('config/recommendation_rules_enhanced.json')
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(enhanced_data, f, indent=2, ensure_ascii=False)
+    save_json(enhanced_data, output_path)
     
     print(f"\nEnhanced {len(enhanced_rules)} rules saved to {output_path}")
     print(f"Original file preserved at {rules_path}")
@@ -386,5 +387,5 @@ def main():
         print(json.dumps(enhanced_rules[0], indent=2, ensure_ascii=False)[:2000])
         print("...")
 
-if __name__ == '__main__':
-    main()
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For usage examples, see examples/ directory.

@@ -409,6 +409,21 @@ class TeoriaCambio:
             )
         return sugerencias
 
+    def _execute_generar_sugerencias_internas(self, validacion: 'ValidacionResultado') -> List[str]:
+        """
+        Execute internal suggestion generation (wrapper method).
+        
+        This method wraps the static _generar_sugerencias_internas method
+        to allow it to be called via the method executor interface.
+        
+        Args:
+            validacion: Validation result object
+            
+        Returns:
+            List of actionable suggestions
+        """
+        return self._generar_sugerencias_internas(validacion)
+
 
 # ============================================================================
 # 4. VALIDADOR ESTOCÁSTICO AVANZADO DE DAGs
@@ -669,9 +684,12 @@ class AdvancedDAGValidator:
             return cls._NODE_VALIDATOR
 
         path = Path(schema_path) if schema_path else cls._NODE_SCHEMA_PATH
+        
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
-            with open(path, "r", encoding="utf-8") as file:
-                schema = json.load(file)
+            schema = load_json(path)
         except FileNotFoundError:
             LOGGER.error("Advanced graph node schema file not found at %s", path)
             return None
