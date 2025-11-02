@@ -405,28 +405,31 @@ def test_all_modalities():
         print(f"✓ {modality}: score={result.score:.2f}, quality={result.quality_level}")
 
 
-def test_apply_scoring_rejects_invalid_score_range(monkeypatch):
+def test_apply_scoring_rejects_invalid_score_range():
     """Scoring should fail fast when modality score ranges are degenerate."""
-
-    original_config = ScoringValidator.get_config(ScoringModality.TYPE_A)
-    invalid_config = replace(original_config, score_range=(1.0, 1.0))
-    monkeypatch.setitem(
-        ScoringValidator.MODALITY_CONFIGS,
-        ScoringModality.TYPE_A,
-        invalid_config,
-    )
-
-    evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
-
-    with pytest.raises(ScoringError):
-        apply_scoring(
-            question_global=1,
-            base_slot="PA01-DIM01-Q001",
-            policy_area="PA01",
-            dimension="DIM01",
-            evidence=evidence,
-            modality="TYPE_A",
+    mp = pytest.MonkeyPatch()
+    try:
+        original_config = ScoringValidator.get_config(ScoringModality.TYPE_A)
+        invalid_config = replace(original_config, score_range=(1.0, 1.0))
+        mp.setitem(
+            ScoringValidator.MODALITY_CONFIGS,
+            ScoringModality.TYPE_A,
+            invalid_config,
         )
+
+        evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
+
+        with pytest.raises(ScoringError):
+            apply_scoring(
+                question_global=1,
+                base_slot="PA01-DIM01-Q001",
+                policy_area="PA01",
+                dimension="DIM01",
+                evidence=evidence,
+                modality="TYPE_A",
+            )
+    finally:
+        mp.undo()
 
 
 def test_apply_scoring_clamps_out_of_range_score(monkeypatch):
