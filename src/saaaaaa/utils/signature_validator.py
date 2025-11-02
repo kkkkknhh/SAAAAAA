@@ -480,53 +480,5 @@ def audit_project_signatures(project_root: Path, output_path: Optional[Path] = N
 # CLI INTERFACE
 # ============================================================================
 
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        description="Signature Validation and Interface Governance Tool"
-    )
-    parser.add_argument(
-        "command",
-        choices=["audit", "init", "report"],
-        help="Command to execute"
-    )
-    parser.add_argument(
-        "--project-root",
-        type=Path,
-        default=Path("."),
-        help="Project root directory"
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("data/signature_audit_report.json"),
-        help="Output path for audit report"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
-    
-    args = parser.parse_args()
-    
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-    
-    if args.command == "init":
-        initialize_signature_registry(args.project_root)
-    elif args.command == "audit":
-        audit_project_signatures(args.project_root, args.output)
-    elif args.command == "report":
-        # Generate a summary report
-        if args.output.exists():
-            with open(args.output, 'r') as f:
-                report = json.load(f)
-            print(f"\n=== Signature Audit Report ===")
-            print(f"Total mismatches: {report['total_mismatches']}")
-            print(f"Timestamp: {report['audit_timestamp']}")
-        else:
-            print(f"No report found at {args.output}")
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For CLI usage, see examples/ directory or create a dedicated CLI script.
