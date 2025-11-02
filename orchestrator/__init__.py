@@ -1,4 +1,17 @@
-"""Compatibility shim exposing orchestrator facilities from the refactored package."""
+"""Compatibility shim exposing orchestrator facilities from the refactored package.
+
+IMPORTANT: This is a COMPATIBILITY LAYER for backward compatibility only.
+The real orchestrator implementation is in src/saaaaaa/core/orchestrator/.
+
+All orchestration-related code is consolidated in ONE location:
+    src/saaaaaa/core/orchestrator/
+
+This directory (orchestrator/) contains only thin compatibility shims that
+redirect imports to the real implementation. See PROJECT_STRUCTURE.md for details.
+
+New code should import directly from saaaaaa.core.orchestrator, not from this
+compatibility layer.
+"""
 from __future__ import annotations
 from importlib import import_module
 from pathlib import Path

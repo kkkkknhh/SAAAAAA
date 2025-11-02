@@ -14,12 +14,16 @@ This repository now follows Python best practices with a hierarchical package st
 
 ```
 saaaaaa/
-├── src/saaaaaa/       # Main Python package
+├── src/saaaaaa/       # Main Python package (REAL IMPLEMENTATION)
 │   ├── core/          # Orchestration & execution
 │   ├── processing/    # Data processing
 │   ├── analysis/      # Analysis & ML
 │   ├── api/           # API server
 │   └── utils/         # Utilities
+├── orchestrator/      # Compatibility shims (redirects to src/)
+├── concurrency/       # Compatibility shims (redirects to src/)
+├── core/              # Compatibility shims (redirects to src/)
+├── executors/         # Compatibility shims (redirects to src/)
 ├── tests/             # Test suite
 ├── docs/              # Documentation
 ├── examples/          # Example scripts
@@ -28,7 +32,12 @@ saaaaaa/
 └── data/              # Data files
 ```
 
+**⚠️ Note:** Root-level directories (orchestrator/, concurrency/, core/, executors/) are 
+compatibility shims for backward compatibility. **All new code should go in src/saaaaaa/**.
+
 **📖 Important Documentation:**
+- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - **Complete project structure guide (READ THIS FIRST)**
+- [orchestrator/README.md](orchestrator/README.md) - Orchestration compatibility layer explanation
 - [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md) - Detailed structure documentation
 - [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) - Import migration reference
 - [docs/POST_REORGANIZATION_STEPS.md](docs/POST_REORGANIZATION_STEPS.md) - **Next steps to complete setup**
