@@ -72,11 +72,40 @@ compatibility shims for backward compatibility. **All new code should go in src/
 
 ## 🎯 QUICK START
 
-### **Installation**
+### **Quick Setup (Recommended)**
+
+Use the automated setup script to install all dependencies:
+
 ```bash
-# Install in development mode
+# Run automated setup (installs dependencies and SpaCy models)
+bash scripts/setup.sh
+
+# Verify installation
+python scripts/verify_dependencies.py
+```
+
+### **Manual Installation**
+
+If you prefer to install manually:
+
+```bash
+# 1. Install Python dependencies
+pip install -r requirements.txt
+
+# 2. Install SpaCy language models
+python -m spacy download es_core_news_lg
+python -m spacy download es_dep_news_trf
+
+# 3. Verify installation
+python scripts/verify_dependencies.py
+
+# 4. Install in development mode (optional)
 pip install -e .
 ```
+
+**📖 For detailed setup information, see:**
+- [DEPENDENCY_SETUP.md](DEPENDENCY_SETUP.md) - Complete dependency installation guide
+- [IMPORT_RESOLUTION_SUMMARY.md](IMPORT_RESOLUTION_SUMMARY.md) - Import fixes and troubleshooting
 
 ### **Verification Runbook**
 Execute the full verification pipeline in sequence to ensure governance:

@@ -6,19 +6,44 @@ This repository now follows strict build hygiene practices. Here's what you need
 
 ## Setup (First Time)
 
+### Quick Automated Setup (Recommended)
+
+```bash
+# Run the automated setup script
+bash scripts/setup.sh
+```
+
+This will:
+1. Install all Python dependencies from requirements.txt
+2. Download required SpaCy language models (es_core_news_lg, es_dep_news_trf)
+3. Verify the installation
+
+### Manual Setup
+
 ```bash
 # 1. Ensure you have Python 3.11.x
 python --version  # Should show 3.11.x
 
-# 2. Copy environment template
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Install SpaCy models
+python -m spacy download es_core_news_lg
+python -m spacy download es_dep_news_trf
+
+# 4. Copy environment template
 cp .env.example .env
 
-# 3. Install in editable mode
+# 5. Install in editable mode
 pip install -e .
 
-# 4. Verify setup
-python3 tools/validation/validate_build_hygiene.py
+# 6. Verify setup
+python scripts/verify_dependencies.py
 ```
+
+**📖 See also:**
+- [DEPENDENCY_SETUP.md](DEPENDENCY_SETUP.md) - Complete dependency installation guide
+- [IMPORT_RESOLUTION_SUMMARY.md](IMPORT_RESOLUTION_SUMMARY.md) - Import fixes and troubleshooting
 
 ## Key Rules
 
