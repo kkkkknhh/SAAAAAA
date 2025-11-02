@@ -14,9 +14,11 @@ import inspect
 import json
 import logging
 import os
+import random
 import re
 import statistics
 import time
+from importlib import import_module
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -26,14 +28,91 @@ from pathlib import Path
 from threading import RLock
 import threading
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
+from orchestrator.arg_router import ArgRouter, ArgumentValidationError
+from orchestrator.class_registry import ClassRegistryError, build_class_registry
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+class MethodKnowledgeBase:
+    """Index sophisticated NIVEL3 method metadata for orchestration introspection."""
+
+    def __init__(self, source: Path) -> None:
+        self.source = Path(source)
+        payload = json.loads(self.source.read_text())
+        catalog = payload.get("methods_catalog", [])
+        index: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for entry in catalog:
+            class_name = entry.get("class")
+            method_name = entry.get("method_name")
+            if not class_name or not method_name:
+                continue
+            index.setdefault(class_name, {})[method_name] = entry
+        self._index = index
+        self.metadata = payload.get("metadata", {})
+        self.summary = payload.get("summary", {})
+
+    def describe(self, class_name: str, method_name: str) -> Mapping[str, Any]:
+        entry = self._index.get(class_name, {}).get(method_name)
+        if not entry:
+            return {}
+        requirements = entry.get("execution_requirements") or {}
+        return {
+            "complexity": entry.get("complexity"),
+            "priority": entry.get("priority"),
+            "aptitude_score": entry.get("aptitude_score"),
+            "stateful": bool(requirements.get("stateful", True)),
+            "signature": entry.get("signature"),
+            "docstring": entry.get("docstring"),
+            "generated": self.metadata.get("generated_at"),
+        }
+
+    def is_stateful(self, class_name: str, method_name: str) -> bool:
+        entry = self._index.get(class_name, {}).get(method_name)
+        if not entry:
+            return True
+        requirements = entry.get("execution_requirements") or {}
+        return bool(requirements.get("stateful", True))
+
+
+@dataclass(frozen=True)
+class MethodExecutionEnvelope:
+    """Immutable record describing a single catalog invocation."""
+
+    class_name: str
+    method_name: str
+    timestamp: str
+    duration_ms: float
+    payload_digest: Optional[str]
+    cache_hit: bool
+    metadata: Mapping[str, Any]
+    result_type: str
+    result_size: Optional[int]
+
+
+_METHOD_CATALOG_PATH = Path("rules/METODOS/metodos_completos_nivel3.json")
+try:
+    _METHOD_KNOWLEDGE = MethodKnowledgeBase(_METHOD_CATALOG_PATH)
+except Exception as exc:  # pragma: no cover - defensive logging
+    _METHOD_KNOWLEDGE = None
+    logger.warning("Unable to load NIVEL3 method catalog: %s", exc)
 
 if TYPE_CHECKING:  # pragma: no cover - type checking only
     from document_ingestion import PreprocessedDocument as PreprocessedDocumentV1
@@ -389,12 +468,27 @@ class PhaseInstrumentation:
 
     def record_error(
         self,
-        *,
-        category: str,
-        message: str,
+        *args: Any,
+        category: Optional[str] = None,
+        message: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ) -> None:
-        """Record error with keyword-only parameters."""
+        """Record error entries while tolerating heterogeneous call signatures."""
+
+        if args:
+            if category is None:
+                category = args[0]
+            if len(args) > 1 and message is None:
+                message = args[1]
+            if len(args) > 2:
+                raise TypeError("record_error accepts at most two positional arguments")
+
+        if category is None:
+            category = "general"
+        if message is None:
+            message = ""
+
         entry: Dict[str, Any] = {
             "category": category,
             "message": message,
@@ -402,6 +496,8 @@ class PhaseInstrumentation:
         }
         if extra:
             entry.update(extra)
+        if kwargs:
+            entry.update(kwargs)
         self.errors.append(entry)
 
     def _detect_latency_anomaly(self, latency: float) -> None:
@@ -722,120 +818,355 @@ class ArgRouter:
 
         return (matches, total_corpus_size), {"pattern_specificity": pattern_specificity}
 
+class PayloadDriftMonitor:
+    """Probabilistic validator for ingress/egress payloads."""
+
+    CRITICAL_KEYS: Tuple[str, ...] = ("raw_text", "sentences", "tables")
+
+    def __init__(
+        self,
+        *,
+        sample_rate: float = 0.05,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        if enabled is None:
+            env_value = os.getenv("ORCHESTRATOR_PAYLOAD_VALIDATION", "")
+            enabled = env_value.lower() in {"1", "true", "yes", "on"}
+
+        self.sample_rate = max(0.0, min(sample_rate, 1.0))
+        self.enabled = enabled and self.sample_rate > 0.0
+        self._random = random.Random()
+
+        seed_value = os.getenv("ORCHESTRATOR_VALIDATION_SEED")
+        if seed_value:
+            try:
+                self._random.seed(int(seed_value))
+            except ValueError:
+                logger.debug("Invalid ORCHESTRATOR_VALIDATION_SEED: %s", seed_value)
+
+    def maybe_validate(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        producer: str,
+        consumer: str,
+    ) -> None:
+        if not self.enabled:
+            return
+        if not isinstance(payload, Mapping):
+            return
+        if self._random.random() > self.sample_rate:
+            return
+
+        missing = [key for key in self.CRITICAL_KEYS if key not in payload]
+        type_mismatches: Dict[str, str] = {}
+
+        for key in self.CRITICAL_KEYS:
+            if key not in payload:
+                continue
+            value = payload[key]
+            if key == "raw_text" and value is not None and not isinstance(value, str):
+                type_mismatches[key] = type(value).__name__
+            elif key in {"sentences", "tables"} and value is not None and not isinstance(value, Sequence):
+                type_mismatches[key] = type(value).__name__
+
+        if missing or type_mismatches:
+            logger.warning(
+                "Payload drift detected [%s → %s]: missing=%s type_mismatches=%s",
+                producer,
+                consumer,
+                missing,
+                type_mismatches,
+            )
+
+
 class MethodExecutor:
-    """Ejecuta métodos del catálogo"""
+    """Hyper-robust executor that fuses registry validation with NIVEL3 telemetry."""
+
+    CACHE_MAXSIZE = 512
 
     def __init__(
         self,
         class_registry: Optional[Dict[str, type]] = None,
         arg_router: Optional[ArgRouter] = None,
-    def __init__(self):
-        modules_ok = globals().get('MODULES_OK', False)
-        if modules_ok:
-            # Create shared ontology instance for all analyzers
-            ontology = MunicipalOntology()
-        
-            self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
-            }
-        else:
-            self.instances = {}
-        self._router = ArgRouter()
-    
-    def execute(
-        self,
-        *,
-        class_name: str,
-        method_name: str,
-        kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Any:
-        """
-        Execute method with keyword-only parameters (refactored for type safety).
-        
-        Args:
-            class_name: Name of the class to execute
-            method_name: Name of the method to execute
-            kwargs: Optional kwargs dict to pass to method
-        
-        Returns:
-            Method execution result
-        
-        Raises:
-            TypeError: If contract mismatch detected
-            AttributeError: If class or method not found
-        """
-        if not MODULES_OK:
-            return None
-        
-        # Use empty dict if no kwargs provided
-        method_kwargs = kwargs or {}
-        
+    ) -> None:
+        self._class_registry: Dict[str, type] = dict(class_registry or _CLASS_REGISTRY)
+        self._arg_router = arg_router or ArgRouter(self._class_registry)
+        self._instances: Dict[str, Any] = {}
+        self._lock = RLock()
+        self._payload_monitor = PayloadDriftMonitor()
+        self._shared_dependencies = self._initialize_shared_dependencies()
+        self._factories = self._initialize_factories()
+        self._memoization_cache: Dict[Tuple[str, str, str], Any] = {}
+        self._execution_log: deque[MethodExecutionEnvelope] = deque(maxlen=1024)
+
+    # ------------------------------------------------------------------
+    # Initialization helpers
+    # ------------------------------------------------------------------
+    def _initialize_shared_dependencies(self) -> Dict[str, Any]:
+        dependencies: Dict[str, Any] = {}
+        ontology_cls = self._class_registry.get("MunicipalOntology")
+        if ontology_cls is not None:
+            try:
+                dependencies["MunicipalOntology"] = ontology_cls()
+            except Exception as exc:
+                logger.warning("Failed to initialize MunicipalOntology: %s", exc)
+
+        ontology = dependencies.get("MunicipalOntology")
+        if ontology is not None:
+            for analyzer_name in (
+                "SemanticAnalyzer",
+                "PerformanceAnalyzer",
+                "TextMiningEngine",
+            ):
+                analyzer_cls = self._class_registry.get(analyzer_name)
+                if analyzer_cls is None:
+                    continue
+                try:
+                    dependencies[analyzer_name] = analyzer_cls(ontology)
+                except Exception as exc:
+                    logger.warning("Failed to initialize %s: %s", analyzer_name, exc)
+
+        for singleton in ("TeoriaCambio", "AdvancedDAGValidator"):
+            singleton_cls = self._class_registry.get(singleton)
+            if singleton_cls is None:
+                continue
+            try:
+                dependencies[singleton] = singleton_cls()
+            except Exception as exc:
+                logger.warning("Failed to initialize %s: %s", singleton, exc)
+
+        return dependencies
+
+    def _initialize_factories(self) -> Dict[str, Callable[[], Any]]:
+        factories: Dict[str, Callable[[], Any]] = {}
+
+        for name, value in self._shared_dependencies.items():
+            factories[name] = (lambda value=value: value)
+
+        processor_config = self._load_processor_config()
+        policy_processor_cls = self._class_registry.get("PolicyTextProcessor")
+        if processor_config is not None and policy_processor_cls is not None:
+            factories["PolicyTextProcessor"] = (
+                lambda policy_cls=policy_processor_cls, cfg_cls=processor_config: policy_cls(cfg_cls())
+            )
+
+        return factories
+
+    @staticmethod
+    def _load_processor_config() -> Optional[type]:
         try:
-            instance = self.instances.get(class_name)
-            if not instance:
-                logger.warning(f"Class '{class_name}' not found in instances")
-                return None
-            
-            method = getattr(instance, method_name, None)
-            if method is None:
-                logger.warning(f"Method '{method_name}' not found on class '{class_name}'")
-                return None
-            
-            # Route arguments through adapter
-            method_context = MethodContext.from_inputs(context, method_kwargs)
-            router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
-            routed_kwargs = router(method_context)
-            filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
-            
-            return method(**filtered_kwargs)
-        except TypeError as e:
-            if "unexpected keyword argument" in str(e) or "required positional argument" in str(e):
-                logger.error(
-                    f"ERR_CONTRACT_MISMATCH[class={class_name}, method={method_name}]: {e}"
-                )
-            raise
-        except Exception as e:
-            logger.exception(f"Catalog invocation failed for {class_name}.{method_name}")
+            module = import_module("policy_processor")
+        except Exception as exc:
+            logger.warning("Unable to import policy_processor for ProcessorConfig: %s", exc)
+            return None
+
+        config_cls = getattr(module, "ProcessorConfig", None)
+        if config_cls is None:
+            logger.warning("ProcessorConfig not available in policy_processor module")
+        return config_cls
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
+        if not MODULES_OK:
+            logger.debug(
+                "Module registry unavailable; skipping execution of %s.%s",
+                class_name,
+                method_name,
+            )
+            return None
+
+        try:
+            instance = self._get_instance(class_name)
+        except KeyError:
+            logger.error("Class '%s' not found in orchestrator registry", class_name)
+            return None
+
+        method = getattr(instance, method_name, None)
+        if method is None:
+            logger.error("Method '%s' not found on class '%s'", method_name, class_name)
+            return None
+
+        raw_kwargs = dict(kwargs)
+        ctx_input = raw_kwargs.pop("context", None)
+        method_context = MethodContext.from_inputs(ctx_input, raw_kwargs)
+        router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
+        routed_payload = router(method_context)
+        normalized_payload: Dict[str, Any] = dict(routed_payload)
+
+        self._payload_monitor.maybe_validate(
+            normalized_payload,
+            producer="orchestrator",
+            consumer=f"{class_name}.{method_name}",
+        )
+
+        metadata = (
+            _METHOD_KNOWLEDGE.describe(class_name, method_name)
+            if _METHOD_KNOWLEDGE
+            else {}
+        )
+
+        cache_key: Optional[Tuple[str, str, str]] = None
+        cache_hit = False
+        if metadata and not metadata.get("stateful", True):
+            cache_key = self._make_cache_key(class_name, method_name, normalized_payload)
+            if cache_key is not None:
+                with self._lock:
+                    if cache_key in self._memoization_cache:
+                        cache_hit = True
+                        result = self._memoization_cache[cache_key]
+                        self._log_envelope(
+                            class_name,
+                            method_name,
+                            metadata,
+                            cache_hit=True,
+                            duration_ms=0.0,
+                            result=result,
+                            cache_key=cache_key,
+                        )
+                        return result
+
+        try:
+            args, call_kwargs = self._arg_router.route(
+                class_name,
+                method_name,
+                normalized_payload,
+            )
+        except ArgumentValidationError as exc:
+            logger.error("Argument mismatch for %s.%s: %s", class_name, method_name, exc)
             raise
 
-        self._drift_monitor.maybe_validate(
-            kwargs, producer=class_name, consumer=method_name
-        )
+        start_time = time.perf_counter()
 
         try:
             result = method(*args, **call_kwargs)
-        except Exception as exc:
-            logger.error(f"Error {class_name}.{method_name}: {exc}")
-            return None
+        except Exception:
+            logger.exception("Catalog invocation failed for %s.%s", class_name, method_name)
+            raise
 
-        if isinstance(result, dict):
-            self._drift_monitor.maybe_validate(
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+
+        if cache_key is not None and not cache_hit:
+            with self._lock:
+                if len(self._memoization_cache) >= self.CACHE_MAXSIZE:
+                    self._memoization_cache.pop(next(iter(self._memoization_cache)))
+                self._memoization_cache[cache_key] = result
+
+        if isinstance(result, Mapping):
+            self._payload_monitor.maybe_validate(
                 result,
                 producer=f"{class_name}.{method_name}",
                 consumer="return",
             )
 
+        self._log_envelope(
+            class_name,
+            method_name,
+            metadata,
+            cache_hit=cache_hit,
+            duration_ms=duration_ms,
+            result=result,
+            cache_key=cache_key,
+        )
+
         return result
+
+    def recent_envelopes(self, limit: int = 20) -> List[MethodExecutionEnvelope]:
+        return list(self._execution_log)[-limit:]
+
+    def clear_cache(self) -> None:
+        with self._lock:
+            self._memoization_cache.clear()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _get_instance(self, class_name: str) -> Any:
+        with self._lock:
+            if class_name in self._instances:
+                return self._instances[class_name]
+
+            factory = self._factories.get(class_name)
+            try:
+                if factory is not None:
+                    instance = factory()
+                else:
+                    cls = self._class_registry[class_name]
+                    instance = cls()
+            except KeyError as exc:
+                raise KeyError(f"Class '{class_name}' is not registered in the orchestrator") from exc
+            except Exception as exc:
+                logger.exception("Failed to initialize class '%s'", class_name)
+                raise
+
+            self._instances[class_name] = instance
+            return instance
+
+    def _make_cache_key(
+        self, class_name: str, method_name: str, payload: Mapping[str, Any]
+    ) -> Optional[Tuple[str, str, str]]:
+        try:
+            normalized = json.dumps(
+                payload,
+                sort_keys=True,
+                default=self._serialize_for_hash,
+            )
+        except TypeError:
+            return None
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        return class_name, method_name, digest
+
+    @staticmethod
+    def _serialize_for_hash(value: Any) -> Any:
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, Mapping):
+            return {str(k): MethodExecutor._serialize_for_hash(v) for k, v in value.items()}
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return [MethodExecutor._serialize_for_hash(item) for item in value]
+        if hasattr(value, "__dict__"):
+            return MethodExecutor._serialize_for_hash(value.__dict__)
+        return repr(value)
+
+    def _snapshot_result(self, result: Any) -> Tuple[str, Optional[int]]:
+        if result is None:
+            return "NoneType", None
+        if isinstance(result, (str, bytes, bytearray)):
+            return type(result).__name__, len(result)
+        if isinstance(result, Mapping):
+            return type(result).__name__, len(result)
+        if isinstance(result, Sequence):
+            return type(result).__name__, len(result)  # type: ignore[arg-type]
+        return type(result).__name__, None
+
+    def _log_envelope(
+        self,
+        class_name: str,
+        method_name: str,
+        metadata: Mapping[str, Any],
+        *,
+        cache_hit: bool,
+        duration_ms: float,
+        result: Any,
+        cache_key: Optional[Tuple[str, str, str]],
+    ) -> None:
+        result_type, result_size = self._snapshot_result(result)
+        timestamp = datetime.utcnow().isoformat()
+        digest = cache_key[2] if cache_key else None
+        envelope = MethodExecutionEnvelope(
+            class_name=class_name,
+            method_name=method_name,
+            timestamp=timestamp,
+            duration_ms=duration_ms,
+            payload_digest=digest,
+            cache_hit=cache_hit,
+            metadata=metadata,
+            result_type=result_type,
+            result_size=result_size,
+        )
+        self._execution_log.append(envelope)
 
 
 class D1Q1_Executor(DataFlowExecutor):
@@ -890,58 +1221,15 @@ class D1Q1_Executor(DataFlowExecutor):
             current_data = result
         
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
-    def __init__(self):
-        if MODULES_OK:
-            # Create shared ontology instance for all analyzers
-            ontology = MunicipalOntology()
-            
-            self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
-                'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
-                'BayesianEvidenceScorer': BayesianEvidenceScorer(),
-                'PolicyContradictionDetector': PolicyContradictionDetector(),
-                'TemporalLogicVerifier': TemporalLogicVerifier(),
-                'BayesianConfidenceCalculator': BayesianConfidenceCalculator(),
-                'PDETMunicipalPlanAnalyzer': PDETMunicipalPlanAnalyzer(),
-                'CDAFFramework': CDAFFramework(),
-                'OperationalizationAuditor': OperationalizationAuditor(),
-                'FinancialAuditor': FinancialAuditor(),
-                'BayesianMechanismInference': BayesianMechanismInference(),
-                'BayesianNumericalAnalyzer': BayesianNumericalAnalyzer(),
-                'PolicyAnalysisEmbedder': PolicyAnalysisEmbedder(),
-                'AdvancedSemanticChunker': AdvancedSemanticChunker(),
-                'MunicipalOntology': ontology,
-                'SemanticAnalyzer': SemanticAnalyzer(ontology),
-                'PerformanceAnalyzer': PerformanceAnalyzer(ontology),
-                'TextMiningEngine': TextMiningEngine(ontology),
-                'TeoriaCambio': TeoriaCambio(),
-                'AdvancedDAGValidator': AdvancedDAGValidator(),
-                'SemanticChunker': SemanticChunker()
-            }
-        else:
-            self.instances = {}
-        self._router = ArgRouter()
-        # Expose routing context for other methods, preventing NameError
-        global context
-        context = self._router
+        result = self.executor.execute(
+            'PolicyTextProcessor',
+            'segment_into_sentences',
+            data=current_data,
+            text=doc.raw_text,
             sentences=doc.sentences,
-    def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
-            if not MODULES_OK:
-                return None
-            try:
-                instance = self.instances.get(class_name)
-                if not instance:
-                    return None
-                method = getattr(instance, method_name)
-                ctx = kwargs.get("context")  # Safely retrieve context if provided
-                method_context = MethodContext.from_inputs(ctx, kwargs)
-                router = ARG_ROUTER.get((class_name, method_name), DEFAULT_ROUTE)
-                routed_kwargs = router(method_context)
-                filtered_kwargs = self._filter_kwargs(method, routed_kwargs)
-                return method(**filtered_kwargs)
-            except Exception as e:
-                logger.exception("Catalog invocation failed")
-                raise
+            tables=doc.tables
+        )
+        results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
         
