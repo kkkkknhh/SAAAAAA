@@ -684,9 +684,12 @@ class AdvancedDAGValidator:
             return cls._NODE_VALIDATOR
 
         path = Path(schema_path) if schema_path else cls._NODE_SCHEMA_PATH
+        
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
-            with open(path, "r", encoding="utf-8") as file:
-                schema = json.load(file)
+            schema = load_json(path)
         except FileNotFoundError:
             LOGGER.error("Advanced graph node schema file not found at %s", path)
             return None
