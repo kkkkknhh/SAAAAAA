@@ -1,8 +1,17 @@
-"""Compatibility wrapper for demo_macro_prompts example."""
-# Import from the actual implementation in examples/
-import importlib.util
-import sys
-from pathlib import Path
+"""Compatibility wrapper for demo macro prompts - example/demo version of macro prompts."""
+from saaaaaa.analysis.macro_prompts import (  # noqa: F401
+    BayesianPortfolio,
+    BayesianPortfolioComposer,
+    ContradictionReport,
+    ContradictionScanner,
+    CoverageAnalysis,
+    CoverageGapStressor,
+    ImplementationRoadmap,
+    MacroPromptsOrchestrator,
+    PeerNormalization,
+    PeerNormalizer,
+    RoadmapOptimizer,
+)
 
 # Ensure src/ is in path for imports within the example
 _root = Path(__file__).parent
