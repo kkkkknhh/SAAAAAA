@@ -35,7 +35,21 @@ These models are required for:
 
 ### 3. Verify Installation
 
-After installing dependencies, verify the class registry can load all modules:
+After installing dependencies, use the automated verification script:
+
+```bash
+python scripts/verify_dependencies.py
+```
+
+This script will:
+- ✓ Verify all 22 classes have correct `saaaaaa.` prefix
+- ✓ Check all core dependencies are installed
+- ✓ Validate PDF processing libraries
+- ✓ Confirm NLP dependencies
+- ✓ Check SpaCy models
+- ✓ Attempt to load the class registry
+
+Alternatively, manually verify the class registry can load all modules:
 
 ```bash
 python -c "
