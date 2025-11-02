@@ -1,11 +1,23 @@
 """Compatibility wrapper for validate_system script."""
-# Re-export from scripts directory
+# Import from the actual implementation in scripts/
+import importlib.util
 import sys
 from pathlib import Path
 
-# Add scripts directory to path
-scripts_dir = Path(__file__).parent / "scripts"
-sys.path.insert(0, str(scripts_dir))
+# Ensure src/ is in path for imports within the script
+_root = Path(__file__).parent
+if str(_root / "src") not in sys.path:
+    sys.path.insert(0, str(_root / "src"))
 
-# Import everything from the actual implementation
-from validate_system import *  # noqa: F401, F403
+# Load the actual module from scripts/
+_module_path = _root / "scripts" / "validate_system.py"
+_spec = importlib.util.spec_from_file_location("_validate_system_impl", _module_path)
+if _spec and _spec.loader:
+    _module = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_module)
+    
+    # Re-export everything from the module
+    for _name in dir(_module):
+        if not _name.startswith('_'):
+            globals()[_name] = getattr(_module, _name)
+
