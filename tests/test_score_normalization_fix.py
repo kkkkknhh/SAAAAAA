@@ -27,8 +27,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 try:
     import pytest
     HAS_PYTEST = True
+    
+    # Helper for approximate comparisons
+    def approx_equal(a, b, abs_tol=0.01):
+        return pytest.approx(a, abs=abs_tol) == b
 except ImportError:
     HAS_PYTEST = False
+    
+    # Fallback for manual execution without pytest
+    def approx_equal(a, b, abs_tol=0.01):
+        return abs(a - b) <= abs_tol
 
 
 def test_macro_score_normalization():
@@ -58,7 +66,8 @@ def test_macro_score_normalization():
     expected_macro_score = 0.8
     
     # Check that macro_score is correct
-    assert result["macro_score"] == pytest.approx(expected_macro_score, abs=0.01)
+    assert approx_equal(result["macro_score"], expected_macro_score), \
+        f"Expected {expected_macro_score}, got {result['macro_score']}"
     
     # Check that macro_score_normalized is the same (not divided by 3.0)
     assert result["macro_score_normalized"] == result["macro_score"]
@@ -79,7 +88,8 @@ def test_cluster_score_not_double_normalized():
     normalized_cluster_score = cluster_score  # Should not divide by 3.0
     percentage = normalized_cluster_score * 100
     
-    assert percentage == pytest.approx(80.0, abs=0.1)
+    assert approx_equal(percentage, 80.0, abs_tol=0.1), \
+        f"Expected percentage to be 80.0, got {percentage}"
     assert percentage > 50, "Score should be 80%, not 26.7%"
 
 
@@ -168,7 +178,8 @@ def test_variance_calculation():
     # Expected: variance([0.8, 0.7, 0.9, 0.75]) ≈ 0.00667
     expected_variance = 0.00667
     
-    assert variance == pytest.approx(expected_variance, abs=0.001)
+    assert approx_equal(variance, expected_variance, abs_tol=0.001), \
+        f"Expected variance {expected_variance}, got {variance}"
     
     # Old code would have calculated variance on values/3.0, giving much smaller variance
     # This ensures we're using the correct scale
