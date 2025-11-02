@@ -5,26 +5,26 @@ Tests all TYPE_A through TYPE_F modalities with various evidence structures.
 """
 
 import sys
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import scoring.scoring as scoring_module
 from scoring.scoring import (
-    ScoringModality,
-    QualityLevel,
-    ScoringError,
-    ModalityValidationError,
     EvidenceStructureError,
+    ModalityValidationError,
+    QualityLevel,
     ScoredResult,
-    ModalityConfig,
+    ScoringError,
+    ScoringModality,
     ScoringValidator,
+    apply_rounding,
     apply_scoring,
     determine_quality_level,
-    apply_rounding,
     score_type_a,
     score_type_b,
     score_type_c,
@@ -33,35 +33,33 @@ from scoring.scoring import (
     score_type_f,
 )
 
-import scoring.scoring as scoring_module
-
 
 def test_scored_result_hash():
     """Test that evidence hash is computed correctly."""
     evidence1 = {"elements": [1, 2, 3], "confidence": 0.9}
     evidence2 = {"confidence": 0.9, "elements": [1, 2, 3]}  # Different order
     evidence3 = {"elements": [1, 2, 3], "confidence": 0.8}  # Different value
-    
+
     hash1 = ScoredResult.compute_evidence_hash(evidence1)
     hash2 = ScoredResult.compute_evidence_hash(evidence2)
     hash3 = ScoredResult.compute_evidence_hash(evidence3)
-    
+
     # Same content, different key order should produce same hash
     assert hash1 == hash2, "Hash should be order-independent"
-    
+
     # Different content should produce different hash
     assert hash1 != hash3, "Different evidence should produce different hash"
-    
+
     # Hash should be SHA-256 (64 hex characters)
     assert len(hash1) == 64, "Hash should be 64 characters"
-    
+
     print("✓ test_scored_result_hash passed")
 
 
 def test_modality_validation_type_a():
     """Test TYPE_A evidence validation."""
     modality = ScoringModality.TYPE_A
-    
+
     # Valid evidence
     valid_evidence = {
         "elements": [1, 2, 3, 4],
@@ -69,21 +67,21 @@ def test_modality_validation_type_a():
     }
     ScoringValidator.validate(valid_evidence, modality)
     print("✓ TYPE_A valid evidence accepted")
-    
+
     # Missing required key
     try:
         invalid_evidence = {"elements": [1, 2, 3]}
         ScoringValidator.validate(invalid_evidence, modality)
-        assert False, "Should have raised EvidenceStructureError"
+        raise AssertionError("Should have raised EvidenceStructureError")
     except EvidenceStructureError as e:
         assert "confidence" in str(e).lower()
         print("✓ TYPE_A missing key detected")
-    
+
     # Invalid elements type
     try:
         invalid_evidence = {"elements": "not a list", "confidence": 0.85}
         ScoringValidator.validate(invalid_evidence, modality)
-        assert False, "Should have raised ModalityValidationError"
+        raise AssertionError("Should have raised ModalityValidationError")
     except ModalityValidationError as e:
         assert "list" in str(e).lower()
         print("✓ TYPE_A invalid elements type detected")
@@ -92,8 +90,8 @@ def test_modality_validation_type_a():
 def test_scoring_type_a():
     """Test TYPE_A scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_A)
-    max_score = config.score_range[1]
-    
+    config.score_range[1]
+
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
     score, metadata = score_type_a(evidence, config)
@@ -101,14 +99,14 @@ def test_scoring_type_a():
     assert metadata["element_count"] == 4
     assert metadata["confidence"] == 1.0
     print(f"✓ TYPE_A full score: {score}")
-    
+
     # Partial score with lower confidence
     evidence = {"elements": [1, 2], "confidence": 0.5}
     score, metadata = score_type_a(evidence, config)
     expected = (2 / 4) * 3.0 * 0.5  # 0.75
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_A partial score: {score}")
-    
+
     # Zero score
     evidence = {"elements": [], "confidence": 0.0}
     score, metadata = score_type_a(evidence, config)
@@ -119,13 +117,13 @@ def test_scoring_type_a():
 def test_scoring_type_b():
     """Test TYPE_B scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_B)
-    
+
     # Full score
     evidence = {"elements": [1, 2, 3], "completeness": 1.0}
     score, metadata = score_type_b(evidence, config)
     assert score == 3.0, f"Expected 3.0, got {score}"
     print(f"✓ TYPE_B full score: {score}")
-    
+
     # Partial score
     evidence = {"elements": [1, 2], "completeness": 0.75}
     score, metadata = score_type_b(evidence, config)
@@ -137,13 +135,13 @@ def test_scoring_type_b():
 def test_scoring_type_c():
     """Test TYPE_C scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_C)
-    
+
     # Full score
     evidence = {"elements": [1, 2], "coherence_score": 1.0}
     score, metadata = score_type_c(evidence, config)
     assert score == 3.0, f"Expected 3.0, got {score}"
     print(f"✓ TYPE_C full score: {score}")
-    
+
     # Partial score
     evidence = {"elements": [1], "coherence_score": 0.6}
     score, metadata = score_type_c(evidence, config)
@@ -155,13 +153,13 @@ def test_scoring_type_c():
 def test_scoring_type_d():
     """Test TYPE_D scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_D)
-    
+
     # Full score
     evidence = {"elements": [1, 2, 3], "pattern_matches": 3}
     score, metadata = score_type_d(evidence, config)
     assert score == 3.0, f"Expected 3.0, got {score}"
     print(f"✓ TYPE_D full score: {score}")
-    
+
     # Partial score
     evidence = {"elements": [1, 2], "pattern_matches": 2}
     score, metadata = score_type_d(evidence, config)
@@ -173,20 +171,20 @@ def test_scoring_type_d():
 def test_scoring_type_e():
     """Test TYPE_E scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_E)
-    
+
     # Full score with boolean
     evidence = {"elements": [1, 2], "traceability": True}
     score, metadata = score_type_e(evidence, config)
     assert score == 3.0, f"Expected 3.0, got {score}"
     print(f"✓ TYPE_E full score (boolean): {score}")
-    
+
     # Partial score with numeric
     evidence = {"elements": [1, 2], "traceability": 0.5}
     score, metadata = score_type_e(evidence, config)
     expected = 3.0 * 0.5  # 1.5
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_E partial score (numeric): {score}")
-    
+
     # Zero score
     evidence = {"elements": [], "traceability": True}
     score, metadata = score_type_e(evidence, config)
@@ -197,13 +195,13 @@ def test_scoring_type_e():
 def test_scoring_type_f():
     """Test TYPE_F scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_F)
-    
+
     # Full score
     evidence = {"elements": [1, 2], "plausibility": 1.0}
     score, metadata = score_type_f(evidence, config)
     assert score == 3.0, f"Expected 3.0, got {score}"
     print(f"✓ TYPE_F full score: {score}")
-    
+
     # Partial score
     evidence = {"elements": [1], "plausibility": 0.7}
     score, metadata = score_type_f(evidence, config)
@@ -219,17 +217,17 @@ def test_quality_level_determination():
     level = determine_quality_level(0.90)
     assert level == QualityLevel.EXCELENTE
     print(f"✓ Quality level 0.90 -> {level.value}")
-    
+
     # BUENO
     level = determine_quality_level(0.75)
     assert level == QualityLevel.BUENO
     print(f"✓ Quality level 0.75 -> {level.value}")
-    
+
     # ACEPTABLE
     level = determine_quality_level(0.60)
     assert level == QualityLevel.ACEPTABLE
     print(f"✓ Quality level 0.60 -> {level.value}")
-    
+
     # INSUFICIENTE
     level = determine_quality_level(0.40)
     assert level == QualityLevel.INSUFICIENTE
@@ -270,7 +268,7 @@ def test_apply_scoring_type_a():
         "elements": [1, 2, 3, 4],
         "confidence": 0.9,
     }
-    
+
     result = apply_scoring(
         question_global=1,
         base_slot="PA01-DIM01-Q001",
@@ -279,7 +277,7 @@ def test_apply_scoring_type_a():
         evidence=evidence,
         modality="TYPE_A",
     )
-    
+
     assert result.question_global == 1
     assert result.base_slot == "PA01-DIM01-Q001"
     assert result.policy_area == "PA01"
@@ -289,7 +287,7 @@ def test_apply_scoring_type_a():
     assert 0 <= result.normalized_score <= 1.0
     assert result.quality_level in ["EXCELENTE", "BUENO", "ACEPTABLE", "INSUFICIENTE"]
     assert result.evidence_hash == ScoredResult.compute_evidence_hash(evidence)
-    
+
     print(f"✓ Full scoring workflow TYPE_A: score={result.score:.2f}, quality={result.quality_level}")
 
 
@@ -313,7 +311,7 @@ def test_type_a_not_truncated():
 def test_apply_scoring_invalid_modality():
     """Test that invalid modality raises error."""
     evidence = {"elements": [1, 2, 3], "confidence": 0.9}
-    
+
     try:
         apply_scoring(
             question_global=1,
@@ -323,7 +321,7 @@ def test_apply_scoring_invalid_modality():
             evidence=evidence,
             modality="TYPE_Z",  # Invalid
         )
-        assert False, "Should have raised ModalityValidationError"
+        raise AssertionError("Should have raised ModalityValidationError")
     except ModalityValidationError as e:
         assert "TYPE_Z" in str(e)
         print("✓ Invalid modality detected")
@@ -332,7 +330,7 @@ def test_apply_scoring_invalid_modality():
 def test_apply_scoring_missing_evidence():
     """Test that missing evidence raises error."""
     evidence = {"elements": [1, 2, 3]}  # Missing confidence
-    
+
     try:
         apply_scoring(
             question_global=1,
@@ -342,7 +340,7 @@ def test_apply_scoring_missing_evidence():
             evidence=evidence,
             modality="TYPE_A",
         )
-        assert False, "Should have raised EvidenceStructureError"
+        raise AssertionError("Should have raised EvidenceStructureError")
     except EvidenceStructureError as e:
         assert "confidence" in str(e).lower()
         print("✓ Missing evidence detected")
@@ -354,7 +352,7 @@ def test_reproducibility():
         "elements": [1, 2, 3, 4],
         "confidence": 0.85,
     }
-    
+
     result1 = apply_scoring(
         question_global=1,
         base_slot="PA01-DIM01-Q001",
@@ -363,7 +361,7 @@ def test_reproducibility():
         evidence=evidence,
         modality="TYPE_A",
     )
-    
+
     result2 = apply_scoring(
         question_global=1,
         base_slot="PA01-DIM01-Q001",
@@ -372,13 +370,13 @@ def test_reproducibility():
         evidence=evidence,
         modality="TYPE_A",
     )
-    
+
     # Scores should be identical
     assert result1.score == result2.score
     assert result1.normalized_score == result2.normalized_score
     assert result1.quality_level == result2.quality_level
     assert result1.evidence_hash == result2.evidence_hash
-    
+
     print("✓ Scoring is reproducible")
 
 
@@ -392,7 +390,7 @@ def test_all_modalities():
         ("TYPE_E", {"elements": [1, 2], "traceability": True}),
         ("TYPE_F", {"elements": [1, 2], "plausibility": 0.85}),
     ]
-    
+
     for modality, evidence in test_cases:
         result = apply_scoring(
             question_global=1,
@@ -481,7 +479,7 @@ def test_apply_rounding_modes():
 def run_all_tests():
     """Run all tests."""
     print("\n=== Running Scoring Module Tests ===\n")
-    
+
     tests = [
         test_scored_result_hash,
         test_modality_validation_type_a,
@@ -498,7 +496,7 @@ def run_all_tests():
         test_reproducibility,
         test_all_modalities,
     ]
-    
+
     failed = 0
     for test in tests:
         try:
@@ -509,12 +507,12 @@ def run_all_tests():
             import traceback
             traceback.print_exc()
             failed += 1
-    
-    print(f"\n=== Test Results ===")
+
+    print("\n=== Test Results ===")
     print(f"Total: {len(tests)}")
     print(f"Passed: {len(tests) - failed}")
     print(f"Failed: {failed}")
-    
+
     return failed == 0
 
 

@@ -9,29 +9,28 @@ bayesian_multilevel_system, evidence_registry, and report_assembly modules.
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import micro prompts
 from micro_prompts import (
-    create_provenance_auditor,
-    create_posterior_explainer,
-    create_stress_tester,
-    QMCMRecord,
-    ProvenanceNode,
-    ProvenanceDAG,
-    Signal,
     CausalChain,
     ProportionalityPattern,
+    ProvenanceDAG,
+    ProvenanceNode,
+    QMCMRecord,
+    Signal,
+    create_posterior_explainer,
+    create_provenance_auditor,
+    create_stress_tester,
 )
 
 # Import existing system components (when available)
 try:
     from bayesian_multilevel_system import (
-        ProbativeTestType,
         BayesianUpdater,
+        ProbativeTestType,
     )
     BAYESIAN_AVAILABLE = True
 except ImportError:
@@ -40,8 +39,8 @@ except ImportError:
 
 try:
     from orchestrator.evidence_registry import (
-        EvidenceRegistry,
         EvidenceRecord,
+        EvidenceRegistry,
     )
     REGISTRY_AVAILABLE = True
 except ImportError:
@@ -52,17 +51,17 @@ except ImportError:
 def example_1_provenance_audit():
     """
     Example 1: Provenance Audit on a micro-level answer
-    
+
     Shows how to validate QMCM integrity and provenance DAG
     for a single question's analysis pipeline.
     """
     print("\n" + "="*70)
     print("EXAMPLE 1: Provenance Audit (QMCM Integrity Check)")
     print("="*70)
-    
+
     # Create provenance auditor with 500ms latency threshold
     auditor = create_provenance_auditor(p95_latency=500.0)
-    
+
     # Simulate QMCM records for a question
     qmcm_records = {
         'qmcm_001': QMCMRecord(
@@ -97,7 +96,7 @@ def example_1_provenance_audit():
             }
         )
     }
-    
+
     # Build provenance DAG
     nodes = {
         'input_doc': ProvenanceNode(
@@ -134,7 +133,7 @@ def example_1_provenance_audit():
             timing=50.0
         )
     }
-    
+
     edges = [
         ('input_doc', 'financial_analysis'),
         ('financial_analysis', 'bayesian_score'),
@@ -142,9 +141,9 @@ def example_1_provenance_audit():
         ('bayesian_score', 'final_output'),
         ('beach_test', 'final_output')
     ]
-    
+
     dag = ProvenanceDAG(nodes=nodes, edges=edges)
-    
+
     # Define method contracts (expected schemas)
     contracts = {
         'financiero_viabilidad_tablas.PDETMunicipalPlanAnalyzer.analyze_financial_feasibility': {
@@ -161,7 +160,7 @@ def example_1_provenance_audit():
             'strength': 'float'
         }
     }
-    
+
     # Perform audit
     result = auditor.audit(
         micro_answer=None,  # Would be actual MicroLevelAnswer
@@ -169,40 +168,40 @@ def example_1_provenance_audit():
         provenance_dag=dag,
         method_contracts=contracts
     )
-    
+
     # Display results
     print(f"\n✓ Audit Severity: {result.severity}")
     print(f"✓ Missing QMCM: {len(result.missing_qmcm)}")
     print(f"✓ Orphan Nodes: {len(result.orphan_nodes)}")
     print(f"✓ Schema Mismatches: {len(result.schema_mismatches)}")
     print(f"✓ Latency Anomalies: {len(result.latency_anomalies)}")
-    print(f"\n✓ Contribution Weights:")
+    print("\n✓ Contribution Weights:")
     for method, weight in result.contribution_weights.items():
         short_name = method.split('.')[-1]
         print(f"  - {short_name}: {weight:.2f}")
     print(f"\n✓ Narrative: {result.narrative}")
-    
+
     # Export to JSON
     audit_json = auditor.to_json(result)
     print(f"\n✓ JSON export keys: {list(audit_json.keys())}")
-    
+
     return result
 
 
 def example_2_bayesian_posterior_justification():
     """
     Example 2: Bayesian Posterior Justification
-    
+
     Shows how to explain how different signals contributed to
     the final posterior probability for a question.
     """
     print("\n" + "="*70)
     print("EXAMPLE 2: Bayesian Posterior Justification")
     print("="*70)
-    
+
     # Create explainer with anti-miracle cap at 0.95
     explainer = create_posterior_explainer(anti_miracle_cap=0.95)
-    
+
     # Simulate signals from different analysis methods
     signals = [
         Signal(
@@ -242,59 +241,59 @@ def example_2_bayesian_posterior_justification():
             reason="Contract violation: missing required field"
         )
     ]
-    
+
     # Explain posterior
     prior = 0.35
     posterior = 0.80
-    
+
     result = explainer.explain(
         prior=prior,
         signals=signals,
         posterior=posterior
     )
-    
+
     # Display results
     print(f"\n✓ Prior Probability: {result.prior:.3f}")
     print(f"✓ Posterior Probability: {result.posterior:.3f}")
     print(f"✓ Change: {result.posterior - result.prior:+.3f}")
-    
-    print(f"\n✓ Signals Ranked by Impact:")
+
+    print("\n✓ Signals Ranked by Impact:")
     for i, signal in enumerate(result.signals_ranked[:5], 1):
         print(f"  {i}. {signal['test_type']} (Δ={signal['delta_posterior']:.3f})")
         print(f"     {signal['reason']}")
-    
+
     print(f"\n✓ Discarded Signals: {len(result.discarded_signals)}")
     for signal in result.discarded_signals:
         print(f"  - {signal['test_type']}: {signal['reason']}")
-    
+
     print(f"\n✓ Anti-Miracle Cap Applied: {result.anti_miracle_cap_applied}")
     if result.anti_miracle_cap_applied:
         print(f"  Cap Delta: {result.cap_delta:.3f}")
-    
-    print(f"\n✓ Robustness Narrative:")
+
+    print("\n✓ Robustness Narrative:")
     print(f"  {result.robustness_narrative}")
-    
+
     # Export to JSON
     justification_json = explainer.to_json(result)
     print(f"\n✓ JSON export contains {len(justification_json['signals_ranked'])} ranked signals")
-    
+
     return result
 
 
 def example_3_anti_milagro_stress_test():
     """
     Example 3: Anti-Milagro Stress Test
-    
+
     Shows how to test structural fragility of causal chains
     by simulating node removal and checking for non-proportional jumps.
     """
     print("\n" + "="*70)
     print("EXAMPLE 3: Anti-Milagro Stress Test")
     print("="*70)
-    
+
     # Create stress tester with 30% fragility threshold
     tester = create_stress_tester(fragility_threshold=0.3)
-    
+
     # Define causal chain for a Theory of Change
     chain = CausalChain(
         steps=[
@@ -313,7 +312,7 @@ def example_3_anti_milagro_stress_test():
             ('Outcome_Achievement', 'Impact_Realization')
         ]
     )
-    
+
     # Define proportionality patterns found in evidence
     patterns = [
         ProportionalityPattern(
@@ -338,105 +337,105 @@ def example_3_anti_milagro_stress_test():
         ),
         # Note: missing patterns for Outcome and Impact steps
     ]
-    
+
     # Missing required patterns
     missing = [
         'dose-response for Outcome_Achievement',
         'mechanism for Impact_Realization'
     ]
-    
+
     # Run stress test
     result = tester.stress_test(
         causal_chain=chain,
         proportionality_patterns=patterns,
         missing_patterns=missing
     )
-    
+
     # Display results
     print(f"\n✓ Causal Chain Length: {chain.length()} steps")
     print(f"✓ Patterns Found: {len(patterns)}")
     print(f"✓ Pattern Density: {result.density:.2f} patterns/step")
     print(f"✓ Pattern Coverage: {result.pattern_coverage:.1%}")
-    
-    print(f"\n✓ Stress Test Results:")
+
+    print("\n✓ Stress Test Results:")
     print(f"  - Simulated Support Drop: {result.simulated_drop:.1%}")
     print(f"  - Fragility Flag: {'⚠️  FRAGILE' if result.fragility_flag else '✓ ROBUST'}")
-    
+
     print(f"\n✓ Missing Patterns ({len(result.missing_patterns)}):")
     for pattern in result.missing_patterns:
         print(f"  - {pattern}")
-    
-    print(f"\n✓ Explanation:")
+
+    print("\n✓ Explanation:")
     print(f"  {result.explanation}")
-    
+
     # Export to JSON
     stress_json = tester.to_json(result)
     print(f"\n✓ JSON export keys: {list(stress_json.keys())}")
-    
+
     return result
 
 
 def example_4_integrated_workflow():
     """
     Example 4: Integrated Workflow
-    
+
     Shows how to use all three micro prompts together in a
     complete quality assurance workflow for a micro-level answer.
     """
     print("\n" + "="*70)
     print("EXAMPLE 4: Integrated Quality Assurance Workflow")
     print("="*70)
-    
+
     # Step 1: Provenance Audit
     print("\nStep 1: Running Provenance Audit...")
     audit_result = example_1_provenance_audit()
-    
+
     if audit_result.severity in ['HIGH', 'CRITICAL']:
         print(f"\n⚠️  ALERT: Provenance audit severity is {audit_result.severity}")
         print("  Recommend investigating before proceeding.")
-    
+
     # Step 2: Bayesian Justification
     print("\n" + "-"*70)
     print("Step 2: Running Bayesian Posterior Justification...")
     posterior_result = example_2_bayesian_posterior_justification()
-    
+
     if len(posterior_result.discarded_signals) > 0:
         print(f"\n⚠️  WARNING: {len(posterior_result.discarded_signals)} signals discarded")
         print("  Review reconciliation failures.")
-    
+
     # Step 3: Stress Test
     print("\n" + "-"*70)
     print("Step 3: Running Anti-Milagro Stress Test...")
     stress_result = example_3_anti_milagro_stress_test()
-    
+
     if stress_result.fragility_flag:
         print(f"\n⚠️  FRAGILITY DETECTED: Support drop = {stress_result.simulated_drop:.1%}")
         print("  Causal chain may depend on non-proportional jumps.")
-    
+
     # Summary
     print("\n" + "="*70)
     print("QUALITY ASSURANCE SUMMARY")
     print("="*70)
-    
+
     # Calculate overall QA score
     qa_scores = {
         'provenance': 1.0 if audit_result.severity == 'LOW' else 0.5,
         'posterior': 1.0 if posterior_result.posterior > 0.7 else 0.5,
         'stress': 0.0 if stress_result.fragility_flag else 1.0
     }
-    
+
     overall_qa = sum(qa_scores.values()) / len(qa_scores)
-    
+
     print(f"\n✓ Provenance Quality: {'PASS' if qa_scores['provenance'] == 1.0 else 'WARN'}")
     print(f"✓ Posterior Robustness: {'PASS' if qa_scores['posterior'] == 1.0 else 'WARN'}")
     print(f"✓ Structural Integrity: {'PASS' if qa_scores['stress'] == 1.0 else 'WARN'}")
     print(f"\n✓ Overall QA Score: {overall_qa:.1%}")
-    
+
     if overall_qa >= 0.8:
         print("\n✅ QUALITY ASSURANCE: PASSED")
     else:
         print("\n⚠️  QUALITY ASSURANCE: NEEDS ATTENTION")
-    
+
     return {
         'audit': audit_result,
         'posterior': posterior_result,
@@ -454,15 +453,15 @@ if __name__ == '__main__':
     print("2. Bayesian Posterior Justification")
     print("3. Anti-Milagro Stress Test")
     print("4. Integrated Quality Assurance Workflow")
-    
+
     # Run individual examples
     example_1_provenance_audit()
     example_2_bayesian_posterior_justification()
     example_3_anti_milagro_stress_test()
-    
+
     # Run integrated workflow
     results = example_4_integrated_workflow()
-    
+
     print("\n" + "="*70)
     print("ALL EXAMPLES COMPLETED SUCCESSFULLY")
     print("="*70)

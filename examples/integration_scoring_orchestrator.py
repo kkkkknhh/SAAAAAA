@@ -11,20 +11,20 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scoring.scoring import apply_scoring, ScoringModality
+from scoring.scoring import apply_scoring
 
 
 def simulate_question_processing():
     """
     Simulate processing multiple questions through the scoring pipeline.
-    
+
     This demonstrates how the orchestrator would use the scoring module
     to score evidence from micro questions.
     """
     print("=" * 70)
     print("INTEGRATION: Scoring Module with Orchestrator Pattern")
     print("=" * 70)
-    
+
     # Simulate processing 6 questions, one for each modality
     questions = [
         {
@@ -94,15 +94,15 @@ def simulate_question_processing():
             }
         }
     ]
-    
+
     print("\nProcessing questions through scoring pipeline...")
     print("-" * 70)
-    
+
     results = []
-    
+
     for i, question in enumerate(questions, 1):
         print(f"\nQuestion {i}/6: {question['base_slot']} ({question['modality']})")
-        
+
         try:
             result = apply_scoring(
                 question_global=question["question_global"],
@@ -112,42 +112,42 @@ def simulate_question_processing():
                 evidence=question["evidence"],
                 modality=question["modality"]
             )
-            
+
             results.append(result)
-            
+
             print(f"  ✓ Score: {result.score:.2f}")
             print(f"  ✓ Normalized: {result.normalized_score:.2f}")
             print(f"  ✓ Quality: {result.quality_level}")
-            
+
         except Exception as e:
             print(f"  ✗ Error: {e}")
-    
+
     print("\n" + "-" * 70)
     print("SUMMARY")
     print("-" * 70)
-    
+
     # Aggregate results
     total_questions = len(results)
     avg_score = sum(r.normalized_score for r in results) / total_questions if results else 0
-    
+
     quality_counts = {
         "EXCELENTE": sum(1 for r in results if r.quality_level == "EXCELENTE"),
         "BUENO": sum(1 for r in results if r.quality_level == "BUENO"),
         "ACEPTABLE": sum(1 for r in results if r.quality_level == "ACEPTABLE"),
         "INSUFICIENTE": sum(1 for r in results if r.quality_level == "INSUFICIENTE"),
     }
-    
+
     print(f"\nTotal questions processed: {total_questions}")
     print(f"Average normalized score: {avg_score:.2f}")
-    print(f"\nQuality distribution:")
+    print("\nQuality distribution:")
     for level, count in quality_counts.items():
         pct = (count / total_questions * 100) if total_questions > 0 else 0
         print(f"  {level:14}: {count:2} ({pct:5.1f}%)")
-    
+
     print("\n" + "=" * 70)
     print("Integration test complete!")
     print("=" * 70)
-    
+
     return results
 
 
@@ -156,14 +156,14 @@ def demonstrate_reproducibility():
     print("\n" + "=" * 70)
     print("REPRODUCIBILITY TEST")
     print("=" * 70)
-    
+
     evidence = {
         "elements": [1, 2, 3, 4],
         "confidence": 0.85
     }
-    
+
     print("\nScoring the same evidence 3 times...")
-    
+
     results = []
     for i in range(3):
         result = apply_scoring(
@@ -176,21 +176,21 @@ def demonstrate_reproducibility():
         )
         results.append(result)
         print(f"  Run {i+1}: score={result.score:.2f}, hash={result.evidence_hash[:16]}...")
-    
+
     # Verify all results are identical
     all_same_score = all(r.score == results[0].score for r in results)
     all_same_hash = all(r.evidence_hash == results[0].evidence_hash for r in results)
     all_same_quality = all(r.quality_level == results[0].quality_level for r in results)
-    
+
     print(f"\nAll scores identical: {all_same_score}")
     print(f"All hashes identical: {all_same_hash}")
     print(f"All quality levels identical: {all_same_quality}")
-    
+
     if all_same_score and all_same_hash and all_same_quality:
         print("\n✓ Reproducibility verified!")
     else:
         print("\n✗ Reproducibility check failed!")
-    
+
     print("=" * 70)
 
 

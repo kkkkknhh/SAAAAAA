@@ -17,28 +17,28 @@ Version: 1.0.0
 Status: Skeleton implementation (to be expanded with I/O migration)
 """
 
-from dataclasses import dataclass
 import copy
-from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional
 import json
 import logging
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any, Optional
 
 from ..contracts import (
-    DocumentData,
-    SemanticAnalyzerInputContract,
     CDAFFrameworkInputContract,
-    PDETAnalyzerInputContract,
-    TeoriaCambioInputContract,
     ContradictionDetectorInputContract,
+    DocumentData,
     EmbeddingPolicyInputContract,
-    SemanticChunkingInputContract,
+    PDETAnalyzerInputContract,
     PolicyProcessorInputContract,
+    SemanticAnalyzerInputContract,
+    SemanticChunkingInputContract,
+    TeoriaCambioInputContract,
 )
-
-from .core import MethodExecutor
 from . import get_questionnaire_provider
+from .core import MethodExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -69,28 +69,28 @@ class ProcessorBundle:
 # FILE I/O OPERATIONS
 # ============================================================================
 
-def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire monolith JSON file.
-    
+
     This is the ONLY place in the system that should read questionnaire_monolith.json.
     Core modules receive the data via contracts.
-    
+
     Args:
         path: Optional path to questionnaire file. Defaults to ./questionnaire_monolith.json
-        
+
     Returns:
         Loaded questionnaire data
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
         path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
-    
+
     logger.info(f"Loading questionnaire from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         payload = json.load(f)
 
     if not isinstance(payload, dict):
@@ -101,81 +101,81 @@ def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
     return payload
 
 
-def load_catalog(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
-    
+
     Args:
         path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
-        
+
     Returns:
         Loaded catalog data
     """
     if path is None:
         path = Path("rules/METODOS/metodos_completos_nivel3.json")
-    
+
     logger.info(f"Loading catalog from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
-def load_method_map(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
-    
+
     Args:
         path: Path to method map file. Defaults to COMPLETE_METHOD_CLASS_MAP.json
-        
+
     Returns:
         Loaded method map data
     """
     if path is None:
         path = Path("COMPLETE_METHOD_CLASS_MAP.json")
-    
+
     logger.info(f"Loading method map from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
-def load_schema(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
-    
+
     Args:
         path: Path to schema file. Defaults to schemas/questionnaire.schema.json
-        
+
     Returns:
         Loaded schema data
     """
     if path is None:
         path = Path("schemas/questionnaire.schema.json")
-    
+
     logger.info(f"Loading schema from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
 def load_document(file_path: Path) -> DocumentData:
     """Load a document and construct DocumentData contract.
-    
+
     This handles file I/O and parsing, providing structured data to core modules.
-    
+
     Args:
         file_path: Path to document file
-        
+
     Returns:
         DocumentData contract with parsed content
     """
     logger.info(f"Loading document from {file_path}")
-    
+
     # Read file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         raw_text = f.read()
-    
+
     # Basic parsing (to be enhanced)
     sentences = raw_text.split('.')
     sentences = [s.strip() for s in sentences if s.strip()]
-    
+
     return DocumentData(
         raw_text=raw_text,
         sentences=sentences,
@@ -188,18 +188,18 @@ def load_document(file_path: Path) -> DocumentData:
     )
 
 
-def save_results(results: Dict[str, Any], output_path: Path) -> None:
+def save_results(results: dict[str, Any], output_path: Path) -> None:
     """Save analysis results to file.
-    
+
     This is the ONLY place that should write analysis results.
     Core modules return data via contracts; the factory handles persistence.
-    
+
     Args:
         results: Analysis results to save
         output_path: Path to output file
     """
     logger.info(f"Saving results to {output_path}")
-    
+
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
@@ -213,11 +213,11 @@ def construct_semantic_analyzer_input(
     **kwargs: Any
 ) -> SemanticAnalyzerInputContract:
     """Construct input contract for SemanticAnalyzer.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -234,12 +234,12 @@ def construct_cdaf_input(
     **kwargs: Any
 ) -> CDAFFrameworkInputContract:
     """Construct input contract for CDAFFramework.
-    
+
     Args:
         document: Loaded document data
         plan_name: Name of the development plan
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -259,11 +259,11 @@ def construct_pdet_input(
     **kwargs: Any
 ) -> PDETAnalyzerInputContract:
     """Construct input contract for PDETMunicipalPlanAnalyzer.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -279,11 +279,11 @@ def construct_teoria_cambio_input(
     **kwargs: Any
 ) -> TeoriaCambioInputContract:
     """Construct input contract for TeoriaCambio.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -300,12 +300,12 @@ def construct_contradiction_detector_input(
     **kwargs: Any
 ) -> ContradictionDetectorInputContract:
     """Construct input contract for PolicyContradictionDetector.
-    
+
     Args:
         document: Loaded document data
         plan_name: Name of the development plan
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -322,11 +322,11 @@ def construct_embedding_policy_input(
     **kwargs: Any
 ) -> EmbeddingPolicyInputContract:
     """Construct input contract for embedding policy analysis.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -342,11 +342,11 @@ def construct_semantic_chunking_input(
     **kwargs: Any
 ) -> SemanticChunkingInputContract:
     """Construct input contract for semantic chunking.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -362,11 +362,11 @@ def construct_policy_processor_input(
     **kwargs: Any
 ) -> PolicyProcessorInputContract:
     """Construct input contract for IndustrialPolicyProcessor.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -385,37 +385,37 @@ def construct_policy_processor_input(
 
 class CoreModuleFactory:
     """Factory for constructing core modules with injected dependencies.
-    
+
     This factory:
     1. Loads data from disk
     2. Constructs contracts
     3. Initializes core modules
     4. Manages all I/O operations
-    
+
     Usage:
         factory = CoreModuleFactory()
         document = factory.load_document(Path("plan.txt"))
-        
+
         # Construct input contract
         input_contract = factory.construct_semantic_analyzer_input(document)
-        
+
         # Use with core module (once modules are refactored)
         # analyzer = SemanticAnalyzer()
         # result = analyzer.analyze(input_contract)
     """
-    
-    def __init__(self, data_dir: Optional[Path] = None):
+
+    def __init__(self, data_dir: Path | None = None) -> None:
         """Initialize factory.
-        
+
         Args:
             data_dir: Optional directory for data files
         """
         self.data_dir = data_dir or _DEFAULT_DATA_DIR
-        self.questionnaire_cache: Optional[Dict[str, Any]] = None
-    
-    def get_questionnaire(self) -> Dict[str, Any]:
+        self.questionnaire_cache: dict[str, Any] | None = None
+
+    def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
-        
+
         Returns:
             Questionnaire data
         """
@@ -425,27 +425,27 @@ class CoreModuleFactory:
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
         return self.questionnaire_cache
-    
+
     def load_document(self, file_path: Path) -> DocumentData:
         """Load document and return structured data.
-        
+
         Args:
             file_path: Path to document
-            
+
         Returns:
             Parsed document data
         """
         return load_document(file_path)
 
-    def save_results(self, results: Dict[str, Any], output_path: Path) -> None:
+    def save_results(self, results: dict[str, Any], output_path: Path) -> None:
         """Save analysis results.
-        
+
         Args:
             results: Results to save
             output_path: Output file path
         """
         save_results(results, output_path)
-    
+
     # Contract constructor methods
     construct_semantic_analyzer_input = construct_semantic_analyzer_input
     construct_cdaf_input = construct_cdaf_input
@@ -459,8 +459,8 @@ class CoreModuleFactory:
 
 def build_processor(
     *,
-    questionnaire_path: Optional[Path] = None,
-    data_dir: Optional[Path] = None,
+    questionnaire_path: Path | None = None,
+    data_dir: Path | None = None,
     factory: Optional["CoreModuleFactory"] = None,
 ) -> ProcessorBundle:
     """Create a processor bundle with orchestrator dependencies wired together.
@@ -506,10 +506,10 @@ def build_processor(
 
 def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
     """Helper to track I/O migration progress.
-    
+
     This is a placeholder function to document which I/O operations
     have been migrated from core modules to the factory.
-    
+
     Args:
         module_name: Name of the module being migrated
         line_numbers: Line numbers of I/O operations migrated
@@ -523,7 +523,7 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # TODO: Migrate I/O operations from core modules
 # Track progress:
 # - Analyzer_one.py: 72 I/O operations to migrate
-# - dereck_beach.py: 40 I/O operations to migrate  
+# - dereck_beach.py: 40 I/O operations to migrate
 # - financiero_viabilidad_tablas.py: Multiple operations to migrate
 # - teoria_cambio.py: Some operations to migrate
 # Others are clean

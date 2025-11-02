@@ -13,9 +13,10 @@ New code should import directly from saaaaaa.core.orchestrator, not from this
 compatibility layer.
 """
 from __future__ import annotations
+
+import sys
 from importlib import import_module
 from pathlib import Path
-import sys
 from typing import Any, Dict
 
 # Add src to path for development environments
@@ -52,6 +53,11 @@ try:
     )
 except ImportError:
     # Fall back to granular imports
+    from saaaaaa.core.orchestrator.contract_loader import (
+        JSONContractLoader,
+        LoadError,
+        LoadResult,
+    )
     from saaaaaa.core.orchestrator.core import (
         AbortRequested,
         AbortSignal,
@@ -72,11 +78,7 @@ except ImportError:
         ProvenanceNode,
         get_global_registry,
     )
-    from saaaaaa.core.orchestrator.contract_loader import (
-        JSONContractLoader,
-        LoadError,
-        LoadResult,
-    )
+
     from .provider import get_questionnaire_payload, get_questionnaire_provider
 
 from .factory import build_processor
@@ -115,7 +117,7 @@ __all__ = [
 ]
 
 # Register submodule aliases for backwards compatibility (lazy loading)
-_SUBMODULE_ALIASES: Dict[str, str] = {
+_SUBMODULE_ALIASES: dict[str, str] = {
     "orchestrator.arg_router": "saaaaaa.core.orchestrator.arg_router",
     "orchestrator.class_registry": "saaaaaa.core.orchestrator.class_registry",
     "orchestrator.contract_loader": "saaaaaa.core.orchestrator.contract_loader",
@@ -137,11 +139,11 @@ for alias, target in _SUBMODULE_ALIASES.items():
 def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
     """Delegate unknown attributes to the core module or lazily load executors."""
     global _executors
-    
+
     # Lazily import executors module only when accessed
     if name == "executors":
         if _executors is None:
             _executors = import_module("saaaaaa.core.orchestrator.executors")
         return _executors
-    
+
     return getattr(core, name)

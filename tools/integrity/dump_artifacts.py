@@ -7,22 +7,23 @@ import json
 import random
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from seed_factory import DeterministicContext
+
 CHECKSUM_PATH = REPO_ROOT / "config" / "metadata_checksums.json"
 
 
-def load_checksums() -> Dict[str, str]:
+def load_checksums() -> dict[str, str]:
     with CHECKSUM_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def generate_payload(seed: int, checksums: Dict[str, str]) -> Dict[str, Any]:
+def generate_payload(seed: int, checksums: dict[str, str]) -> dict[str, Any]:
     rng = random.Random(seed)  # noqa: S311 – non-crypto, deterministic CI snapshot
     random_values = [rng.random() for _ in range(5)]
     return {

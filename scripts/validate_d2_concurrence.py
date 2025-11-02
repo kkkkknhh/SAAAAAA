@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CI Validation for D2 Method Concurrence.
 
@@ -12,9 +11,8 @@ Exit codes:
   2 - Configuration or setup error
 """
 
-import sys
-import json
 import argparse
+import sys
 from pathlib import Path
 
 # Add parent directory to path
@@ -22,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from orchestrator.d2_activities_orchestrator import (
     D2ActivitiesOrchestrator,
-    D2Question,
     OrchestrationError,
 )
 
@@ -56,46 +53,46 @@ def main():
         default=0.95,
         help="Minimum success rate (0.0-1.0) to pass in non-strict mode"
     )
-    
+
     args = parser.parse_args()
-    
+
     print("=" * 80)
     print("D2 METHOD CONCURRENCE VALIDATION")
     print("SIN_CARRETA Doctrine: No Graceful Degradation | Deterministic Execution")
     print("=" * 80)
     print()
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  - Strict mode: {args.strict}")
     print(f"  - Fail threshold: {args.fail_threshold * 100:.1f}%")
     if args.output:
         print(f"  - Output report: {args.output}")
     print()
-    
+
     # Initialize orchestrator
     orchestrator = D2ActivitiesOrchestrator(
         strict_mode=args.strict,
         trace_execution=True
     )
-    
+
     try:
         # Run validation
         results = orchestrator.validate_all_d2_questions()
-        
+
         # Generate report
         report = orchestrator.generate_validation_report(
             results,
             output_path=Path(args.output) if args.output else None
         )
-        
+
         # Calculate success metrics
         total_methods = report["summary"]["total_methods"]
         methods_resolved = report["summary"]["methods_resolved"]
         success_rate = methods_resolved / total_methods if total_methods > 0 else 0.0
-        
+
         # Print summary if requested
         if args.summary or not args.output:
             print_summary(report, success_rate)
-        
+
         # Determine pass/fail
         if args.strict:
             # In strict mode, all methods must be present
@@ -106,18 +103,18 @@ def main():
         else:
             # In non-strict mode, use threshold
             if success_rate < args.fail_threshold:
-                print(f"\n❌ VALIDATION FAILED (Below Threshold)")
+                print("\n❌ VALIDATION FAILED (Below Threshold)")
                 print(f"Success rate: {success_rate * 100:.1f}% < {args.fail_threshold * 100:.1f}%")
                 return 1
-        
+
         print("\n✅ VALIDATION PASSED")
         print(f"Success rate: {success_rate * 100:.1f}%")
         return 0
-        
+
     except OrchestrationError as e:
         print(f"\n❌ ORCHESTRATION ERROR: {e}")
         return 1
-        
+
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {e}")
         import traceback
@@ -137,7 +134,7 @@ def print_summary(report: dict, success_rate: float):
     print(f"Methods Resolved: {report['summary']['methods_resolved']}")
     print(f"Methods Failed: {report['summary']['methods_failed']}")
     print()
-    
+
     print("Per-Question Results:")
     print("-" * 80)
     for question_id, question_data in report["questions"].items():
@@ -145,9 +142,9 @@ def print_summary(report: dict, success_rate: float):
         resolved = question_data["executed_methods"] - question_data["failed_methods"]
         total = question_data["total_methods"]
         pct = (resolved / total * 100) if total > 0 else 0.0
-        
+
         print(f"{status} {question_id}: {resolved}/{total} methods ({pct:.1f}%)")
-    
+
     if report["failed_methods"]:
         print()
         print("Failed Methods (Sample):")
@@ -155,7 +152,7 @@ def print_summary(report: dict, success_rate: float):
         # Show up to 10 failed methods
         for failed in report["failed_methods"][:10]:
             print(f"  - {failed['question']}: {failed['error'][:80]}...")
-        
+
         if len(report["failed_methods"]) > 10:
             print(f"  ... and {len(report['failed_methods']) - 10} more")
 

@@ -19,17 +19,19 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Iterable, Literal, Protocol, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict
 
 import numpy as np
-import scipy.stats as stats
-from numpy.typing import NDArray
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from numpy.typing import NDArray
 
 # ============================================================================
 # DESIGN CONSTANTS - Model Configuration
@@ -190,7 +192,7 @@ class AdvancedSemanticChunker:
         r"\b\d+(?:[.,]\d+)?(?:\s*%|millones?|mil|billones?)?\b", re.IGNORECASE
     )
 
-    def __init__(self, config: ChunkingConfig):
+    def __init__(self, config: ChunkingConfig) -> None:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
 
@@ -209,7 +211,7 @@ class AdvancedSemanticChunker:
 
         Returns:
             List of semantic chunks with preserved structure and P-D-Q context
-        
+
         Raises:
             TypeError: If text is not a string
             KeyError: If document_metadata missing required keys
@@ -220,7 +222,7 @@ class AdvancedSemanticChunker:
                 f"ERR_CONTRACT_MISMATCH[fn=chunk_document, param='text', "
                 f"expected=str, got={type(text).__name__}]"
             )
-        
+
         if not isinstance(document_metadata, dict):
             raise TypeError(
                 f"ERR_CONTRACT_MISMATCH[fn=chunk_document, param='document_metadata', "
@@ -486,7 +488,7 @@ class BayesianNumericalAnalyzer:
     - Evidence strength quantification (Bayes factors)
     """
 
-    def __init__(self, prior_strength: float = 1.0):
+    def __init__(self, prior_strength: float = 1.0) -> None:
         """
         Initialize Bayesian analyzer.
 
@@ -507,12 +509,12 @@ class BayesianNumericalAnalyzer:
         Bayesian evaluation of policy metric with uncertainty quantification.
 
         Returns posterior distribution, credible intervals, and evidence strength.
-        
+
         Args:
             observed_values: List of observed metric values
             n_posterior_samples: Number of posterior samples to generate
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             BayesianEvaluation with posterior samples and credible intervals
         """
@@ -622,11 +624,11 @@ class BayesianNumericalAnalyzer:
         self, credible_interval_width: float, **kwargs: Any
     ) -> Literal["weak", "moderate", "strong", "very_strong"]:
         """Classify evidence strength based on posterior uncertainty.
-        
+
         Args:
             credible_interval_width: Width of the 95% credible interval
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Evidence strength classification
         """
@@ -644,11 +646,11 @@ class BayesianNumericalAnalyzer:
         Compute numerical coherence (consistency) score.
 
         Uses coefficient of variation and statistical tests.
-        
+
         Args:
             observations: Array of observed values
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Coherence score in [0, 1]
         """
@@ -776,7 +778,7 @@ class PolicyCrossEncoderReranker:
         model_name: str = DEFAULT_CROSS_ENCODER_MODEL,
         max_length: int = 512,
         retry_handler=None,
-    ):
+    ) -> None:
         """
         Initialize cross-encoder reranker.
 
@@ -787,12 +789,12 @@ class PolicyCrossEncoderReranker:
         """
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
-        
+
         # Load model with retry logic if available
         if retry_handler:
             try:
                 from retry_handler import DependencyType
-                
+
                 @retry_handler.with_retry(
                     DependencyType.EMBEDDING_SERVICE,
                     operation_name="load_cross_encoder",
@@ -800,7 +802,7 @@ class PolicyCrossEncoderReranker:
                 )
                 def load_model():
                     return CrossEncoder(model_name, max_length=max_length)
-                
+
                 self.model = load_model()
                 self._logger.info(f"Cross-encoder loaded with retry protection: {model_name}")
             except Exception as e:
@@ -832,7 +834,7 @@ class PolicyCrossEncoderReranker:
         scores = self.model.predict(pairs, show_progress_bar=False)
 
         # Combine chunks with scores and sort
-        ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+        ranked = sorted(zip(candidates, scores, strict=False), key=lambda x: x[1], reverse=True)
 
         # Filter by minimum score and limit to top_k
         filtered = [
@@ -893,7 +895,7 @@ class PolicyAnalysisEmbedder:
     Thread-safe, production-grade, fully typed.
     """
 
-    def __init__(self, config: PolicyEmbeddingConfig, retry_handler=None):
+    def __init__(self, config: PolicyEmbeddingConfig, retry_handler=None) -> None:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
@@ -902,7 +904,7 @@ class PolicyAnalysisEmbedder:
         if retry_handler:
             try:
                 from retry_handler import DependencyType
-                
+
                 @retry_handler.with_retry(
                     DependencyType.EMBEDDING_SERVICE,
                     operation_name="load_sentence_transformer",
@@ -910,7 +912,7 @@ class PolicyAnalysisEmbedder:
                 )
                 def load_embedding_model():
                     return SentenceTransformer(config.embedding_model)
-                
+
                 self._logger.info("Initializing embedding model with retry: %s", config.embedding_model)
                 self.embedding_model = load_embedding_model()
             except Exception as e:
@@ -975,7 +977,7 @@ class PolicyAnalysisEmbedder:
         embeddings = self._embed_texts(chunk_texts)
 
         # Attach embeddings to chunks
-        for chunk, embedding in zip(chunks, embeddings):
+        for chunk, embedding in zip(chunks, embeddings, strict=False):
             chunk["embedding"] = embedding
 
         # Cache results
@@ -1208,7 +1210,7 @@ class PolicyAnalysisEmbedder:
             if self.retry_handler:
                 try:
                     from retry_handler import DependencyType
-                    
+
                     @self.retry_handler.with_retry(
                         DependencyType.EMBEDDING_SERVICE,
                         operation_name="encode_texts",
@@ -1222,7 +1224,7 @@ class PolicyAnalysisEmbedder:
                             show_progress_bar=False,
                             convert_to_numpy=True,
                         )
-                    
+
                     new_embeddings = encode_with_retry()
                 except Exception as e:
                     self._logger.error(f"Failed to encode texts with retry: {e}")
@@ -1237,7 +1239,7 @@ class PolicyAnalysisEmbedder:
                 )
 
             # Cache and insert
-            for (orig_idx, text_hash), emb in zip(uncached_indices, new_embeddings):
+            for (orig_idx, text_hash), emb in zip(uncached_indices, new_embeddings, strict=False):
                 self._embedding_cache[text_hash] = emb
                 embeddings_list[orig_idx] = emb
 
@@ -1345,7 +1347,7 @@ class PolicyAnalysisEmbedder:
         if len(ranked_results) <= 1:
             return ranked_results
 
-        chunks, scores = zip(*ranked_results)
+        chunks, scores = zip(*ranked_results, strict=False)
         chunk_embeddings = np.vstack([c["embedding"] for c in chunks])
 
         selected_indices = []
@@ -1584,33 +1586,33 @@ def create_policy_embedder(
 class EmbeddingPolicyProducer:
     """
     Producer wrapper for embedding policy analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Embedding / Semantic Search
     """
-    
+
     def __init__(
         self,
         config: PolicyEmbeddingConfig | None = None,
         model_tier: Literal["fast", "balanced", "accurate"] = "balanced",
         retry_handler=None
-    ):
+    ) -> None:
         """Initialize producer with optional configuration"""
         if config is None:
             self.embedder = create_policy_embedder(model_tier)
         else:
             self.embedder = PolicyAnalysisEmbedder(config, retry_handler=retry_handler)
-        
+
         self._logger = logging.getLogger(self.__class__.__name__)
         self._logger.info("EmbeddingPolicyProducer initialized")
-    
+
     # ========================================================================
     # DOCUMENT PROCESSING API
     # ========================================================================
-    
+
     def process_document(
         self,
         document_text: str,
@@ -1618,31 +1620,31 @@ class EmbeddingPolicyProducer:
     ) -> list[SemanticChunk]:
         """Process document into semantic chunks with embeddings"""
         return self.embedder.process_document(document_text, document_metadata)
-    
+
     def get_chunk_count(self, chunks: list[SemanticChunk]) -> int:
         """Get number of chunks"""
         return len(chunks)
-    
+
     def get_chunk_text(self, chunk: SemanticChunk) -> str:
         """Extract text from chunk"""
         return chunk["content"]
-    
+
     def get_chunk_embedding(self, chunk: SemanticChunk) -> NDArray[np.float32]:
         """Extract embedding from chunk"""
         return chunk["embedding"]
-    
+
     def get_chunk_metadata(self, chunk: SemanticChunk) -> dict[str, Any]:
         """Extract metadata from chunk"""
         return chunk["metadata"]
-    
+
     def get_chunk_pdq_context(self, chunk: SemanticChunk) -> PDQIdentifier | None:
         """Extract P-D-Q context from chunk"""
         return chunk["pdq_context"]
-    
+
     # ========================================================================
     # SEMANTIC SEARCH API
     # ========================================================================
-    
+
     def semantic_search(
         self,
         query: str,
@@ -1654,23 +1656,23 @@ class EmbeddingPolicyProducer:
         return self.embedder.semantic_search(
             query, document_chunks, pdq_filter, use_reranking
         )
-    
+
     def get_search_result_chunk(
         self, result: tuple[SemanticChunk, float]
     ) -> SemanticChunk:
         """Extract chunk from search result"""
         return result[0]
-    
+
     def get_search_result_score(
         self, result: tuple[SemanticChunk, float]
     ) -> float:
         """Extract relevance score from search result"""
         return result[1]
-    
+
     # ========================================================================
     # P-D-Q ANALYSIS API
     # ========================================================================
-    
+
     def generate_pdq_report(
         self,
         document_chunks: list[SemanticChunk],
@@ -1678,27 +1680,27 @@ class EmbeddingPolicyProducer:
     ) -> dict[str, Any]:
         """Generate comprehensive analytical report for P-D-Q question"""
         return self.embedder.generate_pdq_report(document_chunks, target_pdq)
-    
+
     def get_pdq_evidence_count(self, report: dict[str, Any]) -> int:
         """Extract evidence count from P-D-Q report"""
         return report.get("evidence_count", 0)
-    
+
     def get_pdq_numerical_evaluation(self, report: dict[str, Any]) -> dict[str, Any]:
         """Extract numerical evaluation from P-D-Q report"""
         return report.get("numerical_evaluation", {})
-    
+
     def get_pdq_evidence_passages(self, report: dict[str, Any]) -> list[dict[str, Any]]:
         """Extract evidence passages from P-D-Q report"""
         return report.get("evidence_passages", [])
-    
+
     def get_pdq_confidence(self, report: dict[str, Any]) -> float:
         """Extract confidence from P-D-Q report"""
         return report.get("confidence", 0.0)
-    
+
     # ========================================================================
     # BAYESIAN NUMERICAL ANALYSIS API
     # ========================================================================
-    
+
     def evaluate_numerical_consistency(
         self,
         chunks: list[SemanticChunk],
@@ -1708,31 +1710,31 @@ class EmbeddingPolicyProducer:
         return self.embedder.evaluate_policy_numerical_consistency(
             chunks, pdq_context
         )
-    
+
     def get_point_estimate(self, evaluation: BayesianEvaluation) -> float:
         """Extract point estimate from Bayesian evaluation"""
         return evaluation["point_estimate"]
-    
+
     def get_credible_interval(
         self, evaluation: BayesianEvaluation
     ) -> tuple[float, float]:
         """Extract 95% credible interval from Bayesian evaluation"""
         return evaluation["credible_interval_95"]
-    
+
     def get_evidence_strength(
         self, evaluation: BayesianEvaluation
     ) -> Literal["weak", "moderate", "strong", "very_strong"]:
         """Extract evidence strength classification"""
         return evaluation["evidence_strength"]
-    
+
     def get_numerical_coherence(self, evaluation: BayesianEvaluation) -> float:
         """Extract numerical coherence score"""
         return evaluation["numerical_coherence"]
-    
+
     # ========================================================================
     # POLICY COMPARISON API
     # ========================================================================
-    
+
     def compare_policy_interventions(
         self,
         intervention_a_chunks: list[SemanticChunk],
@@ -1743,47 +1745,47 @@ class EmbeddingPolicyProducer:
         return self.embedder.compare_policy_interventions(
             intervention_a_chunks, intervention_b_chunks, pdq_context
         )
-    
+
     def get_comparison_probability(self, comparison: dict[str, Any]) -> float:
         """Extract probability that A is better than B"""
         return comparison.get("probability_a_better", 0.5)
-    
+
     def get_comparison_bayes_factor(self, comparison: dict[str, Any]) -> float:
         """Extract Bayes factor from comparison"""
         return comparison.get("bayes_factor", 1.0)
-    
+
     def get_comparison_difference_mean(self, comparison: dict[str, Any]) -> float:
         """Extract mean difference from comparison"""
         return comparison.get("difference_mean", 0.0)
-    
+
     # ========================================================================
     # UTILITY API
     # ========================================================================
-    
+
     def get_diagnostics(self) -> dict[str, Any]:
         """Get system diagnostics and performance metrics"""
         return self.embedder.get_diagnostics()
-    
+
     def get_config(self) -> PolicyEmbeddingConfig:
         """Get current configuration"""
         return self.embedder.config
-    
+
     def list_policy_domains(self) -> list[PolicyDomain]:
         """List all policy domains"""
         return list(PolicyDomain)
-    
+
     def list_analytical_dimensions(self) -> list[AnalyticalDimension]:
         """List all analytical dimensions"""
         return list(AnalyticalDimension)
-    
+
     def get_policy_domain_description(self, domain: PolicyDomain) -> str:
         """Get description for policy domain"""
         return domain.value
-    
+
     def get_analytical_dimension_description(self, dimension: AnalyticalDimension) -> str:
         """Get description for analytical dimension"""
         return dimension.value
-    
+
     def create_pdq_identifier(
         self,
         policy: str,
@@ -1805,7 +1807,7 @@ class EmbeddingPolicyProducer:
 # ============================================================================
 
 
-def example_pdm_analysis():
+def example_pdm_analysis() -> None:
     """
     Complete example: analyzing Colombian Municipal Development Plan.
     """
@@ -1817,25 +1819,25 @@ def example_pdm_analysis():
     pdm_document = """
     PLAN DE DESARROLLO MUNICIPAL 2024-2027
     MUNICIPIO DE EJEMPLO, COLOMBIA
-    
+
     EJE ESTRATÉGICO 1: DERECHOS DE LAS MUJERES E IGUALDAD DE GÉNERO
-    
+
     DIAGNÓSTICO
     El municipio presenta una brecha de género del 18.5% en participación laboral.
     Se identificaron 2,340 mujeres en situación de vulnerabilidad económica.
     El presupuesto asignado asciende a $450 millones para el cuatrienio.
-    
+
     DISEÑO DE INTERVENCIÓN
     Se implementarán 3 programas de empoderamiento económico:
     - Programa de formación técnica: 500 beneficiarias
     - Microcréditos productivos: $280 millones
     - Fortalecimiento empresarial: 150 emprendimientos
-    
+
     PRODUCTOS Y OUTPUTS
     Meta cuatrienio: reducir brecha de género al 12% (reducción del 35.1%)
     Indicador: Tasa de participación laboral femenina
     Línea base: 42.3% | Meta: 55.8%
-    
+
     RESULTADOS ESPERADOS
     Incremento del 25% en ingresos promedio de beneficiarias
     Creación de 320 nuevos empleos formales para mujeres

@@ -15,12 +15,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from bayesian_multilevel_system import (
-    ValidationRule,
-    ValidatorType,
+    MultiLevelBayesianOrchestrator,
+    PeerContext,
     ProbativeTest,
     ProbativeTestType,
-    PeerContext,
-    MultiLevelBayesianOrchestrator,
+    ValidationRule,
+    ValidatorType,
 )
 
 
@@ -29,7 +29,7 @@ def main():
     print("BAYESIAN MULTI-LEVEL ANALYSIS SYSTEM - DEMONSTRATION")
     print("=" * 80)
     print()
-    
+
     # ========================================================================
     # SETUP: Define validation rules
     # ========================================================================
@@ -62,12 +62,12 @@ def main():
     ]
     print(f"  ✓ Defined {len(validation_rules)} validation rules")
     print()
-    
+
     # ========================================================================
     # MICRO DATA: Prepare sample question data
     # ========================================================================
     print("[MICRO DATA] Preparing sample questions...")
-    
+
     # Define probative tests for evidence evaluation
     baseline_test = ProbativeTest(
         test_type=ProbativeTestType.HOOP_TEST,
@@ -75,21 +75,21 @@ def main():
         evidence_strength=0.6,
         prior_probability=0.5
     )
-    
+
     budget_test = ProbativeTest(
         test_type=ProbativeTestType.SMOKING_GUN,
         test_name="Budget allocation documented",
         evidence_strength=0.9,
         prior_probability=0.5
     )
-    
+
     causal_test = ProbativeTest(
         test_type=ProbativeTestType.DOUBLY_DECISIVE,
         test_name="Theory of Change validated",
         evidence_strength=1.0,
         prior_probability=0.5
     )
-    
+
     # Sample micro-level data (300 questions in real scenario)
     micro_data = [
         # Policy Area 1 - Dimension 1 (Diagnóstico y Recursos)
@@ -127,7 +127,7 @@ def main():
                 (budget_test, True)
             ]
         },
-        
+
         # Policy Area 1 - Dimension 2 (Diseño de Intervención)
         {
             'question_id': 'P1-D2-Q1',
@@ -149,7 +149,7 @@ def main():
             'municipality': 'Example Municipality',
             'probative_tests': []
         },
-        
+
         # Policy Area 2 - Dimension 1
         {
             'question_id': 'P2-D1-Q1',
@@ -171,7 +171,7 @@ def main():
             'municipality': 'Example Municipality',
             'probative_tests': []
         },
-        
+
         # Policy Area 3 - Dimension 6 (Teoría de Cambio)
         {
             'question_id': 'P3-D6-Q1',
@@ -196,10 +196,10 @@ def main():
             ]
         },
     ]
-    
+
     print(f"  ✓ Prepared {len(micro_data)} sample questions")
     print()
-    
+
     # ========================================================================
     # CLUSTER MAPPING: Group questions into meso-level clusters
     # ========================================================================
@@ -209,11 +209,11 @@ def main():
         'D2_DISENO': ['P1-D2-Q1', 'P1-D2-Q2'],
         'D6_TEORIA_CAMBIO': ['P3-D6-Q1', 'P3-D6-Q2'],
     }
-    
+
     for cluster_id, questions in cluster_mapping.items():
         print(f"  - {cluster_id}: {len(questions)} questions")
     print()
-    
+
     # ========================================================================
     # PEER CONTEXTS: Define peer comparison data
     # ========================================================================
@@ -247,10 +247,10 @@ def main():
             }
         ),
     ]
-    
+
     print(f"  ✓ Defined {len(peer_contexts)} peer municipalities for calibration")
     print()
-    
+
     # ========================================================================
     # ORCHESTRATOR: Initialize and run analysis
     # ========================================================================
@@ -262,20 +262,20 @@ def main():
     )
     print(f"  ✓ Outputs will be saved to: {output_dir}")
     print()
-    
+
     # ========================================================================
     # RUN ANALYSIS
     # ========================================================================
     print("[ANALYSIS] Running complete multi-level Bayesian analysis...")
     print()
-    
+
     micro_analyses, meso_analyses, macro_analysis = orchestrator.run_complete_analysis(
         micro_data=micro_data,
         cluster_mapping=cluster_mapping,
         peer_contexts=peer_contexts,
         total_questions=300  # Simulating 300 total questions
     )
-    
+
     # ========================================================================
     # RESULTS: Display key findings
     # ========================================================================
@@ -283,13 +283,13 @@ def main():
     print("ANALYSIS RESULTS")
     print("=" * 80)
     print()
-    
+
     # Micro level summary
     print("[MICRO LEVEL] Question-by-question analysis:")
     print(f"  Total questions analyzed: {len(micro_analyses)}")
     avg_micro_score = sum(m.adjusted_score for m in micro_analyses) / len(micro_analyses)
     print(f"  Average adjusted score: {avg_micro_score:.4f}")
-    
+
     # Show sample micro results
     print("\n  Sample results:")
     for micro in micro_analyses[:3]:
@@ -299,11 +299,11 @@ def main():
         print(f"      Final posterior: {micro.final_posterior:.4f}")
         print(f"      Adjusted score: {micro.adjusted_score:.4f}")
     print()
-    
+
     # Meso level summary
     print("[MESO LEVEL] Cluster analysis:")
     print(f"  Total clusters: {len(meso_analyses)}")
-    
+
     for meso in meso_analyses:
         print(f"\n  {meso.cluster_id}:")
         print(f"    Questions in cluster: {len(meso.micro_scores)}")
@@ -311,20 +311,20 @@ def main():
         print(f"    Dispersion penalty: {meso.dispersion_penalty:.4f}")
         print(f"    Peer penalty: {meso.peer_penalty:.4f}")
         print(f"    Adjusted score: {meso.adjusted_score:.4f}")
-        
+
         # Dispersion metrics
-        print(f"    Dispersion metrics:")
+        print("    Dispersion metrics:")
         print(f"      CV: {meso.dispersion_metrics.get('cv', 0):.4f}")
         print(f"      Max gap: {meso.dispersion_metrics.get('max_gap', 0):.4f}")
         print(f"      Gini: {meso.dispersion_metrics.get('gini', 0):.4f}")
-        
+
         # Peer comparison
         if meso.peer_comparison:
-            print(f"    Peer calibration:")
+            print("    Peer calibration:")
             print(f"      {meso.peer_comparison.narrative}")
-    
+
     print()
-    
+
     # Macro level summary
     print("[MACRO LEVEL] Portfolio-wide analysis:")
     print(f"  Overall raw posterior: {macro_analysis.overall_posterior:.4f}")
@@ -335,13 +335,13 @@ def main():
     print(f"  Contradiction penalty: {macro_analysis.contradiction_penalty:.4f}")
     print(f"  Total penalty: {macro_analysis.total_penalty:.4f}")
     print(f"  FINAL ADJUSTED SCORE: {macro_analysis.adjusted_score:.4f}")
-    
+
     print("\n  Strategic Recommendations:")
     for i, rec in enumerate(macro_analysis.recommendations, 1):
         print(f"    {i}. {rec}")
-    
+
     print()
-    
+
     # ========================================================================
     # OUTPUT FILES
     # ========================================================================
@@ -350,7 +350,7 @@ def main():
     print(f"  ✓ {output_dir / 'posterior_table_meso.csv'}")
     print(f"  ✓ {output_dir / 'posterior_table_macro.csv'}")
     print()
-    
+
     print("=" * 80)
     print("DEMONSTRATION COMPLETE")
     print("=" * 80)

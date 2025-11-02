@@ -11,7 +11,7 @@ from typing import Any
 
 class StandardLogAdapter:
     """Standard logging adapter using Python's logging module.
-    
+
     Example:
         >>> log_port = StandardLogAdapter("my_module")
         >>> log_port.info("Processing started", document_id="123")
@@ -51,9 +51,9 @@ class StandardLogAdapter:
 
 class InMemoryLogAdapter:
     """In-memory logging adapter for testing.
-    
+
     Stores log messages in a list instead of emitting them.
-    
+
     Example:
         >>> log_port = InMemoryLogAdapter()
         >>> log_port.info("Test message", key="value")
