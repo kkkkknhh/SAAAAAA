@@ -1023,14 +1023,14 @@ class Orchestrator:
         # Use pre-loaded monolith data (I/O-free path)
         if self._monolith_data is not None:
             monolith = self._monolith_data
-            # For pre-loaded data, compute hash from serialized representation
-            # Note: We use str() instead of json.dumps() to avoid scanner flagging
-            monolith_str = str(sorted(monolith.items()))
-            monolith_hash = hashlib.sha256(monolith_str.encode('utf-8')).hexdigest()
+            # For pre-loaded data, compute hash from object id
+            # This is a simple hash that doesn't require serialization
+            # For production use, pre-compute hash in factory and pass it as parameter
+            monolith_hash = hashlib.sha256(str(id(monolith)).encode('utf-8')).hexdigest()
         else:
             raise ValueError(
-                "No monolith data available. Use factory.py to load data and pass via "
-                "monolith parameter for I/O-free initialization."
+                "No monolith data available. Use saaaaaa.core.orchestrator.factory to load "
+                "data and pass via monolith parameter for I/O-free initialization."
             )
 
         micro_questions: List[Dict[str, Any]] = monolith["blocks"].get("micro_questions", [])
@@ -1088,21 +1088,6 @@ class Orchestrator:
                     )
             except ImportError:
                 logger.warning("jsonschema not installed, skipping schema validation")
-
-                validator = jsonschema.Draft202012Validator(schema)
-                schema_errors = [
-                    {
-                        "path": list(error.path),
-                        "message": error.message,
-                    }
-                    for error in validator.iter_errors(monolith)
-                ]
-                if schema_errors:
-                    for error in schema_errors:
-                        instrumentation.record_error("schema", error["message"], path=error["path"])
-                    schema_report["errors"] = schema_errors
-            except ImportError:
-                instrumentation.record_warning("schema", "jsonschema no disponible")
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
