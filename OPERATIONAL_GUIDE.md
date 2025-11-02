@@ -100,12 +100,14 @@ venv\Scripts\activate
 #### Step 3: Install Python Dependencies
 
 ```bash
-# Install all required packages with pinned versions
+# Install all required packages with pinned versions (RECOMMENDED)
 pip install -r requirements.txt
 
 # Or with constraints for stricter version control
 pip install -r requirements.txt -c constraints.txt
 ```
+
+**Note**: The project has 82+ dependencies defined in `requirements.txt`. While `pyproject.toml` exists for packaging metadata, **always use `requirements.txt` for installation** to ensure all dependencies are installed with correct versions.
 
 #### Step 4: Install SpaCy Language Models
 
