@@ -112,6 +112,33 @@ Created comprehensive test suite in `tests/test_class_registry_paths.py`:
 
 **Result**: All 5 tests pass ✅
 
+### Automated Verification Script
+
+Created `scripts/verify_dependencies.py` for automated verification of all fixes:
+
+The script performs 6 comprehensive checks:
+1. **Class Registry Paths**: Verifies all 22 classes have `saaaaaa.` prefix
+2. **Core Dependencies**: Checks numpy, pandas, scipy, networkx, sklearn, transformers, etc.
+3. **PDF Processing**: Validates PyMuPDF, tabula-py, camelot-py, pdfplumber
+4. **NLP Dependencies**: Confirms sentencepiece, tiktoken, fuzzywuzzy, Levenshtein
+5. **SpaCy Models**: Checks for es_core_news_lg and es_dep_news_trf
+6. **Class Registry Loading**: Attempts to actually load all 22 classes
+
+**Usage**:
+```bash
+python scripts/verify_dependencies.py
+```
+
+**Expected output when all fixes are in place**:
+```
+✓ All checks passed! The system is properly configured.
+
+The import resolution fixes are in place:
+  ✓ All 22 classes use absolute imports with saaaaaa. prefix
+  ✓ All required dependencies are installed
+  ✓ Class registry can load all modules successfully
+```
+
 ### Path Validation
 
 Before fix:
@@ -154,7 +181,8 @@ Created `DEPENDENCY_SETUP.md` with:
 2. **requirements.txt** - Added 8 missing dependencies
 3. **DEPENDENCY_SETUP.md** - Created comprehensive setup guide
 4. **tests/test_class_registry_paths.py** - Created validation test suite
-5. **IMPORT_RESOLUTION_SUMMARY.md** - This document
+5. **scripts/verify_dependencies.py** - Created automated verification script
+6. **IMPORT_RESOLUTION_SUMMARY.md** - This document
 
 ## Next Steps
 
@@ -171,12 +199,17 @@ For developers setting up the project:
    python -m spacy download es_dep_news_trf
    ```
 
-3. Verify installation:
+3. Verify installation with automated script:
+   ```bash
+   python scripts/verify_dependencies.py
+   ```
+
+4. Run tests to validate fixes:
    ```bash
    python -m pytest tests/test_class_registry_paths.py -v
    ```
 
-4. Test class loading (requires all dependencies):
+5. Test class loading (requires all dependencies):
    ```bash
    python -c "
    import sys
