@@ -40,8 +40,8 @@ class Evidence:
 
 def process_micro_question(
     question_num: int,
-    doc: PreprocessedDocument,
-    base_slot: str
+    _doc: PreprocessedDocument,
+    _base_slot: str
 ) -> Evidence:
     """
     Mock function to process a single micro question.

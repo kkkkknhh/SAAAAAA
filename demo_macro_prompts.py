@@ -2,10 +2,10 @@
 from saaaaaa.analysis.macro_prompts import (  # noqa: F401
     BayesianPortfolio,
     BayesianPortfolioComposer,
-    CoverageAnalysis,
-    CoverageGapStressor,
     ContradictionReport,
     ContradictionScanner,
+    CoverageAnalysis,
+    CoverageGapStressor,
     ImplementationRoadmap,
     MacroPromptsOrchestrator,
     PeerNormalization,
