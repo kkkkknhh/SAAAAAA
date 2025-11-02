@@ -12,7 +12,7 @@ from typing import Any
 
 class LocalFileAdapter:
     """Real file system adapter using pathlib.
-    
+
     Example:
         >>> file_port = LocalFileAdapter()
         >>> content = file_port.read_text("data/plan.txt")
@@ -46,7 +46,7 @@ class LocalFileAdapter:
 
 class JsonAdapter:
     """JSON serialization adapter.
-    
+
     Example:
         >>> json_port = JsonAdapter()
         >>> data = json_port.loads('{"key": "value"}')
@@ -66,9 +66,9 @@ class JsonAdapter:
 
 class InMemoryFileAdapter:
     """In-memory file adapter for testing.
-    
+
     Stores files in a dictionary instead of disk.
-    
+
     Example:
         >>> file_port = InMemoryFileAdapter()
         >>> file_port.write_text("test.txt", "content")

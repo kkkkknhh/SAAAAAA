@@ -50,7 +50,7 @@ class SignatureCIChecker:
     def check_signature_changes(self) -> tuple[int, int, int]:
         """
         Check for signature changes in the project
-        
+
         Returns:
             Tuple of (changed_count, new_count, total_count)
         """
@@ -103,7 +103,7 @@ class SignatureCIChecker:
     def _is_breaking_change(self, old: FunctionSignature, new: FunctionSignature) -> bool:
         """
         Determine if a signature change is a breaking change
-        
+
         Breaking changes include:
         - Removed required parameters
         - Changed parameter order
@@ -118,10 +118,7 @@ class SignatureCIChecker:
             return True
 
         # Check if parameter order changed (for positional arguments)
-        if old.parameters != new.parameters:
-            return True
-
-        return False
+        return old.parameters != new.parameters
 
     def export_diff_report(self, output_path: Path):
         """Export diff report to JSON"""

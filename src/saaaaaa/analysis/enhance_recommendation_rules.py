@@ -93,7 +93,7 @@ def enhance_indicator(indicator: dict[str, Any], rule_id: str, level: str) -> di
     enhanced = copy.deepcopy(indicator)
 
     # Add formula based on indicator type
-    name = indicator.get('name', '')
+    indicator.get('name', '')
     if 'proporción' in indicator.get('unit', ''):
         enhanced['formula'] = 'COUNT(compliant_items) / COUNT(total_items)'
         enhanced['acceptable_range'] = [0.6, 1.0]
@@ -337,7 +337,7 @@ def enhance_rule(rule: dict[str, Any]) -> dict[str, Any]:
 
     return enhanced_rule
 
-def main():
+def main() -> None:
     """Main enhancement process"""
     # Delegate to factory for I/O operations
     from .factory import load_json, save_json

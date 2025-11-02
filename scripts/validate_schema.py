@@ -35,10 +35,10 @@ except ImportError:
 def load_monolith(monolith_path: str = None):
     """
     Load monolith from file or orchestrator.
-    
+
     Args:
         monolith_path: Optional path to monolith file
-        
+
     Returns:
         dict: Monolith configuration
     """

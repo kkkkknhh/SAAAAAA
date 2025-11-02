@@ -106,7 +106,7 @@ class ReconciliationValidator:
     Applies penalty factors for violations
     """
 
-    def __init__(self, validation_rules: list[ValidationRule]):
+    def __init__(self, validation_rules: list[ValidationRule]) -> None:
         self.rules = validation_rules
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -237,7 +237,7 @@ class ProbativeTest:
     def calculate_likelihood_ratio(self, test_passed: bool) -> float:
         """
         Calculate Bayesian likelihood ratio
-        
+
         Straw-in-wind: weak confirmation (LR ~ 2)
         Hoop test: strong disconfirmation if fails (LR ~ 0.1 if fails)
         Smoking gun: strong confirmation if passes (LR ~ 10)
@@ -272,16 +272,16 @@ class BayesianUpdater:
     Generates posterior_table_micro.csv
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.updates: list[BayesianUpdate] = []
 
     def update(self, prior: float, test: ProbativeTest, test_passed: bool) -> float:
         """
         Perform Bayesian update using probative test
-        
+
         P(H|E) = P(E|H) * P(H) / P(E)
-        
+
         Using odds form:
         O(H|E) = LR * O(H)
         """
@@ -348,7 +348,7 @@ class BayesianUpdater:
 
         return abs(kl_div)
 
-    def export_to_csv(self, output_path: Path):
+    def export_to_csv(self, output_path: Path) -> None:
         """Export posterior table to CSV"""
         # Delegate to factory for I/O operation
         from .factory import write_csv
@@ -401,7 +401,7 @@ class DispersionEngine:
     Integrates dispersion penalties into meso-level scoring
     """
 
-    def __init__(self, dispersion_threshold: float = 0.3):
+    def __init__(self, dispersion_threshold: float = 0.3) -> None:
         self.dispersion_threshold = dispersion_threshold
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -513,7 +513,7 @@ class PeerCalibrator:
     Generate narrative hooks for contextualization
     """
 
-    def __init__(self, deviation_threshold: float = 1.5):
+    def __init__(self, deviation_threshold: float = 1.5) -> None:
         self.deviation_threshold = deviation_threshold  # Z-score threshold
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -638,7 +638,7 @@ class BayesianRollUp:
     Bayesian Roll-Up: Aggregate micro posteriors to meso level with penalties
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def aggregate_micro_to_meso(
@@ -650,7 +650,7 @@ class BayesianRollUp:
     ) -> float:
         """
         Aggregate micro-level posteriors to meso-level posterior
-        
+
         Uses hierarchical Bayesian model:
         - Micro posteriors are observations
         - Meso posterior is hyperparameter
@@ -686,7 +686,7 @@ class BayesianRollUp:
         self,
         meso_analyses: list[MesoLevelAnalysis],
         output_path: Path
-    ):
+    ) -> None:
         """Export meso posterior table to CSV"""
         # Delegate to factory for I/O operation
         from .factory import write_csv
@@ -739,7 +739,7 @@ class ContradictionScanner:
     Macro Contradiction Scanner: Detect inconsistencies between micro↔meso↔macro
     """
 
-    def __init__(self, discrepancy_threshold: float = 0.3):
+    def __init__(self, discrepancy_threshold: float = 0.3) -> None:
         self.discrepancy_threshold = discrepancy_threshold
         self.logger = logging.getLogger(self.__class__.__name__)
         self.contradictions: list[ContradictionDetection] = []
@@ -844,11 +844,11 @@ class MacroLevelAnalysis:
 
 class BayesianPortfolioComposer:
     """
-    Macro Bayesian Portfolio Composer: 
+    Macro Bayesian Portfolio Composer:
     Aggregate all evidence with coverage, dispersion, and contradiction penalties
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def calculate_coverage(
@@ -1003,7 +1003,7 @@ class BayesianPortfolioComposer:
         self,
         macro_analysis: MacroLevelAnalysis,
         output_path: Path
-    ):
+    ) -> None:
         """Export macro posterior table to CSV"""
         # Delegate to factory for I/O operation
         from .factory import write_csv
@@ -1060,7 +1060,7 @@ class MultiLevelBayesianOrchestrator:
         self,
         validation_rules: list[ValidationRule],
         output_dir: Path = Path("data/bayesian_outputs")
-    ):
+    ) -> None:
         self.validation_rules = validation_rules
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1085,7 +1085,7 @@ class MultiLevelBayesianOrchestrator:
     ) -> tuple[list[MicroLevelAnalysis], list[MesoLevelAnalysis], MacroLevelAnalysis]:
         """
         Run complete multi-level Bayesian analysis
-        
+
         Returns: (micro_analyses, meso_analyses, macro_analysis)
         """
         self.logger.info("=" * 80)

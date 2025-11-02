@@ -208,7 +208,6 @@ class SystemVerifier:
                 data = json.load(f)
 
             has_summary = 'summary' in data
-            has_status = 'compilation_status' in data
             status_pass = data.get('compilation_status') == 'PASS'
 
             self.print_check("Audit report exists", True)

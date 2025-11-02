@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def _canonical_json(payload: dict[str, Any]) -> str:
@@ -69,7 +71,7 @@ class EvidenceRecord:
 class EvidenceRegistry:
     """Append-only registry that persists evidence records to disk."""
 
-    def __init__(self, storage_path: Path | None = None, auto_load: bool = True):
+    def __init__(self, storage_path: Path | None = None, auto_load: bool = True) -> None:
         self.storage_path = storage_path or Path(".evidence_registry.json")
         self._records: list[EvidenceRecord] = []
         if auto_load and self.storage_path.exists():

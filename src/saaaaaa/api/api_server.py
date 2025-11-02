@@ -223,7 +223,7 @@ def cached(ttl: int = APIConfig.CACHE_TTL):
 class DataService:
     """Service layer for data retrieval and transformation"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize data service with orchestrator"""
         self.orchestrator = None
         self.data_cache = {}
@@ -232,7 +232,7 @@ class DataService:
     def get_pdet_regions(self) -> list[dict[str, Any]]:
         """
         Get all PDET regions with scores
-        
+
         Returns data in format expected by AtroZ dashboard
         """
         # PDET regions from Colombian government definition
@@ -472,7 +472,7 @@ def get_auth_token():
 def get_pdet_regions():
     """
     Get all PDET regions with scores
-    
+
     Returns:
         List of PDET regions with metadata and scores
     """
@@ -497,10 +497,10 @@ def get_pdet_regions():
 def get_region_detail(region_id: str):
     """
     Get detailed information for a specific PDET region
-    
+
     Args:
         region_id: Region identifier (e.g., 'alto-patia')
-    
+
     Returns:
         Detailed region data with analysis
     """
@@ -527,10 +527,10 @@ def get_region_detail(region_id: str):
 def get_municipality_data(municipality_id: str):
     """
     Get municipality analysis data
-    
+
     Args:
         municipality_id: Municipality identifier
-    
+
     Returns:
         Municipality analysis with scores and recommendations
     """
@@ -567,7 +567,7 @@ def get_municipality_data(municipality_id: str):
 def get_evidence_stream():
     """
     Get evidence stream for ticker display
-    
+
     Returns:
         List of evidence items with sources and timestamps
     """
@@ -591,14 +591,14 @@ def get_evidence_stream():
 def export_dashboard_data():
     """
     Export dashboard data in various formats
-    
+
     Request body:
         {
             "format": "json|csv|pdf",
             "regions": ["region_id1", "region_id2"],
             "include_evidence": true
         }
-    
+
     Returns:
         Exported data file
     """
@@ -644,20 +644,20 @@ def export_dashboard_data():
 # ============================================================================
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect() -> None:
     """Handle WebSocket connection"""
     logger.info(f"Client connected: {request.sid}")
     emit('connection_response', {'status': 'connected'})
 
 
 @socketio.on('disconnect')
-def handle_disconnect():
+def handle_disconnect() -> None:
     """Handle WebSocket disconnection"""
     logger.info(f"Client disconnected: {request.sid}")
 
 
 @socketio.on('subscribe_region')
-def handle_subscribe_region(data):
+def handle_subscribe_region(data) -> None:
     """Subscribe to region updates"""
     region_id = data.get('region_id')
     logger.info(f"Client {request.sid} subscribed to region: {region_id}")
@@ -699,7 +699,7 @@ def handle_exception(e):
 def generate_micro_recommendations():
     """
     Generate MICRO-level recommendations
-    
+
     Request Body:
         {
             "scores": {
@@ -709,7 +709,7 @@ def generate_micro_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MICRO recommendations
     """
@@ -742,7 +742,7 @@ def generate_micro_recommendations():
 def generate_meso_recommendations():
     """
     Generate MESO-level recommendations
-    
+
     Request Body:
         {
             "cluster_data": {
@@ -751,7 +751,7 @@ def generate_meso_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MESO recommendations
     """
@@ -784,7 +784,7 @@ def generate_meso_recommendations():
 def generate_macro_recommendations():
     """
     Generate MACRO-level recommendations
-    
+
     Request Body:
         {
             "macro_data": {
@@ -795,7 +795,7 @@ def generate_macro_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MACRO recommendations
     """
@@ -828,7 +828,7 @@ def generate_macro_recommendations():
 def generate_all_recommendations():
     """
     Generate recommendations at all levels (MICRO, MESO, MACRO)
-    
+
     Request Body:
         {
             "micro_scores": {...},
@@ -836,7 +836,7 @@ def generate_all_recommendations():
             "macro_data": {...},
             "context": {}  // Optional
         }
-    
+
     Returns:
         Dictionary with MICRO, MESO, and MACRO recommendation sets
     """
@@ -889,7 +889,7 @@ def generate_all_recommendations():
 def get_rules_info():
     """
     Get information about loaded recommendation rules
-    
+
     Returns:
         Statistics about loaded rules
     """
@@ -923,7 +923,7 @@ def get_rules_info():
 def reload_rules():
     """
     Reload recommendation rules from disk (admin only)
-    
+
     Returns:
         Success status
     """
@@ -949,7 +949,7 @@ def reload_rules():
 # MAIN
 # ============================================================================
 
-def main():
+def main() -> None:
     """Run API server"""
     logger.info("=" * 80)
     logger.info("AtroZ Dashboard API Server")

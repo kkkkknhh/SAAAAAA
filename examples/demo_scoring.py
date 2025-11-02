@@ -183,7 +183,7 @@ def demo_error_handling():
     print("\n1. Missing required evidence key:")
     try:
         evidence = {"elements": [1, 2, 3]}  # Missing confidence
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",
@@ -198,7 +198,7 @@ def demo_error_handling():
     print("\n2. Invalid modality:")
     try:
         evidence = {"elements": [1, 2, 3], "confidence": 0.9}
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",
@@ -213,7 +213,7 @@ def demo_error_handling():
     print("\n3. Invalid confidence value:")
     try:
         evidence = {"elements": [1, 2, 3], "confidence": 1.5}  # > 1.0
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",

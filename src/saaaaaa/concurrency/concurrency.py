@@ -29,12 +29,14 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ class TaskExecutionError(Exception):
 @dataclass
 class WorkerPoolConfig:
     """Configuration for WorkerPool.
-    
+
     Attributes:
         max_workers: Maximum number of concurrent workers (default: 50)
         task_timeout_seconds: Timeout for individual task execution (default: 180)
@@ -77,7 +79,7 @@ class WorkerPoolConfig:
 @dataclass
 class TaskMetrics:
     """Metrics for a single task execution.
-    
+
     Attributes:
         task_id: Unique task identifier
         task_name: Human-readable task name
@@ -103,7 +105,7 @@ class TaskMetrics:
 @dataclass
 class TaskResult:
     """Result of a task execution.
-    
+
     Attributes:
         task_id: Unique task identifier
         task_name: Human-readable task name
@@ -123,29 +125,29 @@ class TaskResult:
 class WorkerPool:
     """
     Deterministic WorkerPool for parallel task execution.
-    
+
     This pool provides controlled concurrency with the following guarantees:
     - No race conditions through thread-safe state management
     - Deterministic execution within priority groups
     - Proper resource cleanup and abort handling
     - Per-task instrumentation and logging
-    
+
     Example:
         >>> config = WorkerPoolConfig(max_workers=10, max_retries=2)
         >>> pool = WorkerPool(config)
-        >>> 
+        >>>
         >>> def my_task(x):
         ...     return x * 2
-        >>> 
+        >>>
         >>> task_id = pool.submit_task("double_5", my_task, args=(5,))
         >>> results = pool.wait_for_all()
         >>> pool.shutdown()
     """
 
-    def __init__(self, config: WorkerPoolConfig | None = None):
+    def __init__(self, config: WorkerPoolConfig | None = None) -> None:
         """
         Initialize WorkerPool.
-        
+
         Args:
             config: Pool configuration (uses defaults if None)
         """
@@ -176,10 +178,10 @@ class WorkerPool:
     def _calculate_backoff_delay(self, retry_count: int) -> float:
         """
         Calculate exponential backoff delay.
-        
+
         Args:
             retry_count: Number of retries already attempted
-            
+
         Returns:
             Delay in seconds, capped at backoff_max_seconds
         """
@@ -196,17 +198,17 @@ class WorkerPool:
     ) -> Any:
         """
         Execute task with retry logic and exponential backoff.
-        
+
         Args:
             task_id: Unique task identifier
             task_name: Human-readable task name
             task_fn: Task function to execute
             args: Positional arguments for task_fn
             kwargs: Keyword arguments for task_fn
-            
+
         Returns:
             Task result
-            
+
         Raises:
             TaskExecutionError: If task fails after all retries
         """
@@ -317,16 +319,16 @@ class WorkerPool:
     ) -> str:
         """
         Submit a task for execution.
-        
+
         Args:
             task_name: Human-readable task name for logging
             task_fn: Callable to execute
             args: Positional arguments for task_fn
             kwargs: Keyword arguments for task_fn
-            
+
         Returns:
             Unique task identifier
-            
+
         Raises:
             RuntimeError: If pool is shutdown
         """
@@ -360,14 +362,14 @@ class WorkerPool:
     def get_task_result(self, task_id: str, timeout: float | None = None) -> TaskResult:
         """
         Get result of a specific task.
-        
+
         Args:
             task_id: Task identifier returned by submit_task
             timeout: Maximum time to wait for result (None = wait forever)
-            
+
         Returns:
             TaskResult with execution metrics
-            
+
         Raises:
             KeyError: If task_id is not found
             TimeoutError: If timeout is exceeded
@@ -428,14 +430,14 @@ class WorkerPool:
     ) -> list[TaskResult]:
         """
         Wait for all submitted tasks to complete.
-        
+
         Args:
             timeout: Maximum time to wait in seconds (None = wait forever)
             return_when: When to return - "ALL_COMPLETED" or "FIRST_EXCEPTION"
-            
+
         Returns:
             List of TaskResults for all tasks
-            
+
         Raises:
             TimeoutError: If timeout is exceeded before all tasks complete
         """
@@ -519,10 +521,10 @@ class WorkerPool:
     def abort_pending_tasks(self) -> int:
         """
         Request abort of all pending tasks.
-        
+
         This sets the abort flag, which will be checked by running tasks
         at their next safe point (before retry or next iteration).
-        
+
         Returns:
             Number of tasks that were still pending
         """
@@ -547,7 +549,7 @@ class WorkerPool:
     def get_metrics(self) -> dict[str, TaskMetrics]:
         """
         Get execution metrics for all tasks.
-        
+
         Returns:
             Dictionary mapping task_id to TaskMetrics
         """
@@ -557,7 +559,7 @@ class WorkerPool:
     def get_summary_metrics(self) -> dict[str, Any]:
         """
         Get summary metrics for the pool.
-        
+
         Returns:
             Dictionary with aggregated metrics
         """
@@ -604,7 +606,7 @@ class WorkerPool:
     def shutdown(self, wait: bool = True, cancel_futures: bool = False) -> None:
         """
         Shutdown the worker pool.
-        
+
         Args:
             wait: If True, wait for all tasks to complete before shutdown
             cancel_futures: If True, cancel all pending tasks

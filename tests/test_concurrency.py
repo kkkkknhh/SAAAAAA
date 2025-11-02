@@ -421,7 +421,7 @@ class TestWorkerPoolDeterminism(unittest.TestCase):
         running = []
         max_concurrent = 0
 
-        for event, task_num, timestamp in execution_log:
+        for event, task_num, _timestamp in execution_log:
             if event == "start":
                 running.append(task_num)
                 max_concurrent = max(max_concurrent, len(running))

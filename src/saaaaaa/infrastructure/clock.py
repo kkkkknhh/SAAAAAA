@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 class SystemClockAdapter:
     """Real clock adapter using datetime.now().
-    
+
     Example:
         >>> clock_port = SystemClockAdapter()
         >>> now = clock_port.now()
@@ -28,9 +28,9 @@ class SystemClockAdapter:
 
 class FrozenClockAdapter:
     """Frozen clock adapter for testing.
-    
+
     Returns a fixed time that can be updated manually.
-    
+
     Example:
         >>> clock_port = FrozenClockAdapter(datetime(2024, 1, 1, 12, 0, 0))
         >>> assert clock_port.now() == datetime(2024, 1, 1, 12, 0, 0)
@@ -58,7 +58,7 @@ class FrozenClockAdapter:
 
     def advance(self, **kwargs: int) -> None:
         """Advance the frozen time by a timedelta (for testing).
-        
+
         Args:
             **kwargs: Arguments to timedelta (days, hours, minutes, seconds, etc.)
         """

@@ -39,11 +39,11 @@ def test_semantic_chunking_syntax() -> None:
 
 def test_no_duplicate_return_statements():
     """Test that there are no duplicate return statements in _extract_key_excerpts.
-    
+
     The original bug had duplicate lines 555-562:
     - Duplicate list comprehension closing
     - Duplicate return statement
-    
+
     This test ensures that pattern doesn't reoccur.
     """
     source = _load_source()
@@ -55,24 +55,23 @@ def test_no_duplicate_return_statements():
 
     # Find the _extract_key_excerpts method
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
-            if node.name == '_extract_key_excerpts':
-                # Count return statements in this function
-                returns = [n for n in ast.walk(node) if isinstance(n, ast.Return)]
+        if isinstance(node, ast.FunctionDef) and node.name == '_extract_key_excerpts':
+            # Count return statements in this function
+            returns = [n for n in ast.walk(node) if isinstance(n, ast.Return)]
 
-                # Should have exactly 1 return statement
-                assert len(returns) == 1, (
-                    f"_extract_key_excerpts should have exactly 1 return statement, "
-                    f"found {len(returns)}. This may indicate the duplicate return bug."
-                )
+            # Should have exactly 1 return statement
+            assert len(returns) == 1, (
+                f"_extract_key_excerpts should have exactly 1 return statement, "
+                f"found {len(returns)}. This may indicate the duplicate return bug."
+            )
 
-                # Check that the return statement is a dict
-                ret_value = returns[0].value
-                assert isinstance(ret_value, ast.Name), (
-                    f"Return value should be a simple name (excerpts variable), "
-                    f"got {type(ret_value).__name__}"
-                )
-                break
+            # Check that the return statement is a dict
+            ret_value = returns[0].value
+            assert isinstance(ret_value, ast.Name), (
+                f"Return value should be a simple name (excerpts variable), "
+                f"got {type(ret_value).__name__}"
+            )
+            break
     else:
         pytest.skip("_extract_key_excerpts method not found")
 

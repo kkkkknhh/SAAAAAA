@@ -79,10 +79,7 @@ class _QuestionnaireProvider:
         """Resolve a candidate path relative to the current working directory."""
         if candidate is None:
             return self._data_path
-        if isinstance(candidate, Path):
-            path = candidate
-        else:
-            path = Path(candidate)
+        path = candidate if isinstance(candidate, Path) else Path(candidate)
         if not path.is_absolute():
             path = (Path.cwd() / path).resolve()
         return path
@@ -908,7 +905,7 @@ class ArgRouter:
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
-    def __init__(self):
+    def __init__(self) -> None:
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
@@ -957,7 +954,7 @@ class MethodExecutor:
 
 class DataFlowExecutor:
     """Ejecutor base"""
-    def __init__(self, method_executor):
+    def __init__(self, method_executor) -> None:
         self.executor = method_executor
 
 
@@ -10508,16 +10505,16 @@ class Orchestrator:
     ) -> dict[str, Any]:
         """
         Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
-        
+
         This phase connects to the orchestrator's 3-level flux:
         - MICRO: Uses scored question results from phase 3
         - MESO: Uses cluster aggregations from phase 6
         - MACRO: Uses macro evaluation from phase 7
-        
+
         Args:
             macro_result: Macro evaluation results from phase 7
             config: Configuration dictionary
-            
+
         Returns:
             Dictionary with MICRO, MESO, and MACRO recommendations
         """

@@ -24,6 +24,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NamedTuple,
@@ -31,9 +32,11 @@ from typing import (
     cast,
 )
 
+if TYPE_CHECKING:
+    import fitz
+
 # Core dependencies
 try:
-    import fitz  # PyMuPDF
     import networkx as nx
     import numpy as np
     import pandas as pd
@@ -56,7 +59,7 @@ try:
     DNP_AVAILABLE = True
 except ImportError:
     DNP_AVAILABLE = False
-    warnings.warn("Módulos DNP no disponibles. Validación DNP deshabilitada.")
+    warnings.warn("Módulos DNP no disponibles. Validación DNP deshabilitada.", stacklevel=2)
 
 # Refactored Bayesian Engine (F1.2: Architectural Refactoring)
 try:
@@ -65,7 +68,7 @@ try:
     REFACTORED_BAYESIAN_AVAILABLE = True
 except ImportError:
     REFACTORED_BAYESIAN_AVAILABLE = False
-    warnings.warn("Motor Bayesiano refactorizado no disponible. Usando implementación legacy.")
+    warnings.warn("Motor Bayesiano refactorizado no disponible. Usando implementación legacy.", stacklevel=2)
 
 # Configure logging
 logging.basicConfig(
@@ -197,7 +200,7 @@ class CDAFException(Exception):
     """Base exception for CDAF framework with structured payloads"""
 
     def __init__(self, message: str, details: dict[str, Any] | None = None,
-                 stage: str | None = None, recoverable: bool = False):
+                 stage: str | None = None, recoverable: bool = False) -> None:
         self.message = message
         self.details = details or {}
         self.stage = stage
@@ -1064,23 +1067,23 @@ class CausalExtractor:
     def _extract_goal_text(self, text: str, **kwargs) -> str | None:
         """
         Extract the text content associated with a specific goal ID.
-        
+
         This method extracts goal text from the provided document text. It can work
         in two modes:
         1. If a goal_id is provided in kwargs, it extracts text for that specific goal
         2. Otherwise, it returns the first goal text found in the document
-        
+
         Args:
             text: The full document text
-            **kwargs: Additional parameters including optional 'goal_id', 'data', 
+            **kwargs: Additional parameters including optional 'goal_id', 'data',
                      'sentences', 'tables'
-            
+
         Returns:
             The extracted text for the goal, or None if not found
         """
         # Get goal_id from kwargs if provided, otherwise look for data parameter
         goal_id = kwargs.get('goal_id')
-        data = kwargs.get('data')
+        kwargs.get('data')
 
         # If no goal_id specified, try to extract the first goal from text
         if not goal_id:
@@ -1137,9 +1140,9 @@ class CausalExtractor:
         # Phase 1: Collect all evidence
         for keyword in causal_keywords:
             pattern = re.compile(
-                rf'({"|".join(re.escape(nid) for nid in self.nodes.keys())})'
+                rf'({"|".join(re.escape(nid) for nid in self.nodes)})'
                 rf'\s+{re.escape(keyword)}\s+'
-                rf'({"|".join(re.escape(nid) for nid in self.nodes.keys())})',
+                rf'({"|".join(re.escape(nid) for nid in self.nodes)})',
                 re.IGNORECASE
             )
 
@@ -1622,7 +1625,6 @@ class CausalExtractor:
 
     def _build_type_hierarchy(self) -> None:
         """Build hierarchy based on goal types"""
-        type_order = {'programa': 0, 'producto': 1, 'resultado': 2, 'impacto': 3}
 
         nodes_by_type: dict[str, list[str]] = defaultdict(list)
         for node_id in self.graph.nodes():
@@ -1644,11 +1646,11 @@ class CausalExtractor:
     def _calculate_confidence(self, node: MetaNode, link_text: str = "") -> float:
         """
         Calculate confidence score for a causal link.
-        
+
         Args:
             node: The node to calculate confidence for
             link_text: Optional text describing the causal link
-            
+
         Returns:
             Confidence score between 0 and 1
         """
@@ -1680,10 +1682,10 @@ class CausalExtractor:
     def _classify_goal_type(self, text: str) -> str:
         """
         Classify the type of a goal based on its text.
-        
+
         Args:
             text: Goal text to classify
-            
+
         Returns:
             Goal type (programa, producto, resultado, impacto)
         """
@@ -1708,10 +1710,10 @@ class CausalExtractor:
     def _extract_causal_justifications(self, text: str) -> list[dict[str, Any]]:
         """
         Extract causal justifications from text.
-        
+
         Args:
             text: Text to extract justifications from
-            
+
         Returns:
             List of justifications with text and confidence
         """
@@ -1796,12 +1798,12 @@ class MechanismPartExtractor:
     def _calculate_ea_confidence(self, entity: str, activity: str, context: str = "") -> float:
         """
         Calculate confidence for an entity-activity pair.
-        
+
         Args:
             entity: Entity text
             activity: Activity text
             context: Surrounding context
-            
+
         Returns:
             Confidence score between 0 and 1
         """
@@ -1825,10 +1827,10 @@ class MechanismPartExtractor:
     def _find_action_verb(self, text: str) -> str | None:
         """
         Find the main action verb in text.
-        
+
         Args:
             text: Text to analyze
-            
+
         Returns:
             Main action verb or None
         """
@@ -1849,10 +1851,10 @@ class MechanismPartExtractor:
     def _find_subject_entity(self, text: str) -> str | None:
         """
         Find the subject entity in text.
-        
+
         Args:
             text: Text to analyze
-            
+
         Returns:
             Subject entity or None
         """
@@ -1873,11 +1875,11 @@ class MechanismPartExtractor:
     def _validate_entity_activity(self, entity: str, activity: str) -> bool:
         """
         Validate that an entity-activity pair makes sense.
-        
+
         Args:
             entity: Entity text
             activity: Activity text
-            
+
         Returns:
             True if valid pair
         """
@@ -1890,10 +1892,7 @@ class MechanismPartExtractor:
             return False
 
         # Activity should be a reasonable verb
-        if len(activity) < 3:
-            return False
-
-        return True
+        return not len(activity) < 3
 
 
 class FinancialAuditor:
@@ -2173,11 +2172,11 @@ class FinancialAuditor:
     def _calculate_sufficiency(self, allocation: float, target: float) -> float:
         """
         Calculate if financial allocation is sufficient for target.
-        
+
         Args:
             allocation: Financial allocation amount
             target: Target value
-            
+
         Returns:
             Sufficiency ratio (1.0 = exactly sufficient, >1.0 = oversufficient)
         """
@@ -2185,7 +2184,7 @@ class FinancialAuditor:
             return 0.0
 
         # Calculate unit cost implied by allocation and target
-        unit_cost = allocation / target
+        allocation / target
 
         # Compare with historical/expected unit costs if available
         # For now, return simple ratio
@@ -2194,10 +2193,10 @@ class FinancialAuditor:
     def _detect_allocation_gaps(self, nodes: dict[str, MetaNode]) -> list[dict[str, Any]]:
         """
         Detect gaps in financial allocations.
-        
+
         Args:
             nodes: Dictionary of nodes
-            
+
         Returns:
             List of detected gaps
         """
@@ -2235,11 +2234,11 @@ class FinancialAuditor:
     def _match_goal_to_budget(self, goal_text: str, budget_entries: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         Match a goal to budget entries.
-        
+
         Args:
             goal_text: Goal text to match
             budget_entries: List of budget entries
-            
+
         Returns:
             Best matching budget entry or None
         """
@@ -2870,14 +2869,14 @@ class OperationalizationAuditor:
                                             graph: nx.DiGraph) -> dict[str, Any]:
         """
         Perform counterfactual budget check for operationalization audit.
-        
+
         This method evaluates whether removing budget allocation would prevent
         goal execution, helping identify necessary vs. superfluous allocations.
-        
+
         Args:
             nodes: Dictionary of meta nodes
             graph: Causal graph
-            
+
         Returns:
             Dictionary with counterfactual analysis results
         """
@@ -2929,13 +2928,13 @@ class BayesianMechanismInference:
     def __init__(self, config: ConfigLoader, nlp_model: spacy.Language, **kwargs) -> None:
         """
         Initialize Bayesian Mechanism Inference engine.
-        
+
         Args:
             config: Configuration loader instance
             nlp_model: spaCy NLP model for text processing
             **kwargs: Accepts additional keyword arguments for backward compatibility.
                      Unexpected arguments (e.g., 'causal_hierarchy') are logged and ignored.
-        
+
         Note:
             This function signature has been made defensive to handle unexpected
             keyword arguments that may be passed due to interface drift.
@@ -3439,10 +3438,10 @@ class BayesianMechanismInference:
     def _aggregate_bayesian_confidence(self, confidences: list[float]) -> float:
         """
         Aggregate multiple Bayesian confidence values.
-        
+
         Args:
             confidences: List of confidence values to aggregate
-            
+
         Returns:
             Aggregated confidence value
         """
@@ -3453,10 +3452,10 @@ class BayesianMechanismInference:
     def _build_transition_matrix(self, mechanism_type: str) -> np.ndarray:
         """
         Build transition matrix for activity sequences.
-        
+
         Args:
             mechanism_type: Type of mechanism
-            
+
         Returns:
             Transition probability matrix
         """
@@ -3478,11 +3477,11 @@ class BayesianMechanismInference:
     def _calculate_type_transition_prior(self, from_type: str, to_type: str) -> float:
         """
         Calculate prior probability of transitioning between mechanism types.
-        
+
         Args:
             from_type: Source mechanism type
             to_type: Target mechanism type
-            
+
         Returns:
             Prior probability of transition
         """
@@ -3505,10 +3504,10 @@ class BayesianMechanismInference:
     def _classify_mechanism_type(self, observations: dict[str, Any]) -> str:
         """
         Classify mechanism type based on observations.
-        
+
         Args:
             observations: Observed features
-            
+
         Returns:
             Classified mechanism type
         """
@@ -3590,7 +3589,7 @@ class CausalInferenceSetup:
 
             # Cross-reference with INDICATOR_STRUCTURE to classify critical requirements
             # as Hoop Tests or Smoking Guns
-            required_fields = indicator_structure.get(node.type, [])
+            indicator_structure.get(node.type, [])
 
             # Check if node has all critical DNP requirements (D3-Q1 indicators)
             has_linea_base = bool(
@@ -3732,10 +3731,10 @@ class CausalInferenceSetup:
     def _get_dynamics_pattern(self, dynamics_type: str) -> str:
         """
         Get the pattern associated with a dynamics type.
-        
+
         Args:
             dynamics_type: Type of dynamics (suma, decreciente, constante, indefinido)
-            
+
         Returns:
             Pattern string for the dynamics type
         """
@@ -4148,7 +4147,7 @@ class CDAFFramework:
 
             text = self.pdf_processor.extract_text()
             tables = self.pdf_processor.extract_tables()
-            sections = self.pdf_processor.extract_sections()
+            self.pdf_processor.extract_sections()
 
             # Step 2: Extract causal hierarchy
             self.logger.info("Extrayendo jerarquía causal...")
@@ -4187,7 +4186,7 @@ class CDAFFramework:
             self.logger.info("Preparando para inferencia causal...")
             self.inference_setup.classify_goal_dynamics(nodes)
             self.inference_setup.assign_probative_value(nodes)
-            failure_points = self.inference_setup.identify_failure_points(graph, text)
+            self.inference_setup.identify_failure_points(graph, text)
 
             # Step 7: DNP Standards Validation (if available)
             if self.dnp_validator:
@@ -4535,11 +4534,11 @@ class CDAFFramework:
     def _audit_causal_coherence(self, graph: nx.DiGraph, nodes: dict[str, MetaNode]) -> dict[str, Any]:
         """
         Audit causal coherence of the extracted model.
-        
+
         Args:
             graph: Causal graph
             nodes: Dictionary of nodes
-            
+
         Returns:
             Dictionary with coherence audit results
         """
@@ -4553,9 +4552,8 @@ class CDAFFramework:
 
         # Check for disconnected nodes
         for node_id in nodes:
-            if graph.has_node(node_id):
-                if graph.degree(node_id) == 0:
-                    audit['disconnected_nodes'].append(node_id)
+            if graph.has_node(node_id) and graph.degree(node_id) == 0:
+                audit['disconnected_nodes'].append(node_id)
 
         # Check for cycles (should not exist in causal DAG)
         try:
@@ -4575,7 +4573,7 @@ class CDAFFramework:
                                    policy_code: str) -> None:
         """
         Generate JSON representation of causal model.
-        
+
         Args:
             graph: Causal graph
             nodes: Dictionary of nodes
@@ -4620,11 +4618,11 @@ class CDAFFramework:
                                        policy_code: str) -> dict[str, Any]:
         """
         Generate DNP compliance report.
-        
+
         Args:
             nodes: Dictionary of nodes
             policy_code: Policy code
-            
+
         Returns:
             Compliance report dictionary
         """
@@ -4674,7 +4672,7 @@ class CDAFFramework:
                                    policy_code: str) -> None:
         """
         Generate extraction confidence report.
-        
+
         Args:
             nodes: Dictionary of nodes
             graph: Causal graph
@@ -4750,17 +4748,17 @@ class BayesFactorTable:
 class AdaptivePriorCalculator:
     """
     AGUJA I - Prior Adaptativo con Bayes Factor y calibración
-    
+
     PROMPT I-1: Ponderación evidencial con BF y calibración
-    Mapea test_type→BayesFactor, calcula likelihood adaptativo combinando 
+    Mapea test_type→BayesFactor, calcula likelihood adaptativo combinando
     dominios {semantic, temporal, financial, structural} con pesos normalizados.
-    
+
     PROMPT I-2: Sensibilidad, OOD y ablation evidencial
     Perturba cada componente ±10% y reporta ∂p/∂component top-3.
-    
+
     PROMPT I-3: Trazabilidad y reproducibilidad
     Con semilla fija, guarda bf_table_version, weights_version, snippets.
-    
+
     QUALITY CRITERIA:
     - BrierScore ≤ 0.20 en validación sintética
     - ACE ∈ [−0.02, 0.02] (Average Calibration Error)
@@ -4768,7 +4766,7 @@ class AdaptivePriorCalculator:
     - Monotonicidad: ↑ señales → ¬↓ p_mechanism
     """
 
-    def __init__(self, calibration_params: dict[str, float] | None = None):
+    def __init__(self, calibration_params: dict[str, float] | None = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.bf_table = BayesFactorTable()
 
@@ -4793,11 +4791,11 @@ class AdaptivePriorCalculator:
     ) -> dict[str, Any]:
         """
         PROMPT I-1: Calcula likelihood adaptativo con BF y dominios
-        
+
         Args:
             evidence_dict: Evidencia por caso {semantic, temporal, financial, structural}
             test_type: Tipo de test evidencial (straw, hoop, smoking, doubly)
-        
+
         Returns:
             Dict con p_mechanism, BF_used, domain_weights, triangulation_bonus, etc.
         """
@@ -4867,7 +4865,7 @@ class AdaptivePriorCalculator:
                 adjusted[d] = 0.0
 
             # Repartir peso entre dominios activos
-            active_domains = [d for d in adjusted.keys() if adjusted[d] > 0]
+            active_domains = [d for d in adjusted if adjusted[d] > 0]
             if active_domains:
                 bonus_per_domain = total_missing_weight / len(active_domains)
                 for d in active_domains:
@@ -4888,10 +4886,10 @@ class AdaptivePriorCalculator:
     ) -> dict[str, Any]:
         """
         PROMPT I-2: Sensibilidad, OOD y ablation evidencial
-        
+
         Perturba cada componente ±10% y reporta ∂p/∂component top-3.
         Ejecuta ablaciones: sólo textual, sólo financiero, sólo estructural.
-        
+
         CRITERIA:
         - |delta_p_sensitivity|_max ≤ 0.15
         - sign_concordance ≥ 2/3
@@ -4987,7 +4985,7 @@ class AdaptivePriorCalculator:
         ood = copy.deepcopy(evidence_dict)
 
         # Agregar ruido gaussiano a todos los scores
-        for domain in ood.keys():
+        for domain in ood:
             if isinstance(ood[domain], dict) and 'score' in ood[domain]:
                 noise = np.random.normal(0, 0.05)  # 5% noise
                 ood[domain]['score'] = np.clip(ood[domain]['score'] + noise, 0.0, 1.0)
@@ -5003,10 +5001,10 @@ class AdaptivePriorCalculator:
     ) -> dict[str, Any]:
         """
         PROMPT I-3: Trazabilidad y reproducibilidad
-        
+
         Con semilla fija, guarda bf_table_version, weights_version,
         snippets textuales con offsets, campos financieros usados.
-        
+
         METRICS:
         - Re-ejecución con misma semilla produce hash_result idéntico
         - trace_completeness ≥ 0.95
@@ -5061,7 +5059,7 @@ class AdaptivePriorCalculator:
     def validate_quality_criteria(self, validation_samples: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Valida criterios de calidad en conjunto de validación sintética
-        
+
         QUALITY CRITERIA:
         - BrierScore ≤ 0.20
         - ACE ∈ [−0.02, 0.02]
@@ -5163,16 +5161,16 @@ class AdaptivePriorCalculator:
 class HierarchicalGenerativeModel:
     """
     AGUJA II - Modelo Generativo Jerárquico con inferencia MCMC
-    
+
     PROMPT II-1: Inferencia jerárquica con incertidumbre
     Estima posterior(mechanism_type, activity_sequence | obs) con MCMC.
-    
+
     PROMPT II-2: Posterior Predictive Checks + Ablation
     Genera datos simulados desde posterior y compara con observados.
-    
+
     PROMPT II-3: Independencias y parsimonia
     Verifica d-separaciones y calcula ΔWAIC.
-    
+
     QUALITY CRITERIA:
     - R-hat ≤ 1.10
     - ESS ≥ 200
@@ -5181,7 +5179,7 @@ class HierarchicalGenerativeModel:
     - ΔWAIC ≤ −2 para preferir jerárquico
     """
 
-    def __init__(self, mechanism_priors: dict[str, float] | None = None):
+    def __init__(self, mechanism_priors: dict[str, float] | None = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
         # Priors débiles para mechanism_type si no se proveen
@@ -5210,15 +5208,15 @@ class HierarchicalGenerativeModel:
     ) -> dict[str, Any]:
         """
         PROMPT II-1: Inferencia jerárquica con MCMC
-        
+
         Estima posterior(mechanism_type, activity_sequence | obs) usando MCMC.
-        
+
         Args:
             observations: Dict con {verbos, co_ocurrencias, coherence, structural_signals}
             n_iter: Iteraciones MCMC (≥500)
             burn_in: Burn-in iterations (≥100)
             n_chains: Número de cadenas para R-hat (≥2)
-        
+
         Returns:
             Dict con type_posterior, sequence_mode, coherence_score, entropy, CI95, R-hat, ESS
         """
@@ -5470,14 +5468,14 @@ class HierarchicalGenerativeModel:
     ) -> dict[str, Any]:
         """
         PROMPT II-2: Posterior Predictive Checks + Ablation
-        
+
         Genera datos simulados desde posterior y compara con observados.
         Realiza ablation de pasos de secuencia.
-        
+
         Args:
             posterior_samples: Samples del posterior MCMC
             observed_data: Datos observados reales
-        
+
         Returns:
             Dict con ppd_p_value, distance_metric, ablation_curve, criteria_met
         """
@@ -5487,7 +5485,7 @@ class HierarchicalGenerativeModel:
         n_ppd_samples = min(100, len(posterior_samples))
         ppd_samples = []
 
-        for i in range(n_ppd_samples):
+        for _i in range(n_ppd_samples):
             sample_idx = np.random.randint(0, len(posterior_samples))
             posterior_sample = posterior_samples[sample_idx]
 
@@ -5562,14 +5560,14 @@ class HierarchicalGenerativeModel:
     ) -> dict[str, Any]:
         """
         PROMPT II-3: Independencias y parsimonia
-        
+
         Verifica d-separaciones implicadas por el DAG.
         Calcula ΔWAIC entre modelo jerárquico vs. nulo.
-        
+
         Args:
             dag: NetworkX DiGraph del modelo causal
             independence_tests: Lista de tuplas (X, Y, Z) para test X ⊥ Y | Z
-        
+
         Returns:
             Dict con independence_tests, delta_waic, model_preference, criteria_met
         """
@@ -5665,12 +5663,12 @@ class HierarchicalGenerativeModel:
     def _calculate_waic_difference(self, dag: nx.DiGraph) -> float:
         """
         Calcula ΔWAIC = WAIC_hierarchical - WAIC_null (simplificado)
-        
+
         En producción: usar arviz.waic() con trace real de PyMC/Stan
         """
         # Heurística: modelos jerárquicos con más estructura (edges) son preferidos
         n_edges = dag.number_of_edges()
-        n_nodes = dag.number_of_nodes()
+        dag.number_of_nodes()
 
         # Penalización por complejidad
         complexity_penalty = n_edges * 0.5
@@ -5691,16 +5689,16 @@ class HierarchicalGenerativeModel:
 class BayesianCounterfactualAuditor:
     """
     AGUJA III - Auditor Contrafactual con SCM y do-calculus
-    
+
     PROMPT III-1: Construcción de SCM y queries gemelas
     Construye SCM={DAG, f_i} y responde omission_impact, sufficiency_test, necessity_test.
-    
+
     PROMPT III-2: Riesgo sistémico y priorización
     Agrega riesgos, propaga incertidumbre, calcula priority.
-    
+
     PROMPT III-3: Refutación, negativos y cordura do(.)
     Ejecuta controles negativos, pruebas placebo, sanity checks.
-    
+
     QUALITY CRITERIA:
     - Consistencia de signos factual/contrafactual
     - effect_stability: Δeffect ≤ 0.15 al variar priors ±10%
@@ -5708,7 +5706,7 @@ class BayesianCounterfactualAuditor:
     - sanity_violations: 0
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.scm: dict[str, Any] | None = None
 
@@ -5719,16 +5717,16 @@ class BayesianCounterfactualAuditor:
     ) -> dict[str, Any]:
         """
         PROMPT III-1: Construcción de SCM
-        
+
         Construye SCM = {DAG, f_i} desde grafo y ecuaciones estructurales.
-        
+
         Args:
             dag: NetworkX DiGraph (debe ser acíclico)
             structural_equations: Dict {node: function} para f_i
-        
+
         Returns:
             SCM con DAG validado y funciones estructurales
-        
+
         Raises:
             ValueError: Si DAG no es acíclico
         """
@@ -5786,17 +5784,17 @@ class BayesianCounterfactualAuditor:
     ) -> dict[str, Any]:
         """
         PROMPT III-1: Queries gemelas (omission, sufficiency, necessity)
-        
+
         Evalúa:
         - Factual: P(Y | evidence)
         - Counterfactual: P(Y | do(X=x), evidence)
         - Causal effect, sufficiency, necessity
-        
+
         Args:
             intervention: {nodo: valor} para do(.) operation
             target: Nodo objetivo Y
             evidence: Evidencia observada (opcional)
-        
+
         Returns:
             Dict con p_factual, p_counterfactual, causal_effect, is_sufficient, is_necessary
         """
@@ -5978,11 +5976,11 @@ class BayesianCounterfactualAuditor:
     ) -> dict[str, Any]:
         """
         PROMPT III-2: Riesgo sistémico y priorización con incertidumbre
-        
+
         Fórmulas:
         - risk = 0.50·omission + 0.35·insufficiency + 0.15·unnecessity
         - priority = |effect|·feasibility/(cost+ε)·(1−uncertainty)
-        
+
         Args:
             omission_score: Riesgo de omisión de mecanismo [0,1]
             insufficiency_score: Insuficiencia del mecanismo [0,1]
@@ -5990,7 +5988,7 @@ class BayesianCounterfactualAuditor:
             causal_effect: Efecto causal estimado
             feasibility: Factibilidad de intervención [0,1]
             cost: Costo relativo (>0)
-        
+
         Returns:
             Dict con risk_score, success_probability, priority, recommendations
         """
@@ -6087,18 +6085,18 @@ class BayesianCounterfactualAuditor:
     ) -> dict[str, Any]:
         """
         PROMPT III-3: Refutación, negativos y cordura do(.)
-        
+
         Ejecuta:
         1. Controles negativos: nodos irrelevantes → |efecto| ≤ 0.05
         2. Pruebas placebo: permuta edges no causales
         3. Sanity checks: añadir cofactores no reduce P(Y|do(X=1))
-        
+
         Args:
             dag: Grafo causal
             target: Nodo objetivo Y
             treatment: Nodo de tratamiento X
             confounders: Lista de cofactores
-        
+
         Returns:
             Dict con negative_controls, placebo_effect, sanity_violations, recommendation
         """
@@ -6300,15 +6298,15 @@ Configuración:
 class DerekBeachProducer:
     """
     Producer wrapper for Derek Beach causal analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Causal Mechanism Analysis
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize producer"""
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info("DerekBeachProducer initialized")

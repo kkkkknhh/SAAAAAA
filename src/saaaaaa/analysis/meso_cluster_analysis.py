@@ -20,10 +20,13 @@ with the rest of the analytics toolbox.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import reduce
 from statistics import fmean, pstdev
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 def _to_float_sequence(values: Iterable[float]) -> list[float]:
@@ -407,7 +410,7 @@ def calibrate_against_peers(
         median = float(peers.get("median", score))
         p25 = float(peers.get("p25", median))
         p75 = float(peers.get("p75", median))
-        iqr = p75 - p25
+        p75 - p25
 
         if score < p25:
             area_positions[area] = "below"

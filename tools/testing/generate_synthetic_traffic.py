@@ -121,13 +121,13 @@ def generate_traffic(
 ) -> list[dict[str, Any]]:
     """
     Generate synthetic traffic.
-    
+
     Args:
         volume: Number of requests to generate
         modalities: List of modalities to use
         policy_areas: List of policy areas to use
         output_file: Optional output file (JSONL format)
-    
+
     Returns:
         List of generated requests
     """
@@ -198,7 +198,7 @@ def print_statistics(requests: list[dict[str, Any]]) -> None:
     print("=" * 60 + "\n")
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate synthetic policy analysis traffic"
     )

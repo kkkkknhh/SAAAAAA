@@ -75,7 +75,7 @@ def check_provenance(files: list[str], provenance_file: str = "provenance.csv") 
         return 1
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
         print("Usage: python tools/validate_strategic_files.py <command>")

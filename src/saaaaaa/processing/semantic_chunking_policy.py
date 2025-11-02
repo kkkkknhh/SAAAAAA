@@ -19,15 +19,17 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import scipy.stats as stats
 import torch
-from numpy.typing import NDArray
 from scipy.spatial.distance import cosine
 from scipy.special import rel_entr
 from transformers import AutoModel, AutoTokenizer
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 # Note: logging.basicConfig should be called by the application entry point,
 # not at module import time to avoid side effects
@@ -123,7 +125,7 @@ class SemanticProcessor:
     - Efficient batching with FP16
     """
 
-    def __init__(self, config: SemanticConfig):
+    def __init__(self, config: SemanticConfig) -> None:
         self.config = config
         self._model = None
         self._tokenizer = None
@@ -193,7 +195,7 @@ class SemanticProcessor:
                 })
         # Batch embed all chunks
         embeddings = self._embed_batch([c["content"] for c in chunks])
-        for chunk, emb in zip(chunks, embeddings):
+        for chunk, emb in zip(chunks, embeddings, strict=False):
             chunk["embedding"] = emb
         logger.info(f"Generated {len(chunks)} policy-aware chunks")
         return [_upgrade_chunk_schema(chunk) for chunk in chunks]
@@ -288,7 +290,7 @@ class BayesianEvidenceIntegrator:
     - No simplifications or heuristics
     """
 
-    def __init__(self, prior_concentration: float = 0.5):
+    def __init__(self, prior_concentration: float = 0.5) -> None:
         """
         Args:
             prior_concentration: Dirichlet concentration (α).
@@ -446,7 +448,7 @@ class PolicyDocumentAnalyzer:
     - Causal dimension analysis per Marco Lógico
     """
 
-    def __init__(self, config: SemanticConfig | None = None):
+    def __init__(self, config: SemanticConfig | None = None) -> None:
         self.config = config or SemanticConfig()
         self.semantic = SemanticProcessor(self.config)
         self.bayesian = BayesianEvidenceIntegrator(
@@ -508,7 +510,7 @@ class PolicyDocumentAnalyzer:
             # Filter by threshold
             relevant_mask = similarities >= self.config.similarity_threshold
             relevant_sims = similarities[relevant_mask]
-            relevant_chunks = [c for c, m in zip(chunks, relevant_mask) if m]
+            relevant_chunks = [c for c, m in zip(chunks, relevant_mask, strict=False) if m]
             # Bayesian integration
             if len(relevant_sims) >= self.config.min_evidence_chunks:
                 evidence = self.bayesian.integrate_evidence(
@@ -528,7 +530,7 @@ class PolicyDocumentAnalyzer:
         return {
             "summary": {
                 "total_chunks": len(chunks),
-                "sections_detected": len(set(c["section_type"] for c in chunks)),
+                "sections_detected": len({c["section_type"] for c in chunks}),
                 "has_tables": sum(1 for c in chunks if c["has_table"]),
                 "has_numerical": sum(1 for c in chunks if c["has_numerical"])
             },
@@ -569,15 +571,15 @@ class PolicyDocumentAnalyzer:
 class SemanticChunkingProducer:
     """
     Producer wrapper for semantic chunking and policy analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Semantic Analysis / Chunking
     """
 
-    def __init__(self, config: SemanticConfig | None = None):
+    def __init__(self, config: SemanticConfig | None = None) -> None:
         """Initialize producer with optional configuration"""
         self.config = config or SemanticConfig()
         self.semantic = SemanticProcessor(self.config)
@@ -777,7 +779,7 @@ class SemanticChunkingProducer:
 # ========================
 
 
-def main():
+def main() -> None:
     """Example usage"""
     sample_pdm = """
 PLAN DE DESARROLLO MUNICIPAL 2024-2027

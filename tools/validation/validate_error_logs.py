@@ -28,7 +28,7 @@ def load_schema(schema_path: str) -> dict:
 def validate_log_entry(entry: dict, schema: dict, line_num: int) -> tuple[bool, str]:
     """
     Validate a single log entry against schema.
-    
+
     Returns:
         Tuple of (is_valid, error_message)
     """
@@ -44,7 +44,7 @@ def validate_log_entry(entry: dict, schema: dict, line_num: int) -> tuple[bool, 
 def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) -> int:
     """
     Validate all entries in a log file.
-    
+
     Returns:
         Exit code (0 = success, 1 = validation errors)
     """
@@ -117,7 +117,7 @@ def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) ->
     return 0
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Validate error logs against contract error log schema"
     )

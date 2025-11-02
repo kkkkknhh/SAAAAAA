@@ -44,13 +44,13 @@ logger = logging.getLogger(__name__)
 def load_json(file_path: str | Path) -> dict[str, Any]:
     """
     Load JSON data from file.
-    
+
     Args:
         file_path: Path to JSON file
-        
+
     Returns:
         Dict containing the loaded JSON data
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file contains invalid JSON
@@ -70,7 +70,7 @@ def load_json(file_path: str | Path) -> dict[str, Any]:
 def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
-    
+
     Args:
         data: Dictionary to save
         file_path: Path to output JSON file
@@ -92,13 +92,13 @@ def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> N
 def load_yaml(file_path: str | Path) -> dict[str, Any]:
     """
     Load YAML data from file.
-    
+
     Args:
         file_path: Path to YAML file
-        
+
     Returns:
         Dict containing the loaded YAML data
-        
+
     Raises:
         ImportError: If PyYAML is not installed
         FileNotFoundError: If file doesn't exist
@@ -125,13 +125,13 @@ def load_yaml(file_path: str | Path) -> dict[str, Any]:
 def read_text_file(file_path: str | Path) -> str:
     """
     Read text file with UTF-8 encoding.
-    
+
     Args:
         file_path: Path to text file
-        
+
     Returns:
         String content of the file
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
     """
@@ -150,7 +150,7 @@ def read_text_file(file_path: str | Path) -> str:
 def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
-    
+
     Args:
         content: Text content to write
         file_path: Path to output file
@@ -171,7 +171,7 @@ def write_text_file(content: str, file_path: str | Path) -> None:
 def write_csv(rows: list[list[Any]], file_path: str | Path, headers: list[str] = None) -> None:
     """
     Write data to CSV file.
-    
+
     Args:
         rows: List of rows to write
         file_path: Path to output CSV file
@@ -198,13 +198,13 @@ def write_csv(rows: list[list[Any]], file_path: str | Path, headers: list[str] =
 def open_pdf_with_fitz(file_path: str | Path):
     """
     Open a PDF file using PyMuPDF (fitz).
-    
+
     Args:
         file_path: Path to PDF file
-        
+
     Returns:
         fitz.Document object
-        
+
     Raises:
         ImportError: If PyMuPDF is not installed
         FileNotFoundError: If file doesn't exist
@@ -223,13 +223,13 @@ def open_pdf_with_fitz(file_path: str | Path):
 def open_pdf_with_pdfplumber(file_path: str | Path):
     """
     Open a PDF file using pdfplumber.
-    
+
     Args:
         file_path: Path to PDF file
-        
+
     Returns:
         pdfplumber.PDF object
-        
+
     Raises:
         ImportError: If pdfplumber is not installed
         FileNotFoundError: If file doesn't exist
@@ -252,13 +252,13 @@ def open_pdf_with_pdfplumber(file_path: str | Path):
 def load_spacy_model(model_name: str):
     """
     Load a spaCy language model.
-    
+
     Args:
         model_name: Name of the spaCy model to load
-        
+
     Returns:
         Loaded spaCy Language object
-        
+
     Raises:
         ImportError: If spaCy is not installed
         OSError: If model is not found

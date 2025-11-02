@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class Recommendation:
     """
     Structured recommendation with full intervention details.
-    
+
     Supports both v1.0 (simple) and v2.0 (enhanced with 7 advanced features):
     1. Template parameterization
     2. Execution logic
@@ -109,10 +109,10 @@ class RecommendationEngine:
         self,
         rules_path: str = "config/recommendation_rules.json",
         schema_path: str = "rules/recommendation_rules.schema.json"
-    ):
+    ) -> None:
         """
         Initialize recommendation engine
-        
+
         Args:
             rules_path: Path to recommendation rules JSON file
             schema_path: Path to JSON schema for validation
@@ -138,7 +138,7 @@ class RecommendationEngine:
             f"{len(self.rules_by_level['MACRO'])} MACRO rules"
         )
 
-    def _load_schema(self):
+    def _load_schema(self) -> None:
         """Load JSON schema for rule validation"""
         # Delegate to factory for I/O operation
         from .factory import load_json
@@ -150,7 +150,7 @@ class RecommendationEngine:
             logger.error(f"Failed to load schema: {e}")
             raise
 
-    def _load_rules(self):
+    def _load_rules(self) -> None:
         """Load and validate recommendation rules"""
         # Delegate to factory for I/O operation
         from .factory import load_json
@@ -175,7 +175,7 @@ class RecommendationEngine:
             logger.error(f"Failed to load rules: {e}")
             raise
 
-    def reload_rules(self):
+    def reload_rules(self) -> None:
         """Reload rules from disk (useful for hot-reloading)"""
         self.rules_by_level = {'MICRO': [], 'MESO': [], 'MACRO': []}
         self._load_rules()
@@ -191,11 +191,11 @@ class RecommendationEngine:
     ) -> RecommendationSet:
         """
         Generate MICRO-level recommendations based on PA-DIM scores
-        
+
         Args:
             scores: Dictionary mapping "PA##-DIM##" to scores (0.0-3.0)
             context: Additional context for template rendering
-            
+
         Returns:
             RecommendationSet with matched recommendations
         """
@@ -261,7 +261,7 @@ class RecommendationEngine:
     ) -> dict[str, Any]:
         """
         Render MICRO template with variable substitution
-        
+
         Variables supported:
         - {{PAxx}}: Policy area (e.g., PA01)
         - {{DIMxx}}: Dimension (e.g., DIM01)
@@ -296,7 +296,7 @@ class RecommendationEngine:
     ) -> RecommendationSet:
         """
         Generate MESO-level recommendations based on cluster performance
-        
+
         Args:
             cluster_data: Dictionary with cluster metrics:
                 {
@@ -305,7 +305,7 @@ class RecommendationEngine:
                     ...
                 }
             context: Additional context for template rendering
-            
+
         Returns:
             RecommendationSet with matched recommendations
         """
@@ -397,10 +397,7 @@ class RecommendationEngine:
                 return False
 
         # Check weak PA if specified
-        if weak_pa_id and weak_pa != weak_pa_id:
-            return False
-
-        return True
+        return not (weak_pa_id and weak_pa != weak_pa_id)
 
     def _render_meso_template(
         self,
@@ -409,7 +406,6 @@ class RecommendationEngine:
         context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Render MESO template with variable substitution"""
-        ctx = context or {}
 
         substitutions = {
             'cluster_id': cluster_id,
@@ -435,7 +431,7 @@ class RecommendationEngine:
     ) -> RecommendationSet:
         """
         Generate MACRO-level strategic recommendations
-        
+
         Args:
             macro_data: Dictionary with plan-level metrics:
                 {
@@ -445,7 +441,7 @@ class RecommendationEngine:
                     'priority_micro_gaps': ['PA01-DIM05', 'PA04-DIM04']
                 }
             context: Additional context for template rendering
-            
+
         Returns:
             RecommendationSet with matched recommendations
         """
@@ -526,7 +522,6 @@ class RecommendationEngine:
         context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Render MACRO template with variable substitution"""
-        ctx = context or {}
 
         substitutions = {}
 
@@ -546,11 +541,11 @@ class RecommendationEngine:
     def _substitute_variables(self, text: str, substitutions: dict[str, str]) -> str:
         """
         Substitute variables in text using {{variable}} syntax
-        
+
         Args:
             text: Text with variables
             substitutions: Dictionary of variable_name -> value
-            
+
         Returns:
             Text with variables substituted
         """
@@ -569,13 +564,13 @@ class RecommendationEngine:
     ) -> dict[str, RecommendationSet]:
         """
         Generate recommendations at all three levels
-        
+
         Args:
             micro_scores: PA-DIM scores for MICRO recommendations
             cluster_data: Cluster metrics for MESO recommendations
             macro_data: Plan-level metrics for MACRO recommendations
             context: Additional context
-            
+
         Returns:
             Dictionary with 'MICRO', 'MESO', and 'MACRO' recommendation sets
         """
@@ -590,10 +585,10 @@ class RecommendationEngine:
         recommendations: dict[str, RecommendationSet],
         output_path: str,
         format: str = 'json'
-    ):
+    ) -> None:
         """
         Export recommendations to file
-        
+
         Args:
             recommendations: Dictionary of recommendation sets
             output_path: Path to output file
@@ -659,11 +654,11 @@ def load_recommendation_engine(
 ) -> RecommendationEngine:
     """
     Convenience function to load recommendation engine
-    
+
     Args:
         rules_path: Path to rules JSON
         schema_path: Path to schema JSON
-        
+
     Returns:
         Initialized RecommendationEngine
     """

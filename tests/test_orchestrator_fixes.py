@@ -54,7 +54,7 @@ from aggregation import (
 def simulate_default_route(method, provided_kwargs):
     """
     Helper function that simulates the ArgRouter._default_route logic.
-    
+
     This extracts the common routing logic used in tests to avoid duplication.
     """
     signature = inspect.signature(method)

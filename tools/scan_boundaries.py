@@ -46,7 +46,7 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
     NETWORK_MODULES = {'requests', 'urllib', 'http', 'httpx'}
     CLI_MODULES = {'click', 'argparse', 'sys.argv'}
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: str) -> None:
         self.filename = filename
         self.violations: list[dict[str, any]] = []
         self.has_main_block = False
@@ -58,18 +58,17 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
     def visit_If(self, node: ast.If) -> None:
         """Detect if __name__ == '__main__' blocks."""
         # Check for __name__ == '__main__' pattern
-        if isinstance(node.test, ast.Compare):
-            if isinstance(node.test.left, ast.Name):
-                if node.test.left.id == '__name__':
-                    for comparator in node.test.comparators:
-                        if isinstance(comparator, ast.Constant):
-                            if comparator.value == '__main__':
-                                self.has_main_block = True
-                                self.violations.append({
-                                    'type': 'main_block',
-                                    'line': node.lineno,
-                                    'message': f'__main__ block found at line {node.lineno}'
-                                })
+        if isinstance(node.test, ast.Compare) and isinstance(node.test.left, ast.Name):
+            if node.test.left.id == '__name__':
+                for comparator in node.test.comparators:
+                    if isinstance(comparator, ast.Constant):
+                        if comparator.value == '__main__':
+                            self.has_main_block = True
+                            self.violations.append({
+                                'type': 'main_block',
+                                'line': node.lineno,
+                                'message': f'__main__ block found at line {node.lineno}'
+                            })
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -86,40 +85,39 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
                 })
 
         # Module.function calls (e.g., json.load)
-        elif isinstance(node.func, ast.Attribute):
-            if isinstance(node.func.value, ast.Name):
-                module_name = node.func.value.id
-                func_name = node.func.attr
+        elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            module_name = node.func.value.id
+            func_name = node.func.attr
 
-                # Check for I/O
-                if module_name in self.IO_MODULES or func_name in self.IO_FUNCTIONS:
-                    self.io_calls.append((node.lineno, f'{module_name}.{func_name}'))
-                    self.violations.append({
-                        'type': 'io_call',
-                        'line': node.lineno,
-                        'function': f'{module_name}.{func_name}',
-                        'message': f'I/O operation {module_name}.{func_name}() at line {node.lineno}'
-                    })
+            # Check for I/O
+            if module_name in self.IO_MODULES or func_name in self.IO_FUNCTIONS:
+                self.io_calls.append((node.lineno, f'{module_name}.{func_name}'))
+                self.violations.append({
+                    'type': 'io_call',
+                    'line': node.lineno,
+                    'function': f'{module_name}.{func_name}',
+                    'message': f'I/O operation {module_name}.{func_name}() at line {node.lineno}'
+                })
 
-                # Check for subprocess
-                if module_name in self.SUBPROCESS_MODULES:
-                    self.subprocess_calls.append((node.lineno, f'{module_name}.{func_name}'))
-                    self.violations.append({
-                        'type': 'subprocess_call',
-                        'line': node.lineno,
-                        'function': f'{module_name}.{func_name}',
-                        'message': f'Subprocess call {module_name}.{func_name}() at line {node.lineno}'
-                    })
+            # Check for subprocess
+            if module_name in self.SUBPROCESS_MODULES:
+                self.subprocess_calls.append((node.lineno, f'{module_name}.{func_name}'))
+                self.violations.append({
+                    'type': 'subprocess_call',
+                    'line': node.lineno,
+                    'function': f'{module_name}.{func_name}',
+                    'message': f'Subprocess call {module_name}.{func_name}() at line {node.lineno}'
+                })
 
-                # Check for network
-                if module_name in self.NETWORK_MODULES:
-                    self.network_calls.append((node.lineno, f'{module_name}.{func_name}'))
-                    self.violations.append({
-                        'type': 'network_call',
-                        'line': node.lineno,
-                        'function': f'{module_name}.{func_name}',
-                        'message': f'Network call {module_name}.{func_name}() at line {node.lineno}'
-                    })
+            # Check for network
+            if module_name in self.NETWORK_MODULES:
+                self.network_calls.append((node.lineno, f'{module_name}.{func_name}'))
+                self.violations.append({
+                    'type': 'network_call',
+                    'line': node.lineno,
+                    'function': f'{module_name}.{func_name}',
+                    'message': f'Network call {module_name}.{func_name}() at line {node.lineno}'
+                })
 
         self.generic_visit(node)
 

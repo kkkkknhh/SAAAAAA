@@ -143,9 +143,7 @@ def should_include(path: Path, base: Path) -> bool:
 
     # Exclude markdown files except essential ones
     if path_str.endswith('.md'):
-        if path_str in ESSENTIAL_DOCS:
-            return True
-        return False
+        return path_str in ESSENTIAL_DOCS
 
     # Check exclude patterns
     for pattern in EXCLUDE_PATTERNS:
@@ -179,10 +177,7 @@ def should_include(path: Path, base: Path) -> bool:
             return True
 
     # If in src/ directory, include by default
-    if path_str.startswith('src/'):
-        return True
-
-    return False
+    return bool(path_str.startswith('src/'))
 
 
 def create_deployment_zip(output_path: Path) -> None:

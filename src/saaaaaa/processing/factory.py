@@ -29,13 +29,13 @@ logger = logging.getLogger(__name__)
 def load_json(file_path: str | Path) -> dict[str, Any]:
     """
     Load JSON data from file.
-    
+
     Args:
         file_path: Path to JSON file
-        
+
     Returns:
         Dict containing the loaded JSON data
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file contains invalid JSON
@@ -55,7 +55,7 @@ def load_json(file_path: str | Path) -> dict[str, Any]:
 def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
-    
+
     Args:
         data: Dictionary to save
         file_path: Path to output JSON file
@@ -73,14 +73,14 @@ def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> N
 def read_text_file(file_path: str | Path, encodings: list = None) -> str:
     """
     Read text file with automatic encoding detection.
-    
+
     Args:
         file_path: Path to text file
         encodings: List of encodings to try (default: utf-8, latin-1, cp1252)
-        
+
     Returns:
         String content of the file
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         UnicodeDecodeError: If file cannot be decoded with any encoding
@@ -113,7 +113,7 @@ def read_text_file(file_path: str | Path, encodings: list = None) -> str:
 def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
-    
+
     Args:
         content: Text content to write
         file_path: Path to output file
@@ -130,10 +130,10 @@ def write_text_file(content: str, file_path: str | Path) -> None:
 def calculate_file_hash(file_path: str | Path) -> str:
     """
     Calculate SHA-256 hash of a file for traceability.
-    
+
     Args:
         file_path: Path to file
-        
+
     Returns:
         Hexadecimal string representation of the file's SHA-256 hash
     """
@@ -154,13 +154,13 @@ def calculate_file_hash(file_path: str | Path) -> str:
 def extract_pdf_text_all_pages(file_path: str | Path) -> str:
     """
     Extract all text from a PDF file.
-    
+
     Args:
         file_path: Path to PDF file
-        
+
     Returns:
         Concatenated text from all pages
-        
+
     Raises:
         ImportError: If pdfplumber is not installed
         FileNotFoundError: If file doesn't exist
@@ -194,15 +194,15 @@ def extract_pdf_text_all_pages(file_path: str | Path) -> str:
 def extract_pdf_text_single_page(file_path: str | Path, page_num: int, total_pages: int = None) -> str:
     """
     Extract text from a single page of a PDF.
-    
+
     Args:
         file_path: Path to PDF file
         page_num: Page number to extract (1-indexed)
         total_pages: Total number of pages (optional, for validation)
-        
+
     Returns:
         Text content of the specified page
-        
+
     Raises:
         ImportError: If pdfplumber is not installed
         FileNotFoundError: If file doesn't exist
@@ -230,13 +230,13 @@ def extract_pdf_text_single_page(file_path: str | Path, page_num: int, total_pag
 def get_pdf_page_count(file_path: str | Path) -> int:
     """
     Get the number of pages in a PDF file.
-    
+
     Args:
         file_path: Path to PDF file
-        
+
     Returns:
         Number of pages in the PDF
-        
+
     Raises:
         ImportError: If pdfplumber is not installed
         FileNotFoundError: If file doesn't exist

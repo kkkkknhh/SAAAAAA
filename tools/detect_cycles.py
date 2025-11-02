@@ -21,9 +21,8 @@ def extract_imports(file_path: Path) -> set[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     imports.add(alias.name.split('.')[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imports.add(node.module.split('.')[0])
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.add(node.module.split('.')[0])
     except (SyntaxError, UnicodeDecodeError) as e:
         print(f"Warning: Could not parse {file_path}: {e}", file=sys.stderr)
 
@@ -98,7 +97,7 @@ def find_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
     return cycles
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
         print("Usage: python detect_cycles.py <package_path>")

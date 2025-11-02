@@ -6,14 +6,14 @@ from typing import Any, Dict, Optional
 
 class _QuestionnaireProvider:
     """Centralized access to the questionnaire monolith payload.
-    
+
     This is now a pure data holder - I/O operations have been moved to factory.py.
     The provider receives pre-loaded data and manages caching.
     """
 
     def __init__(self, initial_data: dict[str, Any] | None = None) -> None:
         """Initialize provider with optional pre-loaded data.
-        
+
         Args:
             initial_data: Pre-loaded questionnaire data. If None, data must be
                          set via set_data() before calling get_data().
@@ -23,7 +23,7 @@ class _QuestionnaireProvider:
 
     def set_data(self, data: dict[str, Any]) -> None:
         """Set questionnaire data (typically called by factory).
-        
+
         Args:
             data: Questionnaire payload dictionary
         """
@@ -32,10 +32,10 @@ class _QuestionnaireProvider:
 
     def get_data(self) -> dict[str, Any]:
         """Get cached questionnaire data.
-        
+
         Returns:
             Questionnaire payload dictionary
-            
+
         Raises:
             RuntimeError: If no data has been loaded yet
         """
@@ -48,7 +48,7 @@ class _QuestionnaireProvider:
 
     def has_data(self) -> bool:
         """Check if data is loaded.
-        
+
         Returns:
             True if data is available, False otherwise
         """
@@ -63,12 +63,12 @@ def get_questionnaire_provider() -> _QuestionnaireProvider:
 
 def get_questionnaire_payload() -> dict[str, Any]:
     """Get questionnaire payload with caller boundary enforcement.
-    
+
     Note: Data must be pre-loaded via factory.py before calling this function.
-    
+
     Returns:
         Questionnaire payload dictionary
-        
+
     Raises:
         RuntimeError: If called from outside orchestrator package or if data not loaded
     """

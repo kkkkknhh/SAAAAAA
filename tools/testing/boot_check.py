@@ -44,7 +44,7 @@ OPTIONAL_MODULES = [
 def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, str]:
     """
     Try to import a module and return success status.
-    
+
     Returns:
         Tuple of (success, error_message)
     """
@@ -52,7 +52,7 @@ def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, 
         if verbose:
             print(f"  Importing {module_name}...", end=" ")
 
-        module = importlib.import_module(module_name)
+        importlib.import_module(module_name)
 
         if verbose:
             print("✓")
@@ -80,7 +80,7 @@ def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, 
 def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that the orchestrator registry loads without ClassNotFoundError.
-    
+
     Returns:
         Tuple of (success, error_message)
     """
@@ -122,7 +122,7 @@ def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
 def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that runtime validators initialize correctly.
-    
+
     Returns:
         Tuple of (success, error_message)
     """
@@ -159,7 +159,7 @@ def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
 def run_boot_checks(verbose: bool = False) -> int:
     """
     Run all boot checks.
-    
+
     Returns:
         Exit code (0 = success, 1 = failure)
     """
@@ -238,7 +238,7 @@ def run_boot_checks(verbose: bool = False) -> int:
         return 1
 
 
-def main():
+def main() -> None:
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
 
     exit_code = run_boot_checks(verbose)

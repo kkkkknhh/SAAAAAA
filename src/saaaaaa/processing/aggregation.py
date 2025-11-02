@@ -125,7 +125,7 @@ class CoverageError(AggregationError):
 class DimensionAggregator:
     """
     Aggregates micro question scores into dimension scores.
-    
+
     Responsibilities:
     - Aggregate 5 micro questions (Q1-Q5) per dimension
     - Validate weights sum to 1.0
@@ -134,10 +134,10 @@ class DimensionAggregator:
     - Provide detailed logging
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True):
+    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
         """
         Initialize dimension aggregator.
-        
+
         Args:
             monolith: Questionnaire monolith configuration
             abort_on_insufficient: Whether to abort on insufficient coverage
@@ -154,13 +154,13 @@ class DimensionAggregator:
     def validate_weights(self, weights: list[float]) -> tuple[bool, str]:
         """
         Validate that weights sum to 1.0 (within tolerance).
-        
+
         Args:
             weights: List of weights
-            
+
         Returns:
             Tuple of (is_valid, message)
-            
+
         Raises:
             WeightValidationError: If weights don't sum to 1.0 or if no weights provided
         """
@@ -191,14 +191,14 @@ class DimensionAggregator:
     ) -> tuple[bool, str]:
         """
         Validate coverage requirements.
-        
+
         Args:
             results: List of scored results
             expected_count: Expected number of results
-            
+
         Returns:
             Tuple of (is_valid, message)
-            
+
         Raises:
             CoverageError: If coverage is insufficient
         """
@@ -224,11 +224,11 @@ class DimensionAggregator:
     ) -> float:
         """
         Calculate weighted average of scores.
-        
+
         Args:
             scores: List of scores
             weights: Optional list of weights (defaults to equal weights)
-            
+
         Returns:
             Weighted average score
         """
@@ -256,7 +256,7 @@ class DimensionAggregator:
             raise WeightValidationError(msg)
 
         # Calculate weighted sum
-        weighted_sum = sum(s * w for s, w in zip(scores, weights))
+        weighted_sum = sum(s * w for s, w in zip(scores, weights, strict=False))
 
         logger.debug(
             f"Weighted average calculated: "
@@ -272,12 +272,12 @@ class DimensionAggregator:
     ) -> str:
         """
         Apply rubric thresholds to determine quality level.
-        
+
         Args:
             score: Aggregated score (0-3 range)
             thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
                        Each value should be a normalized threshold (0-1 range)
-            
+
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
         """
@@ -323,16 +323,16 @@ class DimensionAggregator:
     ) -> DimensionScore:
         """
         Aggregate a single dimension from micro question results.
-        
+
         Args:
             dimension_id: Dimension ID (e.g., "DIM01")
             area_id: Policy area ID (e.g., "PA01")
             scored_results: List of scored results for this dimension/area
             weights: Optional weights for questions (defaults to equal weights)
-            
+
         Returns:
             DimensionScore with aggregated score and quality level
-            
+
         Raises:
             ValidationError: If validation fails
             CoverageError: If coverage is insufficient
@@ -431,7 +431,7 @@ class DimensionAggregator:
 class AreaPolicyAggregator:
     """
     Aggregates dimension scores into policy area scores.
-    
+
     Responsibilities:
     - Aggregate 6 dimension scores per policy area
     - Validate dimension completeness
@@ -439,10 +439,10 @@ class AreaPolicyAggregator:
     - Ensure hermeticity (no dimension overlap)
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True):
+    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
         """
         Initialize area aggregator.
-        
+
         Args:
             monolith: Questionnaire monolith configuration
             abort_on_insufficient: Whether to abort on insufficient coverage
@@ -466,14 +466,14 @@ class AreaPolicyAggregator:
         """
         Validate hermeticity (no dimension overlap/gaps).
         Uses scoped validation based on policy_area.dimension_ids from monolith.
-        
+
         Args:
             dimension_scores: List of dimension scores for the area
             area_id: Policy area ID
-            
+
         Returns:
             Tuple of (is_valid, message)
-            
+
         Raises:
             HermeticityValidationError: If hermeticity is violated
         """
@@ -487,11 +487,11 @@ class AreaPolicyAggregator:
             expected_dimension_ids = set(area_def["dimension_ids"])
         else:
             # Fallback to all global dimensions if not specified
-            expected_dimension_ids = set(d["dimension_id"] for d in self.dimensions)
+            expected_dimension_ids = {d["dimension_id"] for d in self.dimensions}
 
-        actual_dimension_ids = set(d.dimension_id for d in dimension_scores)
-        expected_count = len(expected_dimension_ids)
-        actual_count = len(dimension_scores)
+        actual_dimension_ids = {d.dimension_id for d in dimension_scores}
+        len(expected_dimension_ids)
+        len(dimension_scores)
 
         # Check for missing dimensions
         missing_dims = expected_dimension_ids - actual_dimension_ids
@@ -532,10 +532,10 @@ class AreaPolicyAggregator:
     def normalize_scores(self, dimension_scores: list[DimensionScore]) -> list[float]:
         """
         Normalize dimension scores to 0-1 range.
-        
+
         Args:
             dimension_scores: List of dimension scores
-            
+
         Returns:
             List of normalized scores
         """
@@ -555,12 +555,12 @@ class AreaPolicyAggregator:
     ) -> str:
         """
         Apply area-level rubric thresholds.
-        
+
         Args:
             score: Aggregated score (0-3 range)
             thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
                        Each value should be a normalized threshold (0-1 range)
-            
+
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
         """
@@ -604,14 +604,14 @@ class AreaPolicyAggregator:
     ) -> AreaScore:
         """
         Aggregate a single policy area from dimension scores.
-        
+
         Args:
             area_id: Policy area ID (e.g., "PA01")
             dimension_scores: List of dimension scores for this area
-            
+
         Returns:
             AreaScore with aggregated score and quality level
-            
+
         Raises:
             ValidationError: If validation fails
         """
@@ -711,7 +711,7 @@ class AreaPolicyAggregator:
 class ClusterAggregator:
     """
     Aggregates policy area scores into cluster scores (MESO level).
-    
+
     Responsibilities:
     - Aggregate multiple area scores per cluster
     - Apply cluster-specific weights
@@ -719,10 +719,10 @@ class ClusterAggregator:
     - Validate cluster hermeticity
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True):
+    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
         """
         Initialize cluster aggregator.
-        
+
         Args:
             monolith: Questionnaire monolith configuration
             abort_on_insufficient: Whether to abort on insufficient coverage
@@ -744,14 +744,14 @@ class ClusterAggregator:
     ) -> tuple[bool, str]:
         """
         Validate cluster hermeticity.
-        
+
         Args:
             cluster_def: Cluster definition from monolith
             area_scores: List of area scores for this cluster
-            
+
         Returns:
             Tuple of (is_valid, message)
-            
+
         Raises:
             HermeticityValidationError: If hermeticity is violated
         """
@@ -803,14 +803,14 @@ class ClusterAggregator:
     ) -> float:
         """
         Apply cluster-specific weights to area scores.
-        
+
         Args:
             area_scores: List of area scores
             weights: Optional weights (defaults to equal weights)
-            
+
         Returns:
             Weighted average score
-            
+
         Raises:
             WeightValidationError: If weights validation fails
         """
@@ -840,7 +840,7 @@ class ClusterAggregator:
                 raise WeightValidationError(msg)
 
         # Calculate weighted average
-        weighted_avg = sum(s * w for s, w in zip(scores, weights))
+        weighted_avg = sum(s * w for s, w in zip(scores, weights, strict=False))
 
         logger.debug(
             f"Cluster weights applied: scores={scores}, "
@@ -852,13 +852,13 @@ class ClusterAggregator:
     def analyze_coherence(self, area_scores: list[AreaScore]) -> float:
         """
         Analyze cluster coherence.
-        
+
         Coherence is measured as the inverse of standard deviation.
         Higher coherence means scores are more consistent.
-        
+
         Args:
             area_scores: List of area scores
-            
+
         Returns:
             Coherence value (0-1, where 1 is perfect coherence)
         """
@@ -894,15 +894,15 @@ class ClusterAggregator:
     ) -> ClusterScore:
         """
         Aggregate a single MESO cluster from area scores.
-        
+
         Args:
             cluster_id: Cluster ID (e.g., "CL01")
             area_scores: List of area scores for this cluster
             weights: Optional cluster-specific weights
-            
+
         Returns:
             ClusterScore with aggregated score and coherence
-            
+
         Raises:
             ValidationError: If validation fails
         """
@@ -1022,7 +1022,7 @@ class ClusterAggregator:
 class MacroAggregator:
     """
     Performs holistic macro evaluation (Q305).
-    
+
     Responsibilities:
     - Aggregate all cluster scores
     - Calculate cross-cutting coherence
@@ -1030,10 +1030,10 @@ class MacroAggregator:
     - Assess strategic alignment
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True):
+    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
         """
         Initialize macro aggregator.
-        
+
         Args:
             monolith: Questionnaire monolith configuration
             abort_on_insufficient: Whether to abort on insufficient coverage
@@ -1053,10 +1053,10 @@ class MacroAggregator:
     ) -> float:
         """
         Calculate cross-cutting coherence across all clusters.
-        
+
         Args:
             cluster_scores: List of cluster scores
-            
+
         Returns:
             Cross-cutting coherence value (0-1)
         """
@@ -1089,10 +1089,10 @@ class MacroAggregator:
     ) -> list[str]:
         """
         Identify systemic gaps (areas with INSUFICIENTE quality).
-        
+
         Args:
             area_scores: List of area scores
-            
+
         Returns:
             List of area names with systemic gaps
         """
@@ -1112,11 +1112,11 @@ class MacroAggregator:
     ) -> float:
         """
         Assess strategic alignment across all levels.
-        
+
         Args:
             cluster_scores: List of cluster scores
             dimension_scores: List of dimension scores
-            
+
         Returns:
             Strategic alignment score (0-1)
         """
@@ -1147,12 +1147,12 @@ class MacroAggregator:
     ) -> str:
         """
         Apply macro-level rubric thresholds.
-        
+
         Args:
             score: Aggregated macro score (0-3 range)
             thresholds: Optional threshold definitions (dict with keys: EXCELENTE, BUENO, ACEPTABLE)
                        Each value should be a normalized threshold (0-1 range)
-            
+
         Returns:
             Quality level (EXCELENTE, BUENO, ACEPTABLE, INSUFICIENTE)
         """
@@ -1197,12 +1197,12 @@ class MacroAggregator:
     ) -> MacroScore:
         """
         Perform holistic macro evaluation (Q305).
-        
+
         Args:
             cluster_scores: List of cluster scores (MESO level)
             area_scores: List of area scores
             dimension_scores: List of dimension scores
-            
+
         Returns:
             MacroScore with holistic evaluation
         """

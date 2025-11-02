@@ -156,7 +156,7 @@ def demo_aguja_ii():
 
     # Generar samples simulados
     posterior_samples = []
-    for i in range(100):
+    for _i in range(100):
         sample = {
             'mechanism_type': np.random.choice(
                 list(posterior['type_posterior'].keys()),
@@ -343,9 +343,9 @@ def main():
 
     try:
         # Ejecutar demos
-        evidence = demo_aguja_i()
-        posterior_samples = demo_aguja_ii()
-        refutation = demo_aguja_iii()
+        demo_aguja_i()
+        demo_aguja_ii()
+        demo_aguja_iii()
 
         # Generar reporte resumen
         generate_summary_report()

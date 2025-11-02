@@ -5,7 +5,7 @@ Comprehensive Contract Tests - API Boundary Validation
 Tests that verify API contracts are maintained across all module boundaries.
 Validates:
 - Preconditions: Input validation before execution
-- Postconditions: Output validation after execution  
+- Postconditions: Output validation after execution
 - Invariants: State consistency throughout execution
 - Type safety: All inputs/outputs match declared types
 - Error handling: Proper exceptions for invalid inputs
@@ -223,7 +223,7 @@ class TestConcurrencyContracts:
 
         # Invalid precondition
         with pytest.raises(Exception):
-            invalid_config = WorkerPoolConfig(max_workers=0, max_retries=3, backoff_factor=2.0)
+            WorkerPoolConfig(max_workers=0, max_retries=3, backoff_factor=2.0)
 
     def test_worker_pool_postcondition_result_type(self):
         """WorkerPool postcondition: submit returns TaskResult."""
@@ -257,8 +257,7 @@ class TestConcurrencyContracts:
 
         # First execution
         with WorkerPool(config) as pool:
-            result1 = pool.submit(random_task, task_id="random-1")
-            value1 = result1.result
+            pool.submit(random_task, task_id="random-1")
 
         # Second execution with same seed
         config2 = WorkerPoolConfig(
@@ -269,8 +268,7 @@ class TestConcurrencyContracts:
         )
 
         with WorkerPool(config2) as pool:
-            result2 = pool.submit(random_task, task_id="random-1")
-            value2 = result2.result
+            pool.submit(random_task, task_id="random-1")
 
         # With deterministic seed, should get same result
         # Note: This may not work if random() is called elsewhere
@@ -352,14 +350,6 @@ class TestRecommendationEngineContracts:
         """RecommendationEngine requires valid rules schema."""
 
         # Valid rules (minimal structure)
-        valid_rules = {
-            "version": "2.0",
-            "levels": {
-                "MICRO": [],
-                "MESO": [],
-                "MACRO": [],
-            }
-        }
 
         # Should not raise
         # Note: Need to check if constructor validates this

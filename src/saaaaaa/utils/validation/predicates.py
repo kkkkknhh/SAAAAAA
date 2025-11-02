@@ -27,7 +27,7 @@ class ValidationResult:
 class ValidationPredicates:
     """
     Collection of validation predicates for precondition checking.
-    
+
     These predicates verify that all required preconditions are met
     before executing specific analysis steps.
     """
@@ -40,17 +40,17 @@ class ValidationPredicates:
     ) -> ValidationResult:
         """
         Verify preconditions for TYPE_A scoring modality.
-        
+
         PRECONDITIONS for TYPE_A (Binary presence/absence):
         - question_spec must have expected_elements list
         - execution_results must be non-empty dict
         - plan_text must be non-empty string
-        
+
         Args:
             question_spec: Question specification from rubric
             execution_results: Results from execution pipeline
             plan_text: Full plan document text
-            
+
         Returns:
             ValidationResult indicating if preconditions are met
         """
@@ -107,11 +107,11 @@ class ValidationPredicates:
     ) -> ValidationResult:
         """
         Verify that expected_elements are defined correctly.
-        
+
         Args:
             question_spec: Question specification from rubric
             cuestionario_data: Full cuestionario metadata
-            
+
         Returns:
             ValidationResult indicating if expected_elements are valid
         """
@@ -166,12 +166,12 @@ class ValidationPredicates:
     ) -> ValidationResult:
         """
         Verify execution context parameters are valid.
-        
+
         Args:
             question_id: Canonical question ID (P#-D#-Q#)
             policy_area: Policy area (P1-P10)
             dimension: Dimension (D1-D6)
-            
+
         Returns:
             ValidationResult indicating if context is valid
         """
@@ -240,11 +240,11 @@ class ValidationPredicates:
     ) -> ValidationResult:
         """
         Verify that a producer module is available and initialized.
-        
+
         Args:
             producer_name: Name of the producer (e.g., 'dereck_beach')
             producers_dict: Dictionary of initialized producers
-            
+
         Returns:
             ValidationResult indicating if producer is available
         """

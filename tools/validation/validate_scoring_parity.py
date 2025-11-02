@@ -128,7 +128,6 @@ def test_boundary_conditions() -> bool:
     print("\nTesting boundary conditions...")
 
     # Test scores just below and just above EXCELENTE threshold
-    epsilon = 0.001
 
     test_cases = [
         # Just below EXCELENTE (should be BUENO)
@@ -203,7 +202,7 @@ def test_no_unfair_advantage() -> bool:
     return failed == 0
 
 
-def main():
+def main() -> int:
     """Run all parity validation tests."""
     print("=" * 60)
     print("Scoring Parity Validation")

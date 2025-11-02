@@ -14,10 +14,10 @@ Usage:
 Examples:
     # Generate MICRO recommendations
     python recommendation_cli.py micro --scores micro_scores.json -o micro_recs.json
-    
+
     # Generate all recommendations
     python recommendation_cli.py all --input sample_data.json -o all_recs.md --format markdown
-    
+
     # Run demonstration
     python recommendation_cli.py demo
 """

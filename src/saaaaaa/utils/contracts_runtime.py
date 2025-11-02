@@ -41,13 +41,13 @@ class StrictModel(BaseModel):
 
 class SemanticAnalyzerInputModel(StrictModel):
     """Runtime validator for SemanticAnalyzerInputContract.
-    
+
     Validates:
     - text is non-empty
     - schema_version follows sem-X.Y pattern
     - segments is a list of strings
     - ontology_params is a valid dict
-    
+
     Example:
         >>> model = SemanticAnalyzerInputModel(
         ...     text="El plan de desarrollo municipal...",

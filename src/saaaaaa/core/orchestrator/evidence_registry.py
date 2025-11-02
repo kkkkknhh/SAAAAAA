@@ -47,19 +47,19 @@ logger = logging.getLogger(__name__)
 class EvidenceRecord:
     """
     Immutable evidence record with provenance metadata and hash chain linkage.
-    
+
     Each evidence record captures:
     - Unique identifier (hash-based)
     - Evidence payload (method result, analysis output, etc.)
     - Provenance metadata (source, dependencies, lineage)
     - Temporal metadata (timestamp, execution time)
     - Verification data (content hash, chain hashes)
-    
+
     Hash Chain Fields:
     - content_hash: SHA-256 of payload (verifies content integrity)
     - previous_hash: entry_hash of previous record (creates chain linkage)
     - entry_hash: SHA-256 of (content + previous_hash + metadata) (unique entry ID)
-    
+
     The hash chain ensures that:
     1. Tampering with payload breaks content_hash
     2. Tampering with previous_hash breaks chain verification
@@ -101,17 +101,17 @@ class EvidenceRecord:
     def _canonical_dump(self, obj: Any) -> str:
         """
         Create canonical JSON representation for deterministic hashing.
-        
+
         This method ensures:
         - Keys are sorted alphabetically
         - No whitespace in output
         - Consistent handling of None, booleans, numbers
         - Deterministic ordering for nested structures
         - Unicode normalization
-        
+
         Args:
             obj: Object to serialize
-            
+
         Returns:
             Canonical JSON string
         """
@@ -134,10 +134,10 @@ class EvidenceRecord:
     def _compute_content_hash(self) -> str:
         """
         Compute SHA-256 hash of payload for content-addressable storage.
-        
+
         Uses canonical JSON serialization to ensure deterministic hashing
         across different Python versions and platforms.
-        
+
         Returns:
             Hex digest of SHA-256 hash
         """
@@ -152,9 +152,9 @@ class EvidenceRecord:
         """
         Compute SHA-256 hash of the entire entry including previous_hash.
         This creates the hash chain linking entries together.
-        
+
         Uses canonical JSON serialization for deterministic hashing.
-        
+
         Returns:
             Hex digest of SHA-256 hash
         """
@@ -173,10 +173,10 @@ class EvidenceRecord:
     def verify_integrity(self, previous_record: EvidenceRecord | None = None) -> bool:
         """
         Verify evidence integrity by recomputing hashes and checking chain linkage.
-        
+
         Args:
             previous_record: The record that should precede this one in the chain
-        
+
         Returns:
             True if all integrity checks pass, False otherwise
         """
@@ -222,12 +222,12 @@ class EvidenceRecord:
     ) -> EvidenceRecord:
         """
         Create a new evidence record with proper hash computation.
-        
+
         This factory method ensures:
         - Proper initialization order
         - Deterministic hash computation
         - Validation of required fields
-        
+
         Args:
             evidence_type: Type of evidence
             payload: Evidence data (must be JSON-serializable)
@@ -238,10 +238,10 @@ class EvidenceRecord:
             execution_time_ms: Execution time in milliseconds
             metadata: Additional metadata
             previous_hash: Hash of previous entry in chain (for chain linkage)
-            
+
         Returns:
             New EvidenceRecord instance
-            
+
         Raises:
             ValueError: If required fields are invalid or payload is not serializable
         """
@@ -297,7 +297,7 @@ class ProvenanceNode:
 class ProvenanceDAG:
     """
     Directed Acyclic Graph of evidence provenance.
-    
+
     Captures the full lineage of evidence:
     - Which evidence produced which other evidence
     - Method invocation chains
@@ -317,7 +317,7 @@ class ProvenanceDAG:
     ) -> None:
         """
         Add evidence to provenance DAG.
-        
+
         Args:
             evidence: Evidence record to add
         """
@@ -348,17 +348,17 @@ class ProvenanceDAG:
     def get_ancestors(self, evidence_id: str) -> set[str]:
         """
         Get all ancestor evidence IDs (transitive parents).
-        
+
         Args:
             evidence_id: Evidence ID to trace
-            
+
         Returns:
             Set of ancestor evidence IDs
         """
         ancestors = set()
         visited = set()
 
-        def traverse(eid: str):
+        def traverse(eid: str) -> None:
             if eid in visited:
                 return
             visited.add(eid)
@@ -377,17 +377,17 @@ class ProvenanceDAG:
     def get_descendants(self, evidence_id: str) -> set[str]:
         """
         Get all descendant evidence IDs (transitive children).
-        
+
         Args:
             evidence_id: Evidence ID to trace
-            
+
         Returns:
             Set of descendant evidence IDs
         """
         descendants = set()
         visited = set()
 
-        def traverse(eid: str):
+        def traverse(eid: str) -> None:
             if eid in visited:
                 return
             visited.add(eid)
@@ -406,10 +406,10 @@ class ProvenanceDAG:
     def get_lineage(self, evidence_id: str) -> dict[str, Any]:
         """
         Get complete lineage for evidence (ancestors + descendants).
-        
+
         Args:
             evidence_id: Evidence ID to trace
-            
+
         Returns:
             Dictionary with lineage information
         """
@@ -424,7 +424,7 @@ class ProvenanceDAG:
     def export_dot(self) -> str:
         """
         Export DAG in GraphViz DOT format.
-        
+
         Returns:
             DOT format string
         """
@@ -466,7 +466,7 @@ class ProvenanceDAG:
 class EvidenceRegistry:
     """
     Append-only evidence registry with hash indexing and provenance tracking.
-    
+
     Features:
     - JSONL append-only storage for immutability
     - Content-addressable hash indexing
@@ -479,10 +479,10 @@ class EvidenceRegistry:
         self,
         storage_path: Path | None = None,
         enable_dag: bool = True,
-    ):
+    ) -> None:
         """
         Initialize evidence registry.
-        
+
         Args:
             storage_path: Path to JSONL storage file (default: evidence_registry.jsonl)
             enable_dag: Enable provenance DAG tracking
@@ -519,7 +519,7 @@ class EvidenceRegistry:
     def _load_from_storage(self) -> None:
         """
         Load evidence from JSONL storage with chain verification.
-        
+
         Ensures:
         - Evidence is loaded in the order it was written
         - Chain linkage is validated during load
@@ -560,15 +560,15 @@ class EvidenceRegistry:
     def _assert_chain(self, records: list[tuple[int, EvidenceRecord]]) -> None:
         """
         Assert that the chain of evidence records is valid.
-        
+
         Validates:
         - First record has no previous_hash or previous_hash is None
         - Each subsequent record's previous_hash matches the prior record's entry_hash
         - Records are in the correct sequential order
-        
+
         Args:
             records: List of (line_number, EvidenceRecord) tuples in load order
-            
+
         Raises:
             ValueError: If chain validation fails
         """
@@ -608,7 +608,7 @@ class EvidenceRegistry:
     ) -> None:
         """
         Index evidence record in all indices.
-        
+
         Args:
             evidence: Evidence to index
             persist: If True, append to JSONL storage
@@ -641,7 +641,7 @@ class EvidenceRegistry:
     def _append_to_storage(self, evidence: EvidenceRecord) -> None:
         """
         Append evidence to JSONL storage.
-        
+
         Args:
             evidence: Evidence to append
         """
@@ -671,7 +671,7 @@ class EvidenceRegistry:
     ) -> str:
         """
         Record new evidence in registry.
-        
+
         Args:
             evidence_type: Type of evidence
             payload: Evidence data
@@ -681,7 +681,7 @@ class EvidenceRegistry:
             document_id: Document ID this evidence relates to
             execution_time_ms: Execution time
             metadata: Additional metadata
-            
+
         Returns:
             Evidence ID (hash)
         """
@@ -724,10 +724,10 @@ class EvidenceRegistry:
     def get_evidence(self, evidence_id: str) -> EvidenceRecord | None:
         """
         Retrieve evidence by ID.
-        
+
         Args:
             evidence_id: Evidence hash
-            
+
         Returns:
             EvidenceRecord or None
         """
@@ -751,11 +751,11 @@ class EvidenceRegistry:
     def verify_evidence(self, evidence_id: str, verify_chain: bool = True) -> bool:
         """
         Verify evidence integrity and optionally chain linkage.
-        
+
         Args:
             evidence_id: Evidence hash
             verify_chain: If True, verify chain linkage with previous entry
-            
+
         Returns:
             True if evidence is valid
         """
@@ -777,7 +777,7 @@ class EvidenceRegistry:
     def verify_chain_integrity(self) -> tuple[bool, list[str]]:
         """
         Verify the integrity of the entire evidence chain.
-        
+
         Returns:
             Tuple of (is_valid, list of errors)
         """
@@ -822,10 +822,10 @@ class EvidenceRegistry:
     def get_provenance(self, evidence_id: str) -> dict[str, Any] | None:
         """
         Get provenance information for evidence.
-        
+
         Args:
             evidence_id: Evidence hash
-            
+
         Returns:
             Provenance dictionary or None
         """
@@ -841,11 +841,11 @@ class EvidenceRegistry:
     ) -> Any:
         """
         Export provenance DAG.
-        
+
         Args:
             format: Export format ("dict", "dot", "json")
             output_path: Optional path to write output
-            
+
         Returns:
             Exported DAG in requested format
         """
@@ -875,7 +875,7 @@ class EvidenceRegistry:
     def get_statistics(self) -> dict[str, Any]:
         """
         Get registry statistics.
-        
+
         Returns:
             Statistics dictionary
         """

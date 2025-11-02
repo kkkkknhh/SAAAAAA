@@ -5,7 +5,7 @@ Demo AGUJA I: Prior Adaptativo Bayesiano
 
 Demuestra los tres prompts de AGUJA I:
 - PROMPT I-1: Ponderación evidencial con BF y calibración
-- PROMPT I-2: Sensibilidad, OOD y ablation evidencial  
+- PROMPT I-2: Sensibilidad, OOD y ablation evidencial
 - PROMPT I-3: Trazabilidad y reproducibilidad
 
 Author: AI Assistant
@@ -200,7 +200,7 @@ def demo_quality_validation():
     np.random.seed(42)
     validation_samples = []
 
-    for i in range(50):
+    for _i in range(50):
         # Generar evidencia sintética
         base_scores = np.random.beta(2, 2, 4)  # 4 dominios
 

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def main():
+def main() -> None:
     """Test importing all modules in the package."""
     errors = []
     success = []

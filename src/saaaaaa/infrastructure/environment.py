@@ -10,7 +10,7 @@ import os
 
 class SystemEnvAdapter:
     """Real environment adapter using os.environ.
-    
+
     Example:
         >>> env_port = SystemEnvAdapter()
         >>> api_key = env_port.get_required("API_KEY")
@@ -45,9 +45,9 @@ class SystemEnvAdapter:
 
 class InMemoryEnvAdapter:
     """In-memory environment adapter for testing.
-    
+
     Stores environment variables in a dictionary instead of os.environ.
-    
+
     Example:
         >>> env_port = InMemoryEnvAdapter()
         >>> env_port.set("DEBUG", "true")

@@ -187,10 +187,9 @@ class InventoryGenerator:
 
         for child in ast.walk(node):
             # File I/O
-            if isinstance(child, ast.Call):
-                if isinstance(child.func, ast.Name):
-                    if child.func.id in ['open', 'write', 'print']:
-                        effects.append('file_io')
+            if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
+                if child.func.id in ['open', 'write', 'print']:
+                    effects.append('file_io')
 
             # Global modifications
             if isinstance(child, ast.Global):

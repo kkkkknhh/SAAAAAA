@@ -45,17 +45,17 @@ def process_micro_question(
 ) -> Evidence:
     """
     Mock function to process a single micro question.
-    
+
     In real orchestrator, this would delegate to:
     - Choreographer.process_micro_question()
     - Execute DAG of methods
     - Extract evidence
-    
+
     Args:
         question_num: Question number (1-300)
         doc: Preprocessed document
         base_slot: Base slot (e.g., "D1-Q1")
-        
+
     Returns:
         Evidence extracted from question
     """
@@ -76,7 +76,7 @@ def process_micro_question(
 def orchestrator_with_workerpool_demo():
     """
     Demonstrate how to use WorkerPool in the orchestrator.
-    
+
     This replaces the ThreadPoolExecutor usage with WorkerPool for:
     - Better control over concurrency
     - Deterministic execution
@@ -95,8 +95,8 @@ def orchestrator_with_workerpool_demo():
         sentences=("mock text",),
         language="es",
         structured_text=StructuredTextV1(full_text="mock text"),
-        sentence_metadata=tuple(),
-        tables=tuple(),
+        sentence_metadata=(),
+        tables=(),
         indexes=DocumentIndexesV1(),
         metadata=MappingProxyType({"source": "demo"}),
         ingested_at=datetime.utcnow(),
@@ -208,7 +208,7 @@ def orchestrator_with_workerpool_demo():
 def orchestrator_with_abort_demo():
     """
     Demonstrate abort functionality.
-    
+
     Shows how to cancel pending tasks if something goes wrong.
     """
     logger.info("=" * 70)

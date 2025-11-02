@@ -1,8 +1,8 @@
 """
 Setup configuration for SAAAAAA package.
 
-SAAAAAA is a Strategic Policy Analysis System that integrates 584 analytical 
-methods across 300 policy evaluation questions using a chess-based orchestration 
+SAAAAAA is a Strategic Policy Analysis System that integrates 584 analytical
+methods across 300 policy evaluation questions using a chess-based orchestration
 strategy with 7 producer modules and 1 aggregator.
 
 Installation:

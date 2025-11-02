@@ -7,6 +7,7 @@ This module tests the new instrumentation added to executors including:
 - Performance tracking
 """
 
+import contextlib
 from unittest.mock import Mock, patch
 
 import pytest
@@ -125,7 +126,7 @@ class TestQuantumExecutionOptimizerInstrumentation:
         optimizer = QuantumExecutionOptimizer(num_methods=5)
         available_methods = [0, 1, 2, 3, 4]
 
-        path = optimizer.select_optimal_path(available_methods)
+        optimizer.select_optimal_path(available_methods)
 
         # Check that quantum optimization was recorded
         metrics = executors._global_metrics
@@ -256,10 +257,8 @@ class TestRetryLogic:
         executor = D1Q1_Executor(mock_method_executor)
 
         # Execute (should retry and eventually succeed)
-        try:
-            result = executor.execute(mock_doc, mock_method_executor)
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            executor.execute(mock_doc, mock_method_executor)
 
         # Check that retries were recorded
         metrics = executors._global_metrics

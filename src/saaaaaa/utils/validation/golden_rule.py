@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class GoldenRuleViolation(Exception):
@@ -13,7 +16,7 @@ class GoldenRuleViolation(Exception):
 class GoldenRuleValidator:
     """Enforces the Golden Rules across orchestrated execution phases."""
 
-    def __init__(self, questionnaire_hash: str, step_catalog: Iterable[str]):
+    def __init__(self, questionnaire_hash: str, step_catalog: Iterable[str]) -> None:
         self._baseline_questionnaire_hash = questionnaire_hash
         self._baseline_step_signature = self._hash_sequence(step_catalog)
         self._baseline_step_catalog = list(step_catalog)

@@ -1,8 +1,11 @@
 """Dynamic class registry for orchestrator method execution."""
 from __future__ import annotations
 
-from collections.abc import Mapping
 from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class ClassRegistryError(RuntimeError):

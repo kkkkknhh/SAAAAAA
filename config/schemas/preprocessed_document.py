@@ -1,11 +1,13 @@
 """Versioned data transfer objects for preprocessed documents."""
 from __future__ import annotations
 
-from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
 
 __all__ = [
     "StructuredSection",

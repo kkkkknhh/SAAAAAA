@@ -74,7 +74,7 @@ class ExecutionMetrics:
     retry_attempts: int = 0
     method_execution_times: dict[str, list[float]] = field(default_factory=dict)
 
-    def record_execution(self, success: bool, execution_time: float, method_key: str = None):
+    def record_execution(self, success: bool, execution_time: float, method_key: str = None) -> None:
         """Record an execution attempt"""
         self.total_executions += 1
         if success:
@@ -87,22 +87,22 @@ class ExecutionMetrics:
                 self.method_execution_times[method_key] = []
             self.method_execution_times[method_key].append(execution_time)
 
-    def record_quantum_optimization(self, convergence_time: float):
+    def record_quantum_optimization(self, convergence_time: float) -> None:
         """Record quantum optimization metrics"""
         self.quantum_optimizations += 1
         self.quantum_convergence_times.append(convergence_time)
 
-    def record_meta_learner_selection(self, strategy_idx: int):
+    def record_meta_learner_selection(self, strategy_idx: int) -> None:
         """Record meta-learner strategy selection"""
         if strategy_idx not in self.meta_learner_strategy_selections:
             self.meta_learner_strategy_selections[strategy_idx] = 0
         self.meta_learner_strategy_selections[strategy_idx] += 1
 
-    def record_information_bottleneck(self):
+    def record_information_bottleneck(self) -> None:
         """Record information bottleneck detection"""
         self.information_bottlenecks_detected += 1
 
-    def record_retry(self):
+    def record_retry(self) -> None:
         """Record retry attempt"""
         self.retry_attempts += 1
 
@@ -150,18 +150,18 @@ def execution_timer(operation_name: str):
 class QuantumState:
     """Quantum-inspired state for execution path optimization"""
 
-    def __init__(self, dimension: int):
+    def __init__(self, dimension: int) -> None:
         self.dimension = dimension
         self.amplitudes = np.ones(dimension, dtype=complex) / np.sqrt(dimension)
         self.phase = np.zeros(dimension)
 
-    def apply_oracle(self, marked_states: list[int]):
+    def apply_oracle(self, marked_states: list[int]) -> None:
         """Apply oracle function to mark optimal states"""
         for state in marked_states:
             if 0 <= state < self.dimension:
                 self.amplitudes[state] *= -1
 
-    def apply_diffusion(self):
+    def apply_diffusion(self) -> None:
         """Apply Grover diffusion operator"""
         avg = np.mean(self.amplitudes)
         self.amplitudes = 2 * avg - self.amplitudes
@@ -181,13 +181,13 @@ class QuantumState:
 
 class QuantumExecutionOptimizer:
     """Quantum-inspired optimizer for execution path selection
-    
+
     Instrumentation:
     - Tracks convergence times for quantum optimization
     - Records optimization attempts and success rates
     """
 
-    def __init__(self, num_methods: int):
+    def __init__(self, num_methods: int) -> None:
         self.num_methods = num_methods
         self.state = QuantumState(num_methods)
         self.execution_history: list[tuple[int, float]] = []
@@ -232,7 +232,7 @@ class QuantumExecutionOptimizer:
         probs = np.exp(-distances / self.num_methods)
         return probs / probs.sum()
 
-    def update_performance(self, method_idx: int, performance: float):
+    def update_performance(self, method_idx: int, performance: float) -> None:
         """Update execution history with performance metrics"""
         self.execution_history.append((method_idx, performance))
 
@@ -244,7 +244,7 @@ class QuantumExecutionOptimizer:
 class SpikingNeuron:
     """Spiking neuron for neuromorphic data flow control"""
 
-    def __init__(self, threshold: float = 1.0, decay: float = 0.9):
+    def __init__(self, threshold: float = 1.0, decay: float = 0.9) -> None:
         self.potential = 0.0
         self.threshold = threshold
         self.decay = decay
@@ -273,7 +273,7 @@ class SpikingNeuron:
 class NeuromorphicFlowController:
     """Neuromorphic controller for dynamic data flow"""
 
-    def __init__(self, num_stages: int):
+    def __init__(self, num_stages: int) -> None:
         self.neurons = [SpikingNeuron() for _ in range(num_stages)]
         self.synaptic_weights = np.random.rand(num_stages, num_stages) * 0.5
         self.stdp_learning_rate = 0.01
@@ -292,7 +292,7 @@ class NeuromorphicFlowController:
 
         return activations
 
-    def apply_stdp(self, pre_idx: int, post_idx: int, pre_spike: bool, post_spike: bool):
+    def apply_stdp(self, pre_idx: int, post_idx: int, pre_spike: bool, post_spike: bool) -> None:
         """Apply spike-timing-dependent plasticity"""
         if pre_spike and post_spike:
             self.synaptic_weights[pre_idx, post_idx] *= (1 + self.stdp_learning_rate)
@@ -303,7 +303,7 @@ class NeuromorphicFlowController:
             self.synaptic_weights[pre_idx, post_idx], 0.0, 1.0
         )
 
-    def adapt_flow(self, performance_metrics: list[float]):
+    def adapt_flow(self, performance_metrics: list[float]) -> None:
         """Adapt flow based on performance using neuromorphic learning"""
         for i in range(len(self.neurons) - 1):
             pre_rate = self.neurons[i].get_firing_rate()
@@ -318,12 +318,12 @@ class NeuromorphicFlowController:
 class CausalGraph:
     """Causal graph for dependency resolution using PC algorithm"""
 
-    def __init__(self, num_variables: int):
+    def __init__(self, num_variables: int) -> None:
         self.num_variables = num_variables
         self.adjacency = np.zeros((num_variables, num_variables), dtype=int)
         self.separating_sets = {}
 
-    def learn_structure(self, data: np.ndarray, alpha: float = 0.05):
+    def learn_structure(self, data: np.ndarray, alpha: float = 0.05) -> None:
         """Learn causal structure using PC algorithm"""
         self.adjacency = np.ones((self.num_variables, self.num_variables), dtype=int)
         np.fill_diagonal(self.adjacency, 0)
@@ -424,7 +424,7 @@ class CausalGraph:
 class InformationFlowOptimizer:
     """Optimize data flow using information theory principles"""
 
-    def __init__(self, num_stages: int):
+    def __init__(self, num_stages: int) -> None:
         self.num_stages = num_stages
         self.mutual_information_matrix = np.zeros((num_stages, num_stages))
         self.entropy_history: list[float] = []
@@ -456,7 +456,7 @@ class InformationFlowOptimizer:
         mi = h1 + h2 - h_joint
         return max(0.0, mi)
 
-    def update_flow_metrics(self, stage: int, data: Any):
+    def update_flow_metrics(self, stage: int, data: Any) -> None:
         """Update information flow metrics"""
         entropy = self.calculate_entropy(data)
         self.entropy_history.append(entropy)
@@ -470,7 +470,7 @@ class InformationFlowOptimizer:
 
     def get_information_bottlenecks(self) -> list[int]:
         """Identify information bottlenecks in the flow
-        
+
         Instrumentation: Records bottleneck detection events
         """
         bottlenecks = []
@@ -527,13 +527,13 @@ class InformationFlowOptimizer:
 
 class MetaLearningStrategy:
     """Meta-learning strategy for adaptive execution
-    
+
     Instrumentation:
     - Tracks which strategies are selected most frequently
     - Records strategy performance over time
     """
 
-    def __init__(self, num_strategies: int = 5):
+    def __init__(self, num_strategies: int = 5) -> None:
         self.num_strategies = num_strategies
         self.strategy_performance = np.ones(num_strategies) / num_strategies
         self.epsilon = 0.1
@@ -552,7 +552,7 @@ class MetaLearningStrategy:
 
         return strategy_idx
 
-    def update_strategy_performance(self, strategy_idx: int, reward: float):
+    def update_strategy_performance(self, strategy_idx: int, reward: float) -> None:
         """Update strategy performance using exponential moving average"""
         current_perf = self.strategy_performance[strategy_idx]
         self.strategy_performance[strategy_idx] = (
@@ -584,7 +584,7 @@ class MetaLearningStrategy:
 class AttentionMechanism:
     """Attention mechanism for focusing computational resources"""
 
-    def __init__(self, embedding_dim: int = 64):
+    def __init__(self, embedding_dim: int = 64) -> None:
         self.embedding_dim = embedding_dim
         self.query_weights = np.random.randn(embedding_dim, embedding_dim) * 0.01
         self.key_weights = np.random.randn(embedding_dim, embedding_dim) * 0.01
@@ -607,7 +607,7 @@ class AttentionMechanism:
         scores = Q @ K.T / np.sqrt(self.embedding_dim)
         attention_weights = self._softmax(scores)
 
-        output = attention_weights @ V
+        attention_weights @ V
 
         return attention_weights
 
@@ -640,10 +640,10 @@ class AttentionMechanism:
 class PersistentHomology:
     """Persistent homology for understanding data topology"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.persistence_diagram: list[tuple[float, float]] = []
 
-    def compute_persistence(self, data: np.ndarray, max_dimension: int = 1):
+    def compute_persistence(self, data: np.ndarray, max_dimension: int = 1) -> None:
         """Compute persistence diagram"""
         if len(data) == 0:
             return
@@ -704,7 +704,7 @@ class Functor(Generic[T, U], ABC):
 class ExecutionMonad(Functor):
     """Monad for composable execution pipelines"""
 
-    def __init__(self, value: Any):
+    def __init__(self, value: Any) -> None:
         self.value = value
         self.history: list[str] = []
 
@@ -743,10 +743,10 @@ class ExecutionMonad(Functor):
 class CategoryTheoryExecutor:
     """Executor using category theory abstractions"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.morphisms: dict[str, Callable] = {}
 
-    def add_morphism(self, name: str, f: Callable):
+    def add_morphism(self, name: str, f: Callable) -> None:
         """Add morphism (function) to category"""
         self.morphisms[name] = f
 
@@ -781,11 +781,11 @@ class CategoryTheoryExecutor:
 class ProbabilisticExecutor:
     """Probabilistic programming for uncertainty quantification"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.distributions: dict[str, Any] = {}
         self.samples: dict[str, list[float]] = defaultdict(list)
 
-    def define_prior(self, param_name: str, distribution: str, **kwargs):
+    def define_prior(self, param_name: str, distribution: str, **kwargs) -> None:
         """Define prior distribution for parameter"""
         self.distributions[param_name] = (distribution, kwargs)
 
@@ -805,7 +805,7 @@ class ProbabilisticExecutor:
         else:
             return 1.0
 
-    def bayesian_update(self, param_name: str, likelihood: float):
+    def bayesian_update(self, param_name: str, likelihood: float) -> None:
         """Update posterior using Bayesian inference"""
         if param_name in self.samples:
             prior_sample = self.sample_prior(param_name)
@@ -838,7 +838,7 @@ class ProbabilisticExecutor:
 class AdvancedDataFlowExecutor(ABC):
     """Advanced executor with frontier paradigmatic capabilities"""
 
-    def __init__(self, method_executor):
+    def __init__(self, method_executor) -> None:
         self.executor = method_executor
 
         self.quantum_optimizer = QuantumExecutionOptimizer(num_methods=50)
@@ -857,7 +857,7 @@ class AdvancedDataFlowExecutor(ABC):
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
         """Execute with advanced optimization strategies
-        
+
         Includes:
         - Structured logging for debugging
         - Retry logic for transient failures
@@ -870,10 +870,10 @@ class AdvancedDataFlowExecutor(ABC):
         current_data = doc.raw_text
 
         strategy_idx = self.meta_learner.select_strategy()
-        strategy_config = self.meta_learner.get_strategy_config(strategy_idx)
+        self.meta_learner.get_strategy_config(strategy_idx)
 
         method_names = [f"{cls}.{method}" for cls, method in method_sequence]
-        prioritized = self.attention.prioritize_methods(method_names, method_names[:3])
+        self.attention.prioritize_methods(method_names, method_names[:3])
 
         logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
 
@@ -885,13 +885,12 @@ class AdvancedDataFlowExecutor(ABC):
             self.probabilistic_executor.define_prior(
                 method_key, "beta", alpha=2, beta=2
             )
-            confidence = self.probabilistic_executor.sample_prior(method_key)
+            self.probabilistic_executor.sample_prior(method_key)
 
             # Execute with retry logic
             method_start = time.time()
             success = False
             max_retries = 3
-            last_exception = None
 
             for attempt in range(max_retries):
                 try:
@@ -924,7 +923,6 @@ class AdvancedDataFlowExecutor(ABC):
                     break  # Success, exit retry loop
 
                 except Exception as e:
-                    last_exception = e
                     if attempt < max_retries - 1:
                         _global_metrics.record_retry()
                         logger.warning(
@@ -2024,7 +2022,7 @@ class D6Q5_Executor(AdvancedDataFlowExecutor):
 class FrontierExecutorOrchestrator:
     """Orchestrator managing frontier-enhanced executors"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.executors = {
             'D1Q1': D1Q1_Executor,
             'D1Q2': D1Q2_Executor,

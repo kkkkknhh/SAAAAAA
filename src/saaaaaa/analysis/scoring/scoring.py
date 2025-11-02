@@ -75,7 +75,7 @@ class EvidenceStructureError(ScoringError):
 class ScoredResult:
     """
     Reproducible scored result for a question.
-    
+
     Attributes:
         question_global: Global question number (1-300)
         base_slot: Question slot identifier
@@ -109,10 +109,10 @@ class ScoredResult:
     def compute_evidence_hash(evidence: dict[str, Any]) -> str:
         """
         Compute reproducible hash of evidence.
-        
+
         Args:
             evidence: Evidence dictionary
-            
+
         Returns:
             SHA-256 hash as hex string
         """
@@ -124,7 +124,7 @@ class ScoredResult:
 class ModalityConfig:
     """
     Configuration for a scoring modality.
-    
+
     Attributes:
         name: Modality name
         description: Modality description
@@ -147,10 +147,10 @@ class ModalityConfig:
     def validate_evidence(self, evidence: dict[str, Any]) -> None:
         """
         Validate evidence structure against modality requirements.
-        
+
         Args:
             evidence: Evidence dictionary to validate
-            
+
         Raises:
             EvidenceStructureError: If evidence is missing required keys
             ModalityValidationError: If evidence structure doesn't match modality
@@ -231,14 +231,14 @@ class ScoringValidator:
     ) -> None:
         """
         Validate evidence structure against modality.
-        
+
         Args:
             evidence: Evidence dictionary
             modality: Scoring modality
-            
+
         Raises:
             ModalityValidationError: If validation fails
-            
+
         Note:
             This function has strict abortability - any validation failure
             will raise an exception and halt processing.
@@ -281,12 +281,12 @@ def apply_rounding(
 ) -> float:
     """
     Apply rounding to a numeric value.
-    
+
     Args:
         value: Value to round
         mode: Rounding mode (half_up, bankers, truncate)
         precision: Decimal precision
-        
+
     Returns:
         Rounded value
     """
@@ -360,20 +360,20 @@ def _validate_quality_thresholds(thresholds: dict[str, float]) -> dict[str, floa
 def score_type_a(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_A evidence: Bayesian numerical claims, gaps, risks.
-    
+
     Expects:
     - elements: List of up to 4 elements
     - confidence: Bayesian confidence score (0-1)
-    
+
     Scoring:
     - Count elements (max 4)
     - Weight by confidence
     - Scale to 0-3 range
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -420,20 +420,20 @@ def score_type_a(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 def score_type_b(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_B evidence: DAG causal chains, ToC completeness.
-    
+
     Expects:
     - elements: List of causal chain elements (up to 3)
     - completeness: DAG completeness score (0-1)
-    
+
     Scoring:
     - Count causal elements (max 3)
     - Weight by completeness
     - Each element worth 1 point
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -473,20 +473,20 @@ def score_type_b(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 def score_type_c(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_C evidence: Coherence via inverted contradictions.
-    
+
     Expects:
     - elements: List of coherence elements (up to 2)
     - coherence_score: Inverted contradiction score (0-1, higher is better)
-    
+
     Scoring:
     - Count coherence elements (max 2)
     - Scale by coherence score
     - Scale to 0-3 range
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -526,20 +526,20 @@ def score_type_c(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 def score_type_d(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_D evidence: Pattern matching for baseline data.
-    
+
     Expects:
     - elements: List of pattern matches (up to 3)
     - pattern_matches: Number of successful pattern matches
-    
+
     Scoring:
     - Count pattern matches (max 3)
     - Weight by match quality if available
     - Scale to 0-3 range
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -582,20 +582,20 @@ def score_type_d(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 def score_type_e(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_E evidence: Financial budget traceability.
-    
+
     Expects:
     - elements: List of budget elements
     - traceability: Boolean or numeric traceability score
-    
+
     Scoring:
     - Boolean presence check
     - If numeric traceability provided, use that
     - Scale to 0-3 range
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -643,20 +643,20 @@ def score_type_e(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 def score_type_f(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_F evidence: Beach mechanism inference and plausibility.
-    
+
     Expects:
     - elements: List of mechanism elements
     - plausibility: Plausibility score (0-1)
-    
+
     Scoring:
     - Continuous scale based on plausibility
     - Weight by element presence
     - Scale to 0-3 range
-    
+
     Args:
         evidence: Evidence dictionary
         config: Modality configuration
-        
+
     Returns:
         Tuple of (score, metadata)
     """
@@ -709,14 +709,14 @@ def determine_quality_level(
 ) -> QualityLevel:
     """
     Determine quality level from normalized score.
-    
+
     Args:
         normalized_score: Score normalized to 0-1 range
         thresholds: Optional custom thresholds
-        
+
     Returns:
         Quality level
-        
+
     Note:
         Default thresholds:
         - EXCELENTE: >= 0.85
@@ -757,14 +757,14 @@ def apply_scoring(
 ) -> ScoredResult:
     """
     Apply scoring to evidence using specified modality.
-    
+
     This is the main entry point for scoring. It:
     1. Validates evidence structure against modality
     2. Applies modality-specific scoring function
     3. Normalizes score to 0-1 range
     4. Determines quality level
     5. Returns reproducible ScoredResult
-    
+
     Args:
         question_global: Global question number (1-300)
         base_slot: Question slot identifier
@@ -773,14 +773,14 @@ def apply_scoring(
         evidence: Evidence dictionary
         modality: Scoring modality (TYPE_A through TYPE_F)
         quality_thresholds: Optional custom quality thresholds
-        
+
     Returns:
         ScoredResult
-        
+
     Raises:
         ModalityValidationError: If evidence validation fails
         ScoringError: If scoring fails
-        
+
     Note:
         This function has strict abortability. Any validation or scoring
         error will raise an exception and halt processing. No fallback

@@ -105,10 +105,9 @@ def check_imports(file_path: Path) -> list[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     imports.append(alias.name)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    for alias in node.names:
-                        imports.append(f"{node.module}.{alias.name}")
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                for alias in node.names:
+                    imports.append(f"{node.module}.{alias.name}")
 
         # Check for duplicate imports
         seen = set()

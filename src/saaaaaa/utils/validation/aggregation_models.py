@@ -12,7 +12,7 @@ from typing_extensions import Self
 class AggregationWeights(BaseModel):
     """
     Validation model for aggregation weights.
-    
+
     Enforces:
     - All weights must be non-negative (>= 0)
     - All weights must be <= 1.0
@@ -114,14 +114,14 @@ class MacroAggregationConfig(BaseModel):
 def validate_weights(weights: list[float], tolerance: float = 1e-6) -> AggregationWeights:
     """
     Convenience function to validate a list of weights.
-    
+
     Args:
         weights: List of weights to validate
         tolerance: Tolerance for sum validation
-        
+
     Returns:
         Validated AggregationWeights instance
-        
+
     Raises:
         ValueError: If validation fails
     """
@@ -136,16 +136,16 @@ def validate_dimension_config(
 ) -> DimensionAggregationConfig:
     """
     Validate dimension aggregation configuration.
-    
+
     Args:
         dimension_id: Dimension ID (e.g., "DIM01")
         area_id: Area ID (e.g., "PA01")
         weights: Optional list of weights
         expected_question_count: Expected number of questions
-        
+
     Returns:
         Validated configuration
-        
+
     Raises:
         ValueError: If validation fails
     """

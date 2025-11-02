@@ -72,7 +72,7 @@ def test_modality_validation_type_a():
     try:
         invalid_evidence = {"elements": [1, 2, 3]}
         ScoringValidator.validate(invalid_evidence, modality)
-        assert False, "Should have raised EvidenceStructureError"
+        raise AssertionError("Should have raised EvidenceStructureError")
     except EvidenceStructureError as e:
         assert "confidence" in str(e).lower()
         print("✓ TYPE_A missing key detected")
@@ -81,7 +81,7 @@ def test_modality_validation_type_a():
     try:
         invalid_evidence = {"elements": "not a list", "confidence": 0.85}
         ScoringValidator.validate(invalid_evidence, modality)
-        assert False, "Should have raised ModalityValidationError"
+        raise AssertionError("Should have raised ModalityValidationError")
     except ModalityValidationError as e:
         assert "list" in str(e).lower()
         print("✓ TYPE_A invalid elements type detected")
@@ -90,7 +90,7 @@ def test_modality_validation_type_a():
 def test_scoring_type_a():
     """Test TYPE_A scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_A)
-    max_score = config.score_range[1]
+    config.score_range[1]
 
     # Full score with high confidence
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
@@ -321,7 +321,7 @@ def test_apply_scoring_invalid_modality():
             evidence=evidence,
             modality="TYPE_Z",  # Invalid
         )
-        assert False, "Should have raised ModalityValidationError"
+        raise AssertionError("Should have raised ModalityValidationError")
     except ModalityValidationError as e:
         assert "TYPE_Z" in str(e)
         print("✓ Invalid modality detected")
@@ -340,7 +340,7 @@ def test_apply_scoring_missing_evidence():
             evidence=evidence,
             modality="TYPE_A",
         )
-        assert False, "Should have raised EvidenceStructureError"
+        raise AssertionError("Should have raised EvidenceStructureError")
     except EvidenceStructureError as e:
         assert "confidence" in str(e).lower()
         print("✓ Missing evidence detected")

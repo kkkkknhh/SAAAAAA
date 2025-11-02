@@ -275,7 +275,7 @@ class QualityScore:
 class PDETMunicipalPlanAnalyzer:
     """Analizador de vanguardia para Planes de Desarrollo Municipal PDET"""
 
-    def __init__(self, use_gpu: bool = True, language: str = 'es', confidence_threshold: float = 0.7):
+    def __init__(self, use_gpu: bool = True, language: str = 'es', confidence_threshold: float = 0.7) -> None:
         self.device = 'cuda' if use_gpu and torch.cuda.is_available() else 'cpu'
         self.confidence_threshold = confidence_threshold
         self.context = ColombianMunicipalContext()
@@ -420,15 +420,15 @@ class PDETMunicipalPlanAnalyzer:
     def _is_likely_header(self, row: pd.Series, **kwargs) -> bool:
         """
         Determine if a DataFrame row is likely a header row based on linguistic analysis.
-        
+
         Args:
             row: pandas Series representing a row from a DataFrame
             **kwargs: Accepts additional keyword arguments for backward compatibility.
                      These are ignored (e.g., pdf_path if mistakenly passed).
-        
+
         Returns:
             Boolean indicating whether the row appears to be a header
-        
+
         Note:
             This function only requires 'row' parameter. Any additional kwargs
             (like 'pdf_path') are silently ignored to maintain interface stability.
@@ -709,13 +709,13 @@ class PDETMunicipalPlanAnalyzer:
             'dependency': funding_sources.get('dependency_risk', 0.5)
         }
 
-        with pm.Model() as risk_model:
+        with pm.Model():
             base_risk = pm.Beta('base_risk', alpha=2, beta=5)
             diversity_effect = pm.Normal('diversity_effect', mu=-0.3, sigma=0.1)
             sustainability_effect = pm.Normal('sustainability_effect', mu=-0.4, sigma=0.1)
             dependency_effect = pm.Normal('dependency_effect', mu=0.5, sigma=0.15)
 
-            risk = pm.Deterministic(
+            pm.Deterministic(
                 'risk',
                 pm.math.sigmoid(
                     pm.math.log(base_risk / (1 - base_risk)) +
@@ -1219,8 +1219,8 @@ class PDETMunicipalPlanAnalyzer:
         text_lower = text.lower()
 
         for edge in edges:
-            source_mentions = text_lower.count(edge.source[:30].lower())
-            target_mentions = text_lower.count(edge.target[:30].lower())
+            text_lower.count(edge.source[:30].lower())
+            text_lower.count(edge.target[:30].lower())
 
             cooccurrence_count = 0
             positions_source = [m.start() for m in re.finditer(re.escape(edge.source[:30].lower()), text_lower)]
@@ -1259,7 +1259,7 @@ class PDETMunicipalPlanAnalyzer:
         effects = []
         G = dag.graph
 
-        for source in dag.nodes.keys():
+        for source in dag.nodes:
             if dag.nodes[source].node_type != 'pilar':
                 continue
 
@@ -1288,7 +1288,7 @@ class PDETMunicipalPlanAnalyzer:
         if not all_paths:
             return None
 
-        direct_paths = [p for p in all_paths if len(p) == 2]
+        [p for p in all_paths if len(p) == 2]
         indirect_paths = [p for p in all_paths if len(p) > 2]
 
         confounders = self._identify_confounders(treatment, outcome, dag)
@@ -1296,7 +1296,7 @@ class PDETMunicipalPlanAnalyzer:
         treatment_node = dag.nodes[treatment]
         budget_value = float(treatment_node.associated_budget) if treatment_node.associated_budget else 0.0
 
-        with pm.Model() as effect_model:
+        with pm.Model():
             prior_mean, prior_sd = self._get_prior_effect(treatment, outcome)
 
             direct_effect = pm.StudentT('direct_effect', nu=3, mu=prior_mean, sigma=prior_sd)
@@ -1321,13 +1321,13 @@ class PDETMunicipalPlanAnalyzer:
             evidence_strength = treatment_node.evidence_strength * dag.nodes[outcome].evidence_strength
             obs_noise = pm.HalfNormal('obs_noise', sigma=0.5)
 
-            pseudo_obs = pm.Normal('pseudo_obs', mu=total_effect, sigma=obs_noise,
+            pm.Normal('pseudo_obs', mu=total_effect, sigma=obs_noise,
                                    observed=np.array([evidence_strength * 0.5]))
 
             trace = pm.sample(1500, tune=800, cores=1, return_inferencedata=True, progressbar=False, target_accept=0.9)
 
         total_samples = trace.posterior['total_effect'].values.flatten()
-        direct_samples = trace.posterior['direct_effect'].values.flatten()
+        trace.posterior['direct_effect'].values.flatten()
 
         total_mean = float(np.mean(total_samples))
         total_ci = tuple(float(x) for x in np.percentile(total_samples, [2.5, 97.5]))
@@ -1375,7 +1375,7 @@ class PDETMunicipalPlanAnalyzer:
         confounders = []
 
         for node in G.nodes():
-            if node == treatment or node == outcome:
+            if node in (treatment, outcome):
                 continue
 
             if G.has_edge(node, treatment) and G.has_edge(node, outcome):
@@ -1480,10 +1480,7 @@ class PDETMunicipalPlanAnalyzer:
                     treatment].associated_budget else 0.0
                 new_budget = intervention[treatment]
 
-                if current_budget > 0:
-                    budget_multiplier = new_budget / current_budget
-                else:
-                    budget_multiplier = 1.0
+                budget_multiplier = new_budget / current_budget if current_budget > 0 else 1.0
 
                 # Rendimientos decrecientes: log transform
                 effect_multiplier = np.log1p(budget_multiplier) / np.log1p(1.0)
@@ -1850,7 +1847,7 @@ class PDETMunicipalPlanAnalyzer:
             data['node_type'] = data.get('type', 'unknown')
             data['budget'] = data.get('budget', 0.0)
 
-        for u, v, data in G.edges(data=True):
+        for _u, _v, data in G.edges(data=True):
             data['weight'] = data.get('probability', 0.5)
             data['edge_type'] = data.get('type', 'unknown')
 
@@ -1916,7 +1913,7 @@ class PDETMunicipalPlanAnalyzer:
         report += "## 4. ESCENARIOS CONTRAFACTUALES\n\n"
 
         scenarios = analysis_results.get('counterfactuals', [])
-        for i, scenario in enumerate(scenarios, 1):
+        for _i, scenario in enumerate(scenarios, 1):
             report += scenario['narrative']
             report += "\n---\n\n"
 
@@ -2242,10 +2239,10 @@ class PDETMunicipalPlanAnalyzer:
     def _find_product_mentions(self, text: str) -> list[str]:
         """
         Find mentions of products in text.
-        
+
         Args:
             text: Text to search
-            
+
         Returns:
             List of product mentions
         """
@@ -2276,10 +2273,10 @@ class PDETMunicipalPlanAnalyzer:
     def _generate_optimal_remediations(self, gaps: list[dict[str, Any]]) -> list[dict[str, str]]:
         """
         Generate optimal remediations for identified gaps.
-        
+
         Args:
             gaps: List of identified gaps
-            
+
         Returns:
             List of remediation recommendations
         """
@@ -2314,10 +2311,10 @@ class PDETMunicipalPlanAnalyzer:
     def generate_recommendations(self, analysis_results: dict[str, Any]) -> list[str]:
         """
         Generate recommendations based on analysis results.
-        
+
         Args:
             analysis_results: Results from municipal plan analysis
-            
+
         Returns:
             List of actionable recommendations
         """
@@ -2414,7 +2411,7 @@ def setup_logging(log_level: str = 'INFO') -> None:
 # EJEMPLO DE USO
 # ============================================================================
 
-async def main_example():
+async def main_example() -> None:
     """
     Ejemplo de uso del analizador
 

@@ -17,7 +17,7 @@ from scoring.scoring import apply_scoring
 def simulate_question_processing():
     """
     Simulate processing multiple questions through the scoring pipeline.
-    
+
     This demonstrates how the orchestrator would use the scoring module
     to score evidence from micro questions.
     """

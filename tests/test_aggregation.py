@@ -380,7 +380,7 @@ class TestAggregationPipeline:
         """Test pipeline from dimension to area aggregation."""
         # Step 1: Aggregate dimension
         dim_aggregator = DimensionAggregator(minimal_monolith, abort_on_insufficient=False)
-        dim_score = dim_aggregator.aggregate_dimension(
+        dim_aggregator.aggregate_dimension(
             dimension_id="D1",
             area_id="P1",
             scored_results=sample_scored_results,

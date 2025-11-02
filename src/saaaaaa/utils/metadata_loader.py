@@ -29,7 +29,7 @@ class MetadataError(Exception):
 
 class MetadataVersionError(MetadataError):
     """Version mismatch error"""
-    def __init__(self, expected: str, actual: str, file_path: str):
+    def __init__(self, expected: str, actual: str, file_path: str) -> None:
         self.expected = expected
         self.actual = actual
         self.file_path = file_path
@@ -40,7 +40,7 @@ class MetadataVersionError(MetadataError):
 
 class MetadataIntegrityError(MetadataError):
     """Checksum/integrity violation error"""
-    def __init__(self, file_path: str, expected_checksum: str | None = None, actual_checksum: str | None = None):
+    def __init__(self, file_path: str, expected_checksum: str | None = None, actual_checksum: str | None = None) -> None:
         self.file_path = file_path
         self.expected_checksum = expected_checksum
         self.actual_checksum = actual_checksum
@@ -52,7 +52,7 @@ class MetadataIntegrityError(MetadataError):
 
 class MetadataSchemaError(MetadataError):
     """Schema validation error"""
-    def __init__(self, file_path: str, validation_errors: list):
+    def __init__(self, file_path: str, validation_errors: list) -> None:
         self.file_path = file_path
         self.validation_errors = validation_errors
         error_msgs = '\n'.join(f"  - {err}" for err in validation_errors)
@@ -63,7 +63,7 @@ class MetadataSchemaError(MetadataError):
 
 class MetadataMissingKeyError(MetadataError):
     """Required key missing in metadata"""
-    def __init__(self, file_path: str, missing_key: str, context: str = ""):
+    def __init__(self, file_path: str, missing_key: str, context: str = "") -> None:
         self.file_path = file_path
         self.missing_key = missing_key
         self.context = context
@@ -76,7 +76,7 @@ class MetadataMissingKeyError(MetadataError):
 class MetadataLoader:
     """
     Unified metadata loader with strict validation
-    
+
     Features:
     - Version pinning with semantic versioning
     - SHA-256 checksum verification
@@ -85,7 +85,7 @@ class MetadataLoader:
     - Structured logging of all errors
     """
 
-    def __init__(self, workspace_root: Path | None = None):
+    def __init__(self, workspace_root: Path | None = None) -> None:
         self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
         self.schemas_dir = self.workspace_root / "schemas"
 
@@ -102,17 +102,17 @@ class MetadataLoader:
     ) -> dict[str, Any]:
         """
         Load and validate metadata file with all safeguards
-        
+
         Args:
             path: Path to metadata file (JSON or YAML)
             schema_ref: Schema file name (e.g., "rubric.schema.json")
             required_version: Required version string (e.g., "2.0.0")
             expected_checksum: Expected SHA-256 checksum (hex)
             checksum_algorithm: Hash algorithm ("sha256", "md5")
-        
+
         Returns:
             Validated metadata dictionary
-        
+
         Raises:
             MetadataVersionError: Version mismatch
             MetadataIntegrityError: Checksum mismatch
@@ -194,7 +194,7 @@ class MetadataLoader:
     def _calculate_checksum(self, metadata: dict[str, Any], algorithm: str = "sha256") -> str:
         """
         Calculate reproducible checksum of metadata
-        
+
         Normalization:
         - JSON serialization with sorted keys
         - UTF-8 encoding
@@ -242,7 +242,7 @@ class MetadataLoader:
 
         return errors
 
-    def _log_error(self, rule_id: str, file_path: str, **kwargs):
+    def _log_error(self, rule_id: str, file_path: str, **kwargs) -> None:
         """Structured error logging"""
         from datetime import datetime, timezone
 
@@ -263,11 +263,11 @@ def load_cuestionario(
 ) -> dict[str, Any]:
     """
     Load and validate cuestionario_FIXED.json
-    
+
     Args:
         path: Path to cuestionario file (default: questionnaire_monolith.json)
         required_version: Required version
-    
+
     Returns:
         Validated cuestionario data
     """
@@ -288,11 +288,11 @@ def load_execution_mapping(
 ) -> dict[str, Any]:
     """
     Load and validate execution_mapping.yaml
-    
+
     Args:
         path: Path to execution mapping (default: execution_mapping.yaml)
         required_version: Required version
-    
+
     Returns:
         Validated execution mapping
     """
@@ -313,11 +313,11 @@ def load_rubric_scoring(
 ) -> dict[str, Any]:
     """
     Load and validate rubric_scoring.json
-    
+
     Args:
         path: Path to rubric scoring (default: rubric_scoring.json)
         required_version: Required version
-    
+
     Returns:
         Validated rubric scoring configuration
     """

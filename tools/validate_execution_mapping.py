@@ -25,7 +25,7 @@ def load_schema(schema_path: str) -> dict:
 def validate_config(config: dict, schema: dict) -> tuple[bool, list[str]]:
     """
     Validate configuration against schema.
-    
+
     Returns:
         (is_valid, errors) tuple
     """
@@ -80,7 +80,7 @@ def check_scoring_module_references(config: dict) -> tuple[bool, list[str]]:
     return len(errors) == 0, errors
 
 
-def main():
+def main() -> None:
     """Main validation entry point."""
     config_path = "config/execution_mapping.yaml"
     schema_path = "config/schemas/execution_mapping.schema.json"

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class DataFlowExecutor:
     """Ejecutor base"""
-    def __init__(self, method_executor):
+    def __init__(self, method_executor) -> None:
         self.executor = method_executor
 
 
@@ -8694,7 +8694,7 @@ class D6Q2_Executor_AntiMilagro(D6Q2_Executor):
 
         return result
 
-    def _detect_miracle(self, result):
+    def _detect_miracle(self, result) -> bool:
         # TODO: Implementar lógica de detección
         return False
 

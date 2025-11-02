@@ -3,7 +3,7 @@ Tests for runtime error fixes in policy analysis.
 
 These tests verify that the three critical runtime errors are prevented:
 1. 'bool' object is not iterable
-2. 'str' object has no attribute 'text'  
+2. 'str' object has no attribute 'text'
 3. can't multiply sequence by non-int of type 'float'
 """
 
@@ -193,7 +193,7 @@ class TestIntegrationScenarios:
 
         # Should not raise error
         count = 0
-        for c in contradictions:
+        for _c in contradictions:
             count += 1
 
         assert count == 0

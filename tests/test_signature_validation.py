@@ -108,15 +108,15 @@ def test_signature_validator_basic_functionality():
         return f"{arg1}: {arg2}"
 
     # Valid call
-    assert validate_call_signature(sample_function, "test", 123) == True
+    assert validate_call_signature(sample_function, "test", 123)
     print("✓ Valid call detected correctly")
 
     # Invalid call - missing argument
-    assert validate_call_signature(sample_function, "test") == False
+    assert not validate_call_signature(sample_function, "test")
     print("✓ Missing argument detected")
 
     # Invalid call - too many positional arguments
-    assert validate_call_signature(sample_function, "test", 123, "extra") == False
+    assert not validate_call_signature(sample_function, "test", 123, "extra")
     print("✓ Too many arguments detected")
 
     print("\n✅ test_signature_validator_basic_functionality PASSED")

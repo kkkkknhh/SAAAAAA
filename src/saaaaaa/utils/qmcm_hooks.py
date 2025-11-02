@@ -18,19 +18,19 @@ logger = logging.getLogger(__name__)
 class QMCMRecorder:
     """
     Records method calls for quality monitoring
-    
+
     Tracks:
     - Method invocations
     - Call frequency
     - Input/output types
     - Execution status
-    
+
     Does NOT track:
     - Actual data content (no summarization leakage)
     - User-specific information
     """
 
-    def __init__(self, recording_path: Path | None = None):
+    def __init__(self, recording_path: Path | None = None) -> None:
         """Initialize QMCM recorder"""
         self.recording_path = recording_path or Path(".qmcm_recording.json")
         self.calls: list[dict[str, Any]] = []
@@ -43,10 +43,10 @@ class QMCMRecorder:
             output_type: str,
             execution_status: str = "success",
             execution_time_ms: float = 0.0
-    ):
+    ) -> None:
         """
         Record a method call
-        
+
         Args:
             method_name: Name of the method called
             input_types: Dictionary mapping parameter names to type names
@@ -72,7 +72,7 @@ class QMCMRecorder:
     def get_statistics(self) -> dict[str, Any]:
         """
         Get recording statistics
-        
+
         Returns summary of method call patterns without data content
         """
         if not self.calls:
@@ -106,7 +106,7 @@ class QMCMRecorder:
             "most_called_method": most_called
         }
 
-    def save_recording(self):
+    def save_recording(self) -> None:
         """Save recording to disk"""
         recording_data = {
             "recording_metadata": {
@@ -122,7 +122,7 @@ class QMCMRecorder:
 
         logger.info(f"QMCM recording saved: {self.recording_path}")
 
-    def load_recording(self):
+    def load_recording(self) -> None:
         """Load recording from disk"""
         if not self.recording_path.exists():
             logger.warning(f"No recording found: {self.recording_path}")
@@ -134,16 +134,16 @@ class QMCMRecorder:
         self.calls = recording_data.get("calls", [])
         logger.info(f"QMCM recording loaded: {len(self.calls)} calls")
 
-    def clear_recording(self):
+    def clear_recording(self) -> None:
         """Clear all recorded calls"""
         self.calls = []
         logger.info("QMCM recording cleared")
 
-    def enable(self):
+    def enable(self) -> None:
         """Enable recording"""
         self.enabled = True
 
-    def disable(self):
+    def disable(self) -> None:
         """Disable recording"""
         self.enabled = False
 
@@ -163,7 +163,7 @@ def get_global_recorder() -> QMCMRecorder:
 def qmcm_record(method):
     """
     Decorator to record method calls in QMCM
-    
+
     Usage:
         @qmcm_record
         def my_method(self, arg1: str, arg2: int) -> dict:

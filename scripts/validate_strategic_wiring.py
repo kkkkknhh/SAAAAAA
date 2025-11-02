@@ -84,9 +84,8 @@ def extract_imports(file_path: Path) -> set[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     imports.add(alias.name.split('.')[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imports.add(node.module.split('.')[0])
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.add(node.module.split('.')[0])
 
     except Exception:
         pass
@@ -122,7 +121,6 @@ def validate_strategic_files() -> dict[str, bool]:
     }
 
     results = {}
-    all_pass = True
 
     for file_path, description in strategic_files.items():
         full_path = Path(file_path)
@@ -131,7 +129,6 @@ def validate_strategic_files() -> dict[str, bool]:
         if not check_file_exists(full_path):
             print_error(f"{file_path}: File not found")
             results[file_path] = False
-            all_pass = False
             continue
 
         # Check syntax
@@ -139,7 +136,6 @@ def validate_strategic_files() -> dict[str, bool]:
         if not syntax_ok:
             print_error(f"{file_path}: {error_msg}")
             results[file_path] = False
-            all_pass = False
             continue
 
         print_success(f"{file_path}: {description}")

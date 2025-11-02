@@ -107,10 +107,10 @@ class ProvenanceAuditor:
         self,
         p95_latency_threshold: float | None = None,
         method_contracts: dict[str, dict[str, Any]] | None = None
-    ):
+    ) -> None:
         """
         Initialize provenance auditor
-        
+
         Args:
             p95_latency_threshold: Historical p95 latency for anomaly detection
             method_contracts: Expected output schemas by method
@@ -128,20 +128,20 @@ class ProvenanceAuditor:
     ) -> AuditResult:
         """
         Perform comprehensive provenance audit
-        
+
         MANDATES:
         1. Validate 1:1 correspondence between DAG nodes and QMCM records
         2. Confirm no orphan nodes (except primary inputs)
         3. Check timing drift (flag if > p95 historical)
         4. Verify output_schema compliance
         5. Emit JSON audit + narrative
-        
+
         Args:
             micro_answer: MicroLevelAnswer object to audit
             evidence_registry: QMCM records indexed by ID
             provenance_dag: Provenance DAG structure
             method_contracts: Expected schemas (optional override)
-        
+
         Returns:
             AuditResult with findings and severity assessment
         """
@@ -236,11 +236,7 @@ class ProvenanceAuditor:
     def _schemas_match(self, expected: dict[str, Any], actual: dict[str, Any]) -> bool:
         """Check if actual schema matches expected schema"""
         # Simple type-based matching
-        for key, expected_type in expected.items():
-            if key not in actual:
-                return False
-            # Type checking could be more sophisticated
-        return True
+        return all(key in actual for key, expected_type in expected.items())
 
     def _calculate_contribution_weights(
         self, registry: dict[str, QMCMRecord]
@@ -335,10 +331,10 @@ class BayesianPosteriorExplainer:
     GOAL: Explain signal contributions to final posterior
     """
 
-    def __init__(self, anti_miracle_cap: float = 0.95):
+    def __init__(self, anti_miracle_cap: float = 0.95) -> None:
         """
         Initialize Bayesian posterior explainer
-        
+
         Args:
             anti_miracle_cap: Maximum posterior probability (anti-miracle constraint)
         """
@@ -353,18 +349,18 @@ class BayesianPosteriorExplainer:
     ) -> PosteriorJustification:
         """
         Explain how each signal contributed to posterior
-        
+
         MANDATES:
         1. Order signals by absolute marginal impact |Δ|
         2. Mark discarded signals (contract violation or reconciliation failure)
         3. Justify test_type in 1 line each
         4. Explain anti-miracle cap application
-        
+
         Args:
             prior: Initial probability
             signals: List of signals with test types and likelihoods
             posterior: Final posterior probability
-        
+
         Returns:
             PosteriorJustification with ranked signals and narrative
         """
@@ -516,10 +512,10 @@ class AntiMilagroStressTester:
     GOAL: Detect dependence on non-proportional jumps
     """
 
-    def __init__(self, fragility_threshold: float = 0.3):
+    def __init__(self, fragility_threshold: float = 0.3) -> None:
         """
         Initialize stress tester
-        
+
         Args:
             fragility_threshold: Support score drop threshold for fragility
         """
@@ -534,17 +530,17 @@ class AntiMilagroStressTester:
     ) -> StressTestResult:
         """
         Stress test causal chain for structural fragility
-        
+
         MANDATES:
         1. Evaluate pattern density vs chain length
         2. Simulate weak node removal and recalculate support
         3. Flag fragility if drop > τ
-        
+
         Args:
             causal_chain: Chain of causal steps
             proportionality_patterns: Detected proportionality patterns
             missing_patterns: Required patterns not found
-        
+
         Returns:
             StressTestResult with fragility assessment
         """

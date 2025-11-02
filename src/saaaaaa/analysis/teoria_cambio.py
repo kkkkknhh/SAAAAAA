@@ -170,8 +170,7 @@ class AdvancedGraphNode:
         normalized_role = (self.role or "variable").strip().lower()
         if normalized_role not in self.ALLOWED_ROLES:
             raise ValueError(
-                "Invalid role '%s'. Expected one of: %s"
-                % (self.role, ", ".join(sorted(self.ALLOWED_ROLES)))
+                "Invalid role '{}'. Expected one of: {}".format(self.role, ", ".join(sorted(self.ALLOWED_ROLES)))
             )
         self.role = normalized_role
 
@@ -409,13 +408,13 @@ class TeoriaCambio:
     def _execute_generar_sugerencias_internas(self, validacion: 'ValidacionResultado') -> list[str]:
         """
         Execute internal suggestion generation (wrapper method).
-        
+
         This method wraps the static _generar_sugerencias_internas method
         to allow it to be called via the method executor interface.
-        
+
         Args:
             validacion: Validation result object
-            
+
         Returns:
             List of actionable suggestions
         """

@@ -7,7 +7,7 @@ format conforming to schemas/contract_error_log.schema.json.
 
 Usage:
     from validation.contract_logger import ContractErrorLogger
-    
+
     logger = ContractErrorLogger(module_name="scoring")
     logger.log_contract_mismatch(
         function="apply_scoring",
@@ -45,10 +45,10 @@ class ContractErrorLogger:
     WARNING = "WARNING"
     INFO = "INFO"
 
-    def __init__(self, module_name: str, enable_stdout: bool = True):
+    def __init__(self, module_name: str, enable_stdout: bool = True) -> None:
         """
         Initialize contract error logger.
-        
+
         Args:
             module_name: Name of the module using this logger
             enable_stdout: Whether to output to stdout (default: True)
@@ -69,7 +69,7 @@ class ContractErrorLogger:
     ) -> None:
         """
         Internal method to log structured error.
-        
+
         Args:
             error_code: Standard error code
             function: Function name where error occurred
@@ -114,7 +114,7 @@ class ContractErrorLogger:
     ) -> None:
         """
         Log a contract mismatch error (ERR_CONTRACT_MISMATCH).
-        
+
         Args:
             function: Function name where error occurred
             key: Parameter/field name that failed
@@ -163,7 +163,7 @@ class ContractErrorLogger:
     ) -> None:
         """
         Log a type violation error (ERR_TYPE_VIOLATION).
-        
+
         Args:
             function: Function name where error occurred
             key: Parameter/field name with wrong type
@@ -207,7 +207,7 @@ class ContractErrorLogger:
     ) -> None:
         """
         Log an invalid modality error (ERR_INVALID_MODALITY).
-        
+
         Args:
             function: Function name where error occurred
             modality: Invalid modality value
@@ -249,7 +249,7 @@ class ContractErrorLogger:
     ) -> None:
         """
         Log a determinism violation (ERR_DETERMINISM_VIOLATION).
-        
+
         Args:
             function: Function name where error occurred
             description: Description of what failed determinism check

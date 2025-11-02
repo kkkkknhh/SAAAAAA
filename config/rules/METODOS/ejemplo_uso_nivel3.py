@@ -36,7 +36,7 @@ class NIVEL3ExecutionGuide:
     Proporciona patrones y ejemplos para ejecución prioritaria
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Inicializar guía de ejecución"""
         self.execution_log = []
 
@@ -214,7 +214,7 @@ class NIVEL3ExecutionGuide:
     # MÉTODOS DE COMPLEJIDAD ALTA - Atención Especial
     # ========================================================================
 
-    def ejemplo_monte_carlo_simulation(self):
+    def ejemplo_monte_carlo_simulation(self) -> None:
         """
         Ejemplo: Simulaciones Monte Carlo
         COMPLEJIDAD: HIGH
@@ -241,7 +241,7 @@ class NIVEL3ExecutionGuide:
     # PIPELINE DE EJECUCIÓN COMPLETO
     # ========================================================================
 
-    def ejecutar_pipeline_completo(self, document_path: str = None):
+    def ejecutar_pipeline_completo(self, document_path: str = None) -> None:
         """
         Ejecuta un pipeline completo de análisis
         Demuestra la orquestación de múltiples métodos
@@ -256,20 +256,20 @@ class NIVEL3ExecutionGuide:
 
         # Paso 1: Inicialización (CRITICAL)
         print("\n[1/7] Inicializando componentes...")
-        financial_analyzer = self.ejemplo_financiero_critical()
-        municipal_analyzer = self.ejemplo_municipal_analyzer_critical()
+        self.ejemplo_financiero_critical()
+        self.ejemplo_municipal_analyzer_critical()
 
         # Paso 2: Procesamiento de texto (CRITICAL)
         print("\n[2/7] Procesando políticas...")
-        policy_result = self.ejemplo_policy_processor_critical()
+        self.ejemplo_policy_processor_critical()
 
         # Paso 3: Análisis Bayesiano (HIGH)
         print("\n[3/7] Realizando inferencia bayesiana...")
-        bayesian_score = self.ejemplo_bayesian_inference_high()
+        self.ejemplo_bayesian_inference_high()
 
         # Paso 4: Construcción DAG Causal (HIGH)
         print("\n[4/7] Construyendo DAG causal...")
-        causal_dag = self.ejemplo_causal_dag_high()
+        self.ejemplo_causal_dag_high()
 
         # Paso 5: Detección de contradicciones
         print("\n[5/7] Detectando contradicciones...")
@@ -288,7 +288,7 @@ class NIVEL3ExecutionGuide:
         print("="*70)
         self.print_execution_summary()
 
-    def print_execution_summary(self):
+    def print_execution_summary(self) -> None:
         """Imprime resumen de ejecución"""
         successful = sum(1 for log in self.execution_log if log.get('status') == 'SUCCESS')
         failed = sum(1 for log in self.execution_log if log.get('status') == 'FAILED')
@@ -304,7 +304,7 @@ class NIVEL3ExecutionGuide:
                     print(f"  - {log['method']}: {log.get('error', 'Unknown error')}")
 
 
-def main():
+def main() -> None:
     """Función principal de demostración"""
     print("="*70)
     print("NIVEL3 - SISTEMA DE EJEMPLOS DE USO")

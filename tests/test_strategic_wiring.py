@@ -352,7 +352,7 @@ class TestStrategicFileInteraction(unittest.TestCase):
         from seed_factory import DeterministicContext
 
         # Save original state
-        original_value = random.random()
+        random.random()
 
         # Use deterministic context
         with DeterministicContext(correlation_id="test-001") as seed:

@@ -51,7 +51,7 @@ except ImportError:
 def example_1_provenance_audit():
     """
     Example 1: Provenance Audit on a micro-level answer
-    
+
     Shows how to validate QMCM integrity and provenance DAG
     for a single question's analysis pipeline.
     """
@@ -191,7 +191,7 @@ def example_1_provenance_audit():
 def example_2_bayesian_posterior_justification():
     """
     Example 2: Bayesian Posterior Justification
-    
+
     Shows how to explain how different signals contributed to
     the final posterior probability for a question.
     """
@@ -283,7 +283,7 @@ def example_2_bayesian_posterior_justification():
 def example_3_anti_milagro_stress_test():
     """
     Example 3: Anti-Milagro Stress Test
-    
+
     Shows how to test structural fragility of causal chains
     by simulating node removal and checking for non-proportional jumps.
     """
@@ -378,7 +378,7 @@ def example_3_anti_milagro_stress_test():
 def example_4_integrated_workflow():
     """
     Example 4: Integrated Workflow
-    
+
     Shows how to use all three micro prompts together in a
     complete quality assurance workflow for a micro-level answer.
     """

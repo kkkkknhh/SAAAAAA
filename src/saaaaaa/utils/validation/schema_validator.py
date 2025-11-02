@@ -38,7 +38,7 @@ class MonolithIntegrityReport(BaseModel):
 class MonolithSchemaValidator:
     """
     Monolith Initialization Validator (MIV).
-    
+
     Bootstrapping process that scans and verifies the integrity of the
     global schema before runtime execution.
     """
@@ -51,10 +51,10 @@ class MonolithSchemaValidator:
     EXPECTED_DIMENSIONS = 6
     EXPECTED_CLUSTERS = 4
 
-    def __init__(self, schema_path: str | None = None):
+    def __init__(self, schema_path: str | None = None) -> None:
         """
         Initialize validator.
-        
+
         Args:
             schema_path: Path to JSON schema file (optional)
         """
@@ -89,14 +89,14 @@ class MonolithSchemaValidator:
     ) -> MonolithIntegrityReport:
         """
         Validate monolith structure and integrity.
-        
+
         Args:
             monolith: Monolith configuration dictionary
             strict: If True, raises exception on validation failure
-            
+
         Returns:
             MonolithIntegrityReport with validation results
-            
+
         Raises:
             SchemaInitializationError: If validation fails and strict=True
         """
@@ -232,7 +232,7 @@ class MonolithSchemaValidator:
     ) -> dict[str, bool]:
         """
         Validate referential integrity.
-        
+
         Ensures no dangling foreign keys or invalid cross-references.
         """
         results = {
@@ -329,7 +329,7 @@ class MonolithSchemaValidator:
     ) -> None:
         """
         Generate and save validation report artifact.
-        
+
         Args:
             report: Validation report
             output_path: Path to save report JSON
@@ -353,15 +353,15 @@ def validate_monolith_schema(
 ) -> MonolithIntegrityReport:
     """
     Convenience function to validate monolith schema.
-    
+
     Args:
         monolith: Monolith configuration
         schema_path: Optional path to JSON schema
         strict: If True, raises exception on failure
-        
+
     Returns:
         MonolithIntegrityReport
-        
+
     Raises:
         SchemaInitializationError: If validation fails and strict=True
     """

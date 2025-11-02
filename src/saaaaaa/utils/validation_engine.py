@@ -39,7 +39,7 @@ class ValidationReport:
     warnings: int
     results: list[ValidationResult] = field(default_factory=list)
 
-    def add_result(self, result: ValidationResult):
+    def add_result(self, result: ValidationResult) -> None:
         """Add a validation result to the report."""
         self.results.append(result)
         self.total_checks += 1
@@ -64,7 +64,7 @@ class ValidationReport:
 class ValidationEngine:
     """
     Centralized validation engine for precondition checking.
-    
+
     Integrates with validation/predicates.py to provide:
     - Precondition verification before execution steps
     - Structured validation reporting
@@ -72,10 +72,10 @@ class ValidationEngine:
     - Severity-based logging (ERROR/WARNING/INFO)
     """
 
-    def __init__(self, cuestionario_data: dict[str, Any] | None = None):
+    def __init__(self, cuestionario_data: dict[str, Any] | None = None) -> None:
         """
         Initialize validation engine.
-        
+
         Args:
             cuestionario_data: Full cuestionario metadata for validation
         """
@@ -91,14 +91,14 @@ class ValidationEngine:
     ) -> ValidationResult:
         """
         Validate preconditions for scoring operations.
-        
+
         Wraps ValidationPredicates.verify_scoring_preconditions with logging.
-        
+
         Args:
             question_spec: Question specification from rubric
             execution_results: Results from execution pipeline
             plan_text: Full plan document text
-            
+
         Returns:
             ValidationResult
         """
@@ -118,10 +118,10 @@ class ValidationEngine:
     ) -> ValidationResult:
         """
         Validate expected_elements from cuestionario.
-        
+
         Args:
             question_spec: Question specification
-            
+
         Returns:
             ValidationResult
         """
@@ -143,12 +143,12 @@ class ValidationEngine:
     ) -> ValidationResult:
         """
         Validate execution context parameters.
-        
+
         Args:
             question_id: Canonical question ID
             policy_area: Policy area (P1-P10)
             dimension: Dimension (D1-D6)
-            
+
         Returns:
             ValidationResult
         """
@@ -168,11 +168,11 @@ class ValidationEngine:
     ) -> ValidationResult:
         """
         Validate that producer is available and initialized.
-        
+
         Args:
             producer_name: Name of the producer
             producers_dict: Dictionary of initialized producers
-            
+
         Returns:
             ValidationResult
         """
@@ -194,13 +194,13 @@ class ValidationEngine:
     ) -> ValidationReport:
         """
         Run all validation checks for a question execution.
-        
+
         Args:
             question_spec: Question specification
             execution_results: Execution results
             plan_text: Plan document text
             producers_dict: Initialized producers
-            
+
         Returns:
             ValidationReport with all checks
         """
@@ -258,7 +258,7 @@ class ValidationEngine:
 
         return report
 
-    def _log_result(self, result: ValidationResult):
+    def _log_result(self, result: ValidationResult) -> None:
         """Log validation result with appropriate severity."""
         if result.severity == "ERROR":
             if result.is_valid:
@@ -276,10 +276,10 @@ class ValidationEngine:
     ) -> ValidationReport:
         """
         Create a validation report from a list of results.
-        
+
         Args:
             results: List of ValidationResult objects
-            
+
         Returns:
             ValidationReport
         """

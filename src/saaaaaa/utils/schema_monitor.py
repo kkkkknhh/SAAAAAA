@@ -15,11 +15,13 @@ import json
 import logging
 import random
 from collections import Counter, defaultdict
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +55,14 @@ class SchemaStats:
 class SchemaDriftDetector:
     """
     Detects schema drift by sampling payloads and tracking shape changes.
-    
+
     Usage:
         detector = SchemaDriftDetector(sample_rate=0.05)
-        
+
         # In your API/pipeline
         if detector.should_sample():
             detector.record_payload(data, source="api_input")
-        
+
         # Check for drift
         alerts = detector.get_alerts()
     """
@@ -74,7 +76,7 @@ class SchemaDriftDetector:
     ) -> None:
         """
         Initialize schema drift detector.
-        
+
         Args:
             sample_rate: Percentage of payloads to sample (0.01 = 1%, 0.05 = 5%)
             baseline_path: Path to baseline schema file
@@ -105,7 +107,7 @@ class SchemaDriftDetector:
     ) -> None:
         """
         Record a payload for schema tracking.
-        
+
         Args:
             payload: Data payload to analyze
             source: Source identifier (e.g., "api_input", "document_loader")
@@ -148,10 +150,10 @@ class SchemaDriftDetector:
     def get_alerts(self, *, source: str | None = None) -> list[dict[str, Any]]:
         """
         Get schema drift alerts.
-        
+
         Args:
             source: Optional source filter
-        
+
         Returns:
             List of alert dicts
         """
@@ -202,7 +204,7 @@ class SchemaDriftDetector:
     def save_baseline(self, output_path: Path) -> None:
         """
         Save current schema shapes as baseline.
-        
+
         Args:
             output_path: Path to save baseline JSON
         """
@@ -254,10 +256,10 @@ class SchemaDriftDetector:
     def get_metrics(self, *, source: str | None = None) -> dict[str, Any]:
         """
         Get monitoring metrics.
-        
+
         Args:
             source: Optional source filter
-        
+
         Returns:
             Dict of metrics
         """
@@ -297,10 +299,10 @@ class SchemaDriftDetector:
 class PayloadValidator:
     """
     Validate payloads against expected schema.
-    
+
     Usage:
         validator = PayloadValidator(schema_path=Path("schemas/api_input.json"))
-        
+
         try:
             validator.validate(data, source="api_endpoint")
         except ValueError as e:
@@ -310,7 +312,7 @@ class PayloadValidator:
     def __init__(self, *, schema_path: Path | None = None) -> None:
         """
         Initialize payload validator.
-        
+
         Args:
             schema_path: Path to schema definition JSON
         """
@@ -329,12 +331,12 @@ class PayloadValidator:
     ) -> None:
         """
         Validate payload against schema.
-        
+
         Args:
             payload: Data payload to validate
             source: Source identifier
             strict: If True, raise on missing keys; if False, only warn
-        
+
         Raises:
             ValueError: If validation fails in strict mode
             TypeError: If value types don't match schema

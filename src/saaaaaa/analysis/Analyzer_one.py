@@ -77,7 +77,7 @@ class ValueChainLink:
 class MunicipalOntology:
     """Core ontology for municipal development domains."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.value_chain_links = {
             "diagnostic_planning": ValueChainLink(
                 name="diagnostic_planning",
@@ -136,7 +136,7 @@ class MunicipalOntology:
 class SemanticAnalyzer:
     """Advanced semantic analysis for municipal documents."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
         if TfidfVectorizer is not None:
             self.vectorizer = TfidfVectorizer(
@@ -351,7 +351,7 @@ class SemanticAnalyzer:
         # Count unique concepts across dimensions
         unique_concepts = set()
         for dimension_data in semantic_cube["dimensions"].values():
-            for category in dimension_data.keys():
+            for category in dimension_data:
                 unique_concepts.add(category)
 
         # Normalize complexity
@@ -366,7 +366,7 @@ class SemanticAnalyzer:
 class PerformanceAnalyzer:
     """Analyze value chain performance with operational loss functions."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
         if IsolationForest is not None:
             self.bottleneck_detector = IsolationForest(contamination=0.1, random_state=RANDOM_SEED)
@@ -542,7 +542,7 @@ class PerformanceAnalyzer:
 class TextMiningEngine:
     """Advanced text mining for critical diagnosis."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
 
         # Initialize simple keyword extractor
@@ -724,7 +724,7 @@ class TextMiningEngine:
 class MunicipalAnalyzer:
     """Main analyzer integrating all components."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ontology = MunicipalOntology()
         self.semantic_analyzer = SemanticAnalyzer(self.ontology)
         self.performance_analyzer = PerformanceAnalyzer(self.ontology)
@@ -850,10 +850,10 @@ def example_usage():
 
     # Create sample document
     sample_text = """
-    El Plan de Desarrollo Municipal tiene como objetivo principal fortalecer 
+    El Plan de Desarrollo Municipal tiene como objetivo principal fortalecer
     la capacidad institucional y mejorar la calidad de vida de los habitantes.
 
-    En el área de desarrollo económico, se implementarán programas de 
+    En el área de desarrollo económico, se implementarán programas de
     emprendimiento y competitividad empresarial. Los recursos asignados
     permitirán crear 500 nuevos empleos en el sector productivo.
 
@@ -1670,7 +1670,7 @@ class ResultsExporter:
 class ConfigurationManager:
     """Manage analyzer configuration."""
 
-    def __init__(self, config_path: str | None = None):
+    def __init__(self, config_path: str | None = None) -> None:
         self.config_path = config_path or "analyzer_config.json"
         self.config = self.load_config()
 
@@ -1725,7 +1725,7 @@ class ConfigurationManager:
 class BatchProcessor:
     """Process multiple documents in batch."""
 
-    def __init__(self, analyzer: MunicipalAnalyzer):
+    def __init__(self, analyzer: MunicipalAnalyzer) -> None:
         self.analyzer = analyzer
 
     def process_directory(self, directory_path: str, pattern: str = "*.txt") -> dict[str, Any]:
@@ -1824,7 +1824,7 @@ class BatchProcessor:
 
 
 # Simple CLI interface
-def main():
+def main() -> None:
     """Simple command-line interface."""
     import argparse
 

@@ -87,7 +87,7 @@ class TestSyntheticTraffic(unittest.TestCase):
 
     def test_evidence_matches_modality(self):
         """Test that evidence structure matches modality requirements."""
-        for modality in MODALITY_TEMPLATES.keys():
+        for modality in MODALITY_TEMPLATES:
             evidence = generate_evidence(modality)
 
             # All evidence must have elements

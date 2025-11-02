@@ -106,7 +106,7 @@ def internal_access():
 
     # This should NOT raise RuntimeError (but might raise FileNotFoundError)
     try:
-        result = test_module.internal_access()
+        test_module.internal_access()
         # Either succeeds or raises FileNotFoundError, both are OK
         assert True
     except RuntimeError as e:

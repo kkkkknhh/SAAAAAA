@@ -150,17 +150,17 @@ class ScoredResult:
 class MicroQuestionScorer:
     """
     Aplicador de modalidades de scoring según monolith.
-    
+
     Responsabilidades:
     - Aplicar TYPE_A, TYPE_B, TYPE_C, TYPE_D, TYPE_E, TYPE_F
     - Calcular score 0-3
     - Determinar nivel de calidad (EXCELENTE/BUENO/ACEPTABLE/INSUFICIENTE)
     """
 
-    def __init__(self, config: ScoringConfig | None = None):
+    def __init__(self, config: ScoringConfig | None = None) -> None:
         """
         Inicializa scorer con configuración del monolith.
-        
+
         Args:
             config: Configuración de scoring (defaults del monolith si None)
         """
@@ -174,29 +174,29 @@ class MicroQuestionScorer:
     def score_type_a(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 1: TYPE_A - Count 4 elements and scale to 0-3.
-        
+
         ESPECIFICACIÓN (línea 34568 del monolith):
         - Aggregation: "presence_threshold"
         - Threshold: 0.7
         - Max_score: 3
         - Expected_elements: 4
-        
+
         LÓGICA:
         1. Contar elementos encontrados (expected: 4)
         2. Calcular ratio = found / 4
         3. Si ratio >= 0.7: aplicar escala proporcional
         4. Si ratio < 0.7: penalizar fuertemente
-        
+
         ESCALA:
         - 4/4 elementos (100%) → 3.0
         - 3/4 elementos (75%) → 2.25
         - 2/4 elementos (50%) → penalizado
         - 1/4 elementos (25%) → penalizado
         - 0/4 elementos (0%) → 0.0
-        
+
         Args:
             evidence: Evidencia extraída con elements_found
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -241,26 +241,26 @@ class MicroQuestionScorer:
     def score_type_b(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 2: TYPE_B - Count up to 3 elements, each worth 1 point.
-        
+
         ESPECIFICACIÓN (línea 34574 del monolith):
         - Aggregation: "binary_sum"
         - Max_score: 3
         - Max_elements: 3
-        
+
         LÓGICA:
         1. Contar elementos encontrados (max: 3)
         2. Cada elemento = 1 punto
         3. Score = min(elements_found, 3)
-        
+
         ESCALA:
         - 3+ elementos → 3.0
         - 2 elementos → 2.0
         - 1 elemento → 1.0
         - 0 elementos → 0.0
-        
+
         Args:
             evidence: Evidencia extraída con elements_found
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -293,27 +293,27 @@ class MicroQuestionScorer:
     def score_type_c(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 3: TYPE_C - Count 2 elements and scale to 0-3.
-        
+
         ESPECIFICACIÓN (línea 34580 del monolith):
         - Aggregation: "presence_threshold"
         - Threshold: 0.5
         - Max_score: 3
         - Expected_elements: 2
-        
+
         LÓGICA:
         1. Contar elementos encontrados (expected: 2)
         2. Calcular ratio = found / 2
         3. Si ratio >= 0.5: aplicar escala proporcional
         4. Si ratio < 0.5: penalizar
-        
+
         ESCALA:
         - 2/2 elementos (100%) → 3.0
         - 1/2 elementos (50%) → 1.5
         - 0/2 elementos (0%) → 0.0
-        
+
         Args:
             evidence: Evidencia extraída con elements_found
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -358,29 +358,29 @@ class MicroQuestionScorer:
     def score_type_d(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 4: TYPE_D - Count 3 elements, weighted [0.4, 0.3, 0.3].
-        
+
         ESPECIFICACIÓN (línea 34586 del monolith):
         - Aggregation: "weighted_sum"
         - Weights: [0.4, 0.3, 0.3]
         - Max_score: 3
         - Expected_elements: 3
-        
+
         LÓGICA:
         1. Se esperan 3 elementos con importancia diferente
         2. Elemento 1: peso 0.4 (más importante)
         3. Elemento 2: peso 0.3
         4. Elemento 3: peso 0.3
         5. Score = (sum of weights for found elements) * max_score
-        
+
         ESCALA:
         - 3 elementos (todos) → weights_sum=1.0 → 3.0
         - 2 elementos (ej: elem1+elem2) → weights_sum=0.7 → 2.1
         - 1 elemento (ej: elem1) → weights_sum=0.4 → 1.2
         - 0 elementos → 0.0
-        
+
         Args:
             evidence: Evidencia extraída con elements_found y confidence_scores
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -431,23 +431,23 @@ class MicroQuestionScorer:
     def score_type_e(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 5: TYPE_E - Boolean presence check.
-        
+
         ESPECIFICACIÓN (línea 34596 del monolith):
         - Aggregation: "binary_presence"
         - Max_score: 3
-        
+
         LÓGICA:
         1. Verificar si existe evidencia (binario: sí/no)
         2. Si existe: 3.0
         3. Si no existe: 0.0
-        
+
         ESCALA:
         - Evidencia presente → 3.0
         - Evidencia ausente → 0.0
-        
+
         Args:
             evidence: Evidencia extraída
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -484,27 +484,27 @@ class MicroQuestionScorer:
     def score_type_f(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 6: TYPE_F - Semantic matching with cosine similarity.
-        
+
         ESPECIFICACIÓN (línea 34601 del monolith):
         - Aggregation: "normalized_continuous"
         - Normalization: "minmax"
         - Max_score: 3
-        
+
         LÓGICA:
         1. Usar semantic_similarity (rango 0-1)
         2. Normalizar con minmax
         3. Score = normalized_similarity * max_score
-        
+
         ESCALA:
         - Similarity = 1.0 → 3.0
         - Similarity = 0.75 → 2.25
         - Similarity = 0.5 → 1.5
         - Similarity = 0.25 → 0.75
         - Similarity = 0.0 → 0.0
-        
+
         Args:
             evidence: Evidencia con semantic_similarity
-            
+
         Returns:
             Tuple de (score, details)
         """
@@ -551,15 +551,15 @@ class MicroQuestionScorer:
     ) -> ScoredResult:
         """
         MÉTODO 7: Aplica la modalidad de scoring correspondiente.
-        
+
         ORQUESTADOR que delega a métodos 1-6 según modality.
-        
+
         Args:
             question_id: ID de pregunta (ej: "Q001")
             question_global: Número global (1-305)
             modality: Modalidad de scoring
             evidence: Evidencia extraída
-            
+
         Returns:
             ScoredResult con score 0-3 y nivel de calidad
         """
@@ -620,16 +620,16 @@ class MicroQuestionScorer:
     def determine_quality_level(self, normalized_score: float) -> tuple[QualityLevel, str]:
         """
         MÉTODO 8: Determina nivel de calidad según umbrales del monolith.
-        
+
         UMBRALES (línea 34513 del monolith):
         - EXCELENTE: ≥ 0.85 (verde)
         - BUENO: ≥ 0.70 (azul)
         - ACEPTABLE: ≥ 0.55 (amarillo)
         - INSUFICIENTE: < 0.55 (rojo)
-        
+
         Args:
             normalized_score: Score en rango 0-1
-            
+
         Returns:
             Tuple de (QualityLevel, color)
         """
@@ -658,13 +658,13 @@ def score_question(
 ) -> ScoredResult:
     """
     Función de conveniencia para scoring de una pregunta.
-    
+
     Args:
         question_id: ID de pregunta
         question_global: Número global
         modality_str: String de modalidad ("TYPE_A", "TYPE_B", etc.)
         evidence_dict: Diccionario con evidencia
-        
+
     Returns:
         ScoredResult
     """

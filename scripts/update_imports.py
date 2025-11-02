@@ -110,11 +110,11 @@ FILE_PATH_MAPPINGS = {
 def update_file_imports(file_path: Path, dry_run: bool = True) -> tuple[bool, list[str]]:
     """
     Update import statements in a Python file.
-    
+
     Args:
         file_path: Path to the Python file
         dry_run: If True, only report changes without modifying the file
-        
+
     Returns:
         Tuple of (was_modified, list_of_changes)
     """

@@ -55,7 +55,7 @@ class SignatureRegistry:
     Implements signature snapshotting as described in the mitigation plan
     """
 
-    def __init__(self, registry_path: Path = Path("data/signature_registry.json")):
+    def __init__(self, registry_path: Path = Path("data/signature_registry.json")) -> None:
         self.registry_path = registry_path
         self.signatures: dict[str, FunctionSignature] = {}
         self.load()
@@ -141,7 +141,7 @@ class SignatureRegistry:
 
         return changed, old_sig, new_sig
 
-    def save(self):
+    def save(self) -> None:
         """Save registry to disk"""
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -155,7 +155,7 @@ class SignatureRegistry:
 
         logger.info(f"Saved {len(self.signatures)} signatures to {self.registry_path}")
 
-    def load(self):
+    def load(self) -> None:
         """Load registry from disk"""
         if not self.registry_path.exists():
             logger.info(f"No existing registry found at {self.registry_path}")
@@ -186,11 +186,11 @@ _signature_registry = SignatureRegistry()
 def validate_signature(enforce: bool = True, track: bool = True):
     """
     Decorator to validate function calls against expected signatures at runtime
-    
+
     Args:
         enforce: If True, raise TypeError on signature violations
         track: If True, register signature in the global registry
-    
+
     Example:
         @validate_signature(enforce=True)
         def my_function(arg1: str, arg2: int) -> bool:
@@ -234,12 +234,12 @@ def validate_signature(enforce: bool = True, track: bool = True):
 def validate_call_signature(func: Callable, *args, **kwargs) -> bool:
     """
     Validate that a function call matches the expected signature without actually calling it
-    
+
     Args:
         func: Function to validate
         *args: Positional arguments
         **kwargs: Keyword arguments
-    
+
     Returns:
         True if signature is valid, False otherwise
     """
@@ -276,17 +276,17 @@ class SignatureAuditor:
     Implements automated signature consistency audit from the mitigation plan
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mismatches: list[SignatureMismatch] = []
         self.call_graph: dict[str, list[tuple[str, int, list[str], dict[str, str]]]] = {}
 
     def audit_module(self, module_path: Path) -> list[SignatureMismatch]:
         """
         Audit a Python module for signature mismatches
-        
+
         Args:
             module_path: Path to the Python module
-        
+
         Returns:
             List of detected signature mismatches
         """
@@ -365,7 +365,7 @@ class SignatureAuditor:
 
         return mismatches
 
-    def export_report(self, output_path: Path):
+    def export_report(self, output_path: Path) -> None:
         """Export audit report to JSON"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -393,13 +393,13 @@ def create_adapter(
 ) -> Callable:
     """
     Create a backward-compatible adapter for a function with changed signature
-    
+
     Args:
         func: The new function with updated signature
         old_params: List of old parameter names
         new_params: List of new parameter names
         param_mapping: Optional mapping from old to new parameter names
-    
+
     Returns:
         Adapter function that accepts old signature and calls new function
     """
@@ -422,10 +422,10 @@ def create_adapter(
 # MODULE INITIALIZATION
 # ============================================================================
 
-def initialize_signature_registry(project_root: Path):
+def initialize_signature_registry(project_root: Path) -> None:
     """
     Initialize signature registry by scanning all Python files in the project
-    
+
     Args:
         project_root: Root directory of the project
     """
@@ -443,11 +443,11 @@ def initialize_signature_registry(project_root: Path):
 def audit_project_signatures(project_root: Path, output_path: Path | None = None) -> list[SignatureMismatch]:
     """
     Audit all Python files in a project for signature mismatches
-    
+
     Args:
         project_root: Root directory of the project
         output_path: Optional path to save audit report
-    
+
     Returns:
         List of detected signature mismatches
     """

@@ -272,7 +272,7 @@ class ArgRouter:
                 return False
             return all(
                 ArgRouter._matches_annotation(item, arg_type)
-                for item, arg_type in zip(value, args)
+                for item, arg_type in zip(value, args, strict=False)
             )
         if origin in (list, list):
             if not isinstance(value, list):

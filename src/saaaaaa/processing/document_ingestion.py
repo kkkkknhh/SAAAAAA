@@ -182,13 +182,13 @@ class DocumentLoader:
     Responsable de la I/O básica y validación inicial.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logger
 
     def load_pdf(self, *, pdf_path: str) -> RawDocument:
         """
         MÉTODO 1: Carga un PDF desde disco (keyword-only params).
-        
+
         ENTRADA: pdf_path (string) - keyword only
         PROCESO:
           - Leer bytes del PDF
@@ -196,13 +196,13 @@ class DocumentLoader:
           - Extraer metadata básica (autor, fecha, páginas)
         SALIDA: RawDocument {bytes, metadata, num_pages}
         SYNC
-        
+
         Args:
             pdf_path: Ruta al archivo PDF (keyword-only)
-            
+
         Returns:
             RawDocument con información básica del PDF
-            
+
         Raises:
             FileNotFoundError: Si el archivo no existe
             ValueError: Si el archivo no es un PDF válido
@@ -260,15 +260,15 @@ class DocumentLoader:
     def validate_pdf(self, *, raw_doc: RawDocument) -> bool:
         """
         MÉTODO 2: Valida que el PDF sea procesable.
-        
+
         Verificaciones:
         - Número de páginas > 0
         - Tamaño de archivo razonable (< 500 MB)
         - No está encriptado
-        
+
         Args:
             raw_doc: Documento crudo a validar
-            
+
         Returns:
             True si es válido, False si no
         """
@@ -293,17 +293,15 @@ class DocumentLoader:
         """Valida un PdfReader de PyPDF2."""
         if reader.is_encrypted:
             return False
-        if len(reader.pages) == 0:
-            return False
-        return True
+        return len(reader.pages) != 0
 
     def extract_metadata(self, reader: PdfReader) -> dict[str, Any]:
         """
         MÉTODO 3: Extrae metadata del PDF.
-        
+
         Args:
             reader: PdfReader de PyPDF2
-            
+
         Returns:
             Diccionario con metadata del PDF
         """
@@ -348,13 +346,13 @@ class TextExtractor:
     Usa pdfplumber como método primario.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logger
 
     def extract_full_text(self, *, raw_doc: RawDocument) -> str:
         """
         MÉTODO 4: Extrae todo el texto del PDF (keyword-only params).
-        
+
         ENTRADA: RawDocument (keyword only)
         PROCESO:
           - Extraer texto de todas las páginas
@@ -362,10 +360,10 @@ class TextExtractor:
           - Identificar headers/footers
         SALIDA: string (texto completo)
         SYNC
-        
+
         Args:
             raw_doc: Documento crudo cargado (keyword-only)
-            
+
         Returns:
             Texto completo del documento
         """
@@ -392,11 +390,11 @@ class TextExtractor:
     def extract_by_page(self, *, raw_doc: RawDocument, page: int) -> str:
         """
         MÉTODO 5: Extrae texto de una página específica.
-        
+
         Args:
             raw_doc: Documento crudo
             page: Número de página (1-indexed)
-            
+
         Returns:
             Texto de la página especificada
         """
@@ -417,15 +415,15 @@ class TextExtractor:
     def preserve_structure(self, *, text: str) -> StructuredTextV1:
         """
         MÉTODO 6: Preserva estructura del documento.
-        
+
         Detecta:
         - Secciones principales (títulos en mayúsculas)
         - Subsecciones (títulos numerados)
         - Límites de páginas
-        
+
         Args:
             text: Texto completo del documento
-            
+
         Returns:
             StructuredText con jerarquía preservada
         """
@@ -445,7 +443,7 @@ class TextExtractor:
                     sections.append(current_section)
                     current_section = None
 
-                page_num = int(line_stripped.split()[2])
+                int(line_stripped.split()[2])
                 page_boundaries.append((current_position, current_position + len(line)))
 
             # Detectar título de sección (mayúsculas, > 10 caracteres)
@@ -496,7 +494,7 @@ class PreprocessingEngine:
     Coordina la transformación de RawDocument → PreprocessedDocument.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logger
 
         # Inicializar procesadores de módulos existentes
@@ -515,10 +513,10 @@ class PreprocessingEngine:
     def preprocess_document(self, *, raw_doc: RawDocument) -> PreprocessedDocument:
         """
         MÉTODO 7: Pipeline completo de preprocesamiento (keyword-only params).
-        
+
         ENTRADA: RawDocument (keyword only)
         PROCESO INTERNO (SYNC pero con llamadas a métodos existentes):
-        
+
           1. Extraer texto completo
           2. Normalizar encoding (usa PP.PolicyTextProcessor.normalize_unicode)
           3. Segmentar en oraciones (usa PP.PolicyTextProcessor.segment_into_sentences)
@@ -526,13 +524,13 @@ class PreprocessingEngine:
           5. Limpiar y clasificar tablas
           6. Construir índices
           7. Detectar idioma
-        
+
         SALIDA: PreprocessedDocument (inmutable, cacheable)
         SYNC
-        
+
         Args:
             raw_doc: Documento crudo cargado
-            
+
         Returns:
             Documento completamente preprocesado
         """
@@ -624,12 +622,12 @@ class PreprocessingEngine:
     def normalize_encoding(self, *, text: str) -> str:
         """
         MÉTODO 8: Normaliza encoding del texto.
-        
+
         Delega a PP.PolicyTextProcessor.normalize_unicode()
-        
+
         Args:
             text: Texto a normalizar
-            
+
         Returns:
             Texto normalizado
         """
@@ -643,10 +641,10 @@ class PreprocessingEngine:
     def detect_language(self, *, text: str) -> str:
         """
         MÉTODO 9: Detecta el idioma del documento.
-        
+
         Args:
             text: Texto a analizar
-            
+
         Returns:
             Código ISO del idioma ('es', 'en', etc.)
         """
@@ -676,17 +674,17 @@ class PreprocessingEngine:
     ) -> DocumentIndexesV1:
         """
         Construye índices sobre el documento para búsqueda rápida.
-        
+
         INCLUYE:
         - Índice invertido de términos
         - Índice de números
         - Índice de marcadores temporales
         - Índice de entidades
-        
+
         Args:
             sentences: Lista de oraciones
             tables: Lista de tablas clasificadas
-            
+
         Returns:
             DocumentIndexes con todos los índices
         """
@@ -748,10 +746,10 @@ class PreprocessingEngine:
 def ingest_document(*, pdf_path: str) -> PreprocessedDocument:
     """
     Función de conveniencia para ejecutar pipeline completo de ingesta.
-    
+
     Args:
         pdf_path: Ruta al archivo PDF
-        
+
     Returns:
         PreprocessedDocument listo para evaluación
     """

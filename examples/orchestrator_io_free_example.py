@@ -96,7 +96,7 @@ def main():
     try:
         factory = CoreModuleFactory()
         # Factory handles all I/O and caching
-        questionnaire_data = factory.get_questionnaire()
+        factory.get_questionnaire()
         print("  ✓ Factory loaded questionnaire (cached)")
 
     except Exception as e:

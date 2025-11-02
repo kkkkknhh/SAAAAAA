@@ -29,7 +29,7 @@ from validation.aggregation_models import validate_weights
 def verify_aggregation_system():
     """
     Verify aggregation weight examples and configurations.
-    
+
     Returns:
         tuple: (passed: bool, errors: list)
     """
@@ -105,7 +105,7 @@ def main():
         help='Enable strict mode (fail on any issue)'
     )
 
-    args = parser.parse_args()
+    parser.parse_args()
 
     print("=" * 70)
     print("AGGREGATION WEIGHT VERIFICATION")

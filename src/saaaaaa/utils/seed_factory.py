@@ -19,7 +19,7 @@ except ImportError:
 class SeedFactory:
     """
     Factory for generating deterministic seeds
-    
+
     Ensures:
     - Reproducibility: Same inputs → same seed
     - Uniqueness: Different contexts → different seeds
@@ -29,7 +29,7 @@ class SeedFactory:
     # Fixed salt for seed derivation (should be configured per deployment)
     DEFAULT_SALT = b"PDM_EVALUATOR_V2_DETERMINISTIC_SEED_2025"
 
-    def __init__(self, fixed_salt: bytes | None = None):
+    def __init__(self, fixed_salt: bytes | None = None) -> None:
         self.salt = fixed_salt or self.DEFAULT_SALT
 
     def create_deterministic_seed(
@@ -40,15 +40,15 @@ class SeedFactory:
     ) -> int:
         """
         Generate deterministic seed from correlation ID and context
-        
+
         Args:
             correlation_id: Unique workflow instance identifier
             file_checksums: Dict of {filename: sha256_checksum}
             context: Additional context (question_id, policy_area, etc.)
-        
+
         Returns:
             32-bit integer seed (0 to 2^32-1)
-        
+
         Example:
             >>> factory = SeedFactory()
             >>> seed1 = factory.create_deterministic_seed("run-001", {"data.json": "abc123"})
@@ -87,15 +87,15 @@ class SeedFactory:
 
         return seed_int
 
-    def configure_global_random_state(self, seed: int):
+    def configure_global_random_state(self, seed: int) -> None:
         """
         Configure all random number generators with seed
-        
+
         Sets:
         - Python random module
         - NumPy random state
         - (Add torch, tensorflow if needed)
-        
+
         Args:
             seed: Deterministic seed
         """
@@ -114,7 +114,7 @@ class SeedFactory:
 class DeterministicContext:
     """
     Context manager for deterministic execution
-    
+
     Usage:
         with DeterministicContext(correlation_id="run-001") as seed:
             # All random operations are deterministic
@@ -127,7 +127,7 @@ class DeterministicContext:
         file_checksums: dict[str, str] | None = None,
         context: dict[str, Any] | None = None,
         fixed_salt: bytes | None = None
-    ):
+    ) -> None:
         self.correlation_id = correlation_id
         self.file_checksums = file_checksums
         self.context = context
@@ -177,15 +177,15 @@ def create_deterministic_seed(
 ) -> int:
     """
     Convenience function for creating deterministic seed
-    
+
     Args:
         correlation_id: Unique workflow instance ID
         file_checksums: Dict of file checksums
         **context_kwargs: Additional context as keyword arguments
-    
+
     Returns:
         Deterministic 32-bit integer seed
-    
+
     Example:
         >>> seed = create_deterministic_seed(
         ...     "run-001",

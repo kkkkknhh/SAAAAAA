@@ -1,8 +1,10 @@
 """Typed contracts shared across the orchestration boundary."""
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class IndustrialInput(TypedDict):

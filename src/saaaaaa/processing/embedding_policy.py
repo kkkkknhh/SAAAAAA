@@ -19,16 +19,19 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Literal, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict
 
 import numpy as np
-from numpy.typing import NDArray
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from numpy.typing import NDArray
 
 # ============================================================================
 # DESIGN CONSTANTS - Model Configuration
@@ -189,7 +192,7 @@ class AdvancedSemanticChunker:
         r"\b\d+(?:[.,]\d+)?(?:\s*%|millones?|mil|billones?)?\b", re.IGNORECASE
     )
 
-    def __init__(self, config: ChunkingConfig):
+    def __init__(self, config: ChunkingConfig) -> None:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
 
@@ -208,7 +211,7 @@ class AdvancedSemanticChunker:
 
         Returns:
             List of semantic chunks with preserved structure and P-D-Q context
-        
+
         Raises:
             TypeError: If text is not a string
             KeyError: If document_metadata missing required keys
@@ -485,7 +488,7 @@ class BayesianNumericalAnalyzer:
     - Evidence strength quantification (Bayes factors)
     """
 
-    def __init__(self, prior_strength: float = 1.0):
+    def __init__(self, prior_strength: float = 1.0) -> None:
         """
         Initialize Bayesian analyzer.
 
@@ -506,12 +509,12 @@ class BayesianNumericalAnalyzer:
         Bayesian evaluation of policy metric with uncertainty quantification.
 
         Returns posterior distribution, credible intervals, and evidence strength.
-        
+
         Args:
             observed_values: List of observed metric values
             n_posterior_samples: Number of posterior samples to generate
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             BayesianEvaluation with posterior samples and credible intervals
         """
@@ -621,11 +624,11 @@ class BayesianNumericalAnalyzer:
         self, credible_interval_width: float, **kwargs: Any
     ) -> Literal["weak", "moderate", "strong", "very_strong"]:
         """Classify evidence strength based on posterior uncertainty.
-        
+
         Args:
             credible_interval_width: Width of the 95% credible interval
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Evidence strength classification
         """
@@ -643,11 +646,11 @@ class BayesianNumericalAnalyzer:
         Compute numerical coherence (consistency) score.
 
         Uses coefficient of variation and statistical tests.
-        
+
         Args:
             observations: Array of observed values
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Coherence score in [0, 1]
         """
@@ -775,7 +778,7 @@ class PolicyCrossEncoderReranker:
         model_name: str = DEFAULT_CROSS_ENCODER_MODEL,
         max_length: int = 512,
         retry_handler=None,
-    ):
+    ) -> None:
         """
         Initialize cross-encoder reranker.
 
@@ -831,7 +834,7 @@ class PolicyCrossEncoderReranker:
         scores = self.model.predict(pairs, show_progress_bar=False)
 
         # Combine chunks with scores and sort
-        ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+        ranked = sorted(zip(candidates, scores, strict=False), key=lambda x: x[1], reverse=True)
 
         # Filter by minimum score and limit to top_k
         filtered = [
@@ -892,7 +895,7 @@ class PolicyAnalysisEmbedder:
     Thread-safe, production-grade, fully typed.
     """
 
-    def __init__(self, config: PolicyEmbeddingConfig, retry_handler=None):
+    def __init__(self, config: PolicyEmbeddingConfig, retry_handler=None) -> None:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
@@ -974,7 +977,7 @@ class PolicyAnalysisEmbedder:
         embeddings = self._embed_texts(chunk_texts)
 
         # Attach embeddings to chunks
-        for chunk, embedding in zip(chunks, embeddings):
+        for chunk, embedding in zip(chunks, embeddings, strict=False):
             chunk["embedding"] = embedding
 
         # Cache results
@@ -1236,7 +1239,7 @@ class PolicyAnalysisEmbedder:
                 )
 
             # Cache and insert
-            for (orig_idx, text_hash), emb in zip(uncached_indices, new_embeddings):
+            for (orig_idx, text_hash), emb in zip(uncached_indices, new_embeddings, strict=False):
                 self._embedding_cache[text_hash] = emb
                 embeddings_list[orig_idx] = emb
 
@@ -1344,7 +1347,7 @@ class PolicyAnalysisEmbedder:
         if len(ranked_results) <= 1:
             return ranked_results
 
-        chunks, scores = zip(*ranked_results)
+        chunks, scores = zip(*ranked_results, strict=False)
         chunk_embeddings = np.vstack([c["embedding"] for c in chunks])
 
         selected_indices = []
@@ -1583,10 +1586,10 @@ def create_policy_embedder(
 class EmbeddingPolicyProducer:
     """
     Producer wrapper for embedding policy analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Embedding / Semantic Search
     """
@@ -1596,7 +1599,7 @@ class EmbeddingPolicyProducer:
         config: PolicyEmbeddingConfig | None = None,
         model_tier: Literal["fast", "balanced", "accurate"] = "balanced",
         retry_handler=None
-    ):
+    ) -> None:
         """Initialize producer with optional configuration"""
         if config is None:
             self.embedder = create_policy_embedder(model_tier)
@@ -1804,7 +1807,7 @@ class EmbeddingPolicyProducer:
 # ============================================================================
 
 
-def example_pdm_analysis():
+def example_pdm_analysis() -> None:
     """
     Complete example: analyzing Colombian Municipal Development Plan.
     """
@@ -1816,25 +1819,25 @@ def example_pdm_analysis():
     pdm_document = """
     PLAN DE DESARROLLO MUNICIPAL 2024-2027
     MUNICIPIO DE EJEMPLO, COLOMBIA
-    
+
     EJE ESTRATÉGICO 1: DERECHOS DE LAS MUJERES E IGUALDAD DE GÉNERO
-    
+
     DIAGNÓSTICO
     El municipio presenta una brecha de género del 18.5% en participación laboral.
     Se identificaron 2,340 mujeres en situación de vulnerabilidad económica.
     El presupuesto asignado asciende a $450 millones para el cuatrienio.
-    
+
     DISEÑO DE INTERVENCIÓN
     Se implementarán 3 programas de empoderamiento económico:
     - Programa de formación técnica: 500 beneficiarias
     - Microcréditos productivos: $280 millones
     - Fortalecimiento empresarial: 150 emprendimientos
-    
+
     PRODUCTOS Y OUTPUTS
     Meta cuatrienio: reducir brecha de género al 12% (reducción del 35.1%)
     Indicador: Tasa de participación laboral femenina
     Línea base: 42.3% | Meta: 55.8%
-    
+
     RESULTADOS ESPERADOS
     Incremento del 25% en ingresos promedio de beneficiarias
     Creación de 320 nuevos empleos formales para mujeres

@@ -102,7 +102,7 @@ class ContradictionEvidence:
 class BayesianConfidenceCalculator:
     """Cálculo Bayesiano de confianza con priors informados por dominio"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Priors basados en análisis empírico de PDMs colombianos
         self.prior_alpha = 2.5  # Shape parameter for beta distribution
         self.prior_beta = 7.5  # Scale parameter (sesgo conservador)
@@ -140,7 +140,7 @@ class BayesianConfidenceCalculator:
 class TemporalLogicVerifier:
     """Verificación de consistencia temporal usando lógica temporal lineal (LTL)"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.temporal_patterns = {
             'sequential': re.compile(r'(primero|luego|después|posteriormente|finalmente)', re.IGNORECASE),
             'parallel': re.compile(r'(simultáneamente|al mismo tiempo|paralelamente)', re.IGNORECASE),
@@ -287,7 +287,7 @@ class PolicyContradictionDetector:
             model_name: str = "hiiamsid/sentence_similarity_spanish_es",
             spacy_model: str = "es_core_news_lg",
             device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    ):
+    ) -> None:
         # Modelos de transformers para análisis semántico
         self.semantic_model = SentenceTransformer(model_name, device=device)
 
@@ -320,7 +320,7 @@ class PolicyContradictionDetector:
         # Patrones específicos de PDM colombiano
         self._initialize_pdm_patterns()
 
-    def _initialize_pdm_patterns(self):
+    def _initialize_pdm_patterns(self) -> None:
         """Inicializa patrones específicos de PDMs colombianos"""
         self.pdm_patterns = {
             'ejes_estrategicos': re.compile(
@@ -466,7 +466,7 @@ class PolicyContradictionDetector:
 
         # Crear nuevas instancias con embeddings
         enhanced_statements = []
-        for stmt, embedding in zip(statements, embeddings):
+        for stmt, embedding in zip(statements, embeddings, strict=False):
             enhanced = PolicyStatement(
                 text=stmt.text,
                 dimension=stmt.dimension,
@@ -483,7 +483,7 @@ class PolicyContradictionDetector:
 
         return enhanced_statements
 
-    def _build_knowledge_graph(self, statements: list[PolicyStatement]):
+    def _build_knowledge_graph(self, statements: list[PolicyStatement]) -> None:
         """Construye grafo de conocimiento para razonamiento"""
         self.knowledge_graph.clear()
 
@@ -1419,10 +1419,7 @@ class PolicyContradictionDetector:
             return True
 
         # Si hay una diferencia muy grande entre asignaciones similares
-        if abs(amount_a - amount_b) / max(amount_a, amount_b) > 0.5:
-            return True
-
-        return False
+        return abs(amount_a - amount_b) / max(amount_a, amount_b) > 0.5
 
     def _determine_relation_type(
             self,

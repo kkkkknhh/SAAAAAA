@@ -5,9 +5,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from core.contracts import IndustrialInput
-
 if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
+    from core.contracts import IndustrialInput
     from policy_processor import IndustrialPolicyProcessor
 
 

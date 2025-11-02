@@ -191,7 +191,7 @@ def count_all_methods() -> dict[str, any]:
     return results
 
 
-def main():
+def main() -> int:
     """Main entry point"""
     print("\n" + "=" * 80)
     print("COVERAGE ENFORCEMENT GATE")

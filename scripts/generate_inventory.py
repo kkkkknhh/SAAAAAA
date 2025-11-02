@@ -155,7 +155,7 @@ class CodeInventoryGenerator:
                 methods = []
 
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef) or isinstance(item, ast.AsyncFunctionDef):
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         methods.append(self._extract_function_signature(item))
 
                 docstring = ast.get_docstring(node)
@@ -176,7 +176,7 @@ class CodeInventoryGenerator:
         functions = []
 
         for node in tree.body:
-            if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 functions.append(self._extract_function_signature(node))
 
         return functions
@@ -366,7 +366,7 @@ class CodeInventoryGenerator:
         lines.append("")
 
         # Add nodes
-        for relative_path in self.inventory.keys():
+        for relative_path in self.inventory:
             node_id = relative_path.replace('.py', '').replace('_', '')
             label = relative_path.replace('.py', '')
 

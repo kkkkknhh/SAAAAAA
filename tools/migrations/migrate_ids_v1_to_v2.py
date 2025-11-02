@@ -24,10 +24,12 @@ import hashlib
 import json
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Mapping
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 ROOT = Path(__file__).resolve().parents[2]
 

@@ -71,16 +71,16 @@ class ProcessorBundle:
 
 def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire monolith JSON file.
-    
+
     This is the ONLY place in the system that should read questionnaire_monolith.json.
     Core modules receive the data via contracts.
-    
+
     Args:
         path: Optional path to questionnaire file. Defaults to ./questionnaire_monolith.json
-        
+
     Returns:
         Loaded questionnaire data
-        
+
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
@@ -103,10 +103,10 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
 
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
-    
+
     Args:
         path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
-        
+
     Returns:
         Loaded catalog data
     """
@@ -121,10 +121,10 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
 
 def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
-    
+
     Args:
         path: Path to method map file. Defaults to COMPLETE_METHOD_CLASS_MAP.json
-        
+
     Returns:
         Loaded method map data
     """
@@ -139,10 +139,10 @@ def load_method_map(path: Path | None = None) -> dict[str, Any]:
 
 def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
-    
+
     Args:
         path: Path to schema file. Defaults to schemas/questionnaire.schema.json
-        
+
     Returns:
         Loaded schema data
     """
@@ -157,12 +157,12 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
 
 def load_document(file_path: Path) -> DocumentData:
     """Load a document and construct DocumentData contract.
-    
+
     This handles file I/O and parsing, providing structured data to core modules.
-    
+
     Args:
         file_path: Path to document file
-        
+
     Returns:
         DocumentData contract with parsed content
     """
@@ -190,10 +190,10 @@ def load_document(file_path: Path) -> DocumentData:
 
 def save_results(results: dict[str, Any], output_path: Path) -> None:
     """Save analysis results to file.
-    
+
     This is the ONLY place that should write analysis results.
     Core modules return data via contracts; the factory handles persistence.
-    
+
     Args:
         results: Analysis results to save
         output_path: Path to output file
@@ -213,11 +213,11 @@ def construct_semantic_analyzer_input(
     **kwargs: Any
 ) -> SemanticAnalyzerInputContract:
     """Construct input contract for SemanticAnalyzer.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -234,12 +234,12 @@ def construct_cdaf_input(
     **kwargs: Any
 ) -> CDAFFrameworkInputContract:
     """Construct input contract for CDAFFramework.
-    
+
     Args:
         document: Loaded document data
         plan_name: Name of the development plan
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -259,11 +259,11 @@ def construct_pdet_input(
     **kwargs: Any
 ) -> PDETAnalyzerInputContract:
     """Construct input contract for PDETMunicipalPlanAnalyzer.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -279,11 +279,11 @@ def construct_teoria_cambio_input(
     **kwargs: Any
 ) -> TeoriaCambioInputContract:
     """Construct input contract for TeoriaCambio.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -300,12 +300,12 @@ def construct_contradiction_detector_input(
     **kwargs: Any
 ) -> ContradictionDetectorInputContract:
     """Construct input contract for PolicyContradictionDetector.
-    
+
     Args:
         document: Loaded document data
         plan_name: Name of the development plan
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -322,11 +322,11 @@ def construct_embedding_policy_input(
     **kwargs: Any
 ) -> EmbeddingPolicyInputContract:
     """Construct input contract for embedding policy analysis.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -342,11 +342,11 @@ def construct_semantic_chunking_input(
     **kwargs: Any
 ) -> SemanticChunkingInputContract:
     """Construct input contract for semantic chunking.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -362,11 +362,11 @@ def construct_policy_processor_input(
     **kwargs: Any
 ) -> PolicyProcessorInputContract:
     """Construct input contract for IndustrialPolicyProcessor.
-    
+
     Args:
         document: Loaded document data
         **kwargs: Additional parameters
-        
+
     Returns:
         Typed input contract
     """
@@ -385,28 +385,28 @@ def construct_policy_processor_input(
 
 class CoreModuleFactory:
     """Factory for constructing core modules with injected dependencies.
-    
+
     This factory:
     1. Loads data from disk
     2. Constructs contracts
     3. Initializes core modules
     4. Manages all I/O operations
-    
+
     Usage:
         factory = CoreModuleFactory()
         document = factory.load_document(Path("plan.txt"))
-        
+
         # Construct input contract
         input_contract = factory.construct_semantic_analyzer_input(document)
-        
+
         # Use with core module (once modules are refactored)
         # analyzer = SemanticAnalyzer()
         # result = analyzer.analyze(input_contract)
     """
 
-    def __init__(self, data_dir: Path | None = None):
+    def __init__(self, data_dir: Path | None = None) -> None:
         """Initialize factory.
-        
+
         Args:
             data_dir: Optional directory for data files
         """
@@ -415,7 +415,7 @@ class CoreModuleFactory:
 
     def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
-        
+
         Returns:
             Questionnaire data
         """
@@ -428,10 +428,10 @@ class CoreModuleFactory:
 
     def load_document(self, file_path: Path) -> DocumentData:
         """Load document and return structured data.
-        
+
         Args:
             file_path: Path to document
-            
+
         Returns:
             Parsed document data
         """
@@ -439,7 +439,7 @@ class CoreModuleFactory:
 
     def save_results(self, results: dict[str, Any], output_path: Path) -> None:
         """Save analysis results.
-        
+
         Args:
             results: Results to save
             output_path: Output file path
@@ -506,10 +506,10 @@ def build_processor(
 
 def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
     """Helper to track I/O migration progress.
-    
+
     This is a placeholder function to document which I/O operations
     have been migrated from core modules to the factory.
-    
+
     Args:
         module_name: Name of the module being migrated
         line_numbers: Line numbers of I/O operations migrated

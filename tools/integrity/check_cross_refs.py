@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 QUESTIONNAIRE_PATH = REPO_ROOT / "questionnaire.json"
@@ -79,7 +81,7 @@ def main() -> int:
     for cluster_id, weights in aggregation.get("cluster_policy_area_weights", {}).items():
         if not weights_sum_to_one(weights):
             errors.append(f"Cluster weights for {cluster_id} must sum to 1.0")
-        for pa in weights.keys():
+        for pa in weights:
             if pa not in cluster_for_pa:
                 errors.append(f"Cluster {cluster_id} has weight for unknown policy area {pa}")
             elif cluster_for_pa[pa] != cluster_id:

@@ -47,7 +47,7 @@ class LoadResult:
     errors: list[LoadError] = field(default_factory=list)
     files_loaded: list[str] = field(default_factory=list)
 
-    def add_error(self, file_path: str, error_type: str, message: str, line_number: int | None = None):
+    def add_error(self, file_path: str, error_type: str, message: str, line_number: int | None = None) -> None:
         """Add an error to the result."""
         self.errors.append(LoadError(file_path, error_type, message, line_number))
 
@@ -65,7 +65,7 @@ class LoadResult:
 class JSONContractLoader:
     """
     Loader for JSON contract/configuration files with robust error handling.
-    
+
     Features:
     - Path resolution with multiple search paths
     - Directory globbing for batch loading
@@ -79,10 +79,10 @@ class JSONContractLoader:
         base_paths: list[Path] | None = None,
         validate_schema: bool = False,
         schema_validator: callable | None = None,
-    ):
+    ) -> None:
         """
         Initialize the contract loader.
-        
+
         Args:
             base_paths: List of base paths to search for files (default: [.])
             validate_schema: Whether to validate loaded JSON against schemas
@@ -97,10 +97,10 @@ class JSONContractLoader:
     def _resolve_path(self, path: str | Path) -> Path | None:
         """
         Resolve a path by searching through base paths.
-        
+
         Args:
             path: Path to resolve (can be relative or absolute)
-            
+
         Returns:
             Resolved Path object or None if not found
         """
@@ -121,10 +121,10 @@ class JSONContractLoader:
     def _read_payload(self, file_path: Path) -> tuple[dict[str, Any] | None, LoadError | None]:
         """
         Read and parse JSON payload from a file.
-        
+
         Args:
             file_path: Path to JSON file
-            
+
         Returns:
             Tuple of (data, error) where one is always None
         """
@@ -181,10 +181,10 @@ class JSONContractLoader:
     def load_file(self, file_path: str | Path) -> LoadResult:
         """
         Load a single JSON file.
-        
+
         Args:
             file_path: Path to the JSON file
-            
+
         Returns:
             LoadResult with data or errors
         """
@@ -231,13 +231,13 @@ class JSONContractLoader:
     ) -> LoadResult:
         """
         Load all JSON files from a directory with globbing support.
-        
+
         Args:
             directory: Directory path to load from
             pattern: Glob pattern for matching files (default: *.json)
             recursive: Whether to search recursively (default: False)
             aggregate_errors: Whether to aggregate all errors or fail fast (default: True)
-            
+
         Returns:
             LoadResult with aggregated data from all files or errors
         """
@@ -325,11 +325,11 @@ class JSONContractLoader:
     ) -> LoadResult:
         """
         Load multiple files or directories.
-        
+
         Args:
             paths: List of file or directory paths
             aggregate_errors: Whether to aggregate errors or fail fast
-            
+
         Returns:
             LoadResult with aggregated data and errors
         """
@@ -360,10 +360,10 @@ class JSONContractLoader:
     def format_errors(self, result: LoadResult) -> str:
         """
         Format errors from a LoadResult for display.
-        
+
         Args:
             result: LoadResult with errors
-            
+
         Returns:
             Formatted error string
         """

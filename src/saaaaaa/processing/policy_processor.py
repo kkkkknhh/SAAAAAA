@@ -396,7 +396,7 @@ class BayesianEvidenceScorer:
     with automatic calibration against ground-truth policy corpora.
     """
 
-    def __init__(self, prior_confidence: float = 0.5, entropy_weight: float = 0.3):
+    def __init__(self, prior_confidence: float = 0.5, entropy_weight: float = 0.3) -> None:
         self.prior = prior_confidence
         self.entropy_weight = entropy_weight
         self._evidence_cache: dict[str, float] = {}
@@ -446,11 +446,11 @@ class BayesianEvidenceScorer:
     @staticmethod
     def _calculate_shannon_entropy(values: np.ndarray, **kwargs: Any) -> float:
         """Calculate normalized Shannon entropy for value distribution.
-        
+
         Args:
             values: Array of numerical values
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Normalized Shannon entropy
         """
@@ -478,7 +478,7 @@ class PolicyTextProcessor:
     coherence-preserving normalization for policy document analysis.
     """
 
-    def __init__(self, config: ProcessorConfig):
+    def __init__(self, config: ProcessorConfig) -> None:
         self.config = config
         self._compiled_patterns: dict[str, re.Pattern] = {}
         self._sentence_boundaries = re.compile(
@@ -493,11 +493,11 @@ class PolicyTextProcessor:
         """
         Segment text into sentences with context-aware boundary detection.
         Handles abbreviations, numerical lists, and Colombian naming conventions.
-        
+
         Args:
             text: Input text to segment
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             List of sentence strings
         """
@@ -590,7 +590,7 @@ class IndustrialPolicyProcessor:
         temporal_verifier: TemporalLogicVerifier | None = None,
         confidence_calculator: BayesianConfidenceCalculator | None = None,
         municipal_analyzer: MunicipalAnalyzer | None = None,
-    ):
+    ) -> None:
         self.config = config or ProcessorConfig()
         self.config.validate()
 
@@ -776,12 +776,12 @@ class IndustrialPolicyProcessor:
     ) -> tuple[list[str], list[int]]:
         """
         Execute pattern matching across relevant sentences and collect matches with positions.
-        
+
         Args:
             compiled_patterns: List of compiled regex patterns to match
             relevant_sentences: Filtered sentences to search within
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Tuple of (matched_strings, match_positions)
         """
@@ -801,13 +801,13 @@ class IndustrialPolicyProcessor:
     ) -> float:
         """
         Calculate confidence score for evidence based on pattern matches and contextual factors.
-        
+
         Args:
             matches: List of matched pattern strings
             text_length: Total length of the document text
             pattern_specificity: Specificity coefficient for pattern weighting
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Computed confidence score
         """
@@ -827,7 +827,7 @@ class IndustrialPolicyProcessor:
     ) -> dict[str, Any]:
         """
         Assemble evidence bundle from matched patterns and computed confidence.
-        
+
         Args:
             dimension: Causal dimension classification
             category: Specific category within dimension
@@ -835,7 +835,7 @@ class IndustrialPolicyProcessor:
             positions: List of match positions in text
             confidence: Computed confidence score
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Serialized evidence bundle dictionary
         """
@@ -1070,15 +1070,15 @@ class IndustrialPolicyProcessor:
     ) -> dict[str, Any]:
         """
         Perform global analysis of causal dimensions across entire document.
-        
+
         Args:
             text: Full document text
-            sentences: Optional pre-segmented sentences. If not provided, will be 
+            sentences: Optional pre-segmented sentences. If not provided, will be
                       automatically extracted from text using the text processor.
-        
+
         Returns:
             Dictionary containing dimension scores and confidence metrics
-        
+
         Note:
             This function requires 'sentences' for optimal performance. If not provided,
             sentences will be extracted from text automatically, which may impact performance.
@@ -1206,7 +1206,7 @@ class AdvancedTextSanitizer:
     critical policy elements with differential privacy guarantees.
     """
 
-    def __init__(self, config: ProcessorConfig):
+    def __init__(self, config: ProcessorConfig) -> None:
         self.config = config
         self.protection_markers: dict[str, tuple[str, str]] = {
             "heading": ("__HEAD_START__", "__HEAD_END__"),
@@ -1286,7 +1286,7 @@ class AdvancedTextSanitizer:
     def _restore_structure(self, text: str) -> str:
         """Remove protection markers after sanitization."""
         restored = text
-        for marker_type, (start_mark, end_mark) in self.protection_markers.items():
+        for _marker_type, (start_mark, end_mark) in self.protection_markers.items():
             restored = restored.replace(start_mark, "")
             restored = restored.replace(end_mark, "")
         return restored
@@ -1349,7 +1349,7 @@ class PolicyAnalysisPipeline:
         self,
         config: ProcessorConfig | None = None,
         questionnaire_path: Path | None = None,
-    ):
+    ) -> None:
         self.config = config or ProcessorConfig()
         self.sanitizer = AdvancedTextSanitizer(self.config)
 
@@ -1475,7 +1475,7 @@ def create_policy_processor(
 # COMMAND-LINE INTERFACE
 # ============================================================================
 
-def main():
+def main() -> None:
     """Command-line interface for policy plan analysis."""
     import argparse
 

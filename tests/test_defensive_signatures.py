@@ -24,7 +24,7 @@ class TestDefensiveSignatures:
         with pytest.raises(RuntimeError):
             # We expect this to fail during init due to missing spacy model
             # but we're testing the signature, not the initialization
-            analyzer = PDETMunicipalPlanAnalyzer(use_gpu=False)
+            PDETMunicipalPlanAnalyzer(use_gpu=False)
 
     def test_is_likely_header_signature_accepts_kwargs(self):
         """Test that _is_likely_header method signature accepts **kwargs."""

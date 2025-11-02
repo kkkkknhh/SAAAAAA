@@ -15,15 +15,18 @@ Purpose: Replace ad-hoc dicts with typed structures to prevent:
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     Protocol,
     TypedDict,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
+    from pathlib import Path
 
 # ============================================================================
 # DOCUMENT CONTRACTS - V1
@@ -249,7 +252,7 @@ def validate_contract(
 ) -> None:
     """
     Validate value matches expected contract at runtime.
-    
+
     Raises TypeError with structured error message on mismatch.
     """
     if not isinstance(value, expected_type):
@@ -274,7 +277,7 @@ def validate_mapping_keys(
 ) -> None:
     """
     Validate mapping contains required keys.
-    
+
     Raises KeyError with structured message on missing keys.
     """
     missing = [key for key in required_keys if key not in mapping]
@@ -298,7 +301,7 @@ def ensure_iterable_not_string(
 ) -> None:
     """
     Validate value is iterable but NOT a string or bytes.
-    
+
     Prevents "'bool' object is not iterable" and "iterate string as tokens" bugs.
     """
     if isinstance(value, (str, bytes)):
@@ -335,7 +338,7 @@ def ensure_hashable(
 ) -> None:
     """
     Validate value is hashable (can be added to set or used as dict key).
-    
+
     Prevents "unhashable type: 'dict'" errors.
     """
     try:

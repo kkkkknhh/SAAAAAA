@@ -11,9 +11,8 @@ Purpose: Bridge old dict-based APIs to new typed contracts cleanly.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from contracts import (
     AnalysisInputV1,
@@ -22,6 +21,9 @@ from contracts import (
     TextDocument,
     validate_mapping_keys,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 # ============================================================================
 # DEPRECATION HELPERS
@@ -57,14 +59,14 @@ def adapt_document_metadata_to_v1(
 ) -> DocumentMetadataV1:
     """
     Adapt raw dict to DocumentMetadataV1 contract.
-    
+
     Args:
         raw_dict: Raw dictionary from legacy code
         strict: If True, raise on missing keys; if False, provide defaults
-    
+
     Returns:
         Validated DocumentMetadataV1
-    
+
     Raises:
         KeyError: If strict=True and required keys missing
         TypeError: If values have wrong types
@@ -99,14 +101,14 @@ def adapt_text_to_document(
 ) -> TextDocument:
     """
     Adapt plain string or TextDocument to TextDocument contract.
-    
+
     Handles case where legacy code passes plain str instead of TextDocument.
-    
+
     Args:
         text: Plain string or TextDocument
         document_id: Document identifier
         metadata: Optional metadata dict
-    
+
     Returns:
         TextDocument value object
     """
@@ -136,17 +138,17 @@ def adapt_analysis_input_kwargs(
 ) -> AnalysisInputV1:
     """
     Adapt **kwargs from legacy calls to AnalysisInputV1 contract.
-    
+
     Handles parameter name aliases:
     - 'raw_text' -> 'text'
     - 'doc_id' -> 'document_id'
-    
+
     Args:
         kwargs: Raw kwargs dict from legacy code
-    
+
     Returns:
         Validated AnalysisInputV1
-    
+
     Raises:
         KeyError: If required keys missing after alias resolution
     """
@@ -187,13 +189,13 @@ def adapt_analysis_output_to_dict(
 ) -> dict[str, Any]:
     """
     Adapt AnalysisOutputV1 to plain dict for legacy consumers.
-    
+
     Temporary adapter during migration period.
     Will be removed in v2.0.0.
-    
+
     Args:
         output: Typed analysis output
-    
+
     Returns:
         Plain dict for legacy code
     """
@@ -214,10 +216,10 @@ def handle_renamed_param(
 ) -> None:
     """
     Handle renamed parameter with deprecation warning.
-    
+
     If old_name present but not new_name, copy value and emit warning.
     Modifies kwargs dict in place.
-    
+
     Args:
         kwargs: Kwargs dict to modify
         old_name: Old parameter name
@@ -232,7 +234,7 @@ def handle_renamed_param(
 def migrate_pdf_path_param(kwargs: dict[str, Any]) -> None:
     """
     Migrate 'pdf_path' to keyword-only 'pdf_path' with Path type.
-    
+
     Common error: unexpected keyword argument 'pdf_path'
     Fix: Ensure it's passed as keyword-only and converted to Path.
     """
@@ -250,7 +252,7 @@ def migrate_pdf_path_param(kwargs: dict[str, Any]) -> None:
 def migrate_tables_param(kwargs: dict[str, Any]) -> None:
     """
     Migrate 'tables' parameter to Mapping type.
-    
+
     Common error: producer sent list, consumer expected Mapping
     Fix: Detect and convert to proper structure.
     """
@@ -281,7 +283,7 @@ def migrate_tables_param(kwargs: dict[str, Any]) -> None:
 def handle_metadata_to_tables_migration(kwargs: dict[str, Any]) -> None:
     """
     Handle parameter rename: metadata -> tables.
-    
+
     Common migration pattern when refactoring table extraction.
     Maintains backwards compatibility for one release cycle.
     """
@@ -301,16 +303,16 @@ def handle_metadata_to_tables_migration(kwargs: dict[str, Any]) -> None:
 def ensure_text_attribute(obj: Any) -> str:
     """
     Safely extract text from object that might be str or have .text attribute.
-    
+
     Common error: 'str' object has no attribute 'text'
     Fix: Handle both plain strings and objects with .text attribute.
-    
+
     Args:
         obj: Object that is either str or has .text attribute
-    
+
     Returns:
         Extracted text string
-    
+
     Raises:
         TypeError: If obj is neither str nor has .text attribute
     """
@@ -339,19 +341,19 @@ def adapt_to_sequence(
 ) -> Sequence[Any]:
     """
     Adapt value to Sequence, handling common iteration errors.
-    
+
     Common errors:
     - 'bool' object is not iterable
     - Iterating string as tokens when expecting collection
-    
+
     Args:
         value: Value to adapt
         parameter: Parameter name for error messages
         allow_strings: If False, reject strings even though they're iterable
-    
+
     Returns:
         Sequence-like object
-    
+
     Raises:
         TypeError: If value is not iterable or is string when disallowed
     """
@@ -383,17 +385,17 @@ def adapt_to_sequence(
 def adapt_for_set_membership(value: Any, *, parameter: str) -> Any:
     """
     Adapt value for use in sets or as dict keys (must be hashable).
-    
+
     Common error: unhashable type: 'dict'
     Fix: Convert unhashable types to hashable equivalents.
-    
+
     Args:
         value: Value to adapt
         parameter: Parameter name for error messages
-    
+
     Returns:
         Hashable version of value
-    
+
     Raises:
         TypeError: If value cannot be made hashable
     """
@@ -448,15 +450,15 @@ def validate_adapted_kwargs(
 ) -> None:
     """
     Final validation after all adaptations applied.
-    
+
     Ensures all required parameters present and types correct.
-    
+
     Args:
         kwargs: Adapted kwargs dict
         producer: Name of producing module/function
         consumer: Name of consuming module/function
         required_keys: List of required parameter names
-    
+
     Raises:
         KeyError: If required keys missing
     """

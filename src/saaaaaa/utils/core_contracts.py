@@ -30,7 +30,7 @@ except ImportError:
 
 class SemanticAnalyzerInputContract(TypedDict):
     """Input contract for SemanticAnalyzer methods.
-    
+
     Example:
         {
             "text": "El plan de desarrollo municipal...",
@@ -193,7 +193,7 @@ class PolicyProcessorOutputContract(TypedDict):
 
 class DocumentData(TypedDict):
     """Standard document data structure from orchestrator.
-    
+
     This is what the orchestrator/factory provides to core modules.
     """
     raw_text: str

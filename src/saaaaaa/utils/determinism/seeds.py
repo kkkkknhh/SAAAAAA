@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import os
 import random
-from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 try:
     import numpy as np
@@ -21,7 +24,7 @@ class SeedFactory:
 
     DEFAULT_SALT = b"PDM_DETERMINISM_SALT_2025"
 
-    def __init__(self, salt: bytes | None = None):
+    def __init__(self, salt: bytes | None = None) -> None:
         self._salt = salt or self.DEFAULT_SALT
 
     def derive_seed(self, components: Iterable[str]) -> int:

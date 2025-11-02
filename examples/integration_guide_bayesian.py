@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class EnhancedReportAssembler:
     """
     Enhanced Report Assembler with Bayesian multi-level analysis integration
-    
+
     This class wraps the existing ReportAssembler and adds:
     - Reconciliation layer validation
     - Bayesian posterior estimation
@@ -53,7 +53,7 @@ class EnhancedReportAssembler:
     ):
         """
         Initialize enhanced report assembler
-        
+
         Args:
             validation_rules: List of validation rules for reconciliation layer
             output_dir: Directory for Bayesian posterior tables
@@ -82,13 +82,13 @@ class EnhancedReportAssembler:
     ) -> dict[str, Any]:
         """
         Enhance a micro-level answer with Bayesian analysis
-        
+
         Args:
             question_id: Question identifier (e.g., "P1-D1-Q1")
             raw_score: Raw score from existing analysis
             question_data: Additional question data for validation
             probative_tests: List of (ProbativeTest, bool) tuples
-            
+
         Returns:
             Enhanced analysis with Bayesian posterior and penalties
         """
@@ -132,12 +132,12 @@ class EnhancedReportAssembler:
     ) -> dict[str, Any]:
         """
         Enhance a meso-level cluster with dispersion analysis and peer calibration
-        
+
         Args:
             cluster_id: Cluster identifier
             micro_scores: List of micro-level adjusted scores
             peer_contexts: Optional peer contexts for calibration
-            
+
         Returns:
             Enhanced cluster analysis with dispersion metrics and peer comparison
         """
@@ -186,11 +186,11 @@ class EnhancedReportAssembler:
     ) -> dict[str, Any]:
         """
         Compose macro-level portfolio with contradiction detection
-        
+
         Args:
             meso_analyses: List of meso-level analysis results
             total_questions: Total number of questions in assessment
-            
+
         Returns:
             Macro portfolio analysis with penalties and recommendations
         """
@@ -364,15 +364,15 @@ class IntegrationPatterns:
     def pattern_1_extend_micro_answer():
         """
         Pattern 1: Extend existing MicroLevelAnswer with Bayesian analysis
-        
+
         Use this when you want to add Bayesian posterior to existing micro answers
         """
         code = '''
         # In report_assembly.py, modify generate_micro_answer():
-        
+
         def generate_micro_answer(self, question_spec, execution_results, plan_text):
             # ... existing code to calculate base score ...
-            
+
             # NEW: Add Bayesian enhancement
             if self.bayesian_assembler:
                 bayesian_result = self.bayesian_assembler.enhance_micro_answer(
@@ -381,14 +381,14 @@ class IntegrationPatterns:
                     question_data=execution_results,
                     probative_tests=self._extract_probative_tests(execution_results)
                 )
-                
+
                 # Use adjusted score instead of raw score
                 score = bayesian_result['adjusted_score']
-                
+
                 # Add Bayesian metadata
                 micro_answer.metadata['bayesian_posterior'] = bayesian_result['final_posterior']
                 micro_answer.metadata['validation_penalty'] = bayesian_result['validation_penalty']
-            
+
             # ... continue with existing code ...
         '''
         return code
@@ -400,27 +400,27 @@ class IntegrationPatterns:
         """
         code = '''
         # In report_assembly.py, modify generate_meso_cluster():
-        
+
         def generate_meso_cluster(self, cluster_id, micro_answers):
             # ... existing code to calculate base cluster score ...
-            
+
             # NEW: Add dispersion and peer calibration
             if self.bayesian_assembler:
                 micro_scores = [m.adjusted_score for m in micro_answers]
-                
+
                 meso_result = self.bayesian_assembler.enhance_meso_cluster(
                     cluster_id=cluster_id,
                     micro_scores=micro_scores,
                     peer_contexts=self._load_peer_contexts()
                 )
-                
+
                 # Use adjusted meso score
                 cluster.avg_score = meso_result['adjusted_score'] * 100  # to percentage
-                
+
                 # Add dispersion metrics to metadata
                 cluster.metadata['dispersion'] = meso_result['dispersion_metrics']
                 cluster.metadata['peer_comparison'] = meso_result['peer_comparison']
-            
+
             # ... continue with existing code ...
         '''
         return code
@@ -432,10 +432,10 @@ class IntegrationPatterns:
         """
         code = '''
         # In report_assembly.py, modify generate_macro_convergence():
-        
+
         def generate_macro_convergence(self, micro_answers, meso_clusters):
             # ... existing code to calculate base macro score ...
-            
+
             # NEW: Add contradiction detection and penalty composition
             if self.bayesian_assembler:
                 meso_analyses = [
@@ -450,24 +450,24 @@ class IntegrationPatterns:
                     }
                     for c in meso_clusters
                 ]
-                
+
                 macro_result = self.bayesian_assembler.compose_macro_portfolio(
                     meso_analyses=meso_analyses,
                     total_questions=300
                 )
-                
+
                 # Use adjusted macro score
                 convergence.overall_score = macro_result['adjusted_score'] * 100
-                
+
                 # Add penalty breakdown
                 convergence.metadata['coverage_penalty'] = macro_result['coverage_penalty']
                 convergence.metadata['dispersion_penalty'] = macro_result['dispersion_penalty']
                 convergence.metadata['contradiction_penalty'] = macro_result['contradiction_penalty']
                 convergence.metadata['contradictions'] = macro_result['contradiction_count']
-                
+
                 # Add strategic recommendations
                 convergence.strategic_recommendations.extend(macro_result['recommendations'])
-            
+
             # ... continue with existing code ...
         '''
         return code

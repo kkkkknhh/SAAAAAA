@@ -18,7 +18,6 @@ else:
     NumpyArray = Any  # type: ignore[misc]
 
 try:
-    import numpy as np
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -27,12 +26,12 @@ except ImportError:
 def ensure_list_return(value: Any) -> list[Any]:
     """
     Ensure a value is a list, converting bool/None to empty list.
-    
+
     Fixes: 'bool' object is not iterable
-    
+
     Args:
         value: Value that should be a list
-    
+
     Returns:
         Empty list if value is False/None/bool, otherwise the value as-is
     """
@@ -50,12 +49,12 @@ def ensure_list_return(value: Any) -> list[Any]:
 def safe_text_extract(obj: Any) -> str:
     """
     Safely extract text from object that might be str or have .text attribute.
-    
+
     Fixes: 'str' object has no attribute 'text'
-    
+
     Args:
         obj: Object that is either str or has .text attribute (e.g., spacy Doc/Span)
-    
+
     Returns:
         Extracted text string
     """
@@ -76,13 +75,13 @@ def safe_text_extract(obj: Any) -> str:
 def safe_weighted_multiply(items: list[float] | NumpyArray, weight: float) -> list[float] | NumpyArray:
     """
     Safely multiply a list or array by a weight.
-    
+
     Fixes: can't multiply sequence by non-int of type 'float'
-    
+
     Args:
         items: List or array of numbers
         weight: Weight to multiply by
-    
+
     Returns:
         New list/array with each element multiplied by weight
     """
@@ -107,13 +106,13 @@ def safe_weighted_multiply(items: list[float] | NumpyArray, weight: float) -> li
 def safe_list_iteration(value: Any) -> list[Any]:
     """
     Ensure a value can be safely iterated over.
-    
+
     Converts bool, None, or non-iterables to empty list.
     Handles the common error of trying to iterate over bool.
-    
+
     Args:
         value: Value to iterate over
-    
+
     Returns:
         Iterable list
     """

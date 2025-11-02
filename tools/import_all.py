@@ -4,7 +4,10 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import traceback
-from collections.abc import Iterable, Iterator, Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator, Sequence
 
 PKG_PREFIXES: Sequence[str] = ("core.", "executors.", "orchestrator.")
 

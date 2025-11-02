@@ -6,7 +6,6 @@ import importlib
 import inspect
 import sys
 import types
-from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -38,9 +37,14 @@ if "recommendation_engine" not in sys.modules:
 core_contracts = importlib.import_module("saaaaaa.utils.core_contracts")
 sys.modules.setdefault("core_contracts", core_contracts)
 
+from typing import TYPE_CHECKING
+
 from saaaaaa.core.orchestrator import executors
 from saaaaaa.core.orchestrator.core import PreprocessedDocument
 from saaaaaa.core.orchestrator.factory import CoreModuleFactory, construct_policy_processor_input
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 def _contract_keys(contract: Mapping[str, object]) -> list[str]:

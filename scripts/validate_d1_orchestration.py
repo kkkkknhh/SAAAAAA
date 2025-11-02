@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 def validate_d1_method_specifications() -> dict[str, Any]:
     """Validate that D1 method specifications match issue requirements.
-    
+
     Returns:
         Validation result dictionary
     """
@@ -97,10 +97,10 @@ def validate_d1_method_specifications() -> dict[str, Any]:
 
 def validate_method_availability(orchestrator: D1QuestionOrchestrator) -> dict[str, Any]:
     """Validate that all required methods are available in the registry.
-    
+
     Args:
         orchestrator: The D1 orchestrator instance
-        
+
     Returns:
         Validation result dictionary
     """
@@ -146,7 +146,7 @@ def validate_method_availability(orchestrator: D1QuestionOrchestrator) -> dict[s
 
 def validate_doctrine_compliance() -> dict[str, Any]:
     """Validate compliance with SIN_CARRETA doctrine principles.
-    
+
     Returns:
         Validation result dictionary
     """
@@ -207,12 +207,12 @@ def generate_validation_report(
     doctrine_validation: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate comprehensive validation report.
-    
+
     Args:
         spec_validation: Method specification validation results
         availability_validation: Method availability validation results
         doctrine_validation: Doctrine compliance validation results
-        
+
     Returns:
         Comprehensive validation report
     """
@@ -234,9 +234,7 @@ def generate_validation_report(
             "total_d1_questions": len(D1Question),
             "expected_total_methods": spec_validation["total_expected_methods"],
             "missing_methods": availability_validation["total_missing"],
-            "all_principles_satisfied": all([
-                v for v in doctrine_validation["principles"].values()
-            ]),
+            "all_principles_satisfied": all(v for v in doctrine_validation["principles"].values()),
         },
     }
 

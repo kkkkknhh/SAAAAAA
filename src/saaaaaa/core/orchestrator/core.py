@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PreprocessedDocument:
     """Orchestrator representation of a processed document.
-    
+
     This is the normalized document format used internally by the orchestrator.
     It can be constructed from ingestion payloads or created directly.
     """
@@ -576,7 +576,7 @@ class ScoredMicroQuestion:
 
 class MethodExecutor:
     """Execute catalog methods using ArgRouter and class registry.
-    
+
     This executor builds the class registry, instantiates all required classes,
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
@@ -625,15 +625,15 @@ class MethodExecutor:
 
     def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
         """Execute a method from the catalog.
-        
+
         Args:
             class_name: Name of the class
             method_name: Name of the method to execute
             **kwargs: Keyword arguments to pass to the method
-            
+
         Returns:
             The method's return value
-            
+
         Raises:
             ArgRouterError: If routing fails
             AttributeError: If method doesn't exist
@@ -662,7 +662,7 @@ class MethodExecutor:
 
 class Orchestrator:
     """Robust 11-phase orchestrator with abort support and resource control.
-    
+
     The Orchestrator owns the provider and prepares all data for processors
     and executors. It executes 11 phases synchronously or asynchronously,
     with full instrumentation and abort capability.
@@ -737,7 +737,7 @@ class Orchestrator:
         resource_snapshot_interval: int = 10,
     ) -> None:
         """Initialize the orchestrator.
-        
+
         Args:
             catalog: Pre-loaded method catalog data (preferred, I/O-free)
             monolith: Pre-loaded questionnaire monolith data (preferred, I/O-free)
@@ -749,7 +749,7 @@ class Orchestrator:
             schema_path: Legacy path to questionnaire schema (deprecated, triggers I/O)
             resource_limits: Resource limit configuration
             resource_snapshot_interval: Interval for resource snapshots
-            
+
         Note:
             For I/O-free initialization, use factory.py to load data and pass via data parameters.
             Passing path parameters triggers I/O and is deprecated.
@@ -1464,11 +1464,11 @@ class Orchestrator:
             config: dict[str, Any],
     ) -> list[DimensionScore]:
         """Aggregate micro question scores into dimension scores using DimensionAggregator.
-        
+
         Args:
             scored_results: List of scored micro questions
             config: Configuration dict containing monolith
-            
+
         Returns:
             List of DimensionScore objects with full validation and diagnostics
         """
@@ -1538,11 +1538,11 @@ class Orchestrator:
             config: dict[str, Any],
     ) -> list[AreaScore]:
         """Aggregate dimension scores into policy area scores using AreaPolicyAggregator.
-        
+
         Args:
             dimension_scores: List of DimensionScore objects
             config: Configuration dict containing monolith
-            
+
         Returns:
             List of AreaScore objects with full validation and diagnostics
         """
@@ -1593,11 +1593,11 @@ class Orchestrator:
             config: dict[str, Any],
     ) -> list[ClusterScore]:
         """Aggregate policy area scores into cluster scores using ClusterAggregator.
-        
+
         Args:
             policy_area_scores: List of AreaScore objects
             config: Configuration dict containing monolith
-            
+
         Returns:
             List of ClusterScore objects with full validation and diagnostics
         """
@@ -1641,11 +1641,11 @@ class Orchestrator:
 
     def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScore:
         """Evaluate macro level using MacroAggregator.
-        
+
         Args:
             cluster_scores: List of ClusterScore objects from FASE 6
             config: Configuration dict containing monolith
-            
+
         Returns:
             MacroScore object with full validation and diagnostics
         """
@@ -1733,16 +1733,16 @@ class Orchestrator:
     ) -> dict[str, Any]:
         """
         Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
-        
+
         This phase connects to the orchestrator's 3-level flux:
         - MICRO: Uses scored question results from phase 3
         - MESO: Uses cluster aggregations from phase 6
         - MACRO: Uses macro evaluation from phase 7
-        
+
         Args:
             macro_result: Macro evaluation results from phase 7
             config: Configuration dictionary
-            
+
         Returns:
             Dictionary with MICRO, MESO, and MACRO recommendations
         """

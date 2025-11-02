@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 PathLike = Union[str, Path]
 
@@ -45,7 +47,7 @@ class ContractLoadReport:
 class JSONContractLoader:
     """Load JSON contract files and compute integrity metadata."""
 
-    def __init__(self, base_path: Path | None = None):
+    def __init__(self, base_path: Path | None = None) -> None:
         self.base_path = base_path or Path(__file__).resolve().parent
 
     def load(self, paths: Iterable[PathLike]) -> ContractLoadReport:

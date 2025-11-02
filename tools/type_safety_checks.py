@@ -142,7 +142,7 @@ def check_frozen_dataclasses(files: list[str]) -> int:
     return 0
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
         print("Usage: python tools/type_safety_checks.py <command>")

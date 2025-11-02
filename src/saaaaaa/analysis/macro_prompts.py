@@ -92,18 +92,18 @@ class CoverageGapStressor:
     """
     ROLE: Structural Integrity Auditor [systems design]
     GOAL: Evaluar si la ausencia de clusters o dimensiones erosiona la validez del score macro.
-    
+
     INPUTS:
     - convergence_by_dimension
     - missing_clusters
     - dimension_coverage: {D1..D6: % preguntas respondidas}
     - policy_area_coverage: {P#: %}
-    
+
     MANDATES:
     - Calcular coverage_index (media ponderada)
     - Si dimension_coverage < τ en alguna dimensión crítica (D3, D6) → degradar global_confidence
     - Simular impacto si se completara el cluster faltante (predictive uplift)
-    
+
     OUTPUT:
     JSON {coverage_index, degraded_confidence, predictive_uplift}
     """
@@ -113,10 +113,10 @@ class CoverageGapStressor:
         critical_dimensions: list[str] | None = None,
         dimension_weights: dict[str, float] | None = None,
         coverage_threshold: float = 0.70
-    ):
+    ) -> None:
         """
         Initialize Coverage Gap Stressor
-        
+
         Args:
             critical_dimensions: List of critical dimensions (default: D3, D6)
             dimension_weights: Weights for each dimension (default: equal)
@@ -139,14 +139,14 @@ class CoverageGapStressor:
     ) -> CoverageAnalysis:
         """
         Evaluate coverage and structural gaps
-        
+
         Args:
             convergence_by_dimension: Convergence scores by dimension
             missing_clusters: List of missing cluster names
             dimension_coverage: Coverage percentage by dimension
             policy_area_coverage: Coverage percentage by policy area
             baseline_confidence: Starting confidence level (0.0-1.0)
-            
+
         Returns:
             CoverageAnalysis with complete gap assessment
         """
@@ -271,17 +271,17 @@ class ContradictionScanner:
     """
     ROLE: Consistency Inspector [data governance]
     GOAL: Detectar contradicciones micro↔meso↔macro.
-    
+
     INPUTS:
     - micro_claims (extraído de MicroLevelAnswer.evidence)
     - meso_summary_signals
     - macro_narratives (borrador)
-    
+
     MANDATES:
     - Alinear claims por entidad/tema/dimensión
     - Marcar contradicción si macro afirma X y ≥k micro niegan X con posterior ≥ θ
     - Sugerir corrección: "rephrase / downgrade confidence / request re-execution"
-    
+
     OUTPUT:
     JSON {contradictions[], suggested_actions}
     """
@@ -290,10 +290,10 @@ class ContradictionScanner:
         self,
         contradiction_threshold: int = 3,
         posterior_threshold: float = 0.7
-    ):
+    ) -> None:
         """
         Initialize Contradiction Scanner
-        
+
         Args:
             contradiction_threshold: Min number of micro claims to flag contradiction
             posterior_threshold: Min posterior confidence to consider claim valid
@@ -310,12 +310,12 @@ class ContradictionScanner:
     ) -> ContradictionReport:
         """
         Scan for contradictions across levels
-        
+
         Args:
             micro_claims: List of micro-level claims with evidence
             meso_summary_signals: Meso-level summary signals
             macro_narratives: Macro-level narrative statements
-            
+
         Returns:
             ContradictionReport with detected issues and suggested actions
         """
@@ -387,9 +387,9 @@ class ContradictionScanner:
         contradictions = []
 
         # Check each dimension/theme
-        for dimension in aligned_claims.get("micro", {}).keys():
+        for dimension in aligned_claims.get("micro", {}):
             micro_claims = aligned_claims["micro"].get(dimension, [])
-            meso_signal = aligned_claims["meso"].get(dimension, {})
+            aligned_claims["meso"].get(dimension, {})
             macro_narrative = aligned_claims["macro"].get(dimension, {})
 
             # Count claims that contradict macro narrative
@@ -492,17 +492,17 @@ class BayesianPortfolioComposer:
     """
     ROLE: Global Bayesian Integrator [causal inference]
     GOAL: Integrar todas las posteriors (micro y meso) en una cartera causal global.
-    
+
     INPUTS:
     - meso_posteriors
     - weighting_trace (cluster_weights)
     - macro_reconciliation_penalties
-    
+
     MANDATES:
     - Calcular prior_global (media ponderada meso)
     - Aplicar penalties jerárquicos (coverage, dispersion estructural, contradictions)
     - Recalcular posterior_global y varianza
-    
+
     OUTPUT:
     JSON {prior_global, penalties_applied, posterior_global, var_global}
     """
@@ -510,10 +510,10 @@ class BayesianPortfolioComposer:
     def __init__(
         self,
         default_variance: float = 0.05
-    ):
+    ) -> None:
         """
         Initialize Bayesian Portfolio Composer
-        
+
         Args:
             default_variance: Default variance for uncertain estimates
         """
@@ -528,12 +528,12 @@ class BayesianPortfolioComposer:
     ) -> BayesianPortfolio:
         """
         Compose global Bayesian portfolio from meso posteriors
-        
+
         Args:
             meso_posteriors: Posterior probabilities by cluster/dimension
             cluster_weights: Weights for each cluster
             reconciliation_penalties: Optional penalties (coverage, dispersion, contradictions)
-            
+
         Returns:
             BayesianPortfolio with integrated global estimate
         """
@@ -611,7 +611,7 @@ class BayesianPortfolioComposer:
         posterior = prior
 
         # Apply each penalty multiplicatively
-        for penalty_name, penalty_value in penalties.items():
+        for _penalty_name, penalty_value in penalties.items():
             posterior *= (1.0 - penalty_value)
 
         return max(0.0, min(1.0, posterior))
@@ -672,23 +672,23 @@ class RoadmapOptimizer:
     """
     ROLE: Execution Strategist [operations design]
     GOAL: Generar roadmap secuenciado 0–3m / 3–6m / 6–12m priorizando impacto/costo.
-    
+
     INPUTS:
     - critical_gaps (list)
     - dependency_graph (gaps con prerequisitos)
     - effort_estimates
     - impact_scores
-    
+
     MANDATES:
     - Ordenar por ratio impact/effort y dependencias
     - Asignar ventana temporal mínima sin colisión de prerequisitos
     - Estimar uplift esperado por tramo
-    
+
     OUTPUT:
     JSON roadmap {phase, actions[], expected_uplift}
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Roadmap Optimizer"""
         logger.info("RoadmapOptimizer initialized")
 
@@ -701,13 +701,13 @@ class RoadmapOptimizer:
     ) -> ImplementationRoadmap:
         """
         Generate optimized implementation roadmap
-        
+
         Args:
             critical_gaps: List of gaps to address
             dependency_graph: Gap ID -> list of prerequisite gap IDs
             effort_estimates: Gap ID -> effort estimate (person-months)
             impact_scores: Gap ID -> expected impact (0.0-1.0)
-            
+
         Returns:
             ImplementationRoadmap with phased action plan
         """
@@ -791,7 +791,7 @@ class RoadmapOptimizer:
         gap_dict = {gap.get("id"): gap for gap in prioritized_gaps}
 
         # Process gaps, but assign dependencies first
-        def assign_gap_recursive(gap_id: str, visited: set):
+        def assign_gap_recursive(gap_id: str, visited: set) -> None:
             """Recursively assign gap and its dependencies"""
             if gap_id in assigned or gap_id in visited:
                 return
@@ -877,7 +877,6 @@ class RoadmapOptimizer:
         """Identify critical dependency chain"""
         # Find the path with highest total impact
         # Simple heuristic: find longest chain with high-impact nodes
-        critical = []
 
         # Find nodes with no dependents (endpoints)
         has_dependents = set()
@@ -954,17 +953,17 @@ class PeerNormalizer:
     """
     ROLE: Macro Peer Evaluator [evaluation design]
     GOAL: Ajustar clasificación macro considerando comparativos regionales.
-    
+
     INPUTS:
     - convergence_by_policy_area
     - peer_distributions: {policy_area -> {mean, std}}
     - baseline_confidence
-    
+
     MANDATES:
     - Calcular z-scores
     - Penalizar si >k áreas están < -1.0 z
     - Aumentar confianza si todas dentro ±0.5 z y dispersión baja
-    
+
     OUTPUT:
     JSON {z_scores, adjusted_confidence}
     """
@@ -973,10 +972,10 @@ class PeerNormalizer:
         self,
         penalty_threshold: int = 3,
         outlier_z_threshold: float = 2.0
-    ):
+    ) -> None:
         """
         Initialize Peer Normalizer
-        
+
         Args:
             penalty_threshold: Number of low-performing areas to trigger penalty
             outlier_z_threshold: Z-score threshold for outlier identification
@@ -993,12 +992,12 @@ class PeerNormalizer:
     ) -> PeerNormalization:
         """
         Normalize scores against peer distributions
-        
+
         Args:
             convergence_by_policy_area: Scores by policy area
             peer_distributions: Mean and std dev for each policy area
             baseline_confidence: Starting confidence level
-            
+
         Returns:
             PeerNormalization with adjusted confidence
         """
@@ -1054,10 +1053,7 @@ class PeerNormalizer:
                 std = peer.get("std", 0.1)
 
                 # Calculate z-score
-                if std > 0:
-                    z = (score - mean) / std
-                else:
-                    z = 0.0
+                z = (score - mean) / std if std > 0 else 0.0
 
                 z_scores[area] = z
 
@@ -1124,11 +1120,11 @@ class PeerNormalizer:
 class MacroPromptsOrchestrator:
     """
     Orchestrator for all 5 macro-level analysis prompts
-    
+
     Provides unified interface to execute all macro analyses
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize all macro prompt components"""
         self.coverage_stressor = CoverageGapStressor()
         self.contradiction_scanner = ContradictionScanner()
@@ -1144,7 +1140,7 @@ class MacroPromptsOrchestrator:
     ) -> dict[str, Any]:
         """
         Execute all 5 macro analyses
-        
+
         Args:
             macro_data: Complete macro-level data including:
                 - convergence_by_dimension
@@ -1163,7 +1159,7 @@ class MacroPromptsOrchestrator:
                 - impact_scores
                 - peer_distributions
                 - baseline_confidence
-                
+
         Returns:
             Dict with results from all 5 analyses
         """

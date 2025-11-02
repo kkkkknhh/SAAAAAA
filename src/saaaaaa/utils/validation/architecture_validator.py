@@ -60,11 +60,11 @@ class ArchitectureValidationResult:
             "total_available_methods": self.total_available_methods,
             "resolved_methods": sorted(self.resolved_methods),
             "missing_methods": {
-                dimension: {question: methods for question, methods in question_map.items()}
+                dimension: dict(question_map.items())
                 for dimension, question_map in self.missing_methods.items()
             },
             "per_dimension": {
-                dimension: {question: methods for question, methods in question_map.items()}
+                dimension: dict(question_map.items())
                 for dimension, question_map in self.per_dimension.items()
             },
             "global_methods": list(self.global_methods),
@@ -86,7 +86,7 @@ def _extract_method_from_entry(entry: object) -> str | None:
 
     if isinstance(entry, Mapping):
         # Architecture steps are stored as {"Class.method": "description"}
-        for key in entry.keys():
+        for key in entry:
             if isinstance(key, str) and METHOD_PATTERN.match(key):
                 return key
 
@@ -198,7 +198,7 @@ def load_method_inventory(path: Path) -> tuple[set[str], set[str]]:
     functions: set[str] = set()
 
     candidate_files = inventory.get("files", {})
-    for file_name in candidate_files.keys():
+    for file_name in candidate_files:
         file_path = ROOT_DIR / file_name
         if not file_path.exists():
             continue
@@ -208,7 +208,7 @@ def load_method_inventory(path: Path) -> tuple[set[str], set[str]]:
             continue
 
         for node in tree.body:
-            if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 functions.add(node.name)
             elif isinstance(node, ast.ClassDef):
                 for item in node.body:
