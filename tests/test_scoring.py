@@ -432,32 +432,36 @@ def test_apply_scoring_rejects_invalid_score_range():
         mp.undo()
 
 
-def test_apply_scoring_clamps_out_of_range_score(monkeypatch):
+def test_apply_scoring_clamps_out_of_range_score():
     """Scores returned outside the configured range are clamped."""
 
     def inflated_score(_, config):
         raw = config.score_range[1] * 1.5
         return raw, {"raw_score": raw}
 
-    monkeypatch.setitem(
-        scoring_module.SCORING_FUNCTIONS,
-        ScoringModality.TYPE_A,
-        inflated_score,
-    )
+    mp = pytest.MonkeyPatch()
+    try:
+        mp.setitem(
+            scoring_module.SCORING_FUNCTIONS,
+            ScoringModality.TYPE_A,
+            inflated_score,
+        )
 
-    evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
-    result = apply_scoring(
-        question_global=1,
-        base_slot="PA01-DIM01-Q001",
-        policy_area="PA01",
-        dimension="DIM01",
-        evidence=evidence,
-        modality="TYPE_A",
-    )
+        evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
+        result = apply_scoring(
+            question_global=1,
+            base_slot="PA01-DIM01-Q001",
+            policy_area="PA01",
+            dimension="DIM01",
+            evidence=evidence,
+            modality="TYPE_A",
+        )
 
-    assert result.score == pytest.approx(3.0)
-    assert 0.0 <= result.normalized_score <= 1.0
-    assert result.metadata["score_clamped"] is True
+        assert result.score == pytest.approx(3.0)
+        assert 0.0 <= result.normalized_score <= 1.0
+        assert result.metadata["score_clamped"] is True
+    finally:
+        mp.undo()
 
 
 def test_apply_rounding_modes():
