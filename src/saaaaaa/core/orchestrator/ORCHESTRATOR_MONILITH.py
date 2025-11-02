@@ -10445,8 +10445,13 @@ class Orchestrator:
         macro_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
 
         instrumentation.increment(latency=time.perf_counter() - start)
+        macro_score_normalized = (
+            macro_score / 3.0 if macro_score is not None else None
+        )
+
         return {
             "macro_score": macro_score,
+            "macro_score_normalized": macro_score_normalized,
             "cluster_scores": cluster_scores,
         }
 
@@ -10528,21 +10533,31 @@ class Orchestrator:
                 areas = cluster.get('areas', [])
 
                 if cluster_id and cluster_score is not None:
-                    # Calculate variance across areas in this cluster
-                    area_scores = [area.get('score', 0) for area in areas if area.get('score') is not None]
-                    variance = statistics.variance(area_scores) if len(area_scores) > 1 else 0.0
+                    normalized_cluster_score = cluster_score / 3.0
+
+                    # Calculate variance across areas in this cluster using normalized scores
+                    valid_area_scores = [
+                        (area, area.get('score') / 3.0)
+                        for area in areas
+                        if area.get('score') is not None
+                    ]
+                    normalized_area_values = [score for _, score in valid_area_scores]
+                    variance = (
+                        statistics.variance(normalized_area_values)
+                        if len(normalized_area_values) > 1
+                        else 0.0
+                    )
 
                     # Find weakest policy area in cluster
-                    weak_pa = None
-                    if area_scores:
-                        min_score = min(area_scores)
-                        for area in areas:
-                            if area.get('score') == min_score:
-                                weak_pa = area.get('area_id')
-                                break
+                    weakest_area = (
+                        min(valid_area_scores, key=lambda item: item[1])
+                        if valid_area_scores
+                        else None
+                    )
+                    weak_pa = weakest_area[0].get('area_id') if weakest_area else None
 
                     cluster_data[cluster_id] = {
-                        'score': cluster_score * 100,  # Convert to 0-100 scale
+                        'score': normalized_cluster_score * 100,  # 0-100 scale
                         'variance': variance,
                         'weak_pa': weak_pa
                     }
@@ -10553,11 +10568,15 @@ class Orchestrator:
             # MACRO LEVEL: Transform macro evaluation
             # ========================================================================
             macro_score = macro_result.get('macro_score')
+            macro_score_normalized = macro_result.get('macro_score_normalized')
+
+            if macro_score is not None and macro_score_normalized is None:
+                macro_score_normalized = macro_score / 3.0
 
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
-            if macro_score is not None:
-                scaled_score = macro_score * 100
+            if macro_score_normalized is not None:
+                scaled_score = macro_score_normalized * 100
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -10570,12 +10589,20 @@ class Orchestrator:
             for cluster in cluster_scores:
                 cluster_id = cluster.get('cluster_id')
                 cluster_score = cluster.get('score', 0)
-                if cluster_score * 100 < 55:
+                if cluster_score is not None and (cluster_score / 3.0) * 100 < 55:
                     clusters_below_target.append(cluster_id)
 
             # Calculate overall variance
-            all_cluster_scores = [c.get('score', 0) for c in cluster_scores if c.get('score') is not None]
-            overall_variance = statistics.variance(all_cluster_scores) if len(all_cluster_scores) > 1 else 0.0
+            normalized_cluster_scores = [
+                c.get('score') / 3.0
+                for c in cluster_scores
+                if c.get('score') is not None
+            ]
+            overall_variance = (
+                statistics.variance(normalized_cluster_scores)
+                if len(normalized_cluster_scores) > 1
+                else 0.0
+            )
 
             variance_alert = 'BAJA'
             if overall_variance >= 0.18:
@@ -10585,13 +10612,16 @@ class Orchestrator:
 
             # Find priority micro gaps (lowest scoring PA-DIM combinations)
             sorted_micro = sorted(micro_scores.items(), key=lambda x: x[1])
-            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 1.65]
+            priority_micro_gaps = [k for k, v in sorted_micro[:5] if v < 0.55]
 
             macro_data = {
                 'macro_band': macro_band,
                 'clusters_below_target': clusters_below_target,
                 'variance_alert': variance_alert,
-                'priority_micro_gaps': priority_micro_gaps
+                'priority_micro_gaps': priority_micro_gaps,
+                'macro_score_percentage': (
+                    macro_score_normalized * 100 if macro_score_normalized is not None else None
+                )
             }
 
             logger.info(f"Macro band: {macro_band}, Clusters below target: {len(clusters_below_target)}")
@@ -10616,6 +10646,7 @@ class Orchestrator:
                 level: rec_set.to_dict() for level, rec_set in recommendation_sets.items()
             }
             recommendations['macro_score'] = macro_score
+            recommendations['macro_score_normalized'] = macro_score_normalized
 
             logger.info(
                 f"Generated recommendations: "
