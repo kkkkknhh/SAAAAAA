@@ -1,5 +1,8 @@
 name: Static Analysis
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
@@ -9,15 +12,17 @@ jobs:
   type-checking:
     name: Pyright and Mypy
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
