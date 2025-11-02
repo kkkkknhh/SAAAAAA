@@ -183,9 +183,11 @@ else:  # pragma: no cover - safety fallback
 from aggregation import DimensionAggregator
 from document_ingestion import (
     DocumentIndexes,
-    PreprocessedDocument as IngestionPreprocessedDocument,
     RawDocument,
     StructuredText,
+)
+from document_ingestion import (
+    PreprocessedDocument as IngestionPreprocessedDocument,
 )
 from policy_processor import BayesianEvidenceScorer, IndustrialPolicyProcessor, PolicyTextProcessor
 

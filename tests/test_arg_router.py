@@ -8,11 +8,11 @@ from orchestrator.arg_router import ArgRouter, ArgumentValidationError
 
 class SampleExecutor:
     """Test executor for routing validation."""
-    
+
     def compute(self, x: int, y: int, *, flag: bool = False) -> int:
         """Compute a sample value."""
         return x + y if flag else x - y
-    
+
     def optional(self, x: int, y: int = 10) -> int:
         """Compute with optional parameter."""
         return x + y

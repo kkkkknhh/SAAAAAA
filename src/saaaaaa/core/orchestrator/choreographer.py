@@ -22,11 +22,11 @@ migration path for legacy imports.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Sequence, Tuple
+from typing import Any
 
-from .contract_loader import JSONContractLoader
 from .core import MethodExecutor, PreprocessedDocument
 
 
@@ -56,7 +56,7 @@ class NodeResult:
 
     node_id: str
     success: bool
-    method_results: List[MethodResult] = field(default_factory=list)
+    method_results: list[MethodResult] = field(default_factory=list)
     execution_time_ms: float = 0.0
     error: Any | None = None
 
@@ -67,8 +67,8 @@ class QuestionResult:
 
     question_global: int
     base_slot: str
-    evidence: Dict[str, Any]
-    raw_results: Dict[str, Any]
+    evidence: dict[str, Any]
+    raw_results: dict[str, Any]
     execution_time_ms: float = 0.0
     error: Any | None = None
 
@@ -80,9 +80,9 @@ class DAGNode:
     node_id: str
     file_name: str
     class_name: str
-    method_names: List[str]
-    method_types: List[str]
-    priorities: List[int]
+    method_names: list[str]
+    method_types: list[str]
+    priorities: list[int]
     timeout_ms: int = 30_000
     max_retries: int = 2
 
@@ -91,9 +91,9 @@ class DAGNode:
 class ExecutionPlan:
     """Deterministic orchestration plan for a single question."""
 
-    nodes: List[DAGNode]
-    parallel_groups: List[List[str]]
-    execution_order: List[str]
+    nodes: list[DAGNode]
+    parallel_groups: list[list[str]]
+    execution_order: list[str]
 
 
 class FlowController:
@@ -106,8 +106,8 @@ class FlowController:
     ) -> ExecutionPlan:
         """Build an ``ExecutionPlan`` from method package declarations."""
 
-        nodes: List[DAGNode] = []
-        execution_order: List[str] = []
+        nodes: list[DAGNode] = []
+        execution_order: list[str] = []
 
         for index, package in enumerate(method_packages, start=1):
             node_id = f"node_{index:03d}"
@@ -129,7 +129,7 @@ class FlowController:
             )
             execution_order.append(node_id)
 
-        parallel_groups: List[List[str]] = []
+        parallel_groups: list[list[str]] = []
         if flow_spec and isinstance(flow_spec.get("parallel_groups"), Iterable):
             for group in flow_spec["parallel_groups"]:
                 if isinstance(group, Sequence):
@@ -138,14 +138,14 @@ class FlowController:
         return ExecutionPlan(nodes=nodes, parallel_groups=parallel_groups, execution_order=execution_order)
 
     @staticmethod
-    def identify_parallel_branches(plan: ExecutionPlan) -> List[List[DAGNode]]:
+    def identify_parallel_branches(plan: ExecutionPlan) -> list[list[DAGNode]]:
         """Return groups of nodes that can execute in parallel."""
 
-        branches: List[List[DAGNode]] = []
+        branches: list[list[DAGNode]] = []
         if not plan.parallel_groups:
             return branches
 
-        lookup: Dict[str, DAGNode] = {node.node_id: node for node in plan.nodes}
+        lookup: dict[str, DAGNode] = {node.node_id: node for node in plan.nodes}
         for group in plan.parallel_groups:
             branch = [lookup[node_id] for node_id in group if node_id in lookup]
             if branch:
@@ -173,8 +173,8 @@ class Choreographer:
         self.method_executor = MethodExecutor(self.dispatcher)
 
     @staticmethod
-    def _build_method_mapping(method_catalog: Sequence[Mapping[str, Any]]) -> Dict[str, Dict[str, Any]]:
-        mapping: Dict[str, Dict[str, Any]] = {}
+    def _build_method_mapping(method_catalog: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+        mapping: dict[str, dict[str, Any]] = {}
         for entry in method_catalog:
             class_name = str(entry.get("class", ""))
             if class_name and class_name not in mapping:
@@ -188,7 +188,7 @@ class Choreographer:
         question_global: int,
         monolith: Mapping[str, Any],
         method_catalog_payload: Mapping[str, Any],
-    ) -> Tuple[str, Mapping[str, Any], List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[str, Mapping[str, Any], list[dict[str, Any]], dict[str, Any]]:
         """Map a question identifier to its execution metadata."""
 
         micro_questions: Sequence[Mapping[str, Any]] = monolith["blocks"].get("micro_questions", [])
@@ -203,7 +203,7 @@ class Choreographer:
         method_catalog = method_catalog_payload.get("methods_catalog", [])
         method_lookup = self._build_method_mapping(method_catalog)
 
-        grouped: MutableMapping[str, Dict[str, Any]] = {}
+        grouped: MutableMapping[str, dict[str, Any]] = {}
         for entry in question_data.get("method_sets", []):
             class_name = str(entry.get("class", ""))
             if not class_name:

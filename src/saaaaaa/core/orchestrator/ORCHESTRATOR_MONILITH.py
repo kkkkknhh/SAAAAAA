@@ -30,6 +30,7 @@ SIN brevedad. SIN omisiones. TODO implementado.
 """
 
 import warnings
+
 warnings.warn(
     "ORCHESTRATOR_MONILITH is deprecated. Use saaaaaa.core.orchestrator instead.",
     DeprecationWarning,
@@ -44,12 +45,11 @@ import os
 import re
 import statistics
 import time
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from dataclasses import dataclass, field, asdict, is_dataclass
 from pathlib import Path
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING, Any, Union
 
 from recommendation_engine import RecommendationEngine
 
@@ -65,9 +65,9 @@ class _QuestionnaireProvider:
 
     _DEFAULT_PATH = Path(__file__).resolve().parent / "questionnaire_monolith.json"
 
-    def __init__(self, data_path: Optional[Path] = None) -> None:
+    def __init__(self, data_path: Path | None = None) -> None:
         self._data_path = data_path or self._DEFAULT_PATH
-        self._cache: Optional[Dict[str, Any]] = None
+        self._cache: dict[str, Any] | None = None
         self._lock = RLock()
 
     @property
@@ -75,38 +75,35 @@ class _QuestionnaireProvider:
         """Return the resolved path of the questionnaire payload."""
         return self._data_path
 
-    def _resolve_path(self, candidate: Optional[Union[str, Path]] = None) -> Path:
+    def _resolve_path(self, candidate: str | Path | None = None) -> Path:
         """Resolve a candidate path relative to the current working directory."""
         if candidate is None:
             return self._data_path
-        if isinstance(candidate, Path):
-            path = candidate
-        else:
-            path = Path(candidate)
+        path = candidate if isinstance(candidate, Path) else Path(candidate)
         if not path.is_absolute():
             path = (Path.cwd() / path).resolve()
         return path
 
-    def exists(self, data_path: Optional[Union[str, Path]] = None) -> bool:
+    def exists(self, data_path: str | Path | None = None) -> bool:
         """Check whether the questionnaire payload exists on disk."""
         return self._resolve_path(data_path).exists()
 
-    def describe(self, data_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+    def describe(self, data_path: str | Path | None = None) -> dict[str, Any]:
         """Return metadata about a questionnaire payload on disk."""
         path = self._resolve_path(data_path)
         exists = path.exists()
         size = path.stat().st_size if exists else 0
         return {"path": path, "exists": exists, "size": size}
 
-    def _read_payload(self, path: Path) -> Dict[str, Any]:
+    def _read_payload(self, path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
     def load(
             self,
             force_reload: bool = False,
-            data_path: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
+            data_path: str | Path | None = None,
+    ) -> dict[str, Any]:
         """Load and optionally cache the questionnaire payload from disk."""
         target_path = self._resolve_path(data_path)
         with self._lock:
@@ -127,8 +124,8 @@ class _QuestionnaireProvider:
 
     def save(
             self,
-            payload: Dict[str, Any],
-            output_path: Optional[Union[str, Path]] = None,
+            payload: dict[str, Any],
+            output_path: str | Path | None = None,
     ) -> Path:
         """Persist a questionnaire payload to disk through the orchestrator."""
         target_path = self._resolve_path(output_path)
@@ -140,7 +137,7 @@ class _QuestionnaireProvider:
                 self._cache = payload
         return target_path
 
-    def get_question(self, question_global: int) -> Dict[str, Any]:
+    def get_question(self, question_global: int) -> dict[str, Any]:
         """Return the monolith entry for a given global question identifier."""
         payload = self.load()
         blocks = payload.get("blocks")
@@ -177,32 +174,50 @@ def get_questionnaire_provider() -> _QuestionnaireProvider:
     return _questionnaire_provider
 
 
-def get_questionnaire_payload(force_reload: bool = False) -> Dict[str, Any]:
+def get_questionnaire_payload(force_reload: bool = False) -> dict[str, Any]:
     """Convenience wrapper returning the questionnaire payload as a dictionary."""
     return _questionnaire_provider.load(force_reload=force_reload)
 
 
-def get_question_payload(question_global: int) -> Dict[str, Any]:
+def get_question_payload(question_global: int) -> dict[str, Any]:
     """Convenience wrapper returning a single question entry from the monolith."""
     return _questionnaire_provider.get_question(question_global)
 
 
 # Importar módulos reales
 try:
+    from Analyzer_one import (
+        MunicipalOntology,
+        PerformanceAnalyzer,
+        SemanticAnalyzer,
+        TextMiningEngine,
+    )
+    from contradiction_deteccion import (
+        BayesianConfidenceCalculator,
+        PolicyContradictionDetector,
+        TemporalLogicVerifier,
+    )
+    from dereck_beach import (
+        BayesianMechanismInference,
+        CDAFFramework,
+        FinancialAuditor,
+        OperationalizationAuditor,
+    )
+    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
+    from semantic_chunking_policy import SemanticChunker
+    from teoria_cambio import AdvancedDAGValidator, TeoriaCambio
+
+    from embedding_policy import (
+        AdvancedSemanticChunker,
+        BayesianNumericalAnalyzer,
+        PolicyAnalysisEmbedder,
+    )
     from policy_processor import (
         BayesianEvidenceScorer,
-        CausalDimension,
         IndustrialPolicyProcessor,
         PolicyTextProcessor,
         ProcessorConfig,
     )
-    from contradiction_deteccion import PolicyContradictionDetector, TemporalLogicVerifier, BayesianConfidenceCalculator
-    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
-    from dereck_beach import CDAFFramework, OperationalizationAuditor, FinancialAuditor, BayesianMechanismInference
-    from embedding_policy import BayesianNumericalAnalyzer, PolicyAnalysisEmbedder, AdvancedSemanticChunker
-    from Analyzer_one import SemanticAnalyzer, PerformanceAnalyzer, TextMiningEngine, MunicipalOntology
-    from teoria_cambio import TeoriaCambio, AdvancedDAGValidator
-    from semantic_chunking_policy import SemanticChunker
 
     MODULES_OK = True
 except:
@@ -214,9 +229,9 @@ except:
 class PreprocessedDocument:
     document_id: str
     raw_text: str
-    sentences: List
-    tables: List
-    metadata: Dict
+    sentences: list
+    tables: list
+    metadata: dict
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
@@ -226,7 +241,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-            cls, document: Any, *, document_id: Optional[str] = None
+            cls, document: Any, *, document_id: str | None = None
     ) -> "PreprocessedDocument":
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
 
@@ -246,12 +261,12 @@ class PreprocessedDocument:
             cls,
             document: Union["IngestionPreprocessedDocument", Any],
             *,
-            document_id: Optional[str] = None,
+            document_id: str | None = None,
     ) -> "PreprocessedDocument":
         """Build an orchestrator document from the ingestion schema."""
 
         raw_doc = getattr(document, "raw_document", None)
-        derived_id: Optional[str] = document_id or getattr(document, "document_id", None)
+        derived_id: str | None = document_id or getattr(document, "document_id", None)
 
         if not derived_id and raw_doc is not None:
             derived_id = getattr(raw_doc, "file_name", None)
@@ -272,8 +287,8 @@ class PreprocessedDocument:
         if not derived_id:
             derived_id = "document_1"
 
-        metadata: Dict[str, Any] = {}
-        preprocessing_block: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] = {}
+        preprocessing_block: dict[str, Any] | None = None
         if hasattr(document, "preprocessing_metadata"):
             preprocessing_metadata = document.preprocessing_metadata
             if isinstance(preprocessing_metadata, dict):
@@ -323,8 +338,8 @@ class PreprocessedDocument:
 @dataclass
 class Evidence:
     modality: str
-    elements: List = field(default_factory=list)
-    raw_results: Dict = field(default_factory=dict)
+    elements: list = field(default_factory=list)
+    raw_results: dict = field(default_factory=dict)
 
 
 class AbortRequested(RuntimeError):
@@ -337,8 +352,8 @@ class AbortSignal:
     def __init__(self) -> None:
         self._event = threading.Event()
         self._lock = threading.Lock()
-        self._reason: Optional[str] = None
-        self._timestamp: Optional[datetime] = None
+        self._reason: str | None = None
+        self._timestamp: datetime | None = None
 
     def abort(self, reason: str) -> None:
         """Trigger an abort with a reason and timestamp."""
@@ -354,11 +369,11 @@ class AbortSignal:
     def is_aborted(self) -> bool:
         return self._event.is_set()
 
-    def get_reason(self) -> Optional[str]:
+    def get_reason(self) -> str | None:
         with self._lock:
             return self._reason
 
-    def get_timestamp(self) -> Optional[datetime]:
+    def get_timestamp(self) -> datetime | None:
         with self._lock:
             return self._timestamp
 
@@ -374,7 +389,7 @@ class ResourceLimits:
 
     def __init__(
             self,
-            max_memory_mb: Optional[float] = 4096.0,
+            max_memory_mb: float | None = 4096.0,
             max_cpu_percent: float = 85.0,
             max_workers: int = 32,
             min_workers: int = 4,
@@ -386,10 +401,10 @@ class ResourceLimits:
         self.min_workers = max(1, min_workers)
         self.hard_max_workers = max(self.min_workers, hard_max_workers)
         self._max_workers = max(self.min_workers, min(max_workers, self.hard_max_workers))
-        self._usage_history: deque[Dict[str, float]] = deque(maxlen=history)
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._usage_history: deque[dict[str, float]] = deque(maxlen=history)
+        self._semaphore: asyncio.Semaphore | None = None
         self._semaphore_limit = self._max_workers
-        self._async_lock: Optional[asyncio.Lock] = None
+        self._async_lock: asyncio.Lock | None = None
         self._psutil = None
         self._psutil_process = None
         try:  # pragma: no cover - optional dependency
@@ -429,7 +444,7 @@ class ResourceLimits:
             self._semaphore_limit = desired
             return self._max_workers
 
-    def _record_usage(self, usage: Dict[str, float]) -> None:
+    def _record_usage(self, usage: dict[str, float]) -> None:
         self._usage_history.append(usage)
         self._predict_worker_budget()
 
@@ -445,30 +460,28 @@ class ResourceLimits:
         avg_mem = statistics.mean(recent_mem)
 
         new_budget = self._max_workers
-        if self.max_cpu_percent and avg_cpu > self.max_cpu_percent * 0.95:
-            new_budget = max(self.min_workers, self._max_workers - 1)
-        elif self.max_memory_mb and avg_mem > 90.0:
+        if self.max_cpu_percent and avg_cpu > self.max_cpu_percent * 0.95 or self.max_memory_mb and avg_mem > 90.0:
             new_budget = max(self.min_workers, self._max_workers - 1)
         elif avg_cpu < self.max_cpu_percent * 0.6 and avg_mem < 70.0:
             new_budget = min(self.hard_max_workers, self._max_workers + 1)
 
         self._max_workers = max(self.min_workers, min(new_budget, self.hard_max_workers))
 
-    def check_memory_exceeded(self, usage: Optional[Dict[str, float]] = None) -> Tuple[bool, Dict[str, float]]:
+    def check_memory_exceeded(self, usage: dict[str, float] | None = None) -> tuple[bool, dict[str, float]]:
         usage = usage or self.get_resource_usage()
         exceeded = False
         if self.max_memory_mb is not None:
             exceeded = usage.get("rss_mb", 0.0) > self.max_memory_mb
         return exceeded, usage
 
-    def check_cpu_exceeded(self, usage: Optional[Dict[str, float]] = None) -> Tuple[bool, Dict[str, float]]:
+    def check_cpu_exceeded(self, usage: dict[str, float] | None = None) -> tuple[bool, dict[str, float]]:
         usage = usage or self.get_resource_usage()
         exceeded = False
         if self.max_cpu_percent:
             exceeded = usage.get("cpu_percent", 0.0) > self.max_cpu_percent
         return exceeded, usage
 
-    def get_resource_usage(self) -> Dict[str, float]:
+    def get_resource_usage(self) -> dict[str, float]:
         timestamp = datetime.utcnow().isoformat()
         cpu_percent = 0.0
         memory_percent = 0.0
@@ -507,7 +520,7 @@ class ResourceLimits:
         self._record_usage(usage)
         return usage
 
-    def get_usage_history(self) -> List[Dict[str, float]]:
+    def get_usage_history(self) -> list[dict[str, float]]:
         return list(self._usage_history)
 
 
@@ -518,9 +531,9 @@ class PhaseInstrumentation:
             self,
             phase_id: int,
             name: str,
-            items_total: Optional[int] = None,
+            items_total: int | None = None,
             snapshot_interval: int = 10,
-            resource_limits: Optional[ResourceLimits] = None,
+            resource_limits: ResourceLimits | None = None,
     ) -> None:
         self.phase_id = phase_id
         self.name = name
@@ -528,20 +541,20 @@ class PhaseInstrumentation:
         self.snapshot_interval = max(1, snapshot_interval)
         self.resource_limits = resource_limits
         self.items_processed = 0
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
-        self.warnings: List[Dict[str, Any]] = []
-        self.errors: List[Dict[str, Any]] = []
-        self.resource_snapshots: List[Dict[str, Any]] = []
-        self.latencies: List[float] = []
-        self.anomalies: List[Dict[str, Any]] = []
+        self.start_time: float | None = None
+        self.end_time: float | None = None
+        self.warnings: list[dict[str, Any]] = []
+        self.errors: list[dict[str, Any]] = []
+        self.resource_snapshots: list[dict[str, Any]] = []
+        self.latencies: list[float] = []
+        self.anomalies: list[dict[str, Any]] = []
 
-    def start(self, items_total: Optional[int] = None) -> None:
+    def start(self, items_total: int | None = None) -> None:
         if items_total is not None:
             self.items_total = items_total
         self.start_time = time.perf_counter()
 
-    def increment(self, count: int = 1, latency: Optional[float] = None) -> None:
+    def increment(self, count: int = 1, latency: float | None = None) -> None:
         self.items_processed += count
         if latency is not None:
             self.latencies.append(latency)
@@ -591,17 +604,17 @@ class PhaseInstrumentation:
     def complete(self) -> None:
         self.end_time = time.perf_counter()
 
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         if self.start_time is None or self.end_time is None:
             return None
         return (self.end_time - self.start_time) * 1000.0
 
-    def progress(self) -> Optional[float]:
+    def progress(self) -> float | None:
         if not self.items_total:
             return None
         return min(1.0, self.items_processed / float(self.items_total))
 
-    def throughput(self) -> Optional[float]:
+    def throughput(self) -> float | None:
         if self.start_time is None:
             return None
         elapsed = (time.perf_counter() - self.start_time) if self.end_time is None else (
@@ -610,7 +623,7 @@ class PhaseInstrumentation:
             return None
         return self.items_processed / elapsed
 
-    def latency_histogram(self) -> Dict[str, Optional[float]]:
+    def latency_histogram(self) -> dict[str, float | None]:
         if not self.latencies:
             return {"p50": None, "p95": None, "p99": None}
         sorted_latencies = sorted(self.latencies)
@@ -633,7 +646,7 @@ class PhaseInstrumentation:
             "p99": percentile(99.0),
         }
 
-    def build_metrics(self) -> Dict[str, Any]:
+    def build_metrics(self) -> dict[str, Any]:
         return {
             "phase_id": self.phase_id,
             "name": self.name,
@@ -655,7 +668,7 @@ class PhaseResult:
     success: bool
     phase_id: str
     data: Any
-    error: Optional[Exception]
+    error: Exception | None
     duration_ms: float
     mode: str
     aborted: bool = False
@@ -666,10 +679,10 @@ class MicroQuestionRun:
     question_id: str
     question_global: int
     base_slot: str
-    metadata: Dict[str, Any]
-    evidence: Optional[Evidence]
-    error: Optional[str] = None
-    duration_ms: Optional[float] = None
+    metadata: dict[str, Any]
+    evidence: Evidence | None
+    error: str | None = None
+    duration_ms: float | None = None
     aborted: bool = False
 
 
@@ -678,13 +691,13 @@ class ScoredMicroQuestion:
     question_id: str
     question_global: int
     base_slot: str
-    score: Optional[float]
-    normalized_score: Optional[float]
-    quality_level: Optional[str]
-    evidence: Optional[Evidence]
-    scoring_details: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    score: float | None
+    normalized_score: float | None
+    quality_level: str | None
+    evidence: Evidence | None
+    scoring_details: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 class ArgRouter:
@@ -710,8 +723,8 @@ class ArgRouter:
             class_name: str,
             instance: Any,
             method: Any,
-            provided_kwargs: Dict[str, Any],
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            provided_kwargs: dict[str, Any],
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """Return positional and keyword args compatible with the target method."""
 
         route_key = (class_name, getattr(method, "__name__", ""))
@@ -721,8 +734,8 @@ class ArgRouter:
         return self._default_route(method, provided_kwargs)
 
     def _default_route(
-            self, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         signature = inspect.signature(method)
         normalized = dict(provided_kwargs)
 
@@ -741,7 +754,7 @@ class ArgRouter:
                         break
 
         # Filter to only accepted kwargs
-        accepted_kwargs: Dict[str, Any] = {}
+        accepted_kwargs: dict[str, Any] = {}
         allow_extra = False
 
         for name, param in signature.parameters.items():
@@ -760,18 +773,18 @@ class ArgRouter:
 
         return (), accepted_kwargs
 
-    def _extract_all_patterns(self, instance: Any) -> List[Any]:
+    def _extract_all_patterns(self, instance: Any) -> list[Any]:
         pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
-        compiled_patterns: List[Any] = []
+        compiled_patterns: list[Any] = []
         for categories in pattern_registry.values():
             compiled_patterns.extend(chain.from_iterable(categories.values()))
         return compiled_patterns
 
-    def _derive_dimension_category(self, instance: Any) -> Tuple[Any, str, List[Any]]:
+    def _derive_dimension_category(self, instance: Any) -> tuple[Any, str, list[Any]]:
         pattern_registry = getattr(instance, "_pattern_registry", {}) or {}
         dimension = None
         category = None
-        compiled_patterns: List[Any] = []
+        compiled_patterns: list[Any] = []
 
         if pattern_registry:
             dimension = next(iter(pattern_registry.keys()))
@@ -795,16 +808,16 @@ class ArgRouter:
         return dimension, category, compiled_patterns
 
     def _route_policy_process(
-            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, instance: Any, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         text = provided_kwargs.get("text")
         if text is None:
             text = provided_kwargs.get("raw_text", "")
         return (), {"raw_text": text}
 
     def _route_match_patterns(
-            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, instance: Any, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         compiled_patterns = self._extract_all_patterns(instance)
         sentences = [
             sentence
@@ -814,8 +827,8 @@ class ArgRouter:
         return (compiled_patterns, sentences), {}
 
     def _route_construct_bundle(
-            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, instance: Any, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
         sentences = [
             sentence
@@ -858,16 +871,16 @@ class ArgRouter:
         }
 
     def _route_segment_sentences(
-            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, instance: Any, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         text = provided_kwargs.get("text")
         if text is None:
             text = provided_kwargs.get("raw_text", "")
         return (text,), {}
 
     def _route_evidence_score(
-            self, instance: Any, method: Any, provided_kwargs: Dict[str, Any]
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+            self, instance: Any, method: Any, provided_kwargs: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         text = provided_kwargs.get("text") or provided_kwargs.get("raw_text", "")
         sentences = [
             sentence
@@ -875,7 +888,7 @@ class ArgRouter:
             if isinstance(sentence, str)
         ]
 
-        matches: List[str] = [s for s in sentences if s.strip()]
+        matches: list[str] = [s for s in sentences if s.strip()]
         if not matches and text:
             matches = re.findall(r"\b\w{6,}\b", text)[:50]
 
@@ -892,11 +905,11 @@ class ArgRouter:
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
-    def __init__(self):
+    def __init__(self) -> None:
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
-            
+
             self.instances = {
                 'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
                 'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
@@ -923,7 +936,7 @@ class MethodExecutor:
         else:
             self.instances = {}
         self._router = ArgRouter()
-    
+
     def execute(self, class_name: str, method_name: str, **kwargs) -> Any:
         if not MODULES_OK:
             return None
@@ -934,14 +947,14 @@ class MethodExecutor:
             method = getattr(instance, method_name)
             args, routed_kwargs = self._router.route(class_name, instance, method, kwargs)
             return method(*args, **routed_kwargs)
-        except Exception as e:
+        except Exception:
             logger.exception("Catalog invocation failed")
             raise
 
 
 class DataFlowExecutor:
     """Ejecutor base"""
-    def __init__(self, method_executor):
+    def __init__(self, method_executor) -> None:
         self.executor = method_executor
 
 
@@ -951,12 +964,12 @@ class D1Q1_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T → CD.V → CD.C → A1.C || EP.C → PP.R
     Métodos: 18
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -969,7 +982,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -982,7 +995,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -995,7 +1008,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -1008,7 +1021,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1021,7 +1034,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1034,7 +1047,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1047,7 +1060,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1060,7 +1073,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1073,7 +1086,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1086,7 +1099,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1099,7 +1112,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1112,7 +1125,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._statistical_significance_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1125,7 +1138,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -1138,7 +1151,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -1151,7 +1164,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._calculate_semantic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. A1.V - SemanticAnalyzer._classify_policy_domain (P=1)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -1164,7 +1177,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -1177,7 +1190,7 @@ class D1Q1_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.V - BayesianNumericalAnalyzer._classify_evidence_strength (P=2)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -1190,13 +1203,13 @@ class D1Q1_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer._classify_evidence_strength'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -1208,12 +1221,12 @@ class D1Q2_Executor(DataFlowExecutor):
     Flow: PP.E → PP.T → CD.E+T → CD.V+C → EP.E+C
     Métodos: 12
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1226,7 +1239,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.T - IndustrialPolicyProcessor._compile_pattern_registry (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1239,7 +1252,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._compile_pattern_registry'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.normalize_unicode (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -1252,7 +1265,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.normalize_unicode'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1265,7 +1278,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1278,7 +1291,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1291,7 +1304,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1304,7 +1317,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1317,7 +1330,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1330,7 +1343,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -1343,7 +1356,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -1356,7 +1369,7 @@ class D1Q2_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. EP.C - BayesianNumericalAnalyzer._compute_coherence (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -1369,13 +1382,13 @@ class D1Q2_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer._compute_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -1387,12 +1400,12 @@ class D1Q3_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E → CD.V+C → FV.E → DB.O → EP.C → PP.R
     Métodos: 22
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1405,7 +1418,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1418,7 +1431,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.E - IndustrialPolicyProcessor._extract_point_evidence (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1431,7 +1444,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._extract_point_evidence'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1444,7 +1457,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1457,7 +1470,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1470,7 +1483,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_resource_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1483,7 +1496,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1496,7 +1509,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1509,7 +1522,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1522,7 +1535,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_resource_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - PolicyContradictionDetector._are_conflicting_allocations (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1535,7 +1548,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_conflicting_allocations'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1548,7 +1561,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._statistical_significance_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1561,7 +1574,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.E - TemporalLogicVerifier._extract_resources (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -1574,7 +1587,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._extract_resources'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -1587,7 +1600,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1600,7 +1613,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1613,7 +1626,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. FV.V - PDETMunicipalPlanAnalyzer._identify_funding_source (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1626,7 +1639,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._identify_funding_source'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1639,7 +1652,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._analyze_funding_sources'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -1652,7 +1665,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['FinancialAuditor.trace_financial_allocation'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -1665,7 +1678,7 @@ class D1Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. EP.C - BayesianNumericalAnalyzer.compare_policies (P=2)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -1678,13 +1691,13 @@ class D1Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.compare_policies'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -1696,12 +1709,12 @@ class D1Q4_Executor(DataFlowExecutor):
     Flow: PP.E → CD.E+T+V+C → A1.V → FV.E+V
     Métodos: 16
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1714,7 +1727,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.T - IndustrialPolicyProcessor._build_point_patterns (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1727,7 +1740,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._build_point_patterns'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -1740,7 +1753,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1753,7 +1766,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1766,7 +1779,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1779,7 +1792,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1792,7 +1805,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1805,7 +1818,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1818,7 +1831,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1831,7 +1844,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1844,7 +1857,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. A1.V - SemanticAnalyzer._classify_value_chain_link (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -1857,7 +1870,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_value_chain_link'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -1870,7 +1883,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._detect_bottlenecks'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. A1.E - TextMiningEngine._identify_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -1883,7 +1896,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['TextMiningEngine._identify_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1896,7 +1909,7 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -1909,13 +1922,13 @@ class D1Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -1927,12 +1940,12 @@ class D1Q5_Executor(DataFlowExecutor):
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C
     Métodos: 14
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -1945,7 +1958,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -1958,7 +1971,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -1971,7 +1984,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1984,7 +1997,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -1997,7 +2010,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2010,7 +2023,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2023,7 +2036,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier.verify_temporal_consistency'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2036,7 +2049,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._build_timeline'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2049,7 +2062,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._parse_temporal_marker'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2062,7 +2075,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._has_temporal_conflict'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2075,7 +2088,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._check_deadline_constraints'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2088,7 +2101,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._classify_temporal_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -2101,7 +2114,7 @@ class D1Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._calculate_semantic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -2114,13 +2127,13 @@ class D1Q5_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -2132,12 +2145,12 @@ class D2Q1_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E → FV.T+V → CD.V → SC.E
     Métodos: 20
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2150,7 +2163,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2163,7 +2176,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -2176,7 +2189,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -2189,7 +2202,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2202,7 +2215,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2215,7 +2228,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._clean_dataframe'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.V - PDETMunicipalPlanAnalyzer._is_likely_header (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2228,7 +2241,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._is_likely_header'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.T - PDETMunicipalPlanAnalyzer._deduplicate_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2241,7 +2254,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._deduplicate_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. FV.T - PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2254,7 +2267,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2267,7 +2280,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2280,7 +2293,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2293,7 +2306,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2306,7 +2319,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2319,7 +2332,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2332,7 +2345,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2345,7 +2358,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.T - TemporalLogicVerifier._build_timeline (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2358,7 +2371,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._build_timeline'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -2371,7 +2384,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._check_deadline_constraints'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2384,7 +2397,7 @@ class D2Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. SC.E - SemanticProcessor._detect_table (P=3)
         result = self.executor.execute(
             'SemanticProcessor',
@@ -2397,13 +2410,13 @@ class D2Q1_Executor(DataFlowExecutor):
         results['SemanticProcessor._detect_table'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -2415,12 +2428,12 @@ class D2Q2_Executor(DataFlowExecutor):
     Flow: PP.E → PP.C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
     Métodos: 25
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2433,7 +2446,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2446,7 +2459,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -2459,7 +2472,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -2472,7 +2485,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -2485,7 +2498,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2498,7 +2511,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_relation_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2511,7 +2524,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2524,7 +2537,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_policy_statements'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2537,7 +2550,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2550,7 +2563,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2563,7 +2576,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2576,7 +2589,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2589,7 +2602,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2602,7 +2615,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. DB.E - CausalExtractor._extract_goals (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2615,7 +2628,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_goals'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. DB.E - CausalExtractor._extract_goal_text (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2628,7 +2641,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_goal_text'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.V - CausalExtractor._classify_goal_type (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2641,7 +2654,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._classify_goal_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. DB.T - CausalExtractor._add_node_to_graph (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2654,7 +2667,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._add_node_to_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. DB.E - CausalExtractor._extract_causal_links (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -2667,7 +2680,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -2680,7 +2693,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -2693,7 +2706,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -2706,7 +2719,7 @@ class D2Q2_Executor(DataFlowExecutor):
         results['TextMiningEngine.diagnose_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. A1.C - TextMiningEngine._analyze_link_text (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -2719,13 +2732,13 @@ class D2Q2_Executor(DataFlowExecutor):
         results['TextMiningEngine._analyze_link_text'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -2737,12 +2750,12 @@ class D2Q3_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E+T+V+C → CD.V → EP.E
     Métodos: 18
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2755,7 +2768,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2768,7 +2781,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -2781,7 +2794,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -2794,7 +2807,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2807,7 +2820,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2820,7 +2833,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2833,7 +2846,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2846,7 +2859,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2859,7 +2872,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2872,7 +2885,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. FV.T - PDETMunicipalPlanAnalyzer._clean_dataframe (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -2885,7 +2898,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._clean_dataframe'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2898,7 +2911,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -2911,7 +2924,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -2924,7 +2937,7 @@ class D2Q3_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.semantic_search'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -2937,13 +2950,13 @@ class D2Q3_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -2955,12 +2968,12 @@ class D2Q4_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
     Métodos: 21
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2973,7 +2986,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -2986,7 +2999,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -2999,7 +3012,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -3012,7 +3025,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3025,7 +3038,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3038,7 +3051,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3051,7 +3064,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3064,7 +3077,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3077,7 +3090,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3090,7 +3103,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3103,7 +3116,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_resource_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3116,7 +3129,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3129,7 +3142,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3142,7 +3155,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3155,7 +3168,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3168,7 +3181,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -3181,7 +3194,7 @@ class D2Q4_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -3194,13 +3207,13 @@ class D2Q4_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -3212,12 +3225,12 @@ class D2Q5_Executor(DataFlowExecutor):
     Flow: PP.E+C → CD.E+T+V+C → DB.O → TC.T+V → A1.V
     Métodos: 23
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3230,7 +3243,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3243,7 +3256,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -3256,7 +3269,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -3269,7 +3282,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -3282,7 +3295,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3295,7 +3308,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_relation_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3308,7 +3321,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3321,7 +3334,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_policy_statements'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3334,7 +3347,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3347,7 +3360,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3360,7 +3373,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3373,7 +3386,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3386,7 +3399,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -3399,7 +3412,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -3412,7 +3425,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -3425,7 +3438,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -3438,7 +3451,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -3451,7 +3464,7 @@ class D2Q5_Executor(DataFlowExecutor):
         results['TextMiningEngine.diagnose_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. A1.C - TextMiningEngine._analyze_link_text (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -3464,13 +3477,13 @@ class D2Q5_Executor(DataFlowExecutor):
         results['TextMiningEngine._analyze_link_text'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -3482,12 +3495,12 @@ class D3Q1_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
     Métodos: 19
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3500,7 +3513,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3513,7 +3526,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3526,7 +3539,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -3539,7 +3552,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -3552,7 +3565,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3565,7 +3578,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3578,7 +3591,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3591,7 +3604,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3604,7 +3617,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3617,7 +3630,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -3630,7 +3643,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3643,7 +3656,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3656,7 +3669,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3669,7 +3682,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._find_product_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3682,7 +3695,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3695,7 +3708,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -3708,7 +3721,7 @@ class D3Q1_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -3721,13 +3734,13 @@ class D3Q1_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -3739,12 +3752,12 @@ class D3Q2_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E → CD.E+T+V+C → EP.C
     Métodos: 20
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3757,7 +3770,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -3770,7 +3783,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -3783,7 +3796,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -3796,7 +3809,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3809,7 +3822,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_financial_amounts (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3822,7 +3835,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_financial_amounts'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.E - PDETMunicipalPlanAnalyzer._extract_from_budget_table (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3835,7 +3848,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_budget_table'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3848,7 +3861,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. FV.E - PDETMunicipalPlanAnalyzer._find_product_mentions (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -3861,7 +3874,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._find_product_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3874,7 +3887,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3887,7 +3900,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3900,7 +3913,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_resource_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3913,7 +3926,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3926,7 +3939,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3939,7 +3952,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3952,7 +3965,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -3965,7 +3978,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -3978,7 +3991,7 @@ class D3Q2_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -3991,13 +4004,13 @@ class D3Q2_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -4009,12 +4022,12 @@ class D3Q3_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E+T+V+C → CD.V+T → EP.E
     Métodos: 17
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4027,7 +4040,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4040,7 +4053,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -4053,7 +4066,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -4066,7 +4079,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.E - PDETMunicipalPlanAnalyzer.identify_responsible_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4079,7 +4092,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.identify_responsible_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.E - PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4092,7 +4105,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.T - PDETMunicipalPlanAnalyzer._consolidate_entities (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4105,7 +4118,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._consolidate_entities'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.V - PDETMunicipalPlanAnalyzer._classify_entity_type (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4118,7 +4131,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_entity_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. FV.C - PDETMunicipalPlanAnalyzer._score_entity_specificity (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4131,7 +4144,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._score_entity_specificity'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -4144,7 +4157,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4157,7 +4170,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4170,7 +4183,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4183,7 +4196,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -4196,7 +4209,7 @@ class D3Q3_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.semantic_search'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -4209,13 +4222,13 @@ class D3Q3_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -4227,12 +4240,12 @@ class D3Q4_Executor(DataFlowExecutor):
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
     Métodos: 19
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4245,7 +4258,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4258,7 +4271,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -4271,7 +4284,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -4284,7 +4297,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4297,7 +4310,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier.verify_temporal_consistency'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4310,7 +4323,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._check_deadline_constraints'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4323,7 +4336,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._classify_temporal_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4336,7 +4349,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._build_timeline'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4349,7 +4362,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._parse_temporal_marker'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4362,7 +4375,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._has_temporal_conflict'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - TemporalLogicVerifier._extract_resources (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -4375,7 +4388,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._extract_resources'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4388,7 +4401,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_resource_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4401,7 +4414,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4414,7 +4427,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -4427,7 +4440,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -4440,7 +4453,7 @@ class D3Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._detect_bottlenecks'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. A1.V - TextMiningEngine._assess_risks (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -4453,13 +4466,13 @@ class D3Q4_Executor(DataFlowExecutor):
         results['TextMiningEngine._assess_risks'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -4471,12 +4484,12 @@ class D3Q5_Executor(DataFlowExecutor):
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Mechanism+Tests) → TC.T+V → A1.V
     Métodos: 26
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4489,7 +4502,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4502,7 +4515,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -4515,7 +4528,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -4528,7 +4541,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -4541,7 +4554,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4554,7 +4567,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_relation_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4567,7 +4580,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4580,7 +4593,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_policy_statements'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4593,7 +4606,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4606,7 +4619,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4619,7 +4632,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4632,7 +4645,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -4645,7 +4658,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -4658,7 +4671,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. DB.E - CausalExtractor._extract_causal_links (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -4671,7 +4684,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. DB.E - CausalExtractor._extract_causal_justifications (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -4684,7 +4697,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_justifications'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.C - CausalExtractor._calculate_confidence (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -4697,7 +4710,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['CausalExtractor._calculate_confidence'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. DB.E - MechanismPartExtractor.extract_entity_activity (P=3)
         result = self.executor.execute(
             'MechanismPartExtractor',
@@ -4710,7 +4723,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['MechanismPartExtractor.extract_entity_activity'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. DB.E - MechanismPartExtractor._find_subject_entity (P=3)
         result = self.executor.execute(
             'MechanismPartExtractor',
@@ -4723,7 +4736,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['MechanismPartExtractor._find_subject_entity'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. DB.E - MechanismPartExtractor._find_action_verb (P=3)
         result = self.executor.execute(
             'MechanismPartExtractor',
@@ -4736,7 +4749,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['MechanismPartExtractor._find_action_verb'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. DB.V - MechanismPartExtractor._validate_entity_activity (P=3)
         result = self.executor.execute(
             'MechanismPartExtractor',
@@ -4749,7 +4762,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['MechanismPartExtractor._validate_entity_activity'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. DB.C - MechanismPartExtractor._calculate_ea_confidence (P=3)
         result = self.executor.execute(
             'MechanismPartExtractor',
@@ -4762,7 +4775,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['MechanismPartExtractor._calculate_ea_confidence'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4775,7 +4788,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference.infer_mechanisms'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. DB.T - BayesianMechanismInference._build_transition_matrix (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4788,7 +4801,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._build_transition_matrix'] = result
         if result is not None:
             current_data = result
-        
+
         # 25. DB.V - BayesianMechanismInference._infer_activity_sequence (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4801,7 +4814,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._infer_activity_sequence'] = result
         if result is not None:
             current_data = result
-        
+
         # 26. DB.V - BayesianMechanismInference._test_necessity (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4814,7 +4827,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_necessity'] = result
         if result is not None:
             current_data = result
-        
+
         # 27. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4827,7 +4840,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 28. DB.V - BayesianMechanismInference._classify_mechanism_type (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -4840,7 +4853,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._classify_mechanism_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 29. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
         result = self.executor.execute(
             'BeachEvidentialTest',
@@ -4853,7 +4866,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['BeachEvidentialTest.apply_test_logic'] = result
         if result is not None:
             current_data = result
-        
+
         # 30. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -4866,7 +4879,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 31. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -4879,7 +4892,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 32. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -4892,7 +4905,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 33. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -4905,7 +4918,7 @@ class D3Q5_Executor(DataFlowExecutor):
         results['TextMiningEngine.diagnose_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 34. A1.C - TextMiningEngine._analyze_link_text (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -4918,13 +4931,13 @@ class D3Q5_Executor(DataFlowExecutor):
         results['TextMiningEngine._analyze_link_text'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -4936,12 +4949,12 @@ class D4Q1_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.E+C → PP.R
     Métodos: 18
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4954,7 +4967,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4967,7 +4980,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -4980,7 +4993,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -4993,7 +5006,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -5006,7 +5019,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5019,7 +5032,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5032,7 +5045,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5045,7 +5058,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5058,7 +5071,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5071,7 +5084,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -5084,7 +5097,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5097,7 +5110,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5110,7 +5123,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. FV.E - PDETMunicipalPlanAnalyzer._find_outcome_mentions (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5123,7 +5136,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._find_outcome_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5136,7 +5149,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5149,7 +5162,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -5162,7 +5175,7 @@ class D4Q1_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.E - PolicyAnalysisEmbedder._extract_numerical_values (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -5175,13 +5188,13 @@ class D4Q1_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder._extract_numerical_values'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -5193,12 +5206,12 @@ class D4Q2_Executor(DataFlowExecutor):
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Tests) → TC.T+V
     Métodos: 24
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5211,7 +5224,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5224,7 +5237,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -5237,7 +5250,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -5250,7 +5263,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -5263,7 +5276,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5276,7 +5289,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5289,7 +5302,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5302,7 +5315,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_policy_statements'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5315,7 +5328,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5328,7 +5341,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5341,7 +5354,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5354,7 +5367,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5367,7 +5380,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5380,7 +5393,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -5393,7 +5406,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. DB.E - CausalExtractor._extract_causal_links (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -5406,7 +5419,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -5419,7 +5432,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference.infer_mechanisms'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. DB.V - BayesianMechanismInference._test_necessity (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -5432,7 +5445,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_necessity'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -5445,7 +5458,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. DB.V - BeachEvidentialTest.classify_test (P=3)
         result = self.executor.execute(
             'BeachEvidentialTest',
@@ -5458,7 +5471,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['BeachEvidentialTest.classify_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -5471,7 +5484,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -5484,7 +5497,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. TC.V - TeoriaCambio.validacion_completa (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -5497,7 +5510,7 @@ class D4Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio.validacion_completa'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. TC.V - TeoriaCambio._validar_orden_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -5510,13 +5523,13 @@ class D4Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._validar_orden_causal'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -5528,12 +5541,12 @@ class D4Q3_Executor(DataFlowExecutor):
     Flow: PP.O+C → CD.E+V+C → FV.C+R → DB.C → EP.C+V
     Métodos: 20
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5546,7 +5559,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5559,7 +5572,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -5572,7 +5585,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer._calculate_shannon_entropy (P=2)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -5585,7 +5598,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer._calculate_shannon_entropy'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5598,7 +5611,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.C - PolicyContradictionDetector._calculate_objective_alignment (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5611,7 +5624,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_objective_alignment'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5624,7 +5637,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5637,7 +5650,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5650,7 +5663,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._statistical_significance_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5663,7 +5676,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5676,7 +5689,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_resource_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -5689,7 +5702,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5702,7 +5715,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.generate_recommendations'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5715,7 +5728,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_financial_feasibility'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5728,7 +5741,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._assess_financial_sustainability'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -5741,7 +5754,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._bayesian_risk_inference'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -5754,7 +5767,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['FinancialAuditor._calculate_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -5767,7 +5780,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. EP.C - BayesianNumericalAnalyzer.compare_policies (P=2)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -5780,7 +5793,7 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.compare_policies'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. EP.V - BayesianNumericalAnalyzer._classify_evidence_strength (P=2)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -5793,13 +5806,13 @@ class D4Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer._classify_evidence_strength'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -5811,12 +5824,12 @@ class D4Q4_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T+V+C → A1.V+E → EP.E+V
     Métodos: 15
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5829,7 +5842,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -5842,7 +5855,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -5855,7 +5868,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -5868,7 +5881,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5881,7 +5894,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5894,7 +5907,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5907,7 +5920,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5920,7 +5933,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -5933,7 +5946,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -5946,7 +5959,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -5959,7 +5972,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -5972,7 +5985,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -5985,7 +5998,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['SemanticAnalyzer.extract_semantic_cube'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -5998,7 +6011,7 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.semantic_search'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. EP.V - PolicyAnalysisEmbedder._filter_by_pdq (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -6011,13 +6024,13 @@ class D4Q4_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder._filter_by_pdq'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -6029,12 +6042,12 @@ class D4Q5_Executor(DataFlowExecutor):
     Flow: PP.O → CD.C+T → A1.V+E → EP.E+C
     Métodos: 17
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6047,7 +6060,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6060,7 +6073,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6073,7 +6086,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -6086,7 +6099,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.C - PolicyContradictionDetector._calculate_objective_alignment (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6099,7 +6112,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_objective_alignment'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6112,7 +6125,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6125,7 +6138,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6138,7 +6151,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6151,7 +6164,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6164,7 +6177,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -6177,7 +6190,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -6190,7 +6203,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -6203,7 +6216,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer.extract_semantic_cube'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -6216,7 +6229,7 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.semantic_search'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. EP.C - PolicyAnalysisEmbedder.compare_policy_interventions (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -6229,13 +6242,13 @@ class D4Q5_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.compare_policy_interventions'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -6247,12 +6260,12 @@ class D5Q1_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T+V → FV.E+T+V → EP.C → PP.R
     Métodos: 17
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6265,7 +6278,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6278,7 +6291,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.R - IndustrialPolicyProcessor._construct_evidence_bundle (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6291,7 +6304,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._construct_evidence_bundle'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6304,7 +6317,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -6317,7 +6330,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6330,7 +6343,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6343,7 +6356,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6356,7 +6369,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6369,7 +6382,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6382,7 +6395,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -6395,7 +6408,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -6408,7 +6421,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. FV.T - PDETMunicipalPlanAnalyzer._indicator_to_dict (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -6421,7 +6434,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._indicator_to_dict'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. FV.O - PDETMunicipalPlanAnalyzer.analyze_municipal_plan (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -6434,7 +6447,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_municipal_plan'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. FV.V - PDETMunicipalPlanAnalyzer._classify_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -6447,7 +6460,7 @@ class D5Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._classify_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -6460,13 +6473,13 @@ class D5Q1_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -6478,12 +6491,12 @@ class D5Q2_Executor(DataFlowExecutor):
     Flow: PP.E+C → CD.E+T+V+C → DB.O (Extractor+Inference+Tests) → TC.T+V
     Métodos: 25
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6496,7 +6509,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6509,7 +6522,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6522,7 +6535,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6535,7 +6548,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -6548,7 +6561,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6561,7 +6574,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_relation_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6574,7 +6587,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._extract_policy_statements (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6587,7 +6600,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_policy_statements'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6600,7 +6613,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6613,7 +6626,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6626,7 +6639,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6639,7 +6652,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6652,7 +6665,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -6665,7 +6678,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. DB.E - CausalExtractor._extract_causal_links (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -6678,7 +6691,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. DB.E - CausalExtractor._extract_causal_justifications (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -6691,7 +6704,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_justifications'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -6704,7 +6717,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference.infer_mechanisms'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. DB.V - BayesianMechanismInference._test_necessity (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -6717,7 +6730,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_necessity'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -6730,7 +6743,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. DB.V - BayesianMechanismInference._classify_mechanism_type (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -6743,7 +6756,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._classify_mechanism_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
         result = self.executor.execute(
             'BeachEvidentialTest',
@@ -6756,7 +6769,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['BeachEvidentialTest.apply_test_logic'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -6769,7 +6782,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -6782,7 +6795,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -6795,7 +6808,7 @@ class D5Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 25. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -6808,13 +6821,13 @@ class D5Q2_Executor(DataFlowExecutor):
         results['TextMiningEngine.diagnose_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -6826,12 +6839,12 @@ class D5Q3_Executor(DataFlowExecutor):
     Flow: PP.O → CD.E+T+V+C → DB.O (Extractor+Tests) → EP.C
     Métodos: 19
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6844,7 +6857,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -6857,7 +6870,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6870,7 +6883,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -6883,7 +6896,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -6896,7 +6909,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.E - PolicyContradictionDetector._extract_quantitative_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6909,7 +6922,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_quantitative_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.T - PolicyContradictionDetector._parse_number (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6922,7 +6935,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._parse_number'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6935,7 +6948,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6948,7 +6961,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._statistical_significance_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6961,7 +6974,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -6974,7 +6987,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -6987,7 +7000,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -7000,7 +7013,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.E - CausalExtractor._extract_causal_justifications (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -7013,7 +7026,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['CausalExtractor._extract_causal_justifications'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. DB.O - BayesianMechanismInference.infer_mechanisms (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -7026,7 +7039,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianMechanismInference.infer_mechanisms'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. DB.V - BayesianMechanismInference._test_necessity (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -7039,7 +7052,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_necessity'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -7052,7 +7065,7 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. EP.C - BayesianNumericalAnalyzer.evaluate_policy_metric (P=3)
         result = self.executor.execute(
             'BayesianNumericalAnalyzer',
@@ -7065,13 +7078,13 @@ class D5Q3_Executor(DataFlowExecutor):
         results['BayesianNumericalAnalyzer.evaluate_policy_metric'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -7083,12 +7096,12 @@ class D5Q4_Executor(DataFlowExecutor):
     Flow: PP.E+T → CD.E → CD.V+T+C → A1.C+V
     Métodos: 15
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7101,7 +7114,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7114,7 +7127,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -7127,7 +7140,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -7140,7 +7153,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.V - TemporalLogicVerifier.verify_temporal_consistency (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7153,7 +7166,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier.verify_temporal_consistency'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - TemporalLogicVerifier._check_deadline_constraints (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7166,7 +7179,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._check_deadline_constraints'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - TemporalLogicVerifier._classify_temporal_type (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7179,7 +7192,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._classify_temporal_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.T - TemporalLogicVerifier._build_timeline (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7192,7 +7205,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._build_timeline'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.T - TemporalLogicVerifier._parse_temporal_marker (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7205,7 +7218,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._parse_temporal_marker'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - TemporalLogicVerifier._has_temporal_conflict (P=3)
         result = self.executor.execute(
             'TemporalLogicVerifier',
@@ -7218,7 +7231,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['TemporalLogicVerifier._has_temporal_conflict'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - PolicyContradictionDetector._extract_temporal_markers (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7231,7 +7244,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_temporal_markers'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7244,7 +7257,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. A1.C - PerformanceAnalyzer._calculate_throughput_metrics (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -7257,7 +7270,7 @@ class D5Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._calculate_throughput_metrics'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. A1.V - PerformanceAnalyzer._detect_bottlenecks (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -7270,13 +7283,13 @@ class D5Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._detect_bottlenecks'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -7288,12 +7301,12 @@ class D5Q5_Executor(DataFlowExecutor):
     Flow: PP.O → FV.E+C → CD.E+V+C → DB.O+C
     Métodos: 15
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7306,7 +7319,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7319,7 +7332,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -7332,7 +7345,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -7345,7 +7358,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. FV.C - PDETMunicipalPlanAnalyzer.analyze_financial_feasibility (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7358,7 +7371,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.analyze_financial_feasibility'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. FV.C - PDETMunicipalPlanAnalyzer._assess_financial_sustainability (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7371,7 +7384,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._assess_financial_sustainability'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. FV.C - PDETMunicipalPlanAnalyzer._bayesian_risk_inference (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7384,7 +7397,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._bayesian_risk_inference'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. FV.C - PDETMunicipalPlanAnalyzer._analyze_funding_sources (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7397,7 +7410,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._analyze_funding_sources'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. FV.E - PDETMunicipalPlanAnalyzer.extract_tables (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7410,7 +7423,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.extract_tables'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._extract_resource_mentions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7423,7 +7436,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._extract_resource_mentions'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7436,7 +7449,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_resource_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7449,7 +7462,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -7462,7 +7475,7 @@ class D5Q5_Executor(DataFlowExecutor):
         results['FinancialAuditor.trace_financial_allocation'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -7475,13 +7488,13 @@ class D5Q5_Executor(DataFlowExecutor):
         results['FinancialAuditor._calculate_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -7493,12 +7506,12 @@ class D6Q1_Executor(DataFlowExecutor):
     Flow: PP.O → TC.V (validacion_completa) → TC.T (construir_grafo) → CD.T+C → DB.O (CausalExtractor+Auditor+Framework) → FV.T
     Métodos: 32
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7511,7 +7524,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.C - IndustrialPolicyProcessor._analyze_causal_dimensions (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7524,7 +7537,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._analyze_causal_dimensions'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7537,7 +7550,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -7550,7 +7563,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -7563,7 +7576,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -7576,7 +7589,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. TC.V - TeoriaCambio.validacion_completa (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -7589,7 +7602,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['TeoriaCambio.validacion_completa'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -7602,7 +7615,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. TC.V - TeoriaCambio._validar_orden_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -7615,7 +7628,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['TeoriaCambio._validar_orden_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -7628,7 +7641,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -7641,7 +7654,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -7654,7 +7667,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. TC.C - AdvancedDAGValidator._calculate_statistical_power (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -7667,7 +7680,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._calculate_statistical_power'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. TC.C - AdvancedDAGValidator._calculate_bayesian_posterior (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -7680,7 +7693,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._calculate_bayesian_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -7693,7 +7706,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._perform_sensitivity_analysis_internal'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. TC.C - AdvancedDAGValidator.get_graph_stats (P=2)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -7706,7 +7719,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator.get_graph_stats'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7719,7 +7732,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.C - PolicyContradictionDetector._get_graph_statistics (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7732,7 +7745,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_graph_statistics'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7745,7 +7758,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7758,7 +7771,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -7771,7 +7784,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. DB.O - CausalExtractor.extract_causal_hierarchy (P=3)
         result = self.executor.execute(
             'CausalExtractor',
@@ -7784,7 +7797,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['CausalExtractor.extract_causal_hierarchy'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. DB.V - OperationalizationAuditor.audit_evidence_traceability (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -7797,7 +7810,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['OperationalizationAuditor.audit_evidence_traceability'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. DB.V - OperationalizationAuditor._audit_systemic_risk (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -7810,7 +7823,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['OperationalizationAuditor._audit_systemic_risk'] = result
         if result is not None:
             current_data = result
-        
+
         # 25. DB.V - OperationalizationAuditor.bayesian_counterfactual_audit (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -7823,7 +7836,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['OperationalizationAuditor.bayesian_counterfactual_audit'] = result
         if result is not None:
             current_data = result
-        
+
         # 26. DB.R - OperationalizationAuditor._generate_optimal_remediations (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -7836,7 +7849,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['OperationalizationAuditor._generate_optimal_remediations'] = result
         if result is not None:
             current_data = result
-        
+
         # 27. DB.O - CDAFFramework.process_document (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -7849,7 +7862,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['CDAFFramework.process_document'] = result
         if result is not None:
             current_data = result
-        
+
         # 28. DB.V - CDAFFramework._audit_causal_coherence (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -7862,7 +7875,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['CDAFFramework._audit_causal_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 29. DB.V - CDAFFramework._validate_dnp_compliance (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -7875,7 +7888,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['CDAFFramework._validate_dnp_compliance'] = result
         if result is not None:
             current_data = result
-        
+
         # 30. DB.R - CDAFFramework._generate_extraction_report (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -7888,7 +7901,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['CDAFFramework._generate_extraction_report'] = result
         if result is not None:
             current_data = result
-        
+
         # 31. FV.T - PDETMunicipalPlanAnalyzer.construct_causal_dag (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7901,7 +7914,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.construct_causal_dag'] = result
         if result is not None:
             current_data = result
-        
+
         # 32. FV.E - PDETMunicipalPlanAnalyzer._identify_causal_nodes (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7914,7 +7927,7 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._identify_causal_nodes'] = result
         if result is not None:
             current_data = result
-        
+
         # 33. FV.E - PDETMunicipalPlanAnalyzer._identify_causal_edges (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -7927,13 +7940,13 @@ class D6Q1_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._identify_causal_edges'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -7945,12 +7958,12 @@ class D6Q2_Executor(DataFlowExecutor):
     Flow: PP.E+T (3 categorías patrones) → CD.T+V+C → TC.V → DB (Beach Tests + Inference + Setup) → DB.Auditor
     Métodos: 28
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7963,7 +7976,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.T - IndustrialPolicyProcessor._compile_pattern_registry (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7976,7 +7989,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._compile_pattern_registry'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - IndustrialPolicyProcessor._build_point_patterns (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -7989,7 +8002,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._build_point_patterns'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -8002,7 +8015,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -8015,7 +8028,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -8028,7 +8041,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.C - PolicyContradictionDetector._calculate_syntactic_complexity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8041,7 +8054,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_syntactic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8054,7 +8067,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.C - PolicyContradictionDetector._get_dependency_depth (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8067,7 +8080,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_dependency_depth'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8080,7 +8093,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - PolicyContradictionDetector._determine_relation_type (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8093,7 +8106,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_relation_type'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - PolicyContradictionDetector._calculate_numerical_divergence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8106,7 +8119,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_numerical_divergence'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.V - PolicyContradictionDetector._statistical_significance_test (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8119,7 +8132,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._statistical_significance_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8132,7 +8145,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. CD.V - PolicyContradictionDetector._are_comparable_claims (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8145,7 +8158,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._are_comparable_claims'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. CD.C - PolicyContradictionDetector._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8158,7 +8171,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8171,7 +8184,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -8184,7 +8197,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. TC.V - TeoriaCambio.validacion_completa (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8197,7 +8210,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio.validacion_completa'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8210,7 +8223,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. TC.V - TeoriaCambio._validar_orden_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8223,7 +8236,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['TeoriaCambio._validar_orden_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8236,7 +8249,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. TC.C - AdvancedDAGValidator._calculate_statistical_power (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8249,7 +8262,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._calculate_statistical_power'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. TC.C - AdvancedDAGValidator._calculate_bayesian_posterior (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8262,7 +8275,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._calculate_bayesian_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 25. DB.V - BeachEvidentialTest.classify_test (P=3)
         result = self.executor.execute(
             'BeachEvidentialTest',
@@ -8275,7 +8288,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BeachEvidentialTest.classify_test'] = result
         if result is not None:
             current_data = result
-        
+
         # 26. DB.V - BeachEvidentialTest.apply_test_logic (P=3)
         result = self.executor.execute(
             'BeachEvidentialTest',
@@ -8288,7 +8301,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BeachEvidentialTest.apply_test_logic'] = result
         if result is not None:
             current_data = result
-        
+
         # 27. DB.V - BayesianMechanismInference._test_necessity (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8301,7 +8314,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_necessity'] = result
         if result is not None:
             current_data = result
-        
+
         # 28. DB.V - BayesianMechanismInference._test_sufficiency (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8314,7 +8327,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._test_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 29. DB.T - BayesianMechanismInference._build_transition_matrix (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8327,7 +8340,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._build_transition_matrix'] = result
         if result is not None:
             current_data = result
-        
+
         # 30. DB.C - BayesianMechanismInference._calculate_type_transition_prior (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8340,7 +8353,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._calculate_type_transition_prior'] = result
         if result is not None:
             current_data = result
-        
+
         # 31. DB.V - BayesianMechanismInference._infer_activity_sequence (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8353,7 +8366,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._infer_activity_sequence'] = result
         if result is not None:
             current_data = result
-        
+
         # 32. DB.C - BayesianMechanismInference._aggregate_bayesian_confidence (P=3)
         result = self.executor.execute(
             'BayesianMechanismInference',
@@ -8366,7 +8379,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['BayesianMechanismInference._aggregate_bayesian_confidence'] = result
         if result is not None:
             current_data = result
-        
+
         # 33. DB.V - CausalInferenceSetup.classify_goal_dynamics (P=3)
         result = self.executor.execute(
             'CausalInferenceSetup',
@@ -8379,7 +8392,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['CausalInferenceSetup.classify_goal_dynamics'] = result
         if result is not None:
             current_data = result
-        
+
         # 34. DB.V - CausalInferenceSetup.identify_failure_points (P=3)
         result = self.executor.execute(
             'CausalInferenceSetup',
@@ -8392,7 +8405,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['CausalInferenceSetup.identify_failure_points'] = result
         if result is not None:
             current_data = result
-        
+
         # 35. DB.C - CausalInferenceSetup.assign_probative_value (P=3)
         result = self.executor.execute(
             'CausalInferenceSetup',
@@ -8405,7 +8418,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['CausalInferenceSetup.assign_probative_value'] = result
         if result is not None:
             current_data = result
-        
+
         # 36. DB.E - CausalInferenceSetup._get_dynamics_pattern (P=3)
         result = self.executor.execute(
             'CausalInferenceSetup',
@@ -8418,7 +8431,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['CausalInferenceSetup._get_dynamics_pattern'] = result
         if result is not None:
             current_data = result
-        
+
         # 37. DB.V - OperationalizationAuditor._audit_systemic_risk (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -8431,7 +8444,7 @@ class D6Q2_Executor(DataFlowExecutor):
         results['OperationalizationAuditor._audit_systemic_risk'] = result
         if result is not None:
             current_data = result
-        
+
         # 38. DB.V - OperationalizationAuditor.bayesian_counterfactual_audit (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -8444,13 +8457,13 @@ class D6Q2_Executor(DataFlowExecutor):
         results['OperationalizationAuditor.bayesian_counterfactual_audit'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -8462,12 +8475,12 @@ class D6Q3_Executor(DataFlowExecutor):
     Flow: PP.O → CD.V (detect suite) → CD.R (_suggest_resolutions) → TC.V → A1.V
     Métodos: 22
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -8480,7 +8493,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -8493,7 +8506,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -8506,7 +8519,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -8519,7 +8532,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. CD.V - PolicyContradictionDetector._detect_logical_incompatibilities (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8532,7 +8545,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_logical_incompatibilities'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.V - PolicyContradictionDetector.detect (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8545,7 +8558,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector.detect'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.V - PolicyContradictionDetector._detect_semantic_contradictions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8558,7 +8571,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_semantic_contradictions'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.V - PolicyContradictionDetector._detect_numerical_inconsistencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8571,7 +8584,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_numerical_inconsistencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.V - PolicyContradictionDetector._detect_temporal_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8584,7 +8597,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_temporal_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.V - PolicyContradictionDetector._detect_resource_conflicts (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8597,7 +8610,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._detect_resource_conflicts'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.V - PolicyContradictionDetector._classify_contradiction (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8610,7 +8623,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._classify_contradiction'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.C - PolicyContradictionDetector._calculate_severity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8623,7 +8636,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_severity'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.R - PolicyContradictionDetector._generate_resolution_recommendations (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8636,7 +8649,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_resolution_recommendations'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. CD.R - PolicyContradictionDetector._suggest_resolutions (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8649,7 +8662,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._suggest_resolutions'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. CD.C - PolicyContradictionDetector._calculate_contradiction_entropy (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8662,7 +8675,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_contradiction_entropy'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. CD.C - PolicyContradictionDetector._get_domain_weight (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8675,7 +8688,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_domain_weight'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. CD.V - PolicyContradictionDetector._has_logical_conflict (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -8688,7 +8701,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._has_logical_conflict'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -8701,7 +8714,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. A1.V - TextMiningEngine.diagnose_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -8714,7 +8727,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['TextMiningEngine.diagnose_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. A1.E - TextMiningEngine._identify_critical_links (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -8727,7 +8740,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['TextMiningEngine._identify_critical_links'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. TC.V - TeoriaCambio.validacion_completa (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8740,7 +8753,7 @@ class D6Q3_Executor(DataFlowExecutor):
         results['TeoriaCambio.validacion_completa'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. TC.V - TeoriaCambio._validar_orden_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8753,13 +8766,13 @@ class D6Q3_Executor(DataFlowExecutor):
         results['TeoriaCambio._validar_orden_causal'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -8771,12 +8784,12 @@ class D6Q4_Executor(DataFlowExecutor):
     Flow: PP.O → TC.V+R (_generar_sugerencias_internas) → CD.T+C → DB (CDAF+Auditors) → FV.R
     Métodos: 26
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -8789,7 +8802,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -8802,7 +8815,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -8815,7 +8828,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -8828,7 +8841,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -8841,7 +8854,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. TC.V - TeoriaCambio.validacion_completa (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8854,7 +8867,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio.validacion_completa'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. TC.V - TeoriaCambio._validar_orden_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8867,7 +8880,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._validar_orden_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. TC.V - TeoriaCambio._encontrar_caminos_completos (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8880,7 +8893,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._encontrar_caminos_completos'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. TC.R - TeoriaCambio._generar_sugerencias_internas (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8893,7 +8906,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._generar_sugerencias_internas'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. TC.R - TeoriaCambio._execute_generar_sugerencias_internas (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8906,7 +8919,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._execute_generar_sugerencias_internas'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. TC.E - TeoriaCambio._extraer_categorias (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8919,7 +8932,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._extraer_categorias'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. TC.V - TeoriaCambio._es_conexion_valida (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8932,7 +8945,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio._es_conexion_valida'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. TC.T - TeoriaCambio.construir_grafo_causal (P=3)
         result = self.executor.execute(
             'TeoriaCambio',
@@ -8945,7 +8958,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TeoriaCambio.construir_grafo_causal'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. TC.V - AdvancedDAGValidator.calculate_acyclicity_pvalue (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8958,7 +8971,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator.calculate_acyclicity_pvalue'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. TC.V - AdvancedDAGValidator._perform_sensitivity_analysis_internal (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8971,7 +8984,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._perform_sensitivity_analysis_internal'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. TC.C - AdvancedDAGValidator._calculate_confidence_interval (P=3)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8984,7 +8997,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator._calculate_confidence_interval'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. TC.C - AdvancedDAGValidator.get_graph_stats (P=2)
         result = self.executor.execute(
             'AdvancedDAGValidator',
@@ -8997,7 +9010,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['AdvancedDAGValidator.get_graph_stats'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9010,7 +9023,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. CD.C - PolicyContradictionDetector._get_graph_statistics (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9023,7 +9036,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_graph_statistics'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. CD.C - PolicyContradictionDetector._calculate_graph_fragmentation (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9036,7 +9049,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_graph_fragmentation'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9049,7 +9062,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -9062,7 +9075,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. A1.R - PerformanceAnalyzer._generate_recommendations (P=2)
         result = self.executor.execute(
             'PerformanceAnalyzer',
@@ -9075,7 +9088,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PerformanceAnalyzer._generate_recommendations'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. A1.R - TextMiningEngine._generate_interventions (P=2)
         result = self.executor.execute(
             'TextMiningEngine',
@@ -9088,7 +9101,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['TextMiningEngine._generate_interventions'] = result
         if result is not None:
             current_data = result
-        
+
         # 25. DB.V - CDAFFramework._validate_dnp_compliance (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -9101,7 +9114,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['CDAFFramework._validate_dnp_compliance'] = result
         if result is not None:
             current_data = result
-        
+
         # 26. DB.R - CDAFFramework._generate_extraction_report (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -9114,7 +9127,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['CDAFFramework._generate_extraction_report'] = result
         if result is not None:
             current_data = result
-        
+
         # 27. DB.R - CDAFFramework._generate_causal_model_json (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -9127,7 +9140,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['CDAFFramework._generate_causal_model_json'] = result
         if result is not None:
             current_data = result
-        
+
         # 28. DB.R - CDAFFramework._generate_dnp_compliance_report (P=3)
         result = self.executor.execute(
             'CDAFFramework',
@@ -9140,7 +9153,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['CDAFFramework._generate_dnp_compliance_report'] = result
         if result is not None:
             current_data = result
-        
+
         # 29. DB.V - OperationalizationAuditor.audit_evidence_traceability (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -9153,7 +9166,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['OperationalizationAuditor.audit_evidence_traceability'] = result
         if result is not None:
             current_data = result
-        
+
         # 30. DB.V - OperationalizationAuditor._perform_counterfactual_budget_check (P=3)
         result = self.executor.execute(
             'OperationalizationAuditor',
@@ -9166,7 +9179,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['OperationalizationAuditor._perform_counterfactual_budget_check'] = result
         if result is not None:
             current_data = result
-        
+
         # 31. DB.O - FinancialAuditor.trace_financial_allocation (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -9179,7 +9192,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['FinancialAuditor.trace_financial_allocation'] = result
         if result is not None:
             current_data = result
-        
+
         # 32. DB.V - FinancialAuditor._match_goal_to_budget (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -9192,7 +9205,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['FinancialAuditor._match_goal_to_budget'] = result
         if result is not None:
             current_data = result
-        
+
         # 33. DB.C - FinancialAuditor._calculate_sufficiency (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -9205,7 +9218,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['FinancialAuditor._calculate_sufficiency'] = result
         if result is not None:
             current_data = result
-        
+
         # 34. DB.V - FinancialAuditor._detect_allocation_gaps (P=3)
         result = self.executor.execute(
             'FinancialAuditor',
@@ -9218,7 +9231,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['FinancialAuditor._detect_allocation_gaps'] = result
         if result is not None:
             current_data = result
-        
+
         # 35. DB.V - MechanismTypeConfig.check_sum_to_one (P=3)
         result = self.executor.execute(
             'MechanismTypeConfig',
@@ -9231,7 +9244,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['MechanismTypeConfig.check_sum_to_one'] = result
         if result is not None:
             current_data = result
-        
+
         # 36. FV.R - PDETMunicipalPlanAnalyzer.generate_recommendations (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -9244,7 +9257,7 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer.generate_recommendations'] = result
         if result is not None:
             current_data = result
-        
+
         # 37. FV.R - PDETMunicipalPlanAnalyzer._generate_optimal_remediations (P=3)
         result = self.executor.execute(
             'PDETMunicipalPlanAnalyzer',
@@ -9257,13 +9270,13 @@ class D6Q4_Executor(DataFlowExecutor):
         results['PDETMunicipalPlanAnalyzer._generate_optimal_remediations'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -9275,12 +9288,12 @@ class D6Q5_Executor(DataFlowExecutor):
     Flow: PP.E (patrones diferenciales) → CD.T+V+C → A1.V+E (_classify_cross_cutting_themes) → EP.E+V+C
     Métodos: 24
     """
-    
+
     def execute(self, doc, method_executor):
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
-        
+
         # 1. PP.E - IndustrialPolicyProcessor._match_patterns_in_sentences (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -9293,7 +9306,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor._match_patterns_in_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 2. PP.O - IndustrialPolicyProcessor.process (P=3)
         result = self.executor.execute(
             'IndustrialPolicyProcessor',
@@ -9306,7 +9319,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['IndustrialPolicyProcessor.process'] = result
         if result is not None:
             current_data = result
-        
+
         # 3. PP.T - PolicyTextProcessor.segment_into_sentences (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -9319,7 +9332,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.segment_into_sentences'] = result
         if result is not None:
             current_data = result
-        
+
         # 4. PP.E - PolicyTextProcessor.extract_contextual_window (P=2)
         result = self.executor.execute(
             'PolicyTextProcessor',
@@ -9332,7 +9345,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyTextProcessor.extract_contextual_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 5. PP.C - BayesianEvidenceScorer.compute_evidence_score (P=3)
         result = self.executor.execute(
             'BayesianEvidenceScorer',
@@ -9345,7 +9358,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['BayesianEvidenceScorer.compute_evidence_score'] = result
         if result is not None:
             current_data = result
-        
+
         # 6. CD.T - PolicyContradictionDetector._generate_embeddings (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9358,7 +9371,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._generate_embeddings'] = result
         if result is not None:
             current_data = result
-        
+
         # 7. CD.C - PolicyContradictionDetector._calculate_similarity (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9371,7 +9384,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_similarity'] = result
         if result is not None:
             current_data = result
-        
+
         # 8. CD.E - PolicyContradictionDetector._identify_dependencies (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9384,7 +9397,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._identify_dependencies'] = result
         if result is not None:
             current_data = result
-        
+
         # 9. CD.V - PolicyContradictionDetector._determine_semantic_role (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9397,7 +9410,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._determine_semantic_role'] = result
         if result is not None:
             current_data = result
-        
+
         # 10. CD.C - PolicyContradictionDetector._calculate_global_semantic_coherence (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9410,7 +9423,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._calculate_global_semantic_coherence'] = result
         if result is not None:
             current_data = result
-        
+
         # 11. CD.E - PolicyContradictionDetector._get_context_window (P=2)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9423,7 +9436,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._get_context_window'] = result
         if result is not None:
             current_data = result
-        
+
         # 12. CD.T - PolicyContradictionDetector._build_knowledge_graph (P=3)
         result = self.executor.execute(
             'PolicyContradictionDetector',
@@ -9436,7 +9449,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyContradictionDetector._build_knowledge_graph'] = result
         if result is not None:
             current_data = result
-        
+
         # 13. CD.C - BayesianConfidenceCalculator.calculate_posterior (P=3)
         result = self.executor.execute(
             'BayesianConfidenceCalculator',
@@ -9449,7 +9462,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['BayesianConfidenceCalculator.calculate_posterior'] = result
         if result is not None:
             current_data = result
-        
+
         # 14. A1.V - SemanticAnalyzer._classify_cross_cutting_themes (P=3)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9462,7 +9475,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_cross_cutting_themes'] = result
         if result is not None:
             current_data = result
-        
+
         # 15. A1.V - SemanticAnalyzer._classify_policy_domain (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9475,7 +9488,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._classify_policy_domain'] = result
         if result is not None:
             current_data = result
-        
+
         # 16. A1.E - SemanticAnalyzer.extract_semantic_cube (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9488,7 +9501,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer.extract_semantic_cube'] = result
         if result is not None:
             current_data = result
-        
+
         # 17. A1.T - SemanticAnalyzer._process_segment (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9501,7 +9514,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._process_segment'] = result
         if result is not None:
             current_data = result
-        
+
         # 18. A1.T - SemanticAnalyzer._vectorize_segments (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9514,7 +9527,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._vectorize_segments'] = result
         if result is not None:
             current_data = result
-        
+
         # 19. A1.C - SemanticAnalyzer._calculate_semantic_complexity (P=2)
         result = self.executor.execute(
             'SemanticAnalyzer',
@@ -9527,7 +9540,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['SemanticAnalyzer._calculate_semantic_complexity'] = result
         if result is not None:
             current_data = result
-        
+
         # 20. A1.O - MunicipalOntology.__init__ (P=2)
         result = self.executor.execute(
             'MunicipalOntology',
@@ -9540,7 +9553,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['MunicipalOntology.__init__'] = result
         if result is not None:
             current_data = result
-        
+
         # 21. EP.E - PolicyAnalysisEmbedder.semantic_search (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -9553,7 +9566,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.semantic_search'] = result
         if result is not None:
             current_data = result
-        
+
         # 22. EP.V - PolicyAnalysisEmbedder._filter_by_pdq (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -9566,7 +9579,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder._filter_by_pdq'] = result
         if result is not None:
             current_data = result
-        
+
         # 23. EP.C - PolicyAnalysisEmbedder.compare_policy_interventions (P=3)
         result = self.executor.execute(
             'PolicyAnalysisEmbedder',
@@ -9579,7 +9592,7 @@ class D6Q5_Executor(DataFlowExecutor):
         results['PolicyAnalysisEmbedder.compare_policy_interventions'] = result
         if result is not None:
             current_data = result
-        
+
         # 24. EP.V - AdvancedSemanticChunker._infer_pdq_context (P=3)
         result = self.executor.execute(
             'AdvancedSemanticChunker',
@@ -9592,13 +9605,13 @@ class D6Q5_Executor(DataFlowExecutor):
         results['AdvancedSemanticChunker._infer_pdq_context'] = result
         if result is not None:
             current_data = result
-        
+
         return {
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results
         }
-    
+
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
@@ -9611,7 +9624,7 @@ class D6Q5_Executor(DataFlowExecutor):
 class Orchestrator:
     """Orquestador robusto de 11 fases con abortabilidad y control de recursos."""
 
-    FASES: List[Tuple[int, str, str, str]] = [
+    FASES: list[tuple[int, str, str, str]] = [
         (0, "sync", "_load_configuration", "FASE 0 - Validación de Configuración"),
         (1, "sync", "_ingest_document", "FASE 1 - Ingestión de Documento"),
         (2, "async", "_execute_micro_questions_async", "FASE 2 - Micro Preguntas"),
@@ -9625,7 +9638,7 @@ class Orchestrator:
         (10, "async", "_format_and_export", "FASE 10 - Formateo y Exportación"),
     ]
 
-    PHASE_ITEM_TARGETS: Dict[int, int] = {
+    PHASE_ITEM_TARGETS: dict[int, int] = {
         0: 1,
         1: 1,
         2: 300,
@@ -9639,7 +9652,7 @@ class Orchestrator:
         10: 1,
     }
 
-    PHASE_OUTPUT_KEYS: Dict[int, str] = {
+    PHASE_OUTPUT_KEYS: dict[int, str] = {
         0: "config",
         1: "document",
         2: "micro_results",
@@ -9653,7 +9666,7 @@ class Orchestrator:
         10: "export_payload",
     }
 
-    PHASE_ARGUMENT_KEYS: Dict[int, List[str]] = {
+    PHASE_ARGUMENT_KEYS: dict[int, list[str]] = {
         1: ["pdf_path", "config"],
         2: ["document", "config"],
         3: ["micro_results", "config"],
@@ -9671,8 +9684,8 @@ class Orchestrator:
             catalog_path: str = "rules/METODOS/metodos_completos_nivel3.json",
             monolith_path: str = "questionnaire_monolith.json",
             method_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json",
-            schema_path: Optional[str] = "schemas/questionnaire.schema.json",
-            resource_limits: Optional[ResourceLimits] = None,
+            schema_path: str | None = "schemas/questionnaire.schema.json",
+            resource_limits: ResourceLimits | None = None,
             resource_snapshot_interval: int = 10,
     ) -> None:
         self.catalog_path = self._resolve_path(catalog_path)
@@ -9720,12 +9733,12 @@ class Orchestrator:
         }
 
         self.abort_signal = AbortSignal()
-        self.phase_results: List[PhaseResult] = []
-        self._phase_instrumentation: Dict[int, PhaseInstrumentation] = {}
-        self._phase_status: Dict[int, str] = {phase_id: "not_started" for phase_id, *_ in self.FASES}
-        self._phase_outputs: Dict[int, Any] = {}
-        self._context: Dict[str, Any] = {}
-        self._start_time: Optional[float] = None
+        self.phase_results: list[PhaseResult] = []
+        self._phase_instrumentation: dict[int, PhaseInstrumentation] = {}
+        self._phase_status: dict[int, str] = {phase_id: "not_started" for phase_id, *_ in self.FASES}
+        self._phase_outputs: dict[int, Any] = {}
+        self._context: dict[str, Any] = {}
+        self._start_time: float | None = None
 
         # Initialize RecommendationEngine for 3-level recommendations
         try:
@@ -9747,7 +9760,7 @@ class Orchestrator:
             logger.warning(f"Failed to initialize RecommendationEngine: {e}")
             self.recommendation_engine = None
 
-    def _resolve_path(self, path: Optional[str]) -> Optional[str]:
+    def _resolve_path(self, path: str | None) -> str | None:
         if path is None:
             return None
 
@@ -9776,8 +9789,8 @@ class Orchestrator:
             raise AbortRequested(self.abort_signal.get_reason() or "Abort requested")
 
     def process_development_plan(
-            self, pdf_path: str, preprocessed_document: Optional[Any] = None
-    ) -> List[PhaseResult]:
+            self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> list[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -9791,8 +9804,8 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-            self, pdf_path: str, preprocessed_document: Optional[Any] = None
-    ) -> List[PhaseResult]:
+            self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> list[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
         self._phase_instrumentation = {}
@@ -9821,7 +9834,7 @@ class Orchestrator:
 
             success = False
             data: Any = None
-            error: Optional[Exception] = None
+            error: Exception | None = None
             try:
                 if mode == "sync":
                     data = handler(*args)
@@ -9869,7 +9882,7 @@ class Orchestrator:
 
         return self.phase_results
 
-    def get_processing_status(self) -> Dict[str, Any]:
+    def get_processing_status(self) -> dict[str, Any]:
         if self._start_time is None:
             status = "not_started"
             elapsed = 0.0
@@ -9902,7 +9915,7 @@ class Orchestrator:
             "completed": completed_flag,
         }
 
-    def get_phase_metrics(self) -> Dict[str, Any]:
+    def get_phase_metrics(self) -> dict[str, Any]:
         return {
             str(phase_id): instr.build_metrics()
             for phase_id, instr in self._phase_instrumentation.items()
@@ -9919,7 +9932,7 @@ class Orchestrator:
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
         cpu_headroom = max(0.0, self.resource_limits.max_cpu_percent - usage.get("cpu_percent", 0.0))
         mem_headroom = max(0.0, (self.resource_limits.max_memory_mb or 0.0) - usage.get("rss_mb", 0.0))
@@ -9931,7 +9944,7 @@ class Orchestrator:
             score = min(score, 20.0)
         return {"score": score, "resource_usage": usage, "abort": self.abort_signal.is_aborted()}
 
-    def _load_configuration(self) -> Dict[str, Any]:
+    def _load_configuration(self) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[0]
         start = time.perf_counter()
@@ -9945,9 +9958,9 @@ class Orchestrator:
                 sha256.update(chunk)
         monolith_hash = sha256.hexdigest()
 
-        micro_questions: List[Dict[str, Any]] = monolith["blocks"].get("micro_questions", [])
-        meso_questions: List[Dict[str, Any]] = monolith["blocks"].get("meso_questions", [])
-        macro_question: Dict[str, Any] = monolith["blocks"].get("macro_question", {})
+        micro_questions: list[dict[str, Any]] = monolith["blocks"].get("micro_questions", [])
+        meso_questions: list[dict[str, Any]] = monolith["blocks"].get("meso_questions", [])
+        macro_question: dict[str, Any] = monolith["blocks"].get("macro_question", {})
 
         question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
         if question_total != 305:
@@ -9957,7 +9970,7 @@ class Orchestrator:
 
         structure_report = self._validate_contract_structure(monolith, instrumentation)
 
-        method_summary: Dict[str, Any] = {}
+        method_summary: dict[str, Any] = {}
         if self.method_map_path and os.path.exists(self.method_map_path):
             with open(self.method_map_path) as f:
                 method_map = json.load(f)
@@ -9975,7 +9988,7 @@ class Orchestrator:
                 "metadata": summary,
             }
 
-        schema_report: Dict[str, Any] = {"errors": []}
+        schema_report: dict[str, Any] = {"errors": []}
         if self.schema_path and os.path.exists(self.schema_path):
             try:  # pragma: no cover - optional dependency
                 import jsonschema
@@ -10015,7 +10028,7 @@ class Orchestrator:
 
         return config
 
-    def _validate_contract_structure(self, monolith: Dict[str, Any], instrumentation: PhaseInstrumentation) -> Dict[
+    def _validate_contract_structure(self, monolith: dict[str, Any], instrumentation: PhaseInstrumentation) -> dict[
         str, Any]:
         micro_questions = monolith["blocks"].get("micro_questions", [])
         base_slots = {question.get("base_slot") for question in micro_questions}
@@ -10038,8 +10051,8 @@ class Orchestrator:
                 missing=sorted(missing_modalities),
             )
 
-        slot_area_map: Dict[str, str] = {}
-        area_cluster_map: Dict[str, str] = {}
+        slot_area_map: dict[str, str] = {}
+        area_cluster_map: dict[str, str] = {}
         for question in micro_questions:
             slot = question.get("base_slot")
             area = question.get("policy_area_id")
@@ -10072,7 +10085,7 @@ class Orchestrator:
             "area_cluster_map": area_cluster_map,
         }
 
-    def _ingest_document(self, pdf_path: str, config: Dict[str, Any]) -> PreprocessedDocument:
+    def _ingest_document(self, pdf_path: str, config: dict[str, Any]) -> PreprocessedDocument:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[1]
         start = time.perf_counter()
@@ -10108,15 +10121,15 @@ class Orchestrator:
     async def _execute_micro_questions_async(
             self,
             document: PreprocessedDocument,
-            config: Dict[str, Any],
-    ) -> List[MicroQuestionRun]:
+            config: dict[str, Any],
+    ) -> list[MicroQuestionRun]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[2]
         micro_questions = config.get("micro_questions", [])
         instrumentation.items_total = len(micro_questions)
-        ordered_questions: List[Dict[str, Any]] = []
+        ordered_questions: list[dict[str, Any]] = []
 
-        questions_by_slot: Dict[str, deque] = {}
+        questions_by_slot: dict[str, deque] = {}
         for question in micro_questions:
             slot = question.get("base_slot")
             questions_by_slot.setdefault(slot, deque()).append(question)
@@ -10135,14 +10148,14 @@ class Orchestrator:
         semaphore = asyncio.Semaphore(self.resource_limits.max_workers)
         self.resource_limits.attach_semaphore(semaphore)
 
-        circuit_breakers: Dict[str, Dict[str, Any]] = {
+        circuit_breakers: dict[str, dict[str, Any]] = {
             slot: {"failures": 0, "open": False}
             for slot in self.executors
         }
 
-        results: List[MicroQuestionRun] = []
+        results: list[MicroQuestionRun] = []
 
-        async def process_question(question: Dict[str, Any]) -> MicroQuestionRun:
+        async def process_question(question: dict[str, Any]) -> MicroQuestionRun:
             await self.resource_limits.apply_worker_budget()
             async with semaphore:
                 self._ensure_not_aborted()
@@ -10192,8 +10205,8 @@ class Orchestrator:
 
                 executor_class = self.executors.get(base_slot)
                 start_time = time.perf_counter()
-                evidence: Optional[Evidence] = None
-                error_message: Optional[str] = None
+                evidence: Evidence | None = None
+                error_message: str | None = None
 
                 if not executor_class:
                     error_message = f"Ejecutor no definido para {base_slot}"
@@ -10258,17 +10271,18 @@ class Orchestrator:
 
     async def _score_micro_results_async(
             self,
-            micro_results: List[MicroQuestionRun],
-            config: Dict[str, Any],
-    ) -> List[ScoredMicroQuestion]:
+            micro_results: list[MicroQuestionRun],
+            config: dict[str, Any],
+    ) -> list[ScoredMicroQuestion]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[3]
         instrumentation.items_total = len(micro_results)
 
-        from scoring import MicroQuestionScorer, ScoringModality, Evidence as ScoringEvidence
+        from scoring import Evidence as ScoringEvidence
+        from scoring import MicroQuestionScorer, ScoringModality
 
         scorer = MicroQuestionScorer()
-        results: List[ScoredMicroQuestion] = []
+        results: list[ScoredMicroQuestion] = []
         semaphore = asyncio.Semaphore(self.resource_limits.max_workers)
         self.resource_limits.attach_semaphore(semaphore)
 
@@ -10364,20 +10378,20 @@ class Orchestrator:
 
     async def _aggregate_dimensions_async(
             self,
-            scored_results: List[ScoredMicroQuestion],
-            config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+            scored_results: list[ScoredMicroQuestion],
+            config: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[4]
 
-        dimension_map: Dict[str, List[ScoredMicroQuestion]] = {}
+        dimension_map: dict[str, list[ScoredMicroQuestion]] = {}
         for result in scored_results:
             dimension_id = result.metadata.get("dimension_id") if result.metadata else None
             if dimension_id:
                 dimension_map.setdefault(dimension_id, []).append(result)
 
         instrumentation.items_total = len(dimension_map)
-        dimension_scores: List[Dict[str, Any]] = []
+        dimension_scores: list[dict[str, Any]] = []
 
         for dimension_id, items in dimension_map.items():
             self._ensure_not_aborted()
@@ -10399,20 +10413,20 @@ class Orchestrator:
 
     async def _aggregate_policy_areas_async(
             self,
-            dimension_scores: List[Dict[str, Any]],
-            config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+            dimension_scores: list[dict[str, Any]],
+            config: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[5]
 
-        areas: Dict[str, List[Dict[str, Any]]] = {}
+        areas: dict[str, list[dict[str, Any]]] = {}
         for score in dimension_scores:
             area_id = score.get("policy_area_id")
             if area_id:
                 areas.setdefault(area_id, []).append(score)
 
         instrumentation.items_total = len(areas)
-        area_scores: List[Dict[str, Any]] = []
+        area_scores: list[dict[str, Any]] = []
 
         for area_id, scores in areas.items():
             self._ensure_not_aborted()
@@ -10433,13 +10447,13 @@ class Orchestrator:
 
     def _aggregate_clusters(
             self,
-            policy_area_scores: List[Dict[str, Any]],
-            config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+            policy_area_scores: list[dict[str, Any]],
+            config: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[6]
 
-        cluster_map: Dict[str, List[Dict[str, Any]]] = {}
+        cluster_map: dict[str, list[dict[str, Any]]] = {}
         area_cluster_map = config.get("structure_report", {}).get("area_cluster_map", {})
 
         for area_score in policy_area_scores:
@@ -10448,7 +10462,7 @@ class Orchestrator:
             cluster_map.setdefault(cluster_id, []).append(area_score)
 
         instrumentation.items_total = len(cluster_map)
-        cluster_scores: List[Dict[str, Any]] = []
+        cluster_scores: list[dict[str, Any]] = []
 
         for cluster_id, scores in cluster_map.items():
             self._ensure_not_aborted()
@@ -10466,7 +10480,7 @@ class Orchestrator:
 
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[str, Any]:
+    def _evaluate_macro(self, cluster_scores: list[dict[str, Any]], config: dict[str, Any]) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
         start = time.perf_counter()
@@ -10486,21 +10500,21 @@ class Orchestrator:
 
     async def _generate_recommendations(
             self,
-            macro_result: Dict[str, Any],
-            config: Dict[str, Any],
-    ) -> Dict[str, Any]:
+            macro_result: dict[str, Any],
+            config: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
-        
+
         This phase connects to the orchestrator's 3-level flux:
         - MICRO: Uses scored question results from phase 3
         - MESO: Uses cluster aggregations from phase 6
         - MACRO: Uses macro evaluation from phase 7
-        
+
         Args:
             macro_result: Macro evaluation results from phase 7
             config: Configuration dictionary
-            
+
         Returns:
             Dictionary with MICRO, MESO, and MACRO recommendations
         """
@@ -10526,11 +10540,11 @@ class Orchestrator:
             # ========================================================================
             # MICRO LEVEL: Transform scored results to PA-DIM scores
             # ========================================================================
-            micro_scores: Dict[str, float] = {}
+            micro_scores: dict[str, float] = {}
             scored_results = self._context.get('scored_results', [])
 
             # Group by policy area and dimension to calculate average scores
-            pa_dim_groups: Dict[str, List[float]] = {}
+            pa_dim_groups: dict[str, list[float]] = {}
             for result in scored_results:
                 if hasattr(result, 'metadata') and result.metadata:
                     pa_id = result.metadata.get('policy_area_id')
@@ -10553,7 +10567,7 @@ class Orchestrator:
             # ========================================================================
             # MESO LEVEL: Transform cluster scores
             # ========================================================================
-            cluster_data: Dict[str, Any] = {}
+            cluster_data: dict[str, Any] = {}
             cluster_scores = self._context.get('cluster_scores', [])
 
             for cluster in cluster_scores:
@@ -10702,7 +10716,7 @@ class Orchestrator:
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
 
-    def _assemble_report(self, recommendations: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    def _assemble_report(self, recommendations: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[9]
         start = time.perf_counter()
@@ -10719,7 +10733,7 @@ class Orchestrator:
         instrumentation.increment(latency=time.perf_counter() - start)
         return report
 
-    async def _format_and_export(self, report: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _format_and_export(self, report: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[10]
         start = time.perf_counter()

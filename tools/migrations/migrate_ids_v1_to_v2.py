@@ -24,9 +24,12 @@ import hashlib
 import json
 import sys
 from collections import Counter, defaultdict
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -195,7 +198,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_json(path: Path) -> Dict[str, Any]:
+def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -232,7 +235,7 @@ def decimal_normalised(value: float, digits: int = 6) -> float:
     return float(quant)
 
 
-def build_i18n(label_es: str, label_en: str | None = None) -> Dict[str, Any]:
+def build_i18n(label_es: str, label_en: str | None = None) -> dict[str, Any]:
     if label_en is None:
         label_en = label_es
     return {
@@ -245,10 +248,10 @@ def build_i18n(label_es: str, label_en: str | None = None) -> Dict[str, Any]:
 
 
 def migrate_questionnaire(
-    questionnaire: Dict[str, Any],
+    questionnaire: dict[str, Any],
     legacy_modalities: Mapping[str, str] | None = None,
     legacy_policy_area_labels: Mapping[str, str] | None = None,
-) -> Tuple[Dict[str, Any], Dict[str, str], Dict[str, str], Dict[str, List[str]]]:
+) -> tuple[dict[str, Any], dict[str, str], dict[str, str], dict[str, list[str]]]:
     metadata = questionnaire.get("metadata", {})
     legacy_clusters = metadata.get("clusters", [])
     legacy_dimensions = questionnaire.get("dimensiones", {})
@@ -257,8 +260,8 @@ def migrate_questionnaire(
     pa_mapping = {legacy: map_policy_area(legacy) for legacy in LEGACY_POLICY_AREAS}
     dim_mapping = {legacy: map_dimension(legacy) for legacy in LEGACY_DIMENSIONS}
 
-    cluster_by_pa: Dict[str, str] = {}
-    clusters: List[Dict[str, Any]] = []
+    cluster_by_pa: dict[str, str] = {}
+    clusters: list[dict[str, Any]] = []
     for cluster in legacy_clusters:
         cluster_id = cluster["cluster_id"]
         pa_ids = []
@@ -287,14 +290,14 @@ def migrate_questionnaire(
             }
         )
 
-    policy_area_names: Dict[str, str] = dict(legacy_policy_area_labels or {})
+    policy_area_names: dict[str, str] = dict(legacy_policy_area_labels or {})
     for question in questions:
         pa_name = question.get("policy_area_name")
         legacy_pa = question.get("id", "").split("-")[0]
         if legacy_pa and pa_name and legacy_pa not in policy_area_names:
             policy_area_names[legacy_pa] = pa_name
 
-    policy_area_entries: List[Dict[str, Any]] = []
+    policy_area_entries: list[dict[str, Any]] = []
     for legacy_id in LEGACY_POLICY_AREAS:
         policy_area_id = pa_mapping[legacy_id]
         policy_area_entries.append(
@@ -308,7 +311,7 @@ def migrate_questionnaire(
             }
         )
 
-    dimension_entries: List[Dict[str, Any]] = []
+    dimension_entries: list[dict[str, Any]] = []
     for legacy_dim, dim_payload in legacy_dimensions.items():
         dim_id = dim_mapping[legacy_dim]
         dimension_entries.append(
@@ -320,10 +323,10 @@ def migrate_questionnaire(
             }
         )
 
-    question_entries: List[Dict[str, Any]] = []
-    legacy_to_new_qid: Dict[str, str] = {}
-    policy_area_sequence: Dict[str, int] = defaultdict(int)
-    combination_sequence: Dict[Tuple[str, str], int] = defaultdict(int)
+    question_entries: list[dict[str, Any]] = []
+    legacy_to_new_qid: dict[str, str] = {}
+    policy_area_sequence: dict[str, int] = defaultdict(int)
+    combination_sequence: dict[tuple[str, str], int] = defaultdict(int)
 
     questions_sorted = sorted(questions, key=lambda q: q.get("id", ""))
     for index, question in enumerate(questions_sorted, start=1):
@@ -404,8 +407,8 @@ def migrate_questionnaire(
     return migrated, legacy_to_new_qid, pa_mapping, cluster_by_pa
 
 
-def weight_vector_from_mapping(mapping: Mapping[str, Any], pa_mapping: Mapping[str, str]) -> Dict[str, Dict[str, float]]:
-    weights_by_pa: Dict[str, Dict[str, float]] = {}
+def weight_vector_from_mapping(mapping: Mapping[str, Any], pa_mapping: Mapping[str, str]) -> dict[str, dict[str, float]]:
+    weights_by_pa: dict[str, dict[str, float]] = {}
     for legacy_dim, payload in mapping.items():
         dim_id = map_dimension(legacy_dim)
         deca_map = payload.get("decalogo_dimension_mapping", {})
@@ -415,28 +418,28 @@ def weight_vector_from_mapping(mapping: Mapping[str, Any], pa_mapping: Mapping[s
     return {pa_id: normalise_weights(dim_weights) for pa_id, dim_weights in weights_by_pa.items()}
 
 
-def normalise_weights(weights: Mapping[str, float]) -> Dict[str, float]:
+def normalise_weights(weights: Mapping[str, float]) -> dict[str, float]:
     total = sum(weights.values())
     if not total:
-        return {k: 0.0 for k in weights}
+        return dict.fromkeys(weights, 0.0)
     return {k: decimal_normalised(v / total) for k, v in weights.items()}
 
 
 def migrate_rubric(
-    rubric: Dict[str, Any],
-    legacy_questionnaire: Dict[str, Any],
-    migrated_questionnaire: Dict[str, Any],
+    rubric: dict[str, Any],
+    legacy_questionnaire: dict[str, Any],
+    migrated_questionnaire: dict[str, Any],
     legacy_to_new_qid: Mapping[str, str],
     pa_mapping: Mapping[str, str],
     cluster_by_pa: Mapping[str, str],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     legacy_dimensions = legacy_questionnaire.get("dimensiones", {})
     modality_definitions = rubric.get("scoring_modalities", {})
     legacy_questions = rubric.get("questions", [])
     cluster_weights = rubric.get("meso_clusters", {})
     aggregation_levels = rubric.get("aggregation_levels", {})
 
-    question_modality: Dict[str, str] = {}
+    question_modality: dict[str, str] = {}
     for question in legacy_questions:
         legacy_id = question.get("id")
         modality = question.get("scoring_modality", "TYPE_A")
@@ -444,7 +447,7 @@ def migrate_rubric(
             question_modality[legacy_to_new_qid[legacy_id]] = modality
 
     # Build rubric matrix with allowed modalities per PA/DIM
-    modality_counter: Dict[Tuple[str, str], Counter] = defaultdict(Counter)
+    modality_counter: dict[tuple[str, str], Counter] = defaultdict(Counter)
     for legacy_id, new_qid in legacy_to_new_qid.items():
         pa_legacy, dim_legacy, _ = legacy_id.split("-")
         pa_id = pa_mapping[pa_legacy]
@@ -452,7 +455,7 @@ def migrate_rubric(
         modality = question_modality.get(new_qid, "TYPE_A")
         modality_counter[(pa_id, dim_id)][modality] += 1
 
-    rubric_matrix: Dict[str, Dict[str, Any]] = {}
+    rubric_matrix: dict[str, dict[str, Any]] = {}
     for pa_id in POLICY_AREA_IDS:
         rubric_matrix[pa_id] = {}
         for dim_id in DIMENSION_IDS:
@@ -466,7 +469,7 @@ def migrate_rubric(
             }
 
     # Build dimension -> question weights
-    dimension_question_weights: Dict[str, Dict[str, float]] = {dim: {} for dim in DIMENSION_IDS}
+    dimension_question_weights: dict[str, dict[str, float]] = {dim: {} for dim in DIMENSION_IDS}
     for question in migrated_questionnaire["questions"]:
         dim_id = question["dimension_id"]
         qid = question["question_id"]
@@ -484,7 +487,7 @@ def migrate_rubric(
     policy_area_dimension_weights = weight_vector_from_mapping(legacy_dimensions, pa_mapping)
 
     # Cluster weights (policy areas within cluster)
-    cluster_policy_area_weights: Dict[str, Dict[str, float]] = {}
+    cluster_policy_area_weights: dict[str, dict[str, float]] = {}
     for cluster_id, payload in cluster_weights.items():
         pa_weights = {pa_mapping[pa]: weight for pa, weight in payload.get("weights", {}).items()}
         cluster_policy_area_weights[cluster_id] = {
@@ -495,7 +498,7 @@ def migrate_rubric(
     macro_cluster_weights = {cluster: decimal_normalised(weight) for cluster, weight in normalise_weights(macro_weights).items()}
 
     # Scoring modalities enriched metadata
-    scoring_modalities: Dict[str, Any] = {}
+    scoring_modalities: dict[str, Any] = {}
     for modality_id, payload in modality_definitions.items():
         enriched = {
             "name": payload.get("id", modality_id),
@@ -566,7 +569,7 @@ def migrate_rubric(
     return rubric_payload
 
 
-def update_metadata_checksums(questionnaire_path: Path, rubric_path: Path, execution_mapping_path: Path, output_path: Path) -> Dict[str, str]:
+def update_metadata_checksums(questionnaire_path: Path, rubric_path: Path, execution_mapping_path: Path, output_path: Path) -> dict[str, str]:
     questionnaire_payload = load_json(questionnaire_path)
     rubric_payload = load_json(rubric_path)
 
@@ -601,7 +604,7 @@ def main() -> None:
         if item.get("id")
     }
 
-    legacy_policy_area_labels: Dict[str, str] = {}
+    legacy_policy_area_labels: dict[str, str] = {}
     for item in rubric.get("questions", []):
         legacy_id = item.get("id")
         if not legacy_id:

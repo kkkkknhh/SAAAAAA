@@ -4,12 +4,15 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import traceback
-from typing import Iterable, Iterator, List, Sequence, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator, Sequence
 
 PKG_PREFIXES: Sequence[str] = ("core.", "executors.", "orchestrator.")
 
 
-def _iter_modules(prefix: str, errors: List[Tuple[str, BaseException, str]]) -> Iterator[str]:
+def _iter_modules(prefix: str, errors: list[tuple[str, BaseException, str]]) -> Iterator[str]:
     module_name = prefix[:-1]
     try:
         module = importlib.import_module(module_name)
@@ -21,7 +24,7 @@ def _iter_modules(prefix: str, errors: List[Tuple[str, BaseException, str]]) -> 
             yield name
 
 
-def collect_modules(prefixes: Iterable[str], errors: List[Tuple[str, BaseException, str]]) -> List[str]:
+def collect_modules(prefixes: Iterable[str], errors: list[tuple[str, BaseException, str]]) -> list[str]:
     modules = set()
     for prefix in prefixes:
         for name in _iter_modules(prefix, errors):
@@ -30,7 +33,7 @@ def collect_modules(prefixes: Iterable[str], errors: List[Tuple[str, BaseExcepti
 
 
 def main() -> None:
-    errors: List[Tuple[str, BaseException, str]] = []
+    errors: list[tuple[str, BaseException, str]] = []
     modules = collect_modules(PKG_PREFIXES, errors)
     for module_name in modules:
         try:

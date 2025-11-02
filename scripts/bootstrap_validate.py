@@ -23,7 +23,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, Optional
 
 
 def create_virtualenv(venv_path: Path, python_executable: str) -> Path:
@@ -84,7 +83,7 @@ def dry_run_import(venv_python: Path, repo_root: Path) -> None:
     )
 
 
-def load_plan_metadata(metadata_path: Optional[Path], plan_path: Path) -> Dict:
+def load_plan_metadata(metadata_path: Path | None, plan_path: Path) -> dict:
     """Load plan metadata from JSON or synthesize a default payload."""
     if metadata_path:
         print(f"[bootstrap] Loading plan metadata from {metadata_path}")
@@ -104,7 +103,7 @@ def execute_chess_strategy(
     venv_python: Path,
     repo_root: Path,
     plan_path: Path,
-    metadata: Dict,
+    metadata: dict,
     output_dir: Path,
 ) -> None:
     """Run the CHESS strategy end to end using the orchestrator."""

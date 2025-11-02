@@ -19,23 +19,18 @@ Author: CI/CD Integration Team
 Version: 1.0.0
 """
 
-import sys
-import json
 import argparse
+import json
 import logging
-from pathlib import Path
-from typing import List, Tuple, Dict, Any
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from signature_validator import (
-    SignatureRegistry,
-    SignatureAuditor,
-    FunctionSignature,
-    audit_project_signatures
-)
+from signature_validator import FunctionSignature, SignatureRegistry, audit_project_signatures
 
 logger = logging.getLogger(__name__)
 
@@ -45,22 +40,22 @@ class SignatureCIChecker:
     CI/CD integration for signature validation
     Implements regression diffing as described in the mitigation plan
     """
-    
+
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.registry = SignatureRegistry(project_root / "data" / "signature_registry.json")
-        self.changed_signatures: List[Tuple[str, FunctionSignature, FunctionSignature]] = []
-        self.new_signatures: List[FunctionSignature] = []
-    
-    def check_signature_changes(self) -> Tuple[int, int, int]:
+        self.changed_signatures: list[tuple[str, FunctionSignature, FunctionSignature]] = []
+        self.new_signatures: list[FunctionSignature] = []
+
+    def check_signature_changes(self) -> tuple[int, int, int]:
         """
         Check for signature changes in the project
-        
+
         Returns:
             Tuple of (changed_count, new_count, total_count)
         """
         python_files = list(self.project_root.glob("**/*.py"))
-        
+
         # Filter out test files, venv, etc.
         python_files = [
             f for f in python_files
@@ -69,19 +64,19 @@ class SignatureCIChecker:
                 for part in ['test', 'venv', '.venv', '__pycache__', '.git']
             )
         ]
-        
+
         logger.info(f"Checking {len(python_files)} Python files for signature changes")
-        
+
         # This is a simplified implementation
         # A complete implementation would dynamically import and inspect modules
-        
+
         changed_count = len(self.changed_signatures)
         new_count = len(self.new_signatures)
         total_count = len(self.registry.signatures)
-        
+
         return changed_count, new_count, total_count
-    
-    def generate_diff_report(self) -> Dict[str, Any]:
+
+    def generate_diff_report(self) -> dict[str, Any]:
         """Generate a detailed diff report of signature changes"""
         report = {
             "timestamp": datetime.now().isoformat(),
@@ -102,13 +97,13 @@ class SignatureCIChecker:
             ],
             "new_signatures": [sig.to_dict() for sig in self.new_signatures]
         }
-        
+
         return report
-    
+
     def _is_breaking_change(self, old: FunctionSignature, new: FunctionSignature) -> bool:
         """
         Determine if a signature change is a breaking change
-        
+
         Breaking changes include:
         - Removed required parameters
         - Changed parameter order
@@ -117,39 +112,36 @@ class SignatureCIChecker:
         # Check if required parameters were removed
         old_params = set(old.parameters)
         new_params = set(new.parameters)
-        
+
         removed_params = old_params - new_params
         if removed_params:
             return True
-        
+
         # Check if parameter order changed (for positional arguments)
-        if old.parameters != new.parameters:
-            return True
-        
-        return False
-    
+        return old.parameters != new.parameters
+
     def export_diff_report(self, output_path: Path):
         """Export diff report to JSON"""
         report = self.generate_diff_report()
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(report, f, indent=2)
-        
+
         logger.info(f"Exported signature diff report to {output_path}")
-    
+
     def print_summary(self):
         """Print a summary of signature changes to console"""
         print("\n" + "=" * 70)
         print("SIGNATURE VALIDATION SUMMARY")
         print("=" * 70)
-        
+
         changed, new, total = len(self.changed_signatures), len(self.new_signatures), len(self.registry.signatures)
-        
+
         print(f"Total registered signatures: {total}")
         print(f"Changed signatures: {changed}")
         print(f"New signatures: {new}")
-        
+
         if self.changed_signatures:
             print("\nChanged Signatures:")
             for key, old, new in self.changed_signatures[:10]:  # Show first 10
@@ -157,10 +149,10 @@ class SignatureCIChecker:
                 print(f"  - {key}{breaking}")
                 print(f"    Old: {old.parameters}")
                 print(f"    New: {new.parameters}")
-        
+
         if len(self.changed_signatures) > 10:
             print(f"  ... and {len(self.changed_signatures) - 10} more")
-        
+
         print("=" * 70 + "\n")
 
 
@@ -196,29 +188,29 @@ def main():
         action="store_true",
         help="Enable verbose logging"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     # Run signature check
     checker = SignatureCIChecker(args.project_root)
     changed, new, total = checker.check_signature_changes()
-    
+
     # Export report
     checker.export_diff_report(args.output)
-    
+
     # Print summary
     checker.print_summary()
-    
+
     # Determine exit code
     exit_code = 0
-    
+
     if args.fail_on_breaking:
         # Check if any changes are breaking
         breaking_changes = [
@@ -234,20 +226,20 @@ def main():
             print(f"ERROR: {changed} signature changes detected!")
             print("Signature changes require manual review and approval.")
             exit_code = 1
-    
+
     # Also run audit for mismatches
     logger.info("Running signature audit for mismatches...")
     mismatches = audit_project_signatures(
         args.project_root,
         output_path=args.output.parent / "signature_audit_report.json"
     )
-    
+
     if mismatches:
         print(f"\nWARNING: {len(mismatches)} signature mismatches detected in code!")
         print("See signature_audit_report.json for details.")
         if args.fail_on_changes:
             exit_code = 1
-    
+
     sys.exit(exit_code)
 
 

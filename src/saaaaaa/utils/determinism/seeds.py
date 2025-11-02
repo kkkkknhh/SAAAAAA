@@ -6,7 +6,10 @@ import hashlib
 import os
 import random
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 try:
     import numpy as np
@@ -21,7 +24,7 @@ class SeedFactory:
 
     DEFAULT_SALT = b"PDM_DETERMINISM_SALT_2025"
 
-    def __init__(self, salt: Optional[bytes] = None):
+    def __init__(self, salt: bytes | None = None) -> None:
         self._salt = salt or self.DEFAULT_SALT
 
     def derive_seed(self, components: Iterable[str]) -> int:
@@ -52,7 +55,7 @@ class DeterministicContext:
     questionnaire_hash: str
     run_id: str
     seed: int
-    numpy_rng: Optional["np.random.Generator"] = None
+    numpy_rng: np.random.Generator | None = None
 
     def apply(self) -> None:
         """Apply deterministic seeding across the runtime environment."""
@@ -68,7 +71,7 @@ class DeterministicContext:
         factory: SeedFactory,
         questionnaire_hash: str,
         run_id: str
-    ) -> "DeterministicContext":
+    ) -> DeterministicContext:
         seed = factory.derive_run_seed(questionnaire_hash, run_id)
         context = cls(questionnaire_hash=questionnaire_hash, run_id=run_id, seed=seed)
         context.apply()

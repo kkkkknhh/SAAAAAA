@@ -3,19 +3,19 @@
 import ast
 import json
 from pathlib import Path
-from typing import Dict, List
 
-def count_methods_in_class(filepath: Path, class_name: str) -> Dict[str, int]:
+
+def count_methods_in_class(filepath: Path, class_name: str) -> dict[str, int]:
     """Count public and private methods in a class"""
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding='utf-8') as f:
         tree = ast.parse(f.read())
-    
+
     method_counts = {
         "public": 0,
         "private": 0,
         "total": 0
     }
-    
+
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == class_name:
             for item in node.body:
@@ -25,7 +25,7 @@ def count_methods_in_class(filepath: Path, class_name: str) -> Dict[str, int]:
                     else:
                         method_counts["private"] += 1
                     method_counts["total"] += 1
-    
+
     return method_counts
 
 # Count methods in each Producer

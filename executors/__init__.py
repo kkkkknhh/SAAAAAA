@@ -7,8 +7,9 @@ New code should import directly from saaaaaa.core.orchestrator.executors,
 not from this compatibility layer.
 """
 from __future__ import annotations
-from pathlib import Path
+
 import sys
+from pathlib import Path
 
 # Add src to path for development environments
 _SRC_PATH = Path(__file__).resolve().parent.parent / "src"

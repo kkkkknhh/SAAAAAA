@@ -12,29 +12,27 @@ This follows the Ports and Adapters (Hexagonal) architecture pattern:
 Version: 1.0.0
 """
 
-from abc import ABC, abstractmethod
-from typing import Protocol, Dict, Any, Optional
 from datetime import datetime
-from pathlib import Path
+from typing import Any, Protocol
 
 
 class FilePort(Protocol):
     """Port for file system operations.
-    
+
     Implementations provide access to file reading and writing.
     Core modules receive a FilePort instance via dependency injection.
     """
 
     def read_text(self, path: str, encoding: str = "utf-8") -> str:
         """Read text from a file.
-        
+
         Args:
             path: File path to read
             encoding: Text encoding (default: utf-8)
-            
+
         Returns:
             File contents as string
-            
+
         Raises:
             FileNotFoundError: If file does not exist
             PermissionError: If file cannot be read
@@ -43,12 +41,12 @@ class FilePort(Protocol):
 
     def write_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
         """Write text to a file.
-        
+
         Args:
             path: File path to write
             content: Text content to write
             encoding: Text encoding (default: utf-8)
-            
+
         Raises:
             PermissionError: If file cannot be written
         """
@@ -56,13 +54,13 @@ class FilePort(Protocol):
 
     def read_bytes(self, path: str) -> bytes:
         """Read bytes from a file.
-        
+
         Args:
             path: File path to read
-            
+
         Returns:
             File contents as bytes
-            
+
         Raises:
             FileNotFoundError: If file does not exist
             PermissionError: If file cannot be read
@@ -71,11 +69,11 @@ class FilePort(Protocol):
 
     def write_bytes(self, path: str, content: bytes) -> None:
         """Write bytes to a file.
-        
+
         Args:
             path: File path to write
             content: Bytes content to write
-            
+
         Raises:
             PermissionError: If file cannot be written
         """
@@ -83,10 +81,10 @@ class FilePort(Protocol):
 
     def exists(self, path: str) -> bool:
         """Check if a file or directory exists.
-        
+
         Args:
             path: Path to check
-            
+
         Returns:
             True if path exists, False otherwise
         """
@@ -94,12 +92,12 @@ class FilePort(Protocol):
 
     def mkdir(self, path: str, parents: bool = False, exist_ok: bool = False) -> None:
         """Create a directory.
-        
+
         Args:
             path: Directory path to create
             parents: Create parent directories if needed
             exist_ok: Don't raise error if directory exists
-            
+
         Raises:
             FileExistsError: If directory exists and exist_ok is False
         """
@@ -108,34 +106,34 @@ class FilePort(Protocol):
 
 class JsonPort(Protocol):
     """Port for JSON serialization/deserialization.
-    
+
     Separates JSON operations from file I/O for better composability.
     """
 
     def loads(self, text: str) -> Any:
         """Parse JSON from string.
-        
+
         Args:
             text: JSON string
-            
+
         Returns:
             Parsed Python object
-            
+
         Raises:
             ValueError: If JSON is invalid
         """
         ...
 
-    def dumps(self, obj: Any, indent: Optional[int] = None) -> str:
+    def dumps(self, obj: Any, indent: int | None = None) -> str:
         """Serialize object to JSON string.
-        
+
         Args:
             obj: Python object to serialize
             indent: Indentation spaces (None for compact)
-            
+
         Returns:
             JSON string
-            
+
         Raises:
             TypeError: If object is not serializable
         """
@@ -144,17 +142,17 @@ class JsonPort(Protocol):
 
 class EnvPort(Protocol):
     """Port for environment variable access.
-    
+
     Allows core modules to access configuration without direct os.environ coupling.
     """
 
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, default: str | None = None) -> str | None:
         """Get environment variable.
-        
+
         Args:
             key: Environment variable name
             default: Default value if not set
-            
+
         Returns:
             Environment variable value or default
         """
@@ -162,13 +160,13 @@ class EnvPort(Protocol):
 
     def get_required(self, key: str) -> str:
         """Get required environment variable.
-        
+
         Args:
             key: Environment variable name
-            
+
         Returns:
             Environment variable value
-            
+
         Raises:
             ValueError: If environment variable is not set
         """
@@ -176,11 +174,11 @@ class EnvPort(Protocol):
 
     def get_bool(self, key: str, default: bool = False) -> bool:
         """Get environment variable as boolean.
-        
+
         Args:
             key: Environment variable name
             default: Default value if not set
-            
+
         Returns:
             Boolean value (true/false/yes/no/1/0)
         """
@@ -189,14 +187,14 @@ class EnvPort(Protocol):
 
 class ClockPort(Protocol):
     """Port for time operations.
-    
+
     Allows core modules to get current time without direct datetime.now() calls.
     Enables time manipulation in tests.
     """
 
     def now(self) -> datetime:
         """Get current datetime.
-        
+
         Returns:
             Current datetime
         """
@@ -204,7 +202,7 @@ class ClockPort(Protocol):
 
     def utcnow(self) -> datetime:
         """Get current UTC datetime.
-        
+
         Returns:
             Current UTC datetime
         """
@@ -213,7 +211,7 @@ class ClockPort(Protocol):
 
 class LogPort(Protocol):
     """Port for logging operations.
-    
+
     Allows core modules to log without coupling to specific logging framework.
     """
 

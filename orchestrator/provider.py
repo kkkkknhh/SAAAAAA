@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict
+from typing import Any
 
 from saaaaaa.core.orchestrator import get_questionnaire_provider as _core_get_provider
 
 ALLOWED_PACKAGES = {"orchestrator", "saaaaaa", "scripts", "build_monolith", "__main__"}
 
 
-def _resolve_root_package(frame_globals: Dict[str, Any]) -> str:
+def _resolve_root_package(frame_globals: dict[str, Any]) -> str:
     """Return the root package for the caller represented by *frame_globals*."""
     package = frame_globals.get("__package__")
     if package:
