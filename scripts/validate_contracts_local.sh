@@ -23,6 +23,10 @@ NC='\033[0m' # No Color
 # Track overall status
 FAILED=0
 
+# Create unique temporary file
+TMP_OUTPUT=$(mktemp)
+trap "rm -f $TMP_OUTPUT" EXIT
+
 # Function to run a check
 run_check() {
     local name="$1"
@@ -30,13 +34,13 @@ run_check() {
     
     echo -n "Running: $name ... "
     
-    if eval "$command" > /tmp/check_output.log 2>&1; then
+    if eval "$command" > "$TMP_OUTPUT" 2>&1; then
         echo -e "${GREEN}✓ PASSED${NC}"
         return 0
     else
         echo -e "${RED}✗ FAILED${NC}"
         echo "Error output:"
-        cat /tmp/check_output.log | head -20
+        cat "$TMP_OUTPUT" | head -20
         echo ""
         FAILED=$((FAILED + 1))
         return 1
