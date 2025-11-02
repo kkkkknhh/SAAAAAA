@@ -271,12 +271,15 @@ from saaaaaa.utils.contracts import ProducerContract, ScoringModality
 from saaaaaa.utils.validation.schema_validator import SchemaValidator
 ```
 
-**Legacy Structure (Backward Compatible)**:
+**Legacy Structure (DEPRECATED - DO NOT USE)**:
 ```python
-# Still works via compatibility shims
-from orchestrator.core import Orchestrator
-from concurrency import TaskExecutor
+# DEPRECATED: These imports are maintained for backward compatibility only
+# Use the new structure above instead
+from orchestrator.core import Orchestrator  # DEPRECATED
+from concurrency import TaskExecutor  # DEPRECATED
 ```
+
+**⚠️ Important**: The legacy `orchestrator` module is deprecated. All new code and examples should use the new structure with `saaaaaa.core.orchestrator` instead.
 
 #### Resolving Import Conflicts
 
