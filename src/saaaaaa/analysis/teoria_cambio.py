@@ -409,6 +409,21 @@ class TeoriaCambio:
             )
         return sugerencias
 
+    def _execute_generar_sugerencias_internas(self, validacion: 'ValidacionResultado') -> List[str]:
+        """
+        Execute internal suggestion generation (wrapper method).
+        
+        This method wraps the static _generar_sugerencias_internas method
+        to allow it to be called via the method executor interface.
+        
+        Args:
+            validacion: Validation result object
+            
+        Returns:
+            List of actionable suggestions
+        """
+        return self._generar_sugerencias_internas(validacion)
+
 
 # ============================================================================
 # 4. VALIDADOR ESTOCÁSTICO AVANZADO DE DAGs
