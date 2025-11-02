@@ -18,42 +18,39 @@ Author: Policy Analytics Research Unit
 License: Proprietary
 """
 
-import json
 import logging
 import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, FrozenSet, List, Optional, Set, Tuple, Union
-
-if TYPE_CHECKING:
-    from contradiction_deteccion import PolicyContradictionDetector as _PolicyContradictionDetector
+from typing import Any, ClassVar, Optional
 
 import numpy as np
-from functools import lru_cache
-from itertools import chain
 
 # Import runtime error fixes for defensive programming
-from saaaaaa.utils.runtime_error_fixes import ensure_list_return, safe_text_extract
+from saaaaaa.utils.runtime_error_fixes import ensure_list_return
 
 try:
     from saaaaaa.analysis.contradiction_deteccion import (
         BayesianConfidenceCalculator,
         PolicyContradictionDetector,
         TemporalLogicVerifier,
+    )
+    from saaaaaa.analysis.contradiction_deteccion import (
         PolicyDimension as ContradictionPolicyDimension,
     )
     CONTRADICTION_MODULE_AVAILABLE = True
 except Exception as import_error:  # pragma: no cover - safety net for heavy deps
     CONTRADICTION_MODULE_AVAILABLE = False
-    
+
     # In production/CI, require the module to be available
     import os
     if os.getenv('REQUIRE_CONTRADICTION_MODULE', '').lower() in ('true', '1', 'yes'):
         raise ImportError(f"Contradiction detection module is required but not available: {import_error}")
-    
+
     logger = logging.getLogger(__name__)
     logger.warning(
         "Falling back to lightweight contradiction components due to import error: %s",
@@ -77,7 +74,7 @@ except Exception as import_error:  # pragma: no cover - safety net for heavy dep
     class TemporalLogicVerifier:  # type: ignore[misc]
         """Fallback temporal verifier providing graceful degradation."""
 
-        def verify_temporal_consistency(self, statements: List[Any]) -> Tuple[bool, List[Dict[str, Any]]]:
+        def verify_temporal_consistency(self, statements: list[Any]) -> tuple[bool, list[dict[str, Any]]]:
             return True, []
 
     class _FallbackContradictionDetector:
@@ -86,7 +83,7 @@ except Exception as import_error:  # pragma: no cover - safety net for heavy dep
             text: str,
             plan_name: str = "PDM",
             dimension: Any = None,
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             return {
                 "plan_name": plan_name,
                 "dimension": getattr(dimension, "value", "unknown"),
@@ -98,7 +95,7 @@ except Exception as import_error:  # pragma: no cover - safety net for heavy dep
                 "knowledge_graph_stats": {"nodes": 0, "edges": 0, "components": 0},
             }
 
-        def _extract_policy_statements(self, text: str, dimension: Any) -> List[Any]:
+        def _extract_policy_statements(self, text: str, dimension: Any) -> list[Any]:
             return []
 
     PolicyContradictionDetector = _FallbackContradictionDetector  # type: ignore[misc]
@@ -118,8 +115,7 @@ from saaaaaa.analysis.Analyzer_one import (
     PerformanceAnalyzer,
     SemanticAnalyzer,
 )
-from saaaaaa.analysis.financiero_viabilidad_tablas import QualityScore, PDETAnalysisException
-from saaaaaa.core.orchestrator import get_questionnaire_provider
+from saaaaaa.analysis.financiero_viabilidad_tablas import PDETAnalysisException, QualityScore
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -148,7 +144,7 @@ class CausalDimension(Enum):
 # ENHANCED PATTERN LIBRARY WITH SEMANTIC HIERARCHIES
 # ============================================================================
 
-CAUSAL_PATTERN_TAXONOMY: Dict[CausalDimension, Dict[str, List[str]]] = {
+CAUSAL_PATTERN_TAXONOMY: dict[CausalDimension, dict[str, list[str]]] = {
     CausalDimension.D1_INSUMOS: {
         "diagnostico_cuantitativo": [
             r"\b(?:diagn[óo]stico\s+(?:cuantitativo|estad[íi]stico|situacional))\b",
@@ -315,7 +311,7 @@ class ProcessorConfig:
     max_sentence_length: int = 500
     bayesian_prior_confidence: float = 0.5
     bayesian_entropy_weight: float = 0.3
-    minimum_dimension_scores: Dict[str, float] = field(
+    minimum_dimension_scores: dict[str, float] = field(
         default_factory=lambda: {
             "D1": 0.50,
             "D2": 0.50,
@@ -325,10 +321,10 @@ class ProcessorConfig:
             "D6": 0.50,
         }
     )
-    critical_dimension_overrides: Dict[str, float] = field(
+    critical_dimension_overrides: dict[str, float] = field(
         default_factory=lambda: {"D1": 0.55, "D6": 0.55}
     )
-    differential_focus_indicators: Tuple[str, ...] = (
+    differential_focus_indicators: tuple[str, ...] = (
         "enfoque diferencial",
         "enfoque de género",
         "mujeres rurales",
@@ -339,7 +335,7 @@ class ProcessorConfig:
         "juventud rural",
         "comunidades ribereñas",
     )
-    adaptability_indicators: Tuple[str, ...] = (
+    adaptability_indicators: tuple[str, ...] = (
         "mecanismo de ajuste",
         "retroalimentación",
         "aprendizaje",
@@ -349,7 +345,7 @@ class ProcessorConfig:
         "evaluación continua",
     )
 
-    LEGACY_PARAM_MAP: ClassVar[Dict[str, str]] = {
+    LEGACY_PARAM_MAP: ClassVar[dict[str, str]] = {
         "keep_structure": "preserve_document_structure",
         "tag_elements": "enable_semantic_tagging",
         "threshold": "confidence_threshold",
@@ -400,14 +396,14 @@ class BayesianEvidenceScorer:
     with automatic calibration against ground-truth policy corpora.
     """
 
-    def __init__(self, prior_confidence: float = 0.5, entropy_weight: float = 0.3):
+    def __init__(self, prior_confidence: float = 0.5, entropy_weight: float = 0.3) -> None:
         self.prior = prior_confidence
         self.entropy_weight = entropy_weight
-        self._evidence_cache: Dict[str, float] = {}
+        self._evidence_cache: dict[str, float] = {}
 
     def compute_evidence_score(
         self,
-        matches: List[str],
+        matches: list[str],
         total_corpus_size: int,
         pattern_specificity: float = 0.8,
         **kwargs: Any
@@ -450,11 +446,11 @@ class BayesianEvidenceScorer:
     @staticmethod
     def _calculate_shannon_entropy(values: np.ndarray, **kwargs: Any) -> float:
         """Calculate normalized Shannon entropy for value distribution.
-        
+
         Args:
             values: Array of numerical values
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             Normalized Shannon entropy
         """
@@ -482,9 +478,9 @@ class PolicyTextProcessor:
     coherence-preserving normalization for policy document analysis.
     """
 
-    def __init__(self, config: ProcessorConfig):
+    def __init__(self, config: ProcessorConfig) -> None:
         self.config = config
-        self._compiled_patterns: Dict[str, re.Pattern] = {}
+        self._compiled_patterns: dict[str, re.Pattern] = {}
         self._sentence_boundaries = re.compile(
             r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])|(?<=\n\n)"
         )
@@ -493,15 +489,15 @@ class PolicyTextProcessor:
         """Apply canonical Unicode normalization (NFC/NFKC)."""
         return unicodedata.normalize(self.config.utf8_normalization_form, text)
 
-    def segment_into_sentences(self, text: str, **kwargs: Any) -> List[str]:
+    def segment_into_sentences(self, text: str, **kwargs: Any) -> list[str]:
         """
         Segment text into sentences with context-aware boundary detection.
         Handles abbreviations, numerical lists, and Colombian naming conventions.
-        
+
         Args:
             text: Input text to segment
             **kwargs: Additional optional parameters for compatibility
-        
+
         Returns:
             List of sentence strings
         """
@@ -557,12 +553,12 @@ class EvidenceBundle:
 
     dimension: CausalDimension
     category: str
-    matches: List[str] = field(default_factory=list)
+    matches: list[str] = field(default_factory=list)
     confidence: float = 0.0
-    context_windows: List[str] = field(default_factory=list)
-    match_positions: List[int] = field(default_factory=list)
+    context_windows: list[str] = field(default_factory=list)
+    match_positions: list[int] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "dimension": self.dimension.value,
             "category": self.category,
@@ -584,17 +580,17 @@ class IndustrialPolicyProcessor:
 
     def __init__(
         self,
-        config: Optional[ProcessorConfig] = None,
-        questionnaire_path: Optional[Path] = None,
+        config: ProcessorConfig | None = None,
+        questionnaire_path: Path | None = None,
         *,
-        ontology: Optional[MunicipalOntology] = None,
-        semantic_analyzer: Optional[SemanticAnalyzer] = None,
-        performance_analyzer: Optional[PerformanceAnalyzer] = None,
+        ontology: MunicipalOntology | None = None,
+        semantic_analyzer: SemanticAnalyzer | None = None,
+        performance_analyzer: PerformanceAnalyzer | None = None,
         contradiction_detector: Optional["PolicyContradictionDetector"] = None,
-        temporal_verifier: Optional[TemporalLogicVerifier] = None,
-        confidence_calculator: Optional[BayesianConfidenceCalculator] = None,
-        municipal_analyzer: Optional[MunicipalAnalyzer] = None,
-    ):
+        temporal_verifier: TemporalLogicVerifier | None = None,
+        confidence_calculator: BayesianConfidenceCalculator | None = None,
+        municipal_analyzer: MunicipalAnalyzer | None = None,
+    ) -> None:
         self.config = config or ProcessorConfig()
         self.config.validate()
 
@@ -620,17 +616,17 @@ class IndustrialPolicyProcessor:
         self._pattern_registry = self._compile_pattern_registry()
 
         # Policy point keyword extraction
-        self.point_patterns: Dict[str, re.Pattern] = {}
+        self.point_patterns: dict[str, re.Pattern] = {}
         self._build_point_patterns()
 
         # Processing statistics
-        self.statistics: Dict[str, Any] = defaultdict(int)
+        self.statistics: dict[str, Any] = defaultdict(int)
 
-    def _load_questionnaire(self) -> Dict[str, Any]:
+    def _load_questionnaire(self) -> dict[str, Any]:
         """Load and validate DECALOGO questionnaire structure."""
         # Delegate to factory for I/O operation
         from .factory import load_json
-        
+
         try:
             data = load_json(self.questionnaire_file_path)
 
@@ -640,9 +636,9 @@ class IndustrialPolicyProcessor:
             return data
         except Exception as e:
             logger.error(f"Failed to load questionnaire: {e}")
-            raise IOError(f"Questionnaire unavailable: {self.questionnaire_file_path}") from e
+            raise OSError(f"Questionnaire unavailable: {self.questionnaire_file_path}") from e
 
-    def _compile_pattern_registry(self) -> Dict[CausalDimension, Dict[str, List[re.Pattern]]]:
+    def _compile_pattern_registry(self) -> dict[CausalDimension, dict[str, list[re.Pattern]]]:
         """Compile all causal patterns into efficient regex objects."""
         registry = {}
         for dimension, categories in CAUSAL_PATTERN_TAXONOMY.items():
@@ -655,7 +651,7 @@ class IndustrialPolicyProcessor:
 
     def _build_point_patterns(self) -> None:
         """Extract and compile patterns for each policy point from questionnaire."""
-        point_keywords: Dict[str, Set[str]] = defaultdict(set)
+        point_keywords: dict[str, set[str]] = defaultdict(set)
 
         for question in self.questionnaire_data.get("questions", []):
             point_code = question.get("point_code")
@@ -682,7 +678,7 @@ class IndustrialPolicyProcessor:
 
         logger.info(f"Compiled patterns for {len(self.point_patterns)} policy points")
 
-    def process(self, raw_text: str, **kwargs: Any) -> Dict[str, Any]:
+    def process(self, raw_text: str, **kwargs: Any) -> dict[str, Any]:
         """
         Execute comprehensive policy plan analysis.
 
@@ -776,16 +772,16 @@ class IndustrialPolicyProcessor:
         }
 
     def _match_patterns_in_sentences(
-        self, compiled_patterns: List, relevant_sentences: List[str], **kwargs: Any
-    ) -> Tuple[List[str], List[int]]:
+        self, compiled_patterns: list, relevant_sentences: list[str], **kwargs: Any
+    ) -> tuple[list[str], list[int]]:
         """
         Execute pattern matching across relevant sentences and collect matches with positions.
-        
+
         Args:
             compiled_patterns: List of compiled regex patterns to match
             relevant_sentences: Filtered sentences to search within
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Tuple of (matched_strings, match_positions)
         """
@@ -801,17 +797,17 @@ class IndustrialPolicyProcessor:
         return matches, positions
 
     def _compute_evidence_confidence(
-        self, matches: List[str], text_length: int, pattern_specificity: float, **kwargs: Any
+        self, matches: list[str], text_length: int, pattern_specificity: float, **kwargs: Any
     ) -> float:
         """
         Calculate confidence score for evidence based on pattern matches and contextual factors.
-        
+
         Args:
             matches: List of matched pattern strings
             text_length: Total length of the document text
             pattern_specificity: Specificity coefficient for pattern weighting
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Computed confidence score
         """
@@ -824,14 +820,14 @@ class IndustrialPolicyProcessor:
         self,
         dimension: CausalDimension,
         category: str,
-        matches: List[str],
-        positions: List[int],
+        matches: list[str],
+        positions: list[int],
         confidence: float,
         **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Assemble evidence bundle from matched patterns and computed confidence.
-        
+
         Args:
             dimension: Causal dimension classification
             category: Specific category within dimension
@@ -839,7 +835,7 @@ class IndustrialPolicyProcessor:
             positions: List of match positions in text
             confidence: Computed confidence score
             **kwargs: Additional optional parameters for compatibility
-            
+
         Returns:
             Serialized evidence bundle dictionary
         """
@@ -853,8 +849,8 @@ class IndustrialPolicyProcessor:
         return bundle.to_dict()
 
     def _run_contradiction_analysis(
-        self, text: str, metadata: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, text: str, metadata: dict[str, Any]
+    ) -> dict[str, Any]:
         """Execute contradiction and temporal diagnostics across all dimensions."""
 
         if not self.contradiction_detector:
@@ -879,12 +875,12 @@ class IndustrialPolicyProcessor:
             CausalDimension.D6_CAUSALIDAD: 1.2,
         }
 
-        reports: Dict[str, Any] = {}
-        temporal_assessments: Dict[str, Any] = {}
-        bayesian_scores: Dict[str, float] = {}
-        critical_links: Dict[str, Any] = {}
-        risk_assessment: Dict[str, Any] = {}
-        intervention_recommendations: Dict[str, Any] = {}
+        reports: dict[str, Any] = {}
+        temporal_assessments: dict[str, Any] = {}
+        bayesian_scores: dict[str, float] = {}
+        critical_links: dict[str, Any] = {}
+        risk_assessment: dict[str, Any] = {}
+        intervention_recommendations: dict[str, Any] = {}
 
         for dimension in CausalDimension:
             policy_dimension = dimension_mapping.get(dimension)
@@ -964,9 +960,9 @@ class IndustrialPolicyProcessor:
 
     def _calculate_quality_score(
         self,
-        dimension_analysis: Dict[str, Any],
-        contradiction_bundle: Dict[str, Any],
-        performance_analysis: Dict[str, Any],
+        dimension_analysis: dict[str, Any],
+        contradiction_bundle: dict[str, Any],
+        performance_analysis: dict[str, Any],
     ) -> QualityScore:
         """Aggregate key indicators into a structured QualityScore dataclass."""
 
@@ -1031,8 +1027,8 @@ class IndustrialPolicyProcessor:
         )
 
     def _extract_point_evidence(
-        self, text: str, sentences: List[str], point_code: str
-    ) -> Dict[str, Any]:
+        self, text: str, sentences: list[str], point_code: str
+    ) -> dict[str, Any]:
         """Extract evidence for a specific policy point across all dimensions."""
         pattern = self.point_patterns.get(point_code)
         if not pattern:
@@ -1070,19 +1066,19 @@ class IndustrialPolicyProcessor:
         return evidence_by_dimension
 
     def _analyze_causal_dimensions(
-        self, text: str, sentences: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        self, text: str, sentences: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Perform global analysis of causal dimensions across entire document.
-        
+
         Args:
             text: Full document text
-            sentences: Optional pre-segmented sentences. If not provided, will be 
+            sentences: Optional pre-segmented sentences. If not provided, will be
                       automatically extracted from text using the text processor.
-        
+
         Returns:
             Dictionary containing dimension scores and confidence metrics
-        
+
         Note:
             This function requires 'sentences' for optimal performance. If not provided,
             sentences will be extracted from text automatically, which may impact performance.
@@ -1096,7 +1092,7 @@ class IndustrialPolicyProcessor:
             )
             # Auto-extract sentences if not provided
             sentences = self.text_processor.segment_into_sentences(text)
-        
+
         dimension_scores = {}
 
         for dimension, categories in self._pattern_registry.items():
@@ -1133,7 +1129,7 @@ class IndustrialPolicyProcessor:
         return dimension_scores
 
     @staticmethod
-    def _extract_metadata(text: str) -> Dict[str, Any]:
+    def _extract_metadata(text: str) -> dict[str, Any]:
         """Extract key metadata from policy document header."""
         # Title extraction
         title_match = re.search(
@@ -1164,7 +1160,7 @@ class IndustrialPolicyProcessor:
         }
 
     @staticmethod
-    def _compute_avg_confidence(dimension_analysis: Dict[str, Any]) -> float:
+    def _compute_avg_confidence(dimension_analysis: dict[str, Any]) -> float:
         """Calculate average confidence across all dimensions."""
         confidences = [
             dim_data["dimension_confidence"]
@@ -1173,7 +1169,7 @@ class IndustrialPolicyProcessor:
         ]
         return round(np.mean(confidences), 4) if confidences else 0.0
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """Return structure for failed/empty processing."""
         return {
             "metadata": {},
@@ -1190,12 +1186,12 @@ class IndustrialPolicyProcessor:
         }
 
     def export_results(
-        self, results: Dict[str, Any], output_path: Union[str, Path]
+        self, results: dict[str, Any], output_path: str | Path
     ) -> None:
         """Export analysis results to JSON with formatted output."""
         # Delegate to factory for I/O operation
         from .factory import save_json
-        
+
         save_json(results, output_path)
         logger.info(f"Results exported to {output_path}")
 
@@ -1210,9 +1206,9 @@ class AdvancedTextSanitizer:
     critical policy elements with differential privacy guarantees.
     """
 
-    def __init__(self, config: ProcessorConfig):
+    def __init__(self, config: ProcessorConfig) -> None:
         self.config = config
-        self.protection_markers: Dict[str, Tuple[str, str]] = {
+        self.protection_markers: dict[str, tuple[str, str]] = {
             "heading": ("__HEAD_START__", "__HEAD_END__"),
             "list_item": ("__LIST_START__", "__LIST_END__"),
             "table_cell": ("__TABLE_START__", "__TABLE_END__"),
@@ -1290,7 +1286,7 @@ class AdvancedTextSanitizer:
     def _restore_structure(self, text: str) -> str:
         """Remove protection markers after sanitization."""
         restored = text
-        for marker_type, (start_mark, end_mark) in self.protection_markers.items():
+        for _marker_type, (start_mark, end_mark) in self.protection_markers.items():
             restored = restored.replace(start_mark, "")
             restored = restored.replace(end_mark, "")
         return restored
@@ -1309,7 +1305,7 @@ class ResilientFileHandler:
     ENCODINGS = ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]
 
     @classmethod
-    def read_text(cls, file_path: Union[str, Path]) -> str:
+    def read_text(cls, file_path: str | Path) -> str:
         """
         Read text file with automatic encoding detection and fallback cascade.
 
@@ -1324,18 +1320,18 @@ class ResilientFileHandler:
         """
         # Delegate to factory for I/O operation
         from .factory import read_text_file
-        
+
         try:
             return read_text_file(file_path, encodings=list(cls.ENCODINGS))
         except Exception as e:
-            raise IOError(f"Failed to read {file_path} with any supported encoding") from e
+            raise OSError(f"Failed to read {file_path} with any supported encoding") from e
 
     @classmethod
-    def write_text(cls, content: str, file_path: Union[str, Path]) -> None:
+    def write_text(cls, content: str, file_path: str | Path) -> None:
         """Write text content with UTF-8 encoding and directory creation."""
         # Delegate to factory for I/O operation
         from .factory import write_text_file
-        
+
         write_text_file(content, file_path)
 
 
@@ -1351,9 +1347,9 @@ class PolicyAnalysisPipeline:
 
     def __init__(
         self,
-        config: Optional[ProcessorConfig] = None,
-        questionnaire_path: Optional[Path] = None,
-    ):
+        config: ProcessorConfig | None = None,
+        questionnaire_path: Path | None = None,
+    ) -> None:
         self.config = config or ProcessorConfig()
         self.sanitizer = AdvancedTextSanitizer(self.config)
 
@@ -1381,9 +1377,9 @@ class PolicyAnalysisPipeline:
 
     def analyze_file(
         self,
-        input_path: Union[str, Path],
-        output_path: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
+        input_path: str | Path,
+        output_path: str | Path | None = None,
+    ) -> dict[str, Any]:
         """
         Execute complete analysis pipeline on a policy document file.
 
@@ -1430,7 +1426,7 @@ class PolicyAnalysisPipeline:
         logger.info(f"Analysis complete: {results['processing_status']}")
         return results
 
-    def analyze_text(self, raw_text: str) -> Dict[str, Any]:
+    def analyze_text(self, raw_text: str) -> dict[str, Any]:
         """
         Execute analysis pipeline on raw text input.
 
@@ -1479,7 +1475,7 @@ def create_policy_processor(
 # COMMAND-LINE INTERFACE
 # ============================================================================
 
-def main():
+def main() -> None:
     """Command-line interface for policy plan analysis."""
     import argparse
 

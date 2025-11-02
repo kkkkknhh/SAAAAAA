@@ -196,7 +196,7 @@ python3 scripts/validate_imports.py
 
 # Test core imports
 python3 -c "
-from saaaaaa.core import ORCHESTRATOR_MONILITH
+from saaaaaa.core.orchestrator import Orchestrator, MethodExecutor
 from saaaaaa.processing import document_ingestion
 from saaaaaa.analysis import bayesian_multilevel_system
 print('✓ Core modules imported successfully')
@@ -248,9 +248,14 @@ The SAAAAAA system has undergone repository reorganization. All core code now li
 
 **New Structure (Preferred)**:
 ```python
-# Core orchestration
+# Core orchestration - using modular structure
 from saaaaaa.core.orchestrator import Orchestrator, MethodExecutor
-from saaaaaa.core.orchestrator.ORCHESTRATOR_MONILITH import OrchestrationEngine
+from saaaaaa.core.orchestrator.executors import (
+    D1Q1_Executor, D1Q2_Executor,  # Example executors
+    # Import other executors as needed
+)
+from saaaaaa.core.orchestrator.evidence_registry import EvidenceRegistry
+from saaaaaa.core.orchestrator.choreographer import Choreographer
 
 # Analysis modules (7 producers)
 from saaaaaa.analysis.financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
@@ -271,12 +276,30 @@ from saaaaaa.utils.contracts import ProducerContract, ScoringModality
 from saaaaaa.utils.validation.schema_validator import SchemaValidator
 ```
 
-**Legacy Structure (Backward Compatible)**:
+**📁 Orchestrator Directory Structure**:
+The orchestration functionality is distributed across modular files in `src/saaaaaa/core/orchestrator/`:
+- **`core.py`** - Main `Orchestrator` class and core orchestration logic
+- **`executors.py`** - All executor classes (D1Q1_Executor through D6Q5_Executor)
+- **`evidence_registry.py`** - Evidence management and tracking
+- **`arg_router.py`** - Argument routing and normalization
+- **`contract_loader.py`** - Contract loading and validation
+- **`choreographer.py`** - Choreography and workflow logic
+- **`factory.py`** - Factory functions for building components
+- **`class_registry.py`** - Class registry for dynamic instantiation
+
+**Legacy Structure (DEPRECATED - DO NOT USE)**:
 ```python
-# Still works via compatibility shims
-from orchestrator.core import Orchestrator
-from concurrency import TaskExecutor
+# DEPRECATED: These imports are maintained for backward compatibility only
+# Use the new modular structure above instead
+from orchestrator.core import Orchestrator  # DEPRECATED
+from concurrency import TaskExecutor  # DEPRECATED
+from saaaaaa.core.ORCHESTRATOR_MONILITH import Orchestrator  # DEPRECATED - DO NOT USE
 ```
+
+**⚠️ Important**: 
+- The legacy `orchestrator` module is deprecated. Use `saaaaaa.core.orchestrator` instead.
+- **`ORCHESTRATOR_MONILITH.py` has been deprecated** and replaced by modular files. See the directory structure above.
+- All new code should use the modular orchestrator package structure.
 
 #### Resolving Import Conflicts
 
@@ -492,22 +515,39 @@ python3 -m saaaaaa.core.report_generator \
 
 ### Quick Analysis with Orchestrator
 
-For a fully automated analysis:
+For a fully automated analysis, use the orchestrator programmatically:
 
-```bash
-# Run the complete orchestration pipeline
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/plan_municipal_2024.pdf \
-  --output-dir data/analysis_results \
-  --mode full
+```python
+# examples/run_orchestrator.py
+from pathlib import Path
+from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith, CoreModuleFactory
+from saaaaaa.core.orchestrator import Orchestrator, get_questionnaire_provider
 
-# This executes all steps automatically:
-# 1. Document ingestion
-# 2. Policy processing
-# 3. All 7 producers in parallel
-# 4. Aggregation
-# 5. Multi-level report generation
+# Step 1: Load data using factory
+catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
+get_questionnaire_provider().set_data(monolith)
+
+# Step 2: Create orchestrator instance
+factory = CoreModuleFactory(catalog)
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith
+)
+
+# Step 3: Run orchestration
+results = orchestrator.process_development_plan("data/input_plans/plan_municipal_2024.pdf")
+print(f"Completed {sum(1 for r in results if r.success)}/{len(results)} phases")
 ```
+
+**Note**: See `examples/orchestrator_io_free_example.py` for a complete working example.
+
+This executes all steps automatically:
+1. Document ingestion
+2. Policy processing  
+3. All 7 producers in parallel
+4. Aggregation
+5. Multi-level report generation
 
 ---
 
@@ -515,22 +555,42 @@ python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
 
 ### End-to-End Pipeline Execution
 
-#### Option 1: Using the Main Orchestrator (Recommended)
+#### Option 1: Using the Orchestrator Programmatically (Recommended)
 
-```bash
-# Complete automated pipeline
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/your_plan.pdf \
-  --output-dir data/results/$(date +%Y%m%d_%H%M%S) \
-  --mode full \
-  --parallel \
-  --verbose
+```python
+# Create a script: scripts/run_full_pipeline.py
+from pathlib import Path
+from datetime import datetime
+from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith
+from saaaaaa.core.orchestrator import Orchestrator, get_questionnaire_provider
 
-# Flags explanation:
-# --mode full: Run complete analysis (ingestion → reports)
-# --parallel: Execute producers in parallel (faster)
-# --verbose: Show detailed progress
+# Load configuration
+catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
+get_questionnaire_provider().set_data(monolith)
+
+# Initialize orchestrator
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith
+)
+
+# Run full pipeline
+input_plan = "data/input_plans/your_plan.pdf"
+results = orchestrator.process_development_plan(input_plan)
+
+# Check results
+completed = sum(1 for r in results if r.success)
+print(f"Pipeline completed: {completed}/{len(results)} phases successful")
+print(f"Output directory: data/results/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 ```
+
+Then run:
+```bash
+python3 scripts/run_full_pipeline.py
+```
+
+**See**: `examples/orchestrator_io_free_example.py` for the complete working example.
 
 #### Option 2: Step-by-Step Execution
 
@@ -828,32 +888,34 @@ bash scripts/run_all_producers.sh \
   --parallel
 ```
 
-### Orchestrator Modes
+### Orchestrator Usage
 
-```bash
+Use the Orchestrator programmatically in Python:
+
+```python
 # Full orchestration (all steps)
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/plan.pdf \
-  --output-dir data/results \
-  --mode full \
-  --parallel
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith
+from pathlib import Path
 
-# Partial orchestration (specific phases)
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/processed/policy_analysis.json \
-  --output-dir data/results \
-  --mode producers_only \
-  --parallel
+# Load data
+catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 
-# Debug mode (verbose logging)
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/plan.pdf \
-  --output-dir data/results \
-  --mode full \
-  --debug \
-  --log-level DEBUG \
-  --save-intermediates
+# Create orchestrator
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith
+)
+
+# Process development plan
+results = orchestrator.process_development_plan("data/input_plans/plan.pdf")
+print(f"Completed: {sum(1 for r in results if r.success)}/{len(results)} phases")
 ```
+
+**For full examples**, see:
+- `examples/orchestrator_io_free_example.py` - Complete working example
+- `examples/integration_scoring_orchestrator.py` - Integration example
 
 ### Utility Scripts
 
@@ -1360,14 +1422,31 @@ bash stop_atroz.sh
 Process multiple plans:
 
 ```bash
-# Process all PDFs in a directory
-for pdf in data/input_plans/*.pdf; do
-  echo "Processing $pdf..."
-  python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-    --input "$pdf" \
-    --output-dir "data/results/$(basename $pdf .pdf)" \
-    --mode full
-done
+# Create batch processing script
+cat > scripts/batch_process.py << 'EOF'
+from pathlib import Path
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith
+
+# Load configuration once
+catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
+
+# Process all PDFs
+for pdf in Path("data/input_plans").glob("*.pdf"):
+    print(f"Processing {pdf.name}...")
+    orchestrator = Orchestrator(
+        catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+        questionnaire_data=monolith
+    )
+    results = orchestrator.process_development_plan(str(pdf))
+    output_dir = Path(f"data/results/{pdf.stem}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"✓ Completed {pdf.name}")
+EOF
+
+# Run batch processing
+python3 scripts/batch_process.py
 ```
 
 ### Exporting Results
@@ -1463,14 +1542,17 @@ python scripts/update_imports.py tests examples scripts
 **Cause**: Large documents or insufficient RAM
 
 **Solution**:
-```bash
-# Process in chunks
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input plan.pdf \
-  --chunk-size 1000 \
-  --output-dir results
+```python
+# Process with resource limits in orchestrator
+from saaaaaa.core.orchestrator import Orchestrator, ResourceLimits
 
-# Or increase memory limits
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith,
+    limits=ResourceLimits(max_memory_mb=8192)  # Set memory limit
+)
+
+# Or increase system memory limits
 export PYTHONMAXMEMORY=8192
 ```
 
@@ -1479,12 +1561,15 @@ export PYTHONMAXMEMORY=8192
 **Cause**: Sequential processing
 
 **Solution**:
-```bash
-# Enable parallel processing
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --parallel \
-  --workers 7 \
-  --input plan.pdf
+```python
+# Use concurrent execution (built into Orchestrator)
+# The Orchestrator uses ThreadPoolExecutor for parallel producer execution
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith
+)
+# Producers run in parallel automatically
+results = orchestrator.process_development_plan("plan.pdf")
 ```
 
 #### Issue 7: API server won't start
@@ -1625,10 +1710,11 @@ python3 -m saaaaaa.integrations.database \
 export SAAAAAA_CACHE_ENABLED=true
 export SAAAAAA_CACHE_DIR=cache/
 
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --cache \
-  --input plan.pdf
+# Use orchestrator with caching (implement in your script)
+# See examples/orchestrator_io_free_example.py
 ```
+
+**Note**: Caching should be implemented in your Python script using the Orchestrator API.
 
 #### Distributed Processing
 
@@ -1703,28 +1789,29 @@ coverage run -m pytest && coverage report -m
 ```
 
 #### Orchestrator Execution Commands
-```bash
-# Full pipeline (recommended)
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/plan.pdf \
-  --output-dir data/results \
-  --mode full \
-  --parallel
 
-# Debug mode
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/input_plans/plan.pdf \
-  --output-dir data/results \
-  --mode full \
-  --debug \
-  --log-level DEBUG
+Use the Orchestrator programmatically (see `examples/orchestrator_io_free_example.py`):
 
-# Producers only
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-  --input data/processed/policy_analysis.json \
-  --output-dir data/results \
-  --mode producers_only \
-  --parallel
+```python
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith
+from pathlib import Path
+
+# Load configuration
+catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
+
+# Full pipeline
+orchestrator = Orchestrator(
+    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    questionnaire_data=monolith
+)
+results = orchestrator.process_development_plan("data/input_plans/plan.pdf")
+
+# Debug mode (use logging configuration)
+import logging
+logging.basicConfig(level=logging.DEBUG)
+results = orchestrator.process_development_plan("data/input_plans/plan.pdf")
 ```
 
 #### Individual Producer Commands
@@ -1884,14 +1971,9 @@ python3 scripts/count_producer_methods.py
 ```
 
 #### Batch Processing Commands
-```bash
-# Process multiple PDFs
-for pdf in data/input_plans/*.pdf; do
-  python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
-    --input "$pdf" \
-    --output-dir "data/results/$(basename $pdf .pdf)" \
-    --mode full --parallel
-done
+```python
+# Create batch processing script (see earlier Batch Processing section)
+# scripts/batch_process.py uses Orchestrator programmatically
 
 # Run all producers in parallel
 bash scripts/run_all_producers.sh \
@@ -2025,11 +2107,11 @@ python3 scripts/verify_dependencies.py   # Verify installation
 
 #### Analysis
 ```bash
-# Quick analysis
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH --input plan.pdf
+# Quick analysis (use Orchestrator programmatically)
+# See examples/orchestrator_io_free_example.py
 
-# Full pipeline
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH --input plan.pdf --mode full --parallel
+# Full pipeline (create a script like scripts/run_full_pipeline.py)
+# See "Quick Analysis with Orchestrator" section above
 ```
 
 #### Testing

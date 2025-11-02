@@ -5,20 +5,15 @@ import inspect
 import logging
 import os
 import random
+from collections.abc import Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Set,
-    Tuple,
     Union,
+    get_args,
+    get_origin,
+    get_type_hints,
 )
-from typing import get_args, get_origin, get_type_hints
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +32,9 @@ class ArgumentValidationError(ArgRouterError):
         class_name: str,
         method_name: str,
         *,
-        missing: Optional[Iterable[str]] = None,
-        unexpected: Optional[Iterable[str]] = None,
-        type_mismatches: Optional[Mapping[str, str]] = None,
+        missing: Iterable[str] | None = None,
+        unexpected: Iterable[str] | None = None,
+        type_mismatches: Mapping[str, str] | None = None,
     ) -> None:
         self.class_name = class_name
         self.method_name = method_name
@@ -76,13 +71,13 @@ class _ParameterSpec:
 class MethodSpec:
     class_name: str
     method_name: str
-    positional: Tuple[_ParameterSpec, ...]
-    keyword_only: Tuple[_ParameterSpec, ...]
+    positional: tuple[_ParameterSpec, ...]
+    keyword_only: tuple[_ParameterSpec, ...]
     has_var_keyword: bool
     has_var_positional: bool
 
     @property
-    def required_arguments(self) -> Tuple[str, ...]:
+    def required_arguments(self) -> tuple[str, ...]:
         required = tuple(
             spec.name
             for spec in (*self.positional, *self.keyword_only)
@@ -91,7 +86,7 @@ class MethodSpec:
         return required
 
     @property
-    def accepted_arguments(self) -> Tuple[str, ...]:
+    def accepted_arguments(self) -> tuple[str, ...]:
         accepted = tuple(spec.name for spec in (*self.positional, *self.keyword_only))
         return accepted
 
@@ -101,7 +96,7 @@ class ArgRouter:
 
     def __init__(self, class_registry: Mapping[str, type]) -> None:
         self._class_registry = dict(class_registry)
-        self._spec_cache: Dict[Tuple[str, str], MethodSpec] = {}
+        self._spec_cache: dict[tuple[str, str], MethodSpec] = {}
 
     def describe(self, class_name: str, method_name: str) -> MethodSpec:
         """Return the cached method specification, building it if necessary."""
@@ -115,7 +110,7 @@ class ArgRouter:
         class_name: str,
         method_name: str,
         payload: MutableMapping[str, Any],
-    ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """Validate and split a payload into positional and keyword arguments."""
         spec = self.describe(class_name, method_name)
         provided_keys = set(payload.keys())
@@ -136,8 +131,8 @@ class ArgRouter:
             )
 
         args: list[Any] = []
-        kwargs: Dict[str, Any] = {}
-        type_mismatches: Dict[str, str] = {}
+        kwargs: dict[str, Any] = {}
+        type_mismatches: dict[str, str] = {}
 
         remaining = dict(payload)
 
@@ -195,7 +190,7 @@ class ArgRouter:
 
         return tuple(args), kwargs
 
-    def expected_arguments(self, class_name: str, method_name: str) -> Tuple[str, ...]:
+    def expected_arguments(self, class_name: str, method_name: str) -> tuple[str, ...]:
         spec = self.describe(class_name, method_name)
         return spec.accepted_arguments
 
@@ -277,21 +272,21 @@ class ArgRouter:
                 return False
             return all(
                 ArgRouter._matches_annotation(item, arg_type)
-                for item, arg_type in zip(value, args)
+                for item, arg_type in zip(value, args, strict=False)
             )
-        if origin in (list, List):
+        if origin in (list, list):
             if not isinstance(value, list):
                 return False
             if not args:
                 return True
             return all(ArgRouter._matches_annotation(item, args[0]) for item in value)
-        if origin in (set, Set):
+        if origin in (set, set):
             if not isinstance(value, set):
                 return False
             if not args:
                 return True
             return all(ArgRouter._matches_annotation(item, args[0]) for item in value)
-        if origin in (dict, Dict):
+        if origin in (dict, dict):
             if not isinstance(value, dict):
                 return False
             if len(args) != 2:
@@ -318,11 +313,11 @@ class ArgRouter:
         args = get_args(annotation)
         if origin is tuple:
             return f"Tuple[{', '.join(ArgRouter._describe_annotation(arg) for arg in args)}]"
-        if origin in (list, List):
+        if origin in (list, list):
             return f"List[{ArgRouter._describe_annotation(args[0])}]" if args else "List[Any]"
-        if origin in (set, Set):
+        if origin in (set, set):
             return f"Set[{ArgRouter._describe_annotation(args[0])}]" if args else "Set[Any]"
-        if origin in (dict, Dict):
+        if origin in (dict, dict):
             if len(args) == 2:
                 return (
                     f"Dict[{ArgRouter._describe_annotation(args[0])}, "
@@ -347,7 +342,7 @@ class PayloadDriftMonitor:
         self.enabled = enabled and self.sample_rate > 0.0
 
     @classmethod
-    def from_env(cls) -> "PayloadDriftMonitor":
+    def from_env(cls) -> PayloadDriftMonitor:
         enabled = os.getenv("ORCHESTRATOR_SAMPLING_VALIDATION", "").lower() in {
             "1",
             "true",

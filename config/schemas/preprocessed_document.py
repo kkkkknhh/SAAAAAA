@@ -4,7 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any, Mapping, MutableMapping, Optional, Tuple
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
 
 __all__ = [
     "StructuredSection",
@@ -22,7 +25,7 @@ __all__ = [
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 
-def _frozen_mapping(data: Optional[Mapping[str, Any]]) -> Mapping[str, Any]:
+def _frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
     if not data:
         return _EMPTY_MAPPING
     if isinstance(data, MappingProxyType):
@@ -44,8 +47,8 @@ class StructuredTextV1:
     """Structured representation of a document's text content."""
 
     full_text: str
-    sections: Tuple[StructuredSection, ...] = field(default_factory=tuple)
-    page_boundaries: Tuple[Tuple[int, int], ...] = field(default_factory=tuple)
+    sections: tuple[StructuredSection, ...] = field(default_factory=tuple)
+    page_boundaries: tuple[tuple[int, int], ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,9 +56,9 @@ class SentenceMetadata:
     """Metadata associated with a segmented sentence."""
 
     index: int
-    page_number: Optional[int] = None
-    start_char: Optional[int] = None
-    end_char: Optional[int] = None
+    page_number: int | None = None
+    start_char: int | None = None
+    end_char: int | None = None
     extra: Mapping[str, Any] = field(default=_EMPTY_MAPPING)
 
 
@@ -72,10 +75,10 @@ class TableAnnotation:
 class DocumentIndexesV1:
     """Indices built over a document for search and retrieval."""
 
-    term_index: Mapping[str, Tuple[int, ...]] = field(default=_EMPTY_MAPPING)
-    numeric_index: Mapping[str, Tuple[int, ...]] = field(default=_EMPTY_MAPPING)
-    temporal_index: Mapping[str, Tuple[int, ...]] = field(default=_EMPTY_MAPPING)
-    entity_index: Mapping[str, Tuple[int, ...]] = field(default=_EMPTY_MAPPING)
+    term_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
+    numeric_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
+    temporal_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
+    entity_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,11 +87,11 @@ class PreprocessedDocumentV1:
 
     document_id: str
     full_text: str
-    sentences: Tuple[str, ...]
+    sentences: tuple[str, ...]
     language: str
     structured_text: StructuredTextV1
-    sentence_metadata: Tuple[SentenceMetadata, ...]
-    tables: Tuple[TableAnnotation, ...]
+    sentence_metadata: tuple[SentenceMetadata, ...]
+    tables: tuple[TableAnnotation, ...]
     indexes: DocumentIndexesV1
     metadata: Mapping[str, Any]
 
@@ -105,11 +108,11 @@ class PreprocessedDocumentV2:
 
     document_id: str
     full_text: str
-    sentences: Tuple[str, ...]
+    sentences: tuple[str, ...]
     language: str
     structured_text: StructuredTextV1
-    sentence_metadata: Tuple[SentenceMetadata, ...]
-    tables: Tuple[TableAnnotation, ...]
+    sentence_metadata: tuple[SentenceMetadata, ...]
+    tables: tuple[TableAnnotation, ...]
     indexes: DocumentIndexesV1
     metadata: Mapping[str, Any]
     ingested_at: datetime
@@ -130,7 +133,7 @@ def upgrade_preprocessed_document(doc: PreprocessedDocumentV1 | PreprocessedDocu
     if isinstance(doc, PreprocessedDocumentV2):
         return doc
     metadata = _frozen_mapping(doc.metadata)
-    ingested_at_raw: Optional[str] = None
+    ingested_at_raw: str | None = None
     if "ingested_at" in metadata:
         ingested_at_raw = str(metadata["ingested_at"])
     ingested_at = datetime.fromisoformat(ingested_at_raw) if ingested_at_raw else datetime.utcnow()

@@ -1,7 +1,7 @@
 """Compatibility wrapper for micro-level prompt orchestrations."""
 from saaaaaa.analysis.micro_prompts import (  # noqa: F401
-    AuditResult,
     AntiMilagroStressTester,
+    AuditResult,
     BayesianPosteriorExplainer,
     CausalChain,
     PosteriorJustification,
