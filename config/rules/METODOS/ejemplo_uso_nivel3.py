@@ -166,7 +166,7 @@ class NIVEL3ExecutionGuide:
             print(f"✗ Error: {e}")
             return None
 
-    def ejemplo_causal_dag_high(self) -> Any:  # noqa: ANN401
+    def ejemplo_causal_dag_high(self) -> Any:  # noqa: ANN401 - NetworkX DAG type varies
         """
         Ejemplo: Construcción y análisis de DAG causal
         PRIORIDAD: HIGH
