@@ -1,43 +1,22 @@
-"""System validation script - validates entire SAAAAAA system."""
-
+"""Compatibility wrapper for validate_system script."""
+# Import from the actual implementation in scripts/
+import importlib.util
 import sys
 from pathlib import Path
 
+# Ensure src/ is in path for imports within the script
+_root = Path(__file__).parent
+if str(_root / "src") not in sys.path:
+    sys.path.insert(0, str(_root / "src"))
 
-def validate_system() -> bool:
-    """
-    Validate the entire SAAAAAA system.
+# Load the actual module from scripts/
+_module_path = _root / "scripts" / "validate_system.py"
+_spec = importlib.util.spec_from_file_location("_validate_system_impl", _module_path)
+if _spec and _spec.loader:
+    _module = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_module)
     
-    Returns:
-        True if system is valid, False otherwise
-    """
-    root = Path(__file__).parent
-    
-    # Check package structure
-    package_dir = root / "src" / "saaaaaa"
-    if not package_dir.exists():
-        print("✗ Package directory not found")
-        return False
-    
-    # Check for critical modules
-    critical_modules = [
-        "core",
-        "analysis",
-        "processing",
-        "utils",
-        "concurrency",
-        "controls",
-    ]
-    
-    for module in critical_modules:
-        if not (package_dir / module).exists():
-            print(f"✗ Critical module missing: {module}")
-            return False
-    
-    print("✓ System validation passed")
-    return True
-
-
-if __name__ == "__main__":
-    result = validate_system()
-    sys.exit(0 if result else 1)
+    # Re-export everything from the module
+    for _name in dir(_module):
+        if not _name.startswith('_'):
+            globals()[_name] = getattr(_module, _name)

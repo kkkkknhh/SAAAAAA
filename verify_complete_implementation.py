@@ -1,40 +1,22 @@
-"""Complete implementation verification script."""
-
+"""Compatibility wrapper for verify_complete_implementation script."""
+# Import from the actual implementation in scripts/
+import importlib.util
 import sys
 from pathlib import Path
 
+# Ensure src/ is in path for imports within the script
+_root = Path(__file__).parent
+if str(_root / "src") not in sys.path:
+    sys.path.insert(0, str(_root / "src"))
 
-def verify_complete_implementation() -> bool:
-    """
-    Verify that all modules are completely implemented.
+# Load the actual module from scripts/
+_module_path = _root / "scripts" / "verify_complete_implementation.py"
+_spec = importlib.util.spec_from_file_location("_verify_complete_impl", _module_path)
+if _spec and _spec.loader:
+    _module = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_module)
     
-    Returns:
-        True if implementation is complete, False otherwise
-    """
-    root = Path(__file__).parent
-    
-    # Check if main strategic files exist
-    strategic_files = [
-        "macro_prompts.py",
-        "micro_prompts.py",
-        "meso_cluster_analysis.py",
-        "validation_engine.py",
-        "seed_factory.py",
-        "qmcm_hooks.py",
-        "evidence_registry.py",
-        "json_contract_loader.py",
-    ]
-    
-    all_exist = all((root / f).exists() for f in strategic_files)
-    
-    if all_exist:
-        print("✓ All strategic files present")
-        return True
-    else:
-        print("✗ Some strategic files missing")
-        return False
-
-
-if __name__ == "__main__":
-    result = verify_complete_implementation()
-    sys.exit(0 if result else 1)
+    # Re-export everything from the module
+    for _name in dir(_module):
+        if not _name.startswith('_'):
+            globals()[_name] = getattr(_module, _name)

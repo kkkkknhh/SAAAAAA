@@ -1,0 +1,8 @@
+            - name: Sort your Python imports with isort
+  # You may pin to the exact commit or the version.
+  # uses: olance/isort-action@fa3e4babbcece438ccc5be03870862a2a28e4d5e
+  uses: olance/isort-action@v1.1.0
+  with:
+    # Arguments provided to isort
+    args: # optional, default is --recursive .
+          

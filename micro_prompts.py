@@ -1,5 +1,14 @@
 """Compatibility wrapper for micro-level prompt orchestrations."""
-from saaaaaa.analysis.micro_prompts import (  # noqa: F401
+import sys
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+_root = Path(__file__).parent
+if str(_root / "src") not in sys.path:
+    sys.path.insert(0, str(_root / "src"))
+
+from saaaaaa.analysis.micro_prompts import (  # noqa: F401, E402
+    AuditResult,
     AntiMilagroStressTester,
     AuditResult,
     BayesianPosteriorExplainer,
@@ -26,3 +35,4 @@ __all__ = [
     "ProportionalityPattern",
     "Signal",
 ]
+
