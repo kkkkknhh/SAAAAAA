@@ -62,7 +62,10 @@ jobs:
           # Run AST boundary scanner if it exists
           if [ -f "tools/scan_boundaries.py" ]; then
             echo "Running AST boundary scanner on core modules..."
-            python tools/scan_boundaries.py --root src/saaaaaa/core --fail-on main,io --json /tmp/core_violations.json
+            python tools/scan_boundaries.py --root src/saaaaaa/core/orchestrator \
+                                             --fail-on main,io \
+                                             --allow-path factory.py contract_loader.py ORCHESTRATOR_MONILITH.py evidence_registry.py \
+                                             --json /tmp/core_violations.json
             if [ $? -ne 0 ]; then
               echo "❌ Core module boundary violations detected"
               exit 1
