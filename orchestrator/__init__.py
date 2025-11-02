@@ -81,9 +81,11 @@ except ImportError:
 
 from .factory import build_processor
 
-# Import submodules for backwards compatibility
+# Import submodules for backwards compatibility (lazy loading to avoid dependency issues)
 core = import_module("saaaaaa.core.orchestrator.core")
-executors = import_module("saaaaaa.core.orchestrator.executors")
+# Note: executors module requires numpy and other heavy dependencies
+# Import it lazily only when needed via __getattr__
+_executors = None
 
 __all__ = [
     "AbortRequested",
@@ -112,22 +114,34 @@ __all__ = [
     "get_questionnaire_provider",
 ]
 
-# Register submodule aliases for backwards compatibility
+# Register submodule aliases for backwards compatibility (lazy loading)
 _SUBMODULE_ALIASES: Dict[str, str] = {
     "orchestrator.arg_router": "saaaaaa.core.orchestrator.arg_router",
     "orchestrator.class_registry": "saaaaaa.core.orchestrator.class_registry",
     "orchestrator.contract_loader": "saaaaaa.core.orchestrator.contract_loader",
     "orchestrator.core": "saaaaaa.core.orchestrator.core",
     "orchestrator.evidence_registry": "saaaaaa.core.orchestrator.evidence_registry",
-    "orchestrator.executors": "saaaaaa.core.orchestrator.executors",
+    # "orchestrator.executors": "saaaaaa.core.orchestrator.executors",  # Lazy load via __getattr__
     "orchestrator.factory": "saaaaaa.core.orchestrator.factory",
 }
 
 for alias, target in _SUBMODULE_ALIASES.items():
     if alias not in sys.modules:
-        sys.modules[alias] = import_module(target)
+        try:
+            sys.modules[alias] = import_module(target)
+        except ImportError:
+            # Skip modules that have missing dependencies
+            pass
 
 
 def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
-    """Delegate unknown attributes to the core module."""
+    """Delegate unknown attributes to the core module or lazily load executors."""
+    global _executors
+    
+    # Lazily import executors module only when accessed
+    if name == "executors":
+        if _executors is None:
+            _executors = import_module("saaaaaa.core.orchestrator.executors")
+        return _executors
+    
     return getattr(core, name)

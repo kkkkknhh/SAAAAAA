@@ -1,10 +1,40 @@
 """
+DEPRECATED: ORCHESTRATOR_MONILITH.py - Legacy Monolithic Orchestrator
+======================================================================
+
+⚠️ WARNING: THIS FILE IS DEPRECATED AND SHOULD NOT BE USED ⚠️
+
+This monolithic orchestrator has been refactored into modular components.
+All functionality has been distributed to the following modules:
+
+- saaaaaa.core.orchestrator.core - Main Orchestrator class
+- saaaaaa.core.orchestrator.executors - Executor classes (D1Q1_Executor, etc.)
+- saaaaaa.core.orchestrator.evidence_registry - Evidence management
+- saaaaaa.core.orchestrator.arg_router - Argument routing
+- saaaaaa.core.orchestrator.contract_loader - Contract loading
+- saaaaaa.core.orchestrator.choreographer - Choreography logic
+
+Please update your imports to use:
+    from saaaaaa.core.orchestrator import Orchestrator, MethodExecutor, ...
+
+Instead of:
+    from saaaaaa.core.ORCHESTRATOR_MONILITH import ...
+
+This file will be removed in a future version.
+
 ORQUESTADOR COMPLETO - LAS 30 PREGUNTAS BASE TODAS IMPLEMENTADAS
 =================================================================
 
 TODAS las preguntas base con sus métodos REALES del catálogo.
 SIN brevedad. SIN omisiones. TODO implementado.
 """
+
+import warnings
+warnings.warn(
+    "ORCHESTRATOR_MONILITH is deprecated. Use saaaaaa.core.orchestrator instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import asyncio
 import inspect
