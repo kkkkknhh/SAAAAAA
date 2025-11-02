@@ -66,3 +66,7 @@ htmlcov/
 # Distribution
 *.whl
 
+# Deployment artifacts
+saaaaaa-deployment.zip
+saaaaaa-deployment.txt
+
