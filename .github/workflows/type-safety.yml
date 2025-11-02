@@ -13,6 +13,7 @@ jobs:
   type-check:
     name: Strict Type Checking
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout repository
@@ -21,7 +22,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -33,7 +35,7 @@ jobs:
       - name: Run Ruff linter
         run: |
           echo "=== Running Ruff linter ==="
-          ruff check . --config pyproject.toml || echo "Ruff found issues (non-blocking for now)"
+          ruff check . --config pyproject.toml
       
       - name: Run MyPy type checker (core modules)
         run: |
@@ -44,14 +46,14 @@ jobs:
             document_ingestion.py \
             embedding_policy.py \
             semantic_chunking_policy.py \
-            || echo "MyPy found issues - will be enforced after transition period"
+            || true
       
       - name: Run Pyright type checker (strict mode)
         run: |
           echo "=== Running Pyright strict type checking ==="
           pyright --project pyproject.toml \
             contracts.py \
-            || echo "Pyright found issues - will be enforced after transition period"
+            || true
       
       - name: Verify no **kwargs in public APIs
         run: |
@@ -91,6 +93,7 @@ jobs:
   contract-tests:
     name: Contract & Property Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     
     steps:
       - name: Checkout repository
@@ -99,24 +102,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pytest hypothesis pytest-cov
           # Install optional dependencies for full testing
-          pip install contradiction_deteccion || echo "Optional contradiction module not available"
+          pip install contradiction_deteccion || true
       
       - name: Run contract tests
         run: |
           echo "=== Running contract tests ==="
-          REQUIRE_CONTRADICTION_MODULE=true pytest tests/test_contracts.py -v -m contract || echo "Contract tests failed (non-blocking during transition)"
+          REQUIRE_CONTRADICTION_MODULE=true pytest tests/test_contracts.py -v -m contract || true
       
       - name: Run property-based tests
         run: |
           echo "=== Running property-based tests with Hypothesis ==="
-          pytest tests/test_property_based.py -v -m property --hypothesis-show-statistics || echo "Property tests failed (non-blocking during transition)"
+          pytest tests/test_property_based.py -v -m property --hypothesis-show-statistics || true
       
       - name: Check contract test coverage
         run: |
@@ -185,6 +189,7 @@ jobs:
   lint-validation:
     name: Additional Linting & Policy Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout repository
@@ -193,7 +198,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -258,6 +264,7 @@ jobs:
   validation-summary:
     name: Validation Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [type-check, contract-tests, lint-validation]
     if: always()
     
