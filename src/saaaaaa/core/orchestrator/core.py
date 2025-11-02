@@ -31,6 +31,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
+from saaaaaa.processing.aggregation import (
+    DimensionAggregator,
+    AreaPolicyAggregator,
+    ClusterAggregator,
+    MacroAggregator,
+    ScoredResult,
+    DimensionScore,
+    AreaScore,
+    ClusterScore,
+    MacroScore,
+)
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
 from .class_registry import build_class_registry, ClassRegistryError
@@ -1457,104 +1468,181 @@ class Orchestrator:
             self,
             scored_results: List[ScoredMicroQuestion],
             config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[DimensionScore]:
+        """Aggregate micro question scores into dimension scores using DimensionAggregator.
+        
+        Args:
+            scored_results: List of scored micro questions
+            config: Configuration dict containing monolith
+            
+        Returns:
+            List of DimensionScore objects with full validation and diagnostics
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[4]
-
-        dimension_map: Dict[str, List[ScoredMicroQuestion]] = {}
-        for result in scored_results:
-            dimension_id = result.metadata.get("dimension_id") if result.metadata else None
-            if dimension_id:
-                dimension_map.setdefault(dimension_id, []).append(result)
-
+        
+        # Get monolith from config
+        monolith = config.get("monolith")
+        if not monolith:
+            logger.error("No monolith in config for dimension aggregation")
+            return []
+        
+        # Initialize dimension aggregator
+        aggregator = DimensionAggregator(monolith, abort_on_insufficient=False)
+        
+        # Convert ScoredMicroQuestion to ScoredResult
+        converted_results: List[ScoredResult] = []
+        for item in scored_results:
+            if item.score is None or item.metadata is None:
+                continue
+            converted_results.append(
+                ScoredResult(
+                    question_global=item.question_global,
+                    base_slot=item.base_slot,
+                    policy_area=item.metadata.get("policy_area_id", ""),
+                    dimension=item.metadata.get("dimension_id", ""),
+                    score=item.score,
+                    quality_level=item.quality_level or "INSUFICIENTE",
+                    evidence=asdict(item.evidence) if item.evidence else {},
+                    raw_results=item.scoring_details,
+                )
+            )
+        
+        # Group by dimension and area
+        dimension_map: Dict[Tuple[str, str], List[ScoredResult]] = {}
+        for result in converted_results:
+            key = (result.dimension, result.policy_area)
+            dimension_map.setdefault(key, []).append(result)
+        
         instrumentation.items_total = len(dimension_map)
-        dimension_scores: List[Dict[str, Any]] = []
-
-        for dimension_id, items in dimension_map.items():
+        dimension_scores: List[DimensionScore] = []
+        
+        # Aggregate each dimension
+        for (dimension_id, area_id), items in dimension_map.items():
             self._ensure_not_aborted()
             await asyncio.sleep(0)
             start = time.perf_counter()
-            valid_scores = [item.normalized_score for item in items if item.normalized_score is not None]
-            average_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
-            dimension_scores.append(
-                {
-                    "dimension_id": dimension_id,
-                    "policy_area_id": items[0].metadata.get("policy_area_id") if items else None,
-                    "score": average_score,
-                    "questions": [item.question_id for item in items],
-                }
-            )
+            
+            try:
+                dim_score = aggregator.aggregate_dimension(
+                    dimension_id=dimension_id,
+                    area_id=area_id,
+                    scored_results=items,
+                    weights=None  # Use equal weights by default
+                )
+                dimension_scores.append(dim_score)
+            except Exception as e:
+                logger.error(f"Failed to aggregate dimension {dimension_id}/{area_id}: {e}")
+            
             instrumentation.increment(latency=time.perf_counter() - start)
-
+        
         return dimension_scores
 
     async def _aggregate_policy_areas_async(
             self,
-            dimension_scores: List[Dict[str, Any]],
+            dimension_scores: List[DimensionScore],
             config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[AreaScore]:
+        """Aggregate dimension scores into policy area scores using AreaPolicyAggregator.
+        
+        Args:
+            dimension_scores: List of DimensionScore objects
+            config: Configuration dict containing monolith
+            
+        Returns:
+            List of AreaScore objects with full validation and diagnostics
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[5]
-
-        areas: Dict[str, List[Dict[str, Any]]] = {}
+        
+        # Get monolith from config
+        monolith = config.get("monolith")
+        if not monolith:
+            logger.error("No monolith in config for area aggregation")
+            return []
+        
+        # Initialize area aggregator
+        aggregator = AreaPolicyAggregator(monolith, abort_on_insufficient=False)
+        
+        # Group dimension scores by area
+        areas: Dict[str, List[DimensionScore]] = {}
         for score in dimension_scores:
-            area_id = score.get("policy_area_id")
+            area_id = score.area_id
             if area_id:
                 areas.setdefault(area_id, []).append(score)
-
+        
         instrumentation.items_total = len(areas)
-        area_scores: List[Dict[str, Any]] = []
-
+        area_scores: List[AreaScore] = []
+        
+        # Aggregate each area
         for area_id, scores in areas.items():
             self._ensure_not_aborted()
             await asyncio.sleep(0)
             start = time.perf_counter()
-            valid_scores = [entry.get("score") for entry in scores if entry.get("score") is not None]
-            average_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
-            area_scores.append(
-                {
-                    "area_id": area_id,
-                    "score": average_score,
-                    "dimensions": scores,
-                }
-            )
+            
+            try:
+                area_score = aggregator.aggregate_area(
+                    area_id=area_id,
+                    dimension_scores=scores
+                )
+                area_scores.append(area_score)
+            except Exception as e:
+                logger.error(f"Failed to aggregate area {area_id}: {e}")
+            
             instrumentation.increment(latency=time.perf_counter() - start)
-
+        
         return area_scores
 
     def _aggregate_clusters(
             self,
-            policy_area_scores: List[Dict[str, Any]],
+            policy_area_scores: List[AreaScore],
             config: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[ClusterScore]:
+        """Aggregate policy area scores into cluster scores using ClusterAggregator.
+        
+        Args:
+            policy_area_scores: List of AreaScore objects
+            config: Configuration dict containing monolith
+            
+        Returns:
+            List of ClusterScore objects with full validation and diagnostics
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[6]
-
-        cluster_map: Dict[str, List[Dict[str, Any]]] = {}
-        area_cluster_map = config.get("structure_report", {}).get("area_cluster_map", {})
-
-        for area_score in policy_area_scores:
-            area_id = area_score.get("area_id")
-            cluster_id = area_cluster_map.get(area_id, "cluster_unknown")
-            cluster_map.setdefault(cluster_id, []).append(area_score)
-
-        instrumentation.items_total = len(cluster_map)
-        cluster_scores: List[Dict[str, Any]] = []
-
-        for cluster_id, scores in cluster_map.items():
+        
+        # Get monolith from config
+        monolith = config.get("monolith")
+        if not monolith:
+            logger.error("No monolith in config for cluster aggregation")
+            return []
+        
+        # Initialize cluster aggregator
+        aggregator = ClusterAggregator(monolith, abort_on_insufficient=False)
+        
+        # Get cluster definitions from monolith
+        clusters = monolith["blocks"]["niveles_abstraccion"]["clusters"]
+        
+        instrumentation.items_total = len(clusters)
+        cluster_scores: List[ClusterScore] = []
+        
+        # Aggregate each cluster
+        for cluster_def in clusters:
             self._ensure_not_aborted()
             start = time.perf_counter()
-            valid_scores = [entry.get("score") for entry in scores if entry.get("score") is not None]
-            average_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
-            cluster_scores.append(
-                {
-                    "cluster_id": cluster_id,
-                    "score": average_score,
-                    "areas": scores,
-                }
-            )
+            cluster_id = cluster_def["cluster_id"]
+            
+            try:
+                cluster_score = aggregator.aggregate_cluster(
+                    cluster_id=cluster_id,
+                    area_scores=policy_area_scores,
+                    weights=None  # Use equal weights by default
+                )
+                cluster_scores.append(cluster_score)
+            except Exception as e:
+                logger.error(f"Failed to aggregate cluster {cluster_id}: {e}")
+            
             instrumentation.increment(latency=time.perf_counter() - start)
-
+        
         return cluster_scores
 
     def _evaluate_macro(self, cluster_scores: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[str, Any]:
