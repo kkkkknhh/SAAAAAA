@@ -1188,20 +1188,6 @@ class MacroAggregator:
         )
         
         return quality
-            quality = "EXCELENTE"
-        elif normalized_score >= 0.70:
-            quality = "BUENO"
-        elif normalized_score >= 0.55:
-            quality = "ACEPTABLE"
-        else:
-            quality = "INSUFICIENTE"
-        
-        logger.debug(
-            f"Macro rubric applied: score={score:.4f}, "
-            f"normalized={normalized_score:.4f}, quality={quality}"
-        )
-        
-        return quality
     
     def evaluate_macro(
         self,
