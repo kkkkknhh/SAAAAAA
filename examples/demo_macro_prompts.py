@@ -8,16 +8,16 @@ This script shows how to use each of the 5 prompt macros independently
 and through the unified orchestrator.
 """
 
-from macro_prompts import (
-    CoverageGapStressor,
-    ContradictionScanner,
-    BayesianPortfolioComposer,
-    RoadmapOptimizer,
-    PeerNormalizer,
-    MacroPromptsOrchestrator
-)
-from dataclasses import asdict
 import json
+
+from macro_prompts import (
+    BayesianPortfolioComposer,
+    ContradictionScanner,
+    CoverageGapStressor,
+    MacroPromptsOrchestrator,
+    PeerNormalizer,
+    RoadmapOptimizer,
+)
 
 
 def demo_coverage_gap_stressor():
@@ -25,12 +25,12 @@ def demo_coverage_gap_stressor():
     print("=" * 60)
     print("DEMO 1: Coverage & Structural Gap Stressor")
     print("=" * 60)
-    
+
     stressor = CoverageGapStressor(
         critical_dimensions=["D3", "D6"],
         coverage_threshold=0.70
     )
-    
+
     result = stressor.evaluate(
         convergence_by_dimension={
             "D1": 0.85, "D2": 0.80, "D3": 0.65,  # D3 below threshold
@@ -47,11 +47,11 @@ def demo_coverage_gap_stressor():
         },
         baseline_confidence=1.0
     )
-    
+
     print(f"\n✓ Coverage Index: {result.coverage_index:.3f}")
     print(f"✓ Degraded Confidence: {result.degraded_confidence:.3f}")
     print(f"✓ Critical Gaps: {result.critical_dimensions_below_threshold}")
-    print(f"✓ Predictive Uplift (sample):")
+    print("✓ Predictive Uplift (sample):")
     for key, value in list(result.predictive_uplift.items())[:3]:
         print(f"  - {key}: {value:.3f}")
     print()
@@ -62,12 +62,12 @@ def demo_contradiction_scanner():
     print("=" * 60)
     print("DEMO 2: Inter-Level Contradiction Scanner")
     print("=" * 60)
-    
+
     scanner = ContradictionScanner(
         contradiction_threshold=3,
         posterior_threshold=0.7
     )
-    
+
     # Simulated contradictory data: low micro scores vs high macro
     micro_claims = [
         {"dimension": "D1", "score": 0.3, "posterior": 0.85},
@@ -76,32 +76,32 @@ def demo_contradiction_scanner():
         {"dimension": "D1", "score": 0.28, "posterior": 0.75},
         {"dimension": "D2", "score": 0.8, "posterior": 0.85}
     ]
-    
+
     meso_signals = {
         "D1": {"score": 0.4},
         "D2": {"score": 0.75}
     }
-    
+
     macro_narratives = {
         "D1": {"score": 0.8},  # High macro contradicts low micro
         "D2": {"score": 0.78}
     }
-    
+
     result = scanner.scan(micro_claims, meso_signals, macro_narratives)
-    
+
     print(f"\n✓ Consistency Score: {result.consistency_score:.3f}")
     print(f"✓ Contradictions Found: {len(result.contradictions)}")
     print(f"✓ Suggested Actions: {len(result.suggested_actions)}")
-    
+
     if result.contradictions:
-        print(f"\n  First Contradiction:")
+        print("\n  First Contradiction:")
         contradiction = result.contradictions[0]
         print(f"    - Dimension: {contradiction.get('dimension')}")
         print(f"    - Type: {contradiction.get('type')}")
         print(f"    - Claims: {contradiction.get('contradicting_claims')}")
-    
+
     if result.suggested_actions:
-        print(f"\n  First Action:")
+        print("\n  First Action:")
         action = result.suggested_actions[0]
         print(f"    - Dimension: {action.get('dimension')}")
         print(f"    - Action: {action.get('action')}")
@@ -114,9 +114,9 @@ def demo_bayesian_portfolio():
     print("=" * 60)
     print("DEMO 3: Bayesian Portfolio Composer")
     print("=" * 60)
-    
+
     composer = BayesianPortfolioComposer(default_variance=0.05)
-    
+
     result = composer.compose(
         meso_posteriors={
             "CL01": 0.85,
@@ -136,12 +136,12 @@ def demo_bayesian_portfolio():
             "contradictions": 0.03
         }
     )
-    
+
     print(f"\n✓ Prior Global: {result.prior_global:.3f}")
     print(f"✓ Posterior Global: {result.posterior_global:.3f}")
     print(f"✓ Variance: {result.var_global:.4f}")
     print(f"✓ 95% CI: [{result.confidence_interval[0]:.3f}, {result.confidence_interval[1]:.3f}]")
-    print(f"✓ Penalties Applied:")
+    print("✓ Penalties Applied:")
     for penalty_name, penalty_value in result.penalties_applied.items():
         print(f"  - {penalty_name}: {penalty_value:.3f}")
     print()
@@ -152,9 +152,9 @@ def demo_roadmap_optimizer():
     print("=" * 60)
     print("DEMO 4: Roadmap Optimizer")
     print("=" * 60)
-    
+
     optimizer = RoadmapOptimizer()
-    
+
     critical_gaps = [
         {"id": "GAP_1", "name": "Establish baseline data"},
         {"id": "GAP_2", "name": "Build causal model"},
@@ -162,7 +162,7 @@ def demo_roadmap_optimizer():
         {"id": "GAP_4", "name": "Train team on methodology"},
         {"id": "GAP_5", "name": "Validate with pilot"}
     ]
-    
+
     dependency_graph = {
         "GAP_1": [],
         "GAP_2": ["GAP_1"],
@@ -170,7 +170,7 @@ def demo_roadmap_optimizer():
         "GAP_4": [],
         "GAP_5": ["GAP_2", "GAP_3"]
     }
-    
+
     effort_estimates = {
         "GAP_1": 3.0,
         "GAP_2": 5.0,
@@ -178,7 +178,7 @@ def demo_roadmap_optimizer():
         "GAP_4": 2.0,
         "GAP_5": 2.0
     }
-    
+
     impact_scores = {
         "GAP_1": 0.95,
         "GAP_2": 0.90,
@@ -186,26 +186,26 @@ def demo_roadmap_optimizer():
         "GAP_4": 0.80,
         "GAP_5": 0.75
     }
-    
+
     result = optimizer.optimize(
         critical_gaps,
         dependency_graph,
         effort_estimates,
         impact_scores
     )
-    
+
     print(f"\n✓ Total Expected Uplift: {result.total_expected_uplift:.3f}")
     print(f"✓ Critical Path: {' → '.join(result.critical_path)}")
-    print(f"\n✓ Roadmap Phases:")
-    
+    print("\n✓ Roadmap Phases:")
+
     for phase in result.phases:
         print(f"\n  {phase['name']}:")
         print(f"    Effort: {phase['effort']:.1f}/{phase['max_effort']:.1f} person-months")
-        print(f"    Actions:")
+        print("    Actions:")
         for action in phase['actions']:
             print(f"      - {action['name']} (impact: {action['impact']:.2f})")
-    
-    print(f"\n✓ Resource Requirements:")
+
+    print("\n✓ Resource Requirements:")
     for phase_name, resources in result.resource_requirements.items():
         print(f"  {phase_name}:")
         print(f"    - Team Size: {resources['recommended_team_size']} people")
@@ -218,12 +218,12 @@ def demo_peer_normalizer():
     print("=" * 60)
     print("DEMO 5: Peer Normalization & Confidence Scaling")
     print("=" * 60)
-    
+
     normalizer = PeerNormalizer(
         penalty_threshold=3,
         outlier_z_threshold=2.0
     )
-    
+
     result = normalizer.normalize(
         convergence_by_policy_area={
             "P1": 0.85,  # Above average
@@ -241,11 +241,11 @@ def demo_peer_normalizer():
         },
         baseline_confidence=0.85
     )
-    
+
     print(f"\n✓ Peer Position: {result.peer_position}")
     print(f"✓ Adjusted Confidence: {result.adjusted_confidence:.3f}")
     print(f"✓ Outlier Areas: {result.outlier_areas}")
-    print(f"\n✓ Z-Scores by Policy Area:")
+    print("\n✓ Z-Scores by Policy Area:")
     for area, z_score in result.z_scores.items():
         status = "🔺" if z_score > 1.0 else "🔻" if z_score < -1.0 else "✓"
         print(f"  {status} {area}: {z_score:+.2f}")
@@ -257,9 +257,9 @@ def demo_orchestrator():
     print("=" * 60)
     print("DEMO 6: Unified MacroPromptsOrchestrator")
     print("=" * 60)
-    
+
     orchestrator = MacroPromptsOrchestrator()
-    
+
     macro_data = {
         "convergence_by_dimension": {
             "D1": 0.85, "D2": 0.80, "D3": 0.75,
@@ -319,9 +319,9 @@ def demo_orchestrator():
         },
         "baseline_confidence": 0.85
     }
-    
+
     results = orchestrator.execute_all(macro_data)
-    
+
     print("\n✓ All 5 macro analyses completed successfully!")
     print("\n  Analysis Results:")
     print(f"    1. Coverage Index: {results['coverage_analysis']['coverage_index']:.3f}")
@@ -329,7 +329,7 @@ def demo_orchestrator():
     print(f"    3. Posterior Global: {results['bayesian_portfolio']['posterior_global']:.3f}")
     print(f"    4. Total Uplift: {results['implementation_roadmap']['total_expected_uplift']:.3f}")
     print(f"    5. Adjusted Confidence: {results['peer_normalization']['adjusted_confidence']:.3f}")
-    
+
     print("\n  JSON Export (sample - coverage_analysis):")
     print(json.dumps(results['coverage_analysis'], indent=2)[:500] + "...")
     print()
@@ -340,14 +340,14 @@ if __name__ == "__main__":
     print("MACRO PROMPTS DEMONSTRATION")
     print("5 Strategic Macro-Level Analysis Prompts")
     print("=" * 60 + "\n")
-    
+
     demo_coverage_gap_stressor()
     demo_contradiction_scanner()
     demo_bayesian_portfolio()
     demo_roadmap_optimizer()
     demo_peer_normalizer()
     demo_orchestrator()
-    
+
     print("=" * 60)
     print("DEMONSTRATION COMPLETE")
     print("=" * 60)

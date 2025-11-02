@@ -10,10 +10,10 @@ if str(_root / "src") not in sys.path:
 from saaaaaa.analysis.macro_prompts import (  # noqa: F401, E402
     BayesianPortfolio,
     BayesianPortfolioComposer,
-    CoverageAnalysis,
-    CoverageGapStressor,
     ContradictionReport,
     ContradictionScanner,
+    CoverageAnalysis,
+    CoverageGapStressor,
     ImplementationRoadmap,
     MacroPromptsOrchestrator,
     PeerNormalization,

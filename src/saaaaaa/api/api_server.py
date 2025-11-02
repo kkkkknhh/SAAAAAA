@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 AtroZ Dashboard API Server - REST API Integration Layer
 ========================================================
@@ -28,24 +27,20 @@ Version: 1.0.0
 Python: 3.10+
 """
 
-import os
-import json
-import logging
 import hashlib
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from typing import Any
 
-from flask import Flask, request, jsonify, Response
+import jwt
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.exceptions import HTTPException
-import jwt
 
 # Import orchestrator components
-from orchestrator import PolicyAnalysisOrchestrator, OrchestratorConfig
-from report_assembly import MicroLevelAnswer
 from recommendation_engine import load_recommendation_engine
 
 # Configure logging
@@ -65,19 +60,19 @@ class APIConfig:
     JWT_SECRET = os.getenv('ATROZ_JWT_SECRET', 'jwt-secret-key-change-in-production')
     JWT_ALGORITHM = 'HS256'
     JWT_EXPIRATION_HOURS = 24
-    
+
     # CORS Configuration
     CORS_ORIGINS = os.getenv('ATROZ_CORS_ORIGINS', '*').split(',')
-    
+
     # Rate Limiting
     RATE_LIMIT_ENABLED = os.getenv('ATROZ_RATE_LIMIT', 'true').lower() == 'true'
     RATE_LIMIT_REQUESTS = int(os.getenv('ATROZ_RATE_LIMIT_REQUESTS', '1000'))
     RATE_LIMIT_WINDOW = int(os.getenv('ATROZ_RATE_LIMIT_WINDOW', '900'))  # 15 minutes
-    
+
     # Cache Configuration
     CACHE_ENABLED = os.getenv('ATROZ_CACHE_ENABLED', 'true').lower() == 'true'
     CACHE_TTL = int(os.getenv('ATROZ_CACHE_TTL', '300'))  # 5 minutes
-    
+
     # Data Paths
     DATA_DIRECTORY = os.getenv('ATROZ_DATA_DIR', 'output')
     CACHE_DIRECTORY = os.getenv('ATROZ_CACHE_DIR', 'cache')
@@ -118,7 +113,7 @@ def generate_jwt_token(client_id: str) -> str:
     return jwt.encode(payload, APIConfig.JWT_SECRET, algorithm=APIConfig.JWT_ALGORITHM)
 
 
-def verify_jwt_token(token: str) -> Optional[Dict]:
+def verify_jwt_token(token: str) -> dict | None:
     """Verify JWT token"""
     try:
         payload = jwt.decode(token, APIConfig.JWT_SECRET, algorithms=[APIConfig.JWT_ALGORITHM])
@@ -134,19 +129,19 @@ def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        
+
         if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({'error': 'Missing or invalid authorization header'}), 401
-        
+
         token = auth_header.split(' ')[1]
         payload = verify_jwt_token(token)
-        
+
         if not payload:
             return jsonify({'error': 'Invalid or expired token'}), 401
-        
+
         request.jwt_payload = payload
         return f(*args, **kwargs)
-    
+
     return decorated_function
 
 
@@ -156,20 +151,20 @@ def rate_limit(f):
     def decorated_function(*args, **kwargs):
         if not APIConfig.RATE_LIMIT_ENABLED:
             return f(*args, **kwargs)
-        
+
         client_ip = request.remote_addr
         current_time = datetime.now().timestamp()
-        
+
         # Initialize or clean up request counter
         if client_ip not in request_counts:
             request_counts[client_ip] = []
-        
+
         # Remove old requests outside the window
         request_counts[client_ip] = [
             ts for ts in request_counts[client_ip]
             if current_time - ts < APIConfig.RATE_LIMIT_WINDOW
         ]
-        
+
         # Check if limit exceeded
         if len(request_counts[client_ip]) >= APIConfig.RATE_LIMIT_REQUESTS:
             return jsonify({
@@ -177,12 +172,12 @@ def rate_limit(f):
                 'limit': APIConfig.RATE_LIMIT_REQUESTS,
                 'window': APIConfig.RATE_LIMIT_WINDOW
             }), 429
-        
+
         # Add current request
         request_counts[client_ip].append(current_time)
-        
+
         return f(*args, **kwargs)
-    
+
     return decorated_function
 
 
@@ -193,30 +188,30 @@ def cached(ttl: int = APIConfig.CACHE_TTL):
         def decorated_function(*args, **kwargs):
             if not APIConfig.CACHE_ENABLED:
                 return f(*args, **kwargs)
-            
+
             # Generate cache key from function name and arguments
             cache_key = f"{f.__name__}:{request.path}:{request.query_string.decode()}"
             cache_hash = hashlib.md5(cache_key.encode()).hexdigest()
-            
+
             current_time = datetime.now().timestamp()
-            
+
             # Check cache
             if cache_hash in cache:
                 timestamp = cache_timestamps.get(cache_hash, 0)
                 if current_time - timestamp < ttl:
                     logger.debug(f"Cache hit: {cache_key}")
                     return cache[cache_hash]
-            
+
             # Execute function
             result = f(*args, **kwargs)
-            
+
             # Store in cache
             cache[cache_hash] = result
             cache_timestamps[cache_hash] = current_time
-            
+
             logger.debug(f"Cache miss: {cache_key}")
             return result
-        
+
         return decorated_function
     return decorator
 
@@ -227,17 +222,17 @@ def cached(ttl: int = APIConfig.CACHE_TTL):
 
 class DataService:
     """Service layer for data retrieval and transformation"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         """Initialize data service with orchestrator"""
         self.orchestrator = None
         self.data_cache = {}
         logger.info("DataService initialized")
-    
-    def get_pdet_regions(self) -> List[Dict[str, Any]]:
+
+    def get_pdet_regions(self) -> list[dict[str, Any]]:
         """
         Get all PDET regions with scores
-        
+
         Returns data in format expected by AtroZ dashboard
         """
         # PDET regions from Colombian government definition
@@ -316,10 +311,10 @@ class DataService:
             },
             # Add remaining 13 PDET regions...
         ]
-        
+
         return regions
-    
-    def get_region_detail(self, region_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_region_detail(self, region_id: str) -> dict[str, Any] | None:
         """Get detailed information for a specific region"""
         regions = self.get_pdet_regions()
         for region in regions:
@@ -333,8 +328,8 @@ class DataService:
                 }
                 return region
         return None
-    
-    def _get_cluster_breakdown(self, region_id: str) -> List[Dict[str, Any]]:
+
+    def _get_cluster_breakdown(self, region_id: str) -> list[dict[str, Any]]:
         """Get cluster analysis for region"""
         return [
             {'name': 'GOBERNANZA', 'value': 72, 'trend': 0.05},
@@ -342,8 +337,8 @@ class DataService:
             {'name': 'ECONÓMICO', 'value': 81, 'trend': -0.03},
             {'name': 'AMBIENTAL', 'value': 76, 'trend': 0.07}
         ]
-    
-    def _get_question_matrix(self, region_id: str) -> List[Dict[str, Any]]:
+
+    def _get_question_matrix(self, region_id: str) -> list[dict[str, Any]]:
         """Get question matrix (44 questions) for region"""
         import random
         questions = []
@@ -358,8 +353,8 @@ class DataService:
                 'recommendations': [f'Recomendación {i}'] if score < 0.7 else []
             })
         return questions
-    
-    def _get_recommendations(self, region_id: str) -> List[Dict[str, Any]]:
+
+    def _get_recommendations(self, region_id: str) -> list[dict[str, Any]]:
         """Get strategic recommendations for region"""
         return [
             {
@@ -381,8 +376,8 @@ class DataService:
                 'impact': 'MEDIUM'
             }
         ]
-    
-    def _get_evidence_for_region(self, region_id: str) -> List[Dict[str, Any]]:
+
+    def _get_evidence_for_region(self, region_id: str) -> list[dict[str, Any]]:
         """Get evidence items for region"""
         return [
             {
@@ -398,8 +393,8 @@ class DataService:
                 'relevance': 0.88
             }
         ]
-    
-    def get_evidence_stream(self) -> List[Dict[str, Any]]:
+
+    def get_evidence_stream(self) -> list[dict[str, Any]]:
         """Get evidence stream for ticker display"""
         return [
             {
@@ -456,14 +451,14 @@ def get_auth_token():
     data = request.get_json()
     client_id = data.get('client_id')
     client_secret = data.get('client_secret')
-    
+
     # Validate credentials (implement proper validation in production)
     if not client_id or not client_secret:
         return jsonify({'error': 'Missing credentials'}), 400
-    
+
     # Generate token
     token = generate_jwt_token(client_id)
-    
+
     return jsonify({
         'access_token': token,
         'token_type': 'Bearer',
@@ -477,20 +472,20 @@ def get_auth_token():
 def get_pdet_regions():
     """
     Get all PDET regions with scores
-    
+
     Returns:
         List of PDET regions with metadata and scores
     """
     try:
         regions = data_service.get_pdet_regions()
-        
+
         return jsonify({
             'status': 'success',
             'data': regions,
             'count': len(regions),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to get PDET regions: {e}")
         return jsonify({'error': str(e)}), 500
@@ -502,25 +497,25 @@ def get_pdet_regions():
 def get_region_detail(region_id: str):
     """
     Get detailed information for a specific PDET region
-    
+
     Args:
         region_id: Region identifier (e.g., 'alto-patia')
-    
+
     Returns:
         Detailed region data with analysis
     """
     try:
         region = data_service.get_region_detail(region_id)
-        
+
         if not region:
             return jsonify({'error': 'Region not found'}), 404
-        
+
         return jsonify({
             'status': 'success',
             'data': region,
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to get region detail: {e}")
         return jsonify({'error': str(e)}), 500
@@ -532,10 +527,10 @@ def get_region_detail(region_id: str):
 def get_municipality_data(municipality_id: str):
     """
     Get municipality analysis data
-    
+
     Args:
         municipality_id: Municipality identifier
-    
+
     Returns:
         Municipality analysis with scores and recommendations
     """
@@ -554,13 +549,13 @@ def get_municipality_data(municipality_id: str):
                 'questions': data_service._get_question_matrix('alto-patia')
             }
         }
-        
+
         return jsonify({
             'status': 'success',
             'data': municipality_data,
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to get municipality data: {e}")
         return jsonify({'error': str(e)}), 500
@@ -572,20 +567,20 @@ def get_municipality_data(municipality_id: str):
 def get_evidence_stream():
     """
     Get evidence stream for ticker display
-    
+
     Returns:
         List of evidence items with sources and timestamps
     """
     try:
         evidence = data_service.get_evidence_stream()
-        
+
         return jsonify({
             'status': 'success',
             'data': evidence,
             'count': len(evidence),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to get evidence stream: {e}")
         return jsonify({'error': str(e)}), 500
@@ -596,14 +591,14 @@ def get_evidence_stream():
 def export_dashboard_data():
     """
     Export dashboard data in various formats
-    
+
     Request body:
         {
             "format": "json|csv|pdf",
             "regions": ["region_id1", "region_id2"],
             "include_evidence": true
         }
-    
+
     Returns:
         Exported data file
     """
@@ -612,24 +607,24 @@ def export_dashboard_data():
         export_format = data.get('format', 'json')
         region_ids = data.get('regions', [])
         include_evidence = data.get('include_evidence', False)
-        
+
         # Collect data
         export_data = {
             'timestamp': datetime.now().isoformat(),
             'regions': [],
             'evidence': [] if include_evidence else None
         }
-        
+
         # Get region data
         for region_id in region_ids:
             region = data_service.get_region_detail(region_id)
             if region:
                 export_data['regions'].append(region)
-        
+
         # Get evidence if requested
         if include_evidence:
             export_data['evidence'] = data_service.get_evidence_stream()
-        
+
         # Format response based on requested format
         if export_format == 'json':
             return jsonify({
@@ -638,7 +633,7 @@ def export_dashboard_data():
             })
         else:
             return jsonify({'error': f'Format {export_format} not yet implemented'}), 400
-    
+
     except Exception as e:
         logger.error(f"Failed to export dashboard data: {e}")
         return jsonify({'error': str(e)}), 500
@@ -649,24 +644,24 @@ def export_dashboard_data():
 # ============================================================================
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect() -> None:
     """Handle WebSocket connection"""
     logger.info(f"Client connected: {request.sid}")
     emit('connection_response', {'status': 'connected'})
 
 
 @socketio.on('disconnect')
-def handle_disconnect():
+def handle_disconnect() -> None:
     """Handle WebSocket disconnection"""
     logger.info(f"Client disconnected: {request.sid}")
 
 
 @socketio.on('subscribe_region')
-def handle_subscribe_region(data):
+def handle_subscribe_region(data) -> None:
     """Subscribe to region updates"""
     region_id = data.get('region_id')
     logger.info(f"Client {request.sid} subscribed to region: {region_id}")
-    
+
     # Send initial data
     region = data_service.get_region_detail(region_id)
     emit('region_update', region)
@@ -704,7 +699,7 @@ def handle_exception(e):
 def generate_micro_recommendations():
     """
     Generate MICRO-level recommendations
-    
+
     Request Body:
         {
             "scores": {
@@ -714,29 +709,29 @@ def generate_micro_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MICRO recommendations
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         data = request.get_json()
         scores = data.get('scores', {})
         context = data.get('context', {})
-        
+
         if not scores:
             return jsonify({'error': 'Missing scores'}), 400
-        
+
         rec_set = recommendation_engine.generate_micro_recommendations(scores, context)
-        
+
         return jsonify({
             'status': 'success',
             'data': rec_set.to_dict(),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to generate MICRO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
@@ -747,7 +742,7 @@ def generate_micro_recommendations():
 def generate_meso_recommendations():
     """
     Generate MESO-level recommendations
-    
+
     Request Body:
         {
             "cluster_data": {
@@ -756,29 +751,29 @@ def generate_meso_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MESO recommendations
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         data = request.get_json()
         cluster_data = data.get('cluster_data', {})
         context = data.get('context', {})
-        
+
         if not cluster_data:
             return jsonify({'error': 'Missing cluster_data'}), 400
-        
+
         rec_set = recommendation_engine.generate_meso_recommendations(cluster_data, context)
-        
+
         return jsonify({
             'status': 'success',
             'data': rec_set.to_dict(),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to generate MESO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
@@ -789,7 +784,7 @@ def generate_meso_recommendations():
 def generate_macro_recommendations():
     """
     Generate MACRO-level recommendations
-    
+
     Request Body:
         {
             "macro_data": {
@@ -800,29 +795,29 @@ def generate_macro_recommendations():
             },
             "context": {}  // Optional
         }
-    
+
     Returns:
         RecommendationSet with MACRO recommendations
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         data = request.get_json()
         macro_data = data.get('macro_data', {})
         context = data.get('context', {})
-        
+
         if not macro_data:
             return jsonify({'error': 'Missing macro_data'}), 400
-        
+
         rec_set = recommendation_engine.generate_macro_recommendations(macro_data, context)
-        
+
         return jsonify({
             'status': 'success',
             'data': rec_set.to_dict(),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to generate MACRO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
@@ -833,7 +828,7 @@ def generate_macro_recommendations():
 def generate_all_recommendations():
     """
     Generate recommendations at all levels (MICRO, MESO, MACRO)
-    
+
     Request Body:
         {
             "micro_scores": {...},
@@ -841,24 +836,24 @@ def generate_all_recommendations():
             "macro_data": {...},
             "context": {}  // Optional
         }
-    
+
     Returns:
         Dictionary with MICRO, MESO, and MACRO recommendation sets
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         data = request.get_json()
         micro_scores = data.get('micro_scores', {})
         cluster_data = data.get('cluster_data', {})
         macro_data = data.get('macro_data', {})
         context = data.get('context', {})
-        
+
         all_recs = recommendation_engine.generate_all_recommendations(
             micro_scores, cluster_data, macro_data, context
         )
-        
+
         return jsonify({
             'status': 'success',
             'data': {
@@ -882,7 +877,7 @@ def generate_all_recommendations():
             },
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to generate all recommendations: {e}")
         return jsonify({'error': str(e)}), 500
@@ -894,13 +889,13 @@ def generate_all_recommendations():
 def get_rules_info():
     """
     Get information about loaded recommendation rules
-    
+
     Returns:
         Statistics about loaded rules
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         return jsonify({
             'status': 'success',
@@ -917,7 +912,7 @@ def get_rules_info():
             },
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to get rules info: {e}")
         return jsonify({'error': str(e)}), 500
@@ -928,23 +923,23 @@ def get_rules_info():
 def reload_rules():
     """
     Reload recommendation rules from disk (admin only)
-    
+
     Returns:
         Success status
     """
     if not recommendation_engine:
         return jsonify({'error': 'Recommendation engine not available'}), 503
-    
+
     try:
         recommendation_engine.reload_rules()
-        
+
         return jsonify({
             'status': 'success',
             'message': 'Rules reloaded successfully',
             'total_rules': len(recommendation_engine.rules.get('rules', [])),
             'timestamp': datetime.now().isoformat()
         })
-    
+
     except Exception as e:
         logger.error(f"Failed to reload rules: {e}")
         return jsonify({'error': str(e)}), 500
@@ -954,7 +949,7 @@ def reload_rules():
 # MAIN
 # ============================================================================
 
-def main():
+def main() -> None:
     """Run API server"""
     logger.info("=" * 80)
     logger.info("AtroZ Dashboard API Server")
@@ -963,7 +958,7 @@ def main():
     logger.info(f"Rate Limiting: {APIConfig.RATE_LIMIT_ENABLED}")
     logger.info(f"Caching: {APIConfig.CACHE_ENABLED}")
     logger.info("=" * 80)
-    
+
     # Run server
     socketio.run(
         app,

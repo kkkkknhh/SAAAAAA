@@ -14,8 +14,6 @@ Usage:
 """
 
 import sys
-from typing import Dict, Tuple
-
 
 # Quality thresholds (must be identical across all modalities)
 QUALITY_THRESHOLDS = {
@@ -62,7 +60,7 @@ def determine_quality_level(normalized_score: float) -> str:
 def test_normalization_formulas() -> bool:
     """Test that normalization formulas are correct."""
     print("Testing normalization formulas...")
-    
+
     test_cases = [
         ("TYPE_A", 0, 0.0),
         ("TYPE_A", 2, 0.5),
@@ -74,10 +72,10 @@ def test_normalization_formulas() -> bool:
         ("TYPE_C", 1.5, 0.5),
         ("TYPE_C", 3, 1.0),
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for modality, raw, expected in test_cases:
         actual = normalize_score(raw, modality)
         if abs(actual - expected) < 0.001:
@@ -87,7 +85,7 @@ def test_normalization_formulas() -> bool:
         else:
             failed += 1
             print(f"  ✗ {modality}: {raw} → {actual:.3f} (expected {expected:.3f})")
-    
+
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
@@ -95,24 +93,24 @@ def test_normalization_formulas() -> bool:
 def test_parity_at_thresholds() -> bool:
     """Test that all modalities produce the same quality level at threshold scores."""
     print("\nTesting parity at quality thresholds...")
-    
+
     # Calculate equivalent raw scores for each threshold
     test_cases = []
     for quality, threshold in QUALITY_THRESHOLDS.items():
         if quality == "INSUFICIENTE":
             continue  # Skip lower bound
-        
+
         for modality, (min_score, max_score) in MODALITY_RANGES.items():
             raw_score = min_score + threshold * (max_score - min_score)
             test_cases.append((modality, raw_score, quality))
-    
+
     passed = 0
     failed = 0
-    
+
     for modality, raw_score, expected_quality in test_cases:
         normalized = normalize_score(raw_score, modality)
         actual_quality = determine_quality_level(normalized)
-        
+
         if actual_quality == expected_quality:
             passed += 1
             if "--verbose" in sys.argv:
@@ -120,7 +118,7 @@ def test_parity_at_thresholds() -> bool:
         else:
             failed += 1
             print(f"  ✗ {modality} at {raw_score:.2f} → {actual_quality} (expected {expected_quality})")
-    
+
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
@@ -128,31 +126,30 @@ def test_parity_at_thresholds() -> bool:
 def test_boundary_conditions() -> bool:
     """Test boundary conditions (just above/below thresholds)."""
     print("\nTesting boundary conditions...")
-    
+
     # Test scores just below and just above EXCELENTE threshold
-    epsilon = 0.001
-    
+
     test_cases = [
         # Just below EXCELENTE (should be BUENO)
         ("TYPE_A", 3.396, "BUENO"),  # 3.396/4 = 0.849
         ("TYPE_B", 2.547, "BUENO"),  # 2.547/3 = 0.849
-        
+
         # Just at EXCELENTE threshold
         ("TYPE_A", 3.4, "EXCELENTE"),  # 3.4/4 = 0.85
         ("TYPE_B", 2.55, "EXCELENTE"),  # 2.55/3 = 0.85
-        
+
         # Just above EXCELENTE
         ("TYPE_A", 3.404, "EXCELENTE"),  # 3.404/4 = 0.851
         ("TYPE_B", 2.553, "EXCELENTE"),  # 2.553/3 = 0.851
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for modality, raw_score, expected_quality in test_cases:
         normalized = normalize_score(raw_score, modality)
         actual_quality = determine_quality_level(normalized)
-        
+
         if actual_quality == expected_quality:
             passed += 1
             if "--verbose" in sys.argv:
@@ -160,7 +157,7 @@ def test_boundary_conditions() -> bool:
         else:
             failed += 1
             print(f"  ✗ {modality}: {raw_score:.3f} (norm={normalized:.4f}) → {actual_quality} (expected {expected_quality})")
-    
+
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
@@ -168,29 +165,29 @@ def test_boundary_conditions() -> bool:
 def test_no_unfair_advantage() -> bool:
     """Test that no modality has an unfair advantage at boundaries."""
     print("\nTesting for unfair advantages...")
-    
+
     # For each quality threshold, calculate the "difficulty" (raw score needed)
     # relative to the maximum possible score
     difficulties = {}
-    
+
     for quality, threshold in QUALITY_THRESHOLDS.items():
         if quality == "INSUFICIENTE":
             continue
-        
+
         difficulties[quality] = {}
         for modality, (min_score, max_score) in MODALITY_RANGES.items():
             raw_needed = min_score + threshold * (max_score - min_score)
             relative_difficulty = raw_needed / max_score
             difficulties[quality][modality] = relative_difficulty
-    
+
     passed = 0
     failed = 0
-    
+
     for quality, modality_difficulties in difficulties.items():
         # All modalities should have the same relative difficulty
         values = list(modality_difficulties.values())
         max_diff = max(values) - min(values)
-        
+
         if max_diff < 0.001:  # Allow 0.1% variance
             passed += 1
             if "--verbose" in sys.argv:
@@ -200,25 +197,25 @@ def test_no_unfair_advantage() -> bool:
             print(f"  ✗ {quality}: modalities have unequal difficulty (max diff: {max_diff:.6f})")
             for modality, diff in modality_difficulties.items():
                 print(f"      {modality}: {diff:.6f}")
-    
+
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
 
-def main():
+def main() -> int:
     """Run all parity validation tests."""
     print("=" * 60)
     print("Scoring Parity Validation")
     print("=" * 60)
-    
+
     all_passed = True
-    
+
     # Run all tests
     all_passed &= test_normalization_formulas()
     all_passed &= test_parity_at_thresholds()
     all_passed &= test_boundary_conditions()
     all_passed &= test_no_unfair_advantage()
-    
+
     print("\n" + "=" * 60)
     if all_passed:
         print("✓ All parity validation tests PASSED")

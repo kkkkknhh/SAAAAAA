@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Dict, Mapping, Type
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class ClassRegistryError(RuntimeError):
@@ -37,10 +40,10 @@ _CLASS_PATHS: Mapping[str, str] = {
 }
 
 
-def build_class_registry() -> Dict[str, Type[object]]:
+def build_class_registry() -> dict[str, type[object]]:
     """Return a mapping of class names to loaded types, validating availability."""
-    resolved: Dict[str, Type[object]] = {}
-    missing: Dict[str, str] = {}
+    resolved: dict[str, type[object]] = {}
+    missing: dict[str, str] = {}
     for name, path in _CLASS_PATHS.items():
         module_name, _, class_name = path.rpartition(".")
         if not module_name:

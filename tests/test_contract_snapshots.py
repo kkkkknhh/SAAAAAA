@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Dict
-
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -14,7 +12,6 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from saaaaaa.utils import core_contracts
-
 
 SNAPSHOT_PATH = Path(__file__).parent / "data" / "contract_snapshots.json"
 
@@ -24,8 +21,8 @@ def _format_type(annotation: object) -> str:
     return text.replace("typing.", "")
 
 
-def _collect_contracts() -> Dict[str, Dict[str, str]]:
-    members: Dict[str, Dict[str, str]] = {}
+def _collect_contracts() -> dict[str, dict[str, str]]:
+    members: dict[str, dict[str, str]] = {}
     for name in dir(core_contracts):
         if not name.endswith("Contract"):
             continue
