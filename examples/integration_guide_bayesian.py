@@ -14,6 +14,18 @@ from pathlib import Path
 from typing import Any
 
 # Import Bayesian multi-level components
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
 from saaaaaa.analysis.bayesian_multilevel_system import (
     BayesianPortfolioComposer,
     # Roll-up and composition

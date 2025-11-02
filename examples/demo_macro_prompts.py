@@ -10,6 +10,18 @@ and through the unified orchestrator.
 
 import json
 
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
 from saaaaaa.processing.macro_prompts import (
     BayesianPortfolioComposer,
     ContradictionScanner,

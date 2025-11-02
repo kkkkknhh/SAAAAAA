@@ -3,12 +3,27 @@
 Demo script for the scoring module.
 
 Shows how to use TYPE_A through TYPE_F scoring modalities.
+
+REQUIREMENTS:
+    Install the package first: pip install -e .
+    Or set PYTHONPATH: export PYTHONPATH=/path/to/SAAAAAA/src
 """
 
 from pathlib import Path
 
-# Add parent directory to path
-from saaaaaa.scoring.scoring import apply_scoring
+# Verify package is available
+try:
+    from saaaaaa.analysis.scoring.scoring import apply_scoring
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
+print("✓ Package imported successfully\n")
 
 def demo_type_a():
     """Demonstrate TYPE_A (Bayesian) scoring."""

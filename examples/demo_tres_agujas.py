@@ -19,6 +19,18 @@ import networkx as nx
 import numpy as np
 
 # Import TRES AGUJAS desde dereck_beach
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
 from saaaaaa.utils.dereck_beach import (
     AdaptivePriorCalculator,
     BayesianCounterfactualAuditor,
