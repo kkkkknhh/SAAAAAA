@@ -8,6 +8,60 @@
 
 ---
 
+## 📦 Package Installation & Import Strategy
+
+### Installation
+
+This package follows Python best practices with a clean `src/` layout:
+
+```bash
+# Install in development mode (recommended for development)
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev,test]"
+
+# For production
+pip install .
+```
+
+### Import Strategy
+
+**✅ Always use absolute imports from the installed package:**
+
+```python
+# Core modules
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.ports import Port
+
+# Analysis modules
+from saaaaaa.analysis.bayesian_multilevel_system import BayesianRollUp
+from saaaaaa.analysis.recommendation_engine import RecommendationEngine
+
+# Processing modules
+from saaaaaa.processing.document_ingestion import ingest_document
+from saaaaaa.processing.aggregation import aggregate_results
+```
+
+**❌ Never use sys.path manipulation:**
+
+```python
+# DON'T DO THIS - all sys.path hacks have been removed
+import sys
+sys.path.insert(0, '/path/to/src')  # ❌ No!
+```
+
+**❌ Avoid relative imports outside the package:**
+
+```python
+# DON'T DO THIS in examples or tests
+from ..core import something  # ❌ No!
+```
+
+**📖 For detailed import guidelines:** See [TEST_IMPORT_MATRIX.md](TEST_IMPORT_MATRIX.md)
+
+---
+
 ## 🚀 Complete Operational Runbook
 
 **📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with ALL necessary commands!**
