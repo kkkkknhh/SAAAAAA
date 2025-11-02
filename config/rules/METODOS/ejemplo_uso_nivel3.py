@@ -9,6 +9,7 @@ con énfasis en aquellos de prioridad CRITICAL y HIGH.
 
 import sys
 from pathlib import Path
+from typing import Any
 
 # Añadir el directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -16,14 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Imports de los productores principales
 try:
     from Analyzer_one import MunicipalAnalyzer
-    from contradiction_deteccion import ContradictionDetector
-    from dereck_beach import BeachProcessor
     from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
-    from report_assembly import ReportAssembler
-    from teoria_cambio import TeoriaCambio
-
-    from embedding_policy import PolicyEmbeddingAnalyzer
-    from policy_processor import IndustrialPolicyProcessor
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Ensure all dependencies are installed and paths are correct")
@@ -44,7 +38,7 @@ class NIVEL3ExecutionGuide:
     # MÉTODOS CRÍTICOS (CRITICAL PRIORITY) - Ejecución Obligatoria
     # ========================================================================
 
-    def ejemplo_financiero_critical(self):
+    def ejemplo_financiero_critical(self) -> PDETMunicipalPlanAnalyzer | None:
         """
         Ejemplo: PDETMunicipalPlanAnalyzer.__init__
         PRIORIDAD: CRITICAL
@@ -75,7 +69,7 @@ class NIVEL3ExecutionGuide:
             })
             return None
 
-    def ejemplo_municipal_analyzer_critical(self):
+    def ejemplo_municipal_analyzer_critical(self) -> MunicipalAnalyzer | None:
         """
         Ejemplo: MunicipalAnalyzer.__init__
         PRIORIDAD: CRITICAL
@@ -98,7 +92,7 @@ class NIVEL3ExecutionGuide:
             print(f"✗ Error: {e}")
             return None
 
-    def ejemplo_policy_processor_critical(self):
+    def ejemplo_policy_processor_critical(self) -> dict[str, Any] | None:
         """
         Ejemplo: IndustrialPolicyProcessor.process
         PRIORIDAD: CRITICAL
@@ -137,7 +131,7 @@ class NIVEL3ExecutionGuide:
     # MÉTODOS DE ALTA PRIORIDAD (HIGH PRIORITY)
     # ========================================================================
 
-    def ejemplo_bayesian_inference_high(self):
+    def ejemplo_bayesian_inference_high(self) -> float | None:
         """
         Ejemplo: Métodos de inferencia bayesiana
         PRIORIDAD: HIGH
@@ -172,7 +166,7 @@ class NIVEL3ExecutionGuide:
             print(f"✗ Error: {e}")
             return None
 
-    def ejemplo_causal_dag_high(self):
+    def ejemplo_causal_dag_high(self) -> Any:  # noqa: ANN401
         """
         Ejemplo: Construcción y análisis de DAG causal
         PRIORIDAD: HIGH
