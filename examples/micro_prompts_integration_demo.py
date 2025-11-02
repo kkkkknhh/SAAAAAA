@@ -38,14 +38,23 @@ except ImportError:
     print("Note: bayesian_multilevel_system not fully imported")
 
 try:
-    from orchestrator.evidence_registry import (
+    from saaaaaa.core.orchestrator.evidence_registry import (
+        EvidenceRegistry,
         EvidenceRecord,
         EvidenceRegistry,
     )
     REGISTRY_AVAILABLE = True
 except ImportError:
-    REGISTRY_AVAILABLE = False
-    print("Note: evidence_registry not fully imported")
+    # Fallback to legacy import for backward compatibility
+    try:
+        from orchestrator.evidence_registry import (
+            EvidenceRegistry,
+            EvidenceRecord,
+        )
+        REGISTRY_AVAILABLE = True
+    except ImportError:
+        REGISTRY_AVAILABLE = False
+        print("Note: evidence_registry not fully imported")
 
 
 def example_1_provenance_audit():

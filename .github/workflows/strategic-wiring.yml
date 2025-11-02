@@ -31,27 +31,34 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements_atroz.txt ]; then
-            pip install -r requirements_atroz.txt || true
-          fi
           # Install minimal dependencies for validation
           pip install numpy || true
       
+      - name: Set up Python path
+        run: |
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH" >> $GITHUB_ENV
+      
       - name: Validate Python syntax
-        run: python3 tools/validate_strategic_files.py syntax
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH
+          python3 tools/validate_strategic_files.py syntax
       
       - name: Run strategic wiring unit tests
         run: |
           echo "=== Running strategic wiring unit tests ==="
+          export PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH
           python3 -m unittest tests.test_strategic_wiring -v
       
       - name: Run strategic wiring validation script
         run: |
           echo "=== Running strategic wiring validation script ==="
+          export PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH
           python3 validate_strategic_wiring.py
       
       - name: Verify provenance tracking
-        run: python3 tools/validate_strategic_files.py provenance
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE/src:$PYTHONPATH
+          python3 tools/validate_strategic_files.py provenance
       
       - name: Validate documentation
         run: |
