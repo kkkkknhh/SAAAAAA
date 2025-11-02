@@ -15,9 +15,9 @@ from typing import Dict, List, Tuple
 
 # Mapping of old imports to new imports
 IMPORT_MAPPINGS = {
-    # Core modules
-    r'\bimport ORCHESTRATOR_MONILITH\b': 'from saaaaaa.core import ORCHESTRATOR_MONILITH',
-    r'\bfrom ORCHESTRATOR_MONILITH import': 'from saaaaaa.core.ORCHESTRATOR_MONILITH import',
+    # Core modules - ORCHESTRATOR_MONILITH is deprecated, use modular orchestrator
+    # r'\bimport ORCHESTRATOR_MONILITH\b': 'from saaaaaa.core.orchestrator import',  # DEPRECATED
+    # r'\bfrom ORCHESTRATOR_MONILITH import': 'from saaaaaa.core.orchestrator import',  # DEPRECATED
     r'\bimport executors_COMPLETE_FIXED\b': 'from saaaaaa.core import executors_COMPLETE_FIXED',
     r'\bfrom executors_COMPLETE_FIXED import': 'from saaaaaa.core.executors_COMPLETE_FIXED import',
     r'\bfrom orchestrator\b': 'from saaaaaa.core.orchestrator',
