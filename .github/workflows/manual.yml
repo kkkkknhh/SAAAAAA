@@ -34,4 +34,4 @@ jobs:
           # pip install -r requirements.txt
 
       - name: Run validator
-        run: python SAAAAAA/schema_validator.py
+        run: python schema_validator.py
