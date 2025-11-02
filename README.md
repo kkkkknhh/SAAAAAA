@@ -8,6 +8,22 @@
 
 ---
 
+## 🚀 NEW: Complete Operational Guide
+
+**📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with all necessary commands!**
+
+This comprehensive guide includes:
+- ✅ **Step-by-step installation** and system activation
+- ✅ **Development plan analysis** walkthrough with full commands
+- ✅ **Complete pipeline execution** instructions
+- ✅ **Verification and testing** procedures
+- ✅ **Troubleshooting** guide for common issues
+- ✅ **Advanced usage** and customization
+
+**Start here:** [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)
+
+---
+
 ## 📁 REPOSITORY STRUCTURE
 
 This repository now follows Python best practices with a hierarchical package structure:
@@ -72,6 +88,8 @@ compatibility shims for backward compatibility. **All new code should go in src/
 
 ## 🎯 QUICK START
 
+**📖 For complete instructions, see [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)**
+
 ### **Quick Setup (Recommended)**
 
 Use the automated setup script to install all dependencies:
@@ -82,6 +100,16 @@ bash scripts/setup.sh
 
 # Verify installation
 python scripts/verify_dependencies.py
+```
+
+### **Run Your First Analysis**
+
+```bash
+# Analyze a development plan (after setup)
+python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+  --input data/input_plans/your_plan.pdf \
+  --output-dir data/results \
+  --mode full --parallel
 ```
 
 ### **Manual Installation**
@@ -104,6 +132,7 @@ pip install -e .
 ```
 
 **📖 For detailed setup information, see:**
+- **[OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Complete operational guide with all commands**
 - [DEPENDENCY_SETUP.md](DEPENDENCY_SETUP.md) - Complete dependency installation guide
 - [IMPORT_RESOLUTION_SUMMARY.md](IMPORT_RESOLUTION_SUMMARY.md) - Import fixes and troubleshooting
 
