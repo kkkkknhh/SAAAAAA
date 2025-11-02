@@ -24,9 +24,8 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field, asdict
-from collections import defaultdict
 from datetime import datetime, timezone
 import jsonschema
 
@@ -161,6 +160,7 @@ class RecommendationEngine:
             
             # Organize rules by level
             for rule in self.rules.get('rules', []):
+                self._validate_rule(rule)
                 level = rule.get('level')
                 if level in self.rules_by_level:
                     self.rules_by_level[level].append(rule)
@@ -565,6 +565,216 @@ class RecommendationEngine:
             pattern = r'\{\{' + re.escape(var) + r'\}\}'
             result = re.sub(pattern, value, result)
         return result
+
+    # ========================================================================
+    # VALIDATION UTILITIES
+    # ========================================================================
+
+    def _validate_rule(self, rule: Dict[str, Any]) -> None:
+        """Apply structural validation to guarantee rigorous recommendations."""
+        rule_id = rule.get('rule_id')
+        if not isinstance(rule_id, str) or not rule_id.strip():
+            raise ValueError("Recommendation rule missing rule_id")
+
+        level = rule.get('level')
+        if level not in self.rules_by_level:
+            raise ValueError(f"Rule {rule_id} declares unsupported level: {level}")
+
+        when = rule.get('when', {})
+        if not isinstance(when, dict):
+            raise ValueError(f"Rule {rule_id} has invalid 'when' definition")
+
+        if level == 'MICRO':
+            self._validate_micro_when(rule_id, when)
+        elif level == 'MESO':
+            self._validate_meso_when(rule_id, when)
+        elif level == 'MACRO':
+            self._validate_macro_when(rule_id, when)
+
+        template = rule.get('template')
+        if not isinstance(template, dict):
+            raise ValueError(f"Rule {rule_id} lacks a structured template")
+
+        self._validate_template(rule_id, template)
+
+    def _validate_micro_when(self, rule_id: str, when: Dict[str, Any]) -> None:
+        required_keys = ('pa_id', 'dim_id', 'score_lt')
+        for key in required_keys:
+            if key not in when:
+                raise ValueError(f"Rule {rule_id} missing '{key}' in MICRO condition")
+
+        pa_id = when['pa_id']
+        dim_id = when['dim_id']
+        if not isinstance(pa_id, str) or not pa_id.strip():
+            raise ValueError(f"Rule {rule_id} has invalid pa_id")
+        if not isinstance(dim_id, str) or not dim_id.strip():
+            raise ValueError(f"Rule {rule_id} has invalid dim_id")
+
+        score_lt = when['score_lt']
+        if not self._is_number(score_lt):
+            raise ValueError(f"Rule {rule_id} has non numeric MICRO threshold")
+        if not 0 <= float(score_lt) <= 3:
+            raise ValueError(f"Rule {rule_id} MICRO threshold must be between 0 and 3")
+
+    def _validate_meso_when(self, rule_id: str, when: Dict[str, Any]) -> None:
+        cluster_id = when.get('cluster_id')
+        if not isinstance(cluster_id, str) or not cluster_id.strip():
+            raise ValueError(f"Rule {rule_id} missing cluster_id for MESO condition")
+
+        condition_counter = 0
+
+        score_band = when.get('score_band')
+        if score_band is not None:
+            if score_band not in {'BAJO', 'MEDIO', 'ALTO'}:
+                raise ValueError(f"Rule {rule_id} has invalid MESO score_band")
+            condition_counter += 1
+
+        variance_level = when.get('variance_level')
+        if variance_level is not None:
+            if variance_level not in {'BAJA', 'MEDIA', 'ALTA'}:
+                raise ValueError(f"Rule {rule_id} has invalid MESO variance_level")
+            condition_counter += 1
+
+        variance_threshold = when.get('variance_threshold')
+        if variance_threshold is not None:
+            if not self._is_number(variance_threshold):
+                raise ValueError(f"Rule {rule_id} has non numeric variance_threshold")
+
+        weak_pa_id = when.get('weak_pa_id')
+        if weak_pa_id is not None:
+            if not isinstance(weak_pa_id, str) or not weak_pa_id.strip():
+                raise ValueError(f"Rule {rule_id} has invalid weak_pa_id")
+            condition_counter += 1
+
+        if condition_counter == 0:
+            raise ValueError(
+                f"Rule {rule_id} must specify at least one discriminant condition for MESO"
+            )
+
+    def _validate_macro_when(self, rule_id: str, when: Dict[str, Any]) -> None:
+        discriminants = 0
+
+        macro_band = when.get('macro_band')
+        if macro_band is not None:
+            if not isinstance(macro_band, str) or not macro_band.strip():
+                raise ValueError(f"Rule {rule_id} has invalid macro_band")
+            discriminants += 1
+
+        clusters = when.get('clusters_below_target')
+        if clusters is not None:
+            if not isinstance(clusters, list) or not clusters:
+                raise ValueError(f"Rule {rule_id} must declare non empty clusters_below_target")
+            if not all(isinstance(item, str) and item.strip() for item in clusters):
+                raise ValueError(f"Rule {rule_id} has invalid cluster identifiers")
+            discriminants += 1
+
+        variance_alert = when.get('variance_alert')
+        if variance_alert is not None:
+            if not isinstance(variance_alert, str) or not variance_alert.strip():
+                raise ValueError(f"Rule {rule_id} has invalid variance_alert")
+            discriminants += 1
+
+        priority_gaps = when.get('priority_micro_gaps')
+        if priority_gaps is not None:
+            if not isinstance(priority_gaps, list) or not priority_gaps:
+                raise ValueError(f"Rule {rule_id} must declare non empty priority_micro_gaps")
+            if not all(isinstance(item, str) and item.strip() for item in priority_gaps):
+                raise ValueError(f"Rule {rule_id} has invalid priority_micro_gaps entries")
+            discriminants += 1
+
+        if discriminants == 0:
+            raise ValueError(
+                f"Rule {rule_id} must specify at least one MACRO discriminant condition"
+            )
+
+    def _validate_template(self, rule_id: str, template: Dict[str, Any]) -> None:
+        required_fields = ['problem', 'intervention', 'indicator', 'responsible', 'horizon', 'verification']
+        for field in required_fields:
+            if field not in template:
+                raise ValueError(f"Rule {rule_id} template missing '{field}'")
+
+        for text_field in ('problem', 'intervention'):
+            value = template[text_field]
+            if not isinstance(value, str):
+                raise ValueError(f"Rule {rule_id} template field '{text_field}' must be text")
+            stripped = value.strip()
+            if len(stripped) < 40 or len(stripped.split()) < 12:
+                raise ValueError(
+                    f"Rule {rule_id} template field '{text_field}' lacks actionable detail"
+                )
+
+        indicator = template['indicator']
+        if not isinstance(indicator, dict):
+            raise ValueError(f"Rule {rule_id} indicator must be an object")
+        for key in ('name', 'target', 'unit'):
+            if key not in indicator:
+                raise ValueError(f"Rule {rule_id} indicator missing '{key}' field")
+
+        if not isinstance(indicator['name'], str) or len(indicator['name'].strip()) < 5:
+            raise ValueError(f"Rule {rule_id} indicator name too short")
+
+        target = indicator['target']
+        if not self._is_number(target):
+            raise ValueError(f"Rule {rule_id} indicator target must be numeric")
+
+        unit = indicator['unit']
+        if not isinstance(unit, str) or not unit.strip():
+            raise ValueError(f"Rule {rule_id} indicator unit missing or empty")
+
+        acceptable_range = indicator.get('acceptable_range')
+        if acceptable_range is not None:
+            if not isinstance(acceptable_range, list) or len(acceptable_range) != 2:
+                raise ValueError(f"Rule {rule_id} acceptable_range must have two numeric bounds")
+            if not all(self._is_number(bound) for bound in acceptable_range):
+                raise ValueError(f"Rule {rule_id} acceptable_range values must be numeric")
+            lower, upper = acceptable_range
+            if float(lower) >= float(upper):
+                raise ValueError(f"Rule {rule_id} acceptable_range lower bound must be < upper bound")
+
+        responsible = template['responsible']
+        if not isinstance(responsible, dict):
+            raise ValueError(f"Rule {rule_id} responsible must be an object")
+        for key in ('entity', 'role'):
+            value = responsible.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Rule {rule_id} responsible missing '{key}'")
+
+        partners = responsible.get('partners')
+        if partners is None or not isinstance(partners, list) or not partners:
+            raise ValueError(f"Rule {rule_id} responsible must enumerate partners")
+        if any(not isinstance(partner, str) or not partner.strip() for partner in partners):
+            raise ValueError(f"Rule {rule_id} responsible partners must be non empty strings")
+
+        horizon = template['horizon']
+        if not isinstance(horizon, dict):
+            raise ValueError(f"Rule {rule_id} horizon must be an object")
+        for key in ('start', 'end'):
+            value = horizon.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Rule {rule_id} horizon missing '{key}'")
+
+        verification = template['verification']
+        if not isinstance(verification, list) or not verification:
+            raise ValueError(f"Rule {rule_id} must define verification artifacts")
+        for artifact in verification:
+            if isinstance(artifact, str):
+                if len(artifact.strip()) < 10:
+                    raise ValueError(
+                        f"Rule {rule_id} verification entries must describe concrete artifacts"
+                    )
+            elif isinstance(artifact, dict):
+                if not artifact.get('id') or not artifact.get('type'):
+                    raise ValueError(
+                        f"Rule {rule_id} structured verification entries require 'id' and 'type'"
+                    )
+            else:
+                raise ValueError(
+                    f"Rule {rule_id} verification entries must be strings or structured dictionaries"
+                )
+
+    @staticmethod
+    def _is_number(value: Any) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
     
     def generate_all_recommendations(
         self,

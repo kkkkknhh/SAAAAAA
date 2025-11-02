@@ -5,9 +5,11 @@ Expands test coverage for behavioral correctness, data integrity,
 and edge cases.
 """
 
-import pytest
 import json
+from copy import deepcopy
 from pathlib import Path
+
+import pytest
 
 # Try to import recommendation_engine, skip tests if not available
 pytest.importorskip("recommendation_engine", reason="recommendation_engine module not available")
@@ -18,6 +20,39 @@ from recommendation_engine import (
     RecommendationSet,
     load_recommendation_engine,
 )
+
+
+_STRICT_TEMPLATE = {
+    "problem": (
+        "La dimensión evaluada evidencia déficit específico porque el diagnóstico carece de series "
+        "históricas comparables, supuestos de validez y referencias a fuentes verificables que "
+        "permitan cerrar la brecha priorizada."
+    ),
+    "intervention": (
+        "Implementar un plan de acción secuenciado con responsables definidos, interoperabilidad de "
+        "bases de datos sectoriales y entregables trazables para cerrar la brecha identificada en la "
+        "dimensión prioritaria."
+    ),
+    "indicator": {
+        "name": "Indicador estructurado de prueba",
+        "target": 0.75,
+        "unit": "proporción"
+    },
+    "responsible": {
+        "entity": "Secretaría de Planeación",
+        "role": "Coordina seguimiento",
+        "partners": ["Secretaría de Hacienda"]
+    },
+    "horizon": {"start": "T0", "end": "T1"},
+    "verification": [
+        "Informe técnico firmado por Secretaría de Planeación"
+    ]
+}
+
+
+def build_strict_template() -> dict:
+    """Return a deep copy of a template that satisfies strict validation."""
+    return deepcopy(_STRICT_TEMPLATE)
 
 
 class TestRecommendationEngineDataIntegrity:
@@ -70,14 +105,7 @@ class TestRecommendationEngineDataIntegrity:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": {
-                        "problem": "Test problem",
-                        "intervention": "Test intervention",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": build_strict_template()
                 }
             ]
         }
@@ -158,14 +186,7 @@ class TestRecommendationEngineDataIntegrity:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": {
-                        "problem": "Test problem",
-                        "intervention": "Test intervention",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": build_strict_template()
                 }
             ]
         }
@@ -215,14 +236,7 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": {
-                        "problem": "Test problem",
-                        "intervention": "Test intervention",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": build_strict_template()
                 }
             ]
         }
@@ -268,14 +282,7 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "score_band": "BAJO",
                         "variance_level": "BAJA"
                     },
-                    "template": {
-                        "problem": "Low score",
-                        "intervention": "Improve",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": build_strict_template()
                 }
             ]
         }
@@ -310,6 +317,16 @@ class TestRecommendationEngineBehavioralCorrectness:
     
     def test_template_variable_substitution(self):
         """Test template variable substitution correctness."""
+        template = build_strict_template()
+        template['problem'] = (
+            "El componente {{PAxx}}-{{DIMxx}} presenta rezago analítico en los insumos que "
+            "deben sustentar la priorización territorial y poblacional."
+        )
+        template['intervention'] = (
+            "Coordinar para {{PAxx}} sesiones técnicas que documenten criterios de {{DIMxx}} con "
+            "metodologías cuantificables y responsables definidos."
+        )
+
         test_rules = {
             "version": "2.0.0",
             "rules": [
@@ -321,14 +338,7 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "dim_id": "DIM03",
                         "score_lt": 2.0
                     },
-                    "template": {
-                        "problem": "Problem in {{PAxx}}-{{DIMxx}}",
-                        "intervention": "Intervention for {{PAxx}}",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": template
                 }
             ]
         }
@@ -401,6 +411,15 @@ class TestRecommendationEngineStressResponse:
         # Generate 100 rules
         rules = []
         for i in range(100):
+            template = build_strict_template()
+            template['problem'] = (
+                f"El diagnóstico {i} evidencia carencias en datos trazables y en la modelación de "
+                "riesgos necesarios para tomar decisiones." 
+            )
+            template['intervention'] = (
+                f"Ejecutar la intervención técnica {i} con cronograma verificable, metas "
+                "cuantificadas y responsables designados." 
+            )
             rules.append({
                 "rule_id": f"RULE-{i:03d}",
                 "level": "MICRO",
@@ -409,14 +428,7 @@ class TestRecommendationEngineStressResponse:
                     "dim_id": f"DIM{(i%6)+1:02d}",
                     "score_lt": 2.0
                 },
-                "template": {
-                    "problem": f"Problem {i}",
-                    "intervention": f"Intervention {i}",
-                    "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                    "responsible": {"entity": "Test", "role": "Test"},
-                    "horizon": {"start": "M1", "end": "M3"},
-                    "verification": ["Test"]
-                }
+                "template": template
             })
         
         test_rules = {
@@ -462,14 +474,7 @@ class TestRecommendationMetadata:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": {
-                        "problem": "Test",
-                        "intervention": "Test",
-                        "indicator": {"name": "Test", "target": "100", "unit": "%"},
-                        "responsible": {"entity": "Test", "role": "Test"},
-                        "horizon": {"start": "M1", "end": "M3"},
-                        "verification": ["Test"]
-                    }
+                    "template": build_strict_template()
                 }
             ]
         }
