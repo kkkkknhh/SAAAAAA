@@ -6,6 +6,7 @@ Tests all TYPE_A through TYPE_F modalities with various evidence structures.
 
 import sys
 from pathlib import Path
+from dataclasses import replace
 
 import pytest
 
@@ -23,6 +24,7 @@ from scoring.scoring import (
     ScoringValidator,
     apply_scoring,
     determine_quality_level,
+    apply_rounding,
     score_type_a,
     score_type_b,
     score_type_c,
@@ -30,6 +32,8 @@ from scoring.scoring import (
     score_type_e,
     score_type_f,
 )
+
+import scoring.scoring as scoring_module
 
 
 def test_scored_result_hash():
@@ -210,7 +214,7 @@ def test_scoring_type_f():
 
 def test_quality_level_determination():
     """Test quality level determination."""
-    
+
     # EXCELENTE
     level = determine_quality_level(0.90)
     assert level == QualityLevel.EXCELENTE
@@ -230,6 +234,34 @@ def test_quality_level_determination():
     level = determine_quality_level(0.40)
     assert level == QualityLevel.INSUFICIENTE
     print(f"✓ Quality level 0.40 -> {level.value}")
+
+
+def test_quality_level_clamps_score():
+    """Scores outside [0, 1] should be clamped when determining quality."""
+
+    assert determine_quality_level(1.5) == QualityLevel.EXCELENTE
+    assert determine_quality_level(-0.2) == QualityLevel.INSUFICIENTE
+
+
+def test_quality_level_custom_thresholds():
+    """Custom thresholds should be validated and applied."""
+
+    thresholds = {"EXCELENTE": 0.9, "BUENO": 0.75, "ACEPTABLE": 0.6}
+    level = determine_quality_level(0.88, thresholds)
+    assert level == QualityLevel.BUENO
+
+
+def test_quality_level_invalid_thresholds():
+    """Invalid custom thresholds should raise an error."""
+
+    with pytest.raises(ValueError):
+        determine_quality_level(0.8, {"EXCELENTE": 0.7, "BUENO": 0.8, "ACEPTABLE": 0.5})
+
+    with pytest.raises(ValueError):
+        determine_quality_level(0.8, {"EXCELENTE": 1.2, "BUENO": 0.7, "ACEPTABLE": 0.5})
+
+    with pytest.raises(ValueError):
+        determine_quality_level(0.8, {"EXCELENTE": 0.9, "BUENO": 0.7})
 
 
 def test_apply_scoring_type_a():
@@ -371,6 +403,72 @@ def test_all_modalities():
             modality=modality,
         )
         print(f"✓ {modality}: score={result.score:.2f}, quality={result.quality_level}")
+
+
+def test_apply_scoring_rejects_invalid_score_range(monkeypatch):
+    """Scoring should fail fast when modality score ranges are degenerate."""
+
+    original_config = ScoringValidator.get_config(ScoringModality.TYPE_A)
+    invalid_config = replace(original_config, score_range=(1.0, 1.0))
+    monkeypatch.setitem(
+        ScoringValidator.MODALITY_CONFIGS,
+        ScoringModality.TYPE_A,
+        invalid_config,
+    )
+
+    evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
+
+    with pytest.raises(ScoringError):
+        apply_scoring(
+            question_global=1,
+            base_slot="PA01-DIM01-Q001",
+            policy_area="PA01",
+            dimension="DIM01",
+            evidence=evidence,
+            modality="TYPE_A",
+        )
+
+
+def test_apply_scoring_clamps_out_of_range_score(monkeypatch):
+    """Scores returned outside the configured range are clamped."""
+
+    def inflated_score(_, config):
+        raw = config.score_range[1] * 1.5
+        return raw, {"raw_score": raw}
+
+    monkeypatch.setitem(
+        scoring_module.SCORING_FUNCTIONS,
+        ScoringModality.TYPE_A,
+        inflated_score,
+    )
+
+    evidence = {"elements": [1, 2, 3, 4], "confidence": 0.9}
+    result = apply_scoring(
+        question_global=1,
+        base_slot="PA01-DIM01-Q001",
+        policy_area="PA01",
+        dimension="DIM01",
+        evidence=evidence,
+        modality="TYPE_A",
+    )
+
+    assert result.score == pytest.approx(3.0)
+    assert 0.0 <= result.normalized_score <= 1.0
+    assert result.metadata["score_clamped"] is True
+
+
+def test_apply_rounding_modes():
+    """Rounding helper should respect all supported modes."""
+
+    assert apply_rounding(1.235, mode="half_up", precision=2) == pytest.approx(1.24)
+    assert apply_rounding(1.245, mode="bankers", precision=2) == pytest.approx(1.24)
+    assert apply_rounding(1.239, mode="truncate", precision=2) == pytest.approx(1.23)
+
+    with pytest.raises(ValueError):
+        apply_rounding(1.23, mode="unknown", precision=2)
+
+    with pytest.raises(ValueError):
+        apply_rounding(1.23, mode="half_up", precision=-1)
 
 
 def run_all_tests():

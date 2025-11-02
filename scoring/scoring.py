@@ -13,6 +13,7 @@ ModalityConfig = _impl.ModalityConfig
 ScoringValidator = _impl.ScoringValidator
 apply_scoring = _impl.apply_scoring
 determine_quality_level = _impl.determine_quality_level
+apply_rounding = _impl.apply_rounding
 score_type_a = _impl.score_type_a
 score_type_b = _impl.score_type_b
 score_type_c = _impl.score_type_c
@@ -31,6 +32,7 @@ __all__ = [
     "ScoringValidator",
     "apply_scoring",
     "determine_quality_level",
+    "apply_rounding",
     "score_type_a",
     "score_type_b",
     "score_type_c",

@@ -27,10 +27,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_EVEN, ROUND_DOWN, InvalidOperation
 from enum import Enum
+from numbers import Real
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -263,6 +265,15 @@ class ScoringValidator:
         return config
 
 
+def clamp(value: float, lower: float, upper: float) -> float:
+    """Clamp *value* to the inclusive range ``[lower, upper]``."""
+
+    if lower > upper:
+        raise ValueError("Lower bound cannot exceed upper bound")
+
+    return min(max(value, lower), upper)
+
+
 def apply_rounding(
     value: float,
     mode: str = "half_up",
@@ -279,24 +290,71 @@ def apply_rounding(
     Returns:
         Rounded value
     """
+    if precision < 0:
+        raise ValueError("Precision must be non-negative")
+
     decimal_value = Decimal(str(value))
-    
+    quantize_exp = Decimal(10) ** -precision
+
     if mode == "half_up":
-        rounded = decimal_value.quantize(
-            Decimal(10) ** -precision,
-            rounding=ROUND_HALF_UP
-        )
+        rounding_mode = ROUND_HALF_UP
     elif mode == "bankers":
-        # Python's default rounding is bankers rounding
-        rounded = round(decimal_value, precision)
+        rounding_mode = ROUND_HALF_EVEN
     elif mode == "truncate":
-        # Truncate by converting to int and back
-        factor = 10 ** precision
-        rounded = Decimal(int(decimal_value * factor)) / factor
+        rounding_mode = ROUND_DOWN
     else:
         raise ValueError(f"Unknown rounding mode: {mode}")
-    
+
+    try:
+        rounded = decimal_value.quantize(quantize_exp, rounding=rounding_mode)
+    except InvalidOperation as exc:
+        raise ValueError(f"Failed to round value {value}: {exc}") from exc
+
     return float(rounded)
+
+
+def _validate_quality_thresholds(thresholds: Dict[str, float]) -> Dict[str, float]:
+    """Validate custom quality thresholds.
+
+    Returns a copy of *thresholds* with float values if validation succeeds.
+    """
+
+    if not isinstance(thresholds, dict):
+        raise ValueError("Quality thresholds must be provided as a dictionary")
+
+    required_keys = ("EXCELENTE", "BUENO", "ACEPTABLE")
+    missing = [key for key in required_keys if key not in thresholds]
+    if missing:
+        raise ValueError(f"Missing quality thresholds for: {', '.join(missing)}")
+
+    validated: Dict[str, float] = {}
+    for key in required_keys:
+        value = thresholds[key]
+
+        if isinstance(value, bool) or not isinstance(value, (int, float, Decimal, Real)):
+            raise ValueError(
+                f"Threshold for {key} must be a real number between 0 and 1"
+            )
+
+        numeric_value = float(value)
+        if math.isnan(numeric_value) or math.isinf(numeric_value):
+            raise ValueError(f"Threshold for {key} cannot be NaN or infinite")
+
+        if not 0.0 <= numeric_value <= 1.0:
+            raise ValueError(
+                f"Threshold for {key} must be between 0 and 1 inclusive"
+            )
+
+        validated[key] = numeric_value
+
+    if not (
+        validated["EXCELENTE"] >= validated["BUENO"] >= validated["ACEPTABLE"]
+    ):
+        raise ValueError(
+            "Quality thresholds must satisfy EXCELENTE >= BUENO >= ACEPTABLE"
+        )
+
+    return validated
 
 
 def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
@@ -672,7 +730,12 @@ def determine_quality_level(
             "BUENO": 0.70,
             "ACEPTABLE": 0.55,
         }
-    
+
+    thresholds = _validate_quality_thresholds(thresholds)
+
+    # Clamp score to account for minor floating-point drift
+    normalized_score = clamp(float(normalized_score), 0.0, 1.0)
+
     if normalized_score >= thresholds["EXCELENTE"]:
         return QualityLevel.EXCELENTE
     elif normalized_score >= thresholds["BUENO"]:
@@ -764,17 +827,27 @@ def apply_scoring(
         mode=config.rounding_mode,
         precision=config.rounding_precision,
     )
-    
+
+    min_score, max_score = config.score_range
+    if max_score <= min_score:
+        raise ScoringError(
+            f"Invalid score range for {modality}: {config.score_range}"
+        )
+
+    # Guard against errant modality implementations
+    clamped_score = clamp(rounded_score, min_score, max_score)
+    score_clamped = not math.isclose(clamped_score, rounded_score, rel_tol=1e-9, abs_tol=1e-9)
+
     # Normalize score to 0-1 range
-    score_range = config.score_range
-    normalized_score = (rounded_score - score_range[0]) / (score_range[1] - score_range[0])
-    
+    normalized_score = (clamped_score - min_score) / (max_score - min_score)
+    normalized_score = clamp(normalized_score, 0.0, 1.0)
+
     # Determine quality level
     quality_level = determine_quality_level(normalized_score, quality_thresholds)
-    
+
     # Compute evidence hash for reproducibility
     evidence_hash = ScoredResult.compute_evidence_hash(evidence)
-    
+
     # Build result
     result = ScoredResult(
         question_global=question_global,
@@ -788,9 +861,10 @@ def apply_scoring(
         evidence_hash=evidence_hash,
         metadata={
             **metadata,
-            "score_range": score_range,
+            "score_range": config.score_range,
             "rounding_mode": config.rounding_mode,
             "rounding_precision": config.rounding_precision,
+            "score_clamped": score_clamped,
         },
     )
     
