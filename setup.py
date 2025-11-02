@@ -71,7 +71,6 @@ setup(
     entry_points={
         "console_scripts": [
             "saaaaaa=saaaaaa.core.orchestrator.ORCHESTRATOR_MONILITH:main",
-            "saaaaaa-validate=scripts.validate_system:main",
             "saaaaaa-api=saaaaaa.api.api_server:main",
         ],
     },
