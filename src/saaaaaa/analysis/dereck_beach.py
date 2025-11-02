@@ -1639,6 +1639,105 @@ class CausalExtractor:
                 if not self.graph.has_edge(prod, res):
                     self.graph.add_edge(prod, res, logic='inferido', strength=0.5)
 
+    def _calculate_confidence(self, node: MetaNode, link_text: str = "") -> float:
+        """
+        Calculate confidence score for a causal link.
+        
+        Args:
+            node: The node to calculate confidence for
+            link_text: Optional text describing the causal link
+            
+        Returns:
+            Confidence score between 0 and 1
+        """
+        confidence = 0.5  # Base confidence
+        
+        # Increase confidence if node has quantitative targets
+        if node.target and node.baseline:
+            try:
+                float(str(node.target).replace(',', '').replace('%', ''))
+                confidence += 0.2
+            except (ValueError, TypeError):
+                pass
+        
+        # Increase confidence if text has causal indicators
+        if link_text:
+            causal_words = ['porque', 'debido', 'mediante', 'a través', 'permite', 'genera', 'produce']
+            if any(word in link_text.lower() for word in causal_words):
+                confidence += 0.15
+        
+        # Increase confidence based on rigor status
+        if hasattr(node, 'rigor_status'):
+            if node.rigor_status == 'fuerte':
+                confidence += 0.15
+            elif node.rigor_status == 'débil':
+                confidence -= 0.1
+        
+        return min(1.0, max(0.0, confidence))
+
+    def _classify_goal_type(self, text: str) -> str:
+        """
+        Classify the type of a goal based on its text.
+        
+        Args:
+            text: Goal text to classify
+            
+        Returns:
+            Goal type (programa, producto, resultado, impacto)
+        """
+        text_lower = text.lower()
+        
+        # Keywords for each type
+        if any(word in text_lower for word in ['programa', 'línea estratégica', 'componente', 'eje']):
+            return 'programa'
+        elif any(word in text_lower for word in ['producto', 'servicio', 'bien', 'actividad']):
+            return 'producto'
+        elif any(word in text_lower for word in ['resultado', 'efecto', 'cambio', 'mejora']):
+            return 'resultado'
+        elif any(word in text_lower for word in ['impacto', 'transformación', 'desarrollo', 'bienestar']):
+            return 'impacto'
+        else:
+            # Default classification based on position and complexity
+            if len(text) < 100:
+                return 'producto'
+            else:
+                return 'resultado'
+
+    def _extract_causal_justifications(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Extract causal justifications from text.
+        
+        Args:
+            text: Text to extract justifications from
+            
+        Returns:
+            List of justifications with text and confidence
+        """
+        justifications = []
+        
+        # Patterns that indicate causal justifications
+        patterns = [
+            r'porque\s+([^.]+)',
+            r'debido\s+a\s+([^.]+)',
+            r'mediante\s+([^.]+)',
+            r'a\s+través\s+de\s+([^.]+)',
+            r'se\s+logra\s+mediante\s+([^.]+)',
+            r'permite\s+([^.]+)',
+            r'genera\s+([^.]+)',
+        ]
+        
+        for pattern in patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                justification_text = match.group(1).strip()
+                justifications.append({
+                    'text': justification_text,
+                    'confidence': 0.7,
+                    'type': 'causal_explanation'
+                })
+        
+        return justifications
+
 
 class MechanismPartExtractor:
     """Extract Entity-Activity pairs for mechanism parts"""
@@ -1691,6 +1790,108 @@ class MechanismPartExtractor:
         """Normalize entity name using aliases"""
         entity_upper = entity.upper().strip()
         return self.entity_aliases.get(entity_upper, entity)
+
+    def _calculate_ea_confidence(self, entity: str, activity: str, context: str = "") -> float:
+        """
+        Calculate confidence for an entity-activity pair.
+        
+        Args:
+            entity: Entity text
+            activity: Activity text
+            context: Surrounding context
+            
+        Returns:
+            Confidence score between 0 and 1
+        """
+        confidence = 0.5
+        
+        # Higher confidence if entity is in known aliases
+        if entity.upper() in self.entity_aliases:
+            confidence += 0.2
+        
+        # Higher confidence if activity is a strong verb
+        strong_verbs = ['ejecutar', 'implementar', 'desarrollar', 'gestionar', 'coordinar']
+        if any(verb in activity.lower() for verb in strong_verbs):
+            confidence += 0.15
+        
+        # Higher confidence if there's clear grammatical connection in context
+        if entity in context and activity in context:
+            confidence += 0.15
+        
+        return min(1.0, confidence)
+
+    def _find_action_verb(self, text: str) -> Optional[str]:
+        """
+        Find the main action verb in text.
+        
+        Args:
+            text: Text to analyze
+            
+        Returns:
+            Main action verb or None
+        """
+        doc = self.nlp(text)
+        
+        # Find main verb
+        for token in doc:
+            if token.pos_ == 'VERB' and token.dep_ in ['ROOT', 'ccomp', 'xcomp']:
+                return token.text
+        
+        # Fallback: any verb
+        for token in doc:
+            if token.pos_ == 'VERB':
+                return token.text
+        
+        return None
+
+    def _find_subject_entity(self, text: str) -> Optional[str]:
+        """
+        Find the subject entity in text.
+        
+        Args:
+            text: Text to analyze
+            
+        Returns:
+            Subject entity or None
+        """
+        doc = self.nlp(text)
+        
+        # Find subject
+        for token in doc:
+            if token.dep_ in ['nsubj', 'nsubjpass']:
+                return self._normalize_entity(token.text)
+        
+        # Try NER
+        for ent in doc.ents:
+            if ent.label_ in ['ORG', 'PER', 'GPE']:
+                return self._normalize_entity(ent.text)
+        
+        return None
+
+    def _validate_entity_activity(self, entity: str, activity: str) -> bool:
+        """
+        Validate that an entity-activity pair makes sense.
+        
+        Args:
+            entity: Entity text
+            activity: Activity text
+            
+        Returns:
+            True if valid pair
+        """
+        # Basic validation
+        if not entity or not activity:
+            return False
+        
+        # Entity should not be too short or generic
+        if len(entity) < 3 or entity.lower() in ['el', 'la', 'los', 'las', 'un', 'una']:
+            return False
+        
+        # Activity should be a reasonable verb
+        if len(activity) < 3:
+            return False
+        
+        return True
 
 
 class FinancialAuditor:
@@ -1966,6 +2167,102 @@ class FinancialAuditor:
                          f"{self.d3_q3_analysis['well_traced_count']}/{len(d3_q3_scores)} "
                          f"products with excellent traceability")
         return None
+
+    def _calculate_sufficiency(self, allocation: float, target: float) -> float:
+        """
+        Calculate if financial allocation is sufficient for target.
+        
+        Args:
+            allocation: Financial allocation amount
+            target: Target value
+            
+        Returns:
+            Sufficiency ratio (1.0 = exactly sufficient, >1.0 = oversufficient)
+        """
+        if not target or target == 0:
+            return 0.0
+        
+        # Calculate unit cost implied by allocation and target
+        unit_cost = allocation / target
+        
+        # Compare with historical/expected unit costs if available
+        # For now, return simple ratio
+        return allocation / target if target > 0 else 0.0
+
+    def _detect_allocation_gaps(self, nodes: Dict[str, MetaNode]) -> List[Dict[str, Any]]:
+        """
+        Detect gaps in financial allocations.
+        
+        Args:
+            nodes: Dictionary of nodes
+            
+        Returns:
+            List of detected gaps
+        """
+        gaps = []
+        
+        for node_id, node in nodes.items():
+            # Check for missing allocation
+            if node.type in ['producto', 'programa'] and not node.financial_allocation:
+                gaps.append({
+                    'node_id': node_id,
+                    'type': 'missing_allocation',
+                    'severity': 'high',
+                    'message': f"No financial allocation for {node.type} {node_id}"
+                })
+            
+            # Check for insufficient allocation
+            if node.financial_allocation and node.target:
+                try:
+                    target_val = float(str(node.target).replace(',', '').replace('%', ''))
+                    if target_val > 0:
+                        sufficiency = self._calculate_sufficiency(node.financial_allocation, target_val)
+                        if sufficiency < 0.5:
+                            gaps.append({
+                                'node_id': node_id,
+                                'type': 'insufficient_allocation',
+                                'severity': 'medium',
+                                'message': f"Low sufficiency ratio {sufficiency:.2f} for {node_id}",
+                                'sufficiency': sufficiency
+                            })
+                except (ValueError, TypeError):
+                    pass
+        
+        return gaps
+
+    def _match_goal_to_budget(self, goal_text: str, budget_entries: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Match a goal to budget entries.
+        
+        Args:
+            goal_text: Goal text to match
+            budget_entries: List of budget entries
+            
+        Returns:
+            Best matching budget entry or None
+        """
+        if not budget_entries:
+            return None
+        
+        # Extract potential identifiers from goal text
+        goal_words = set(goal_text.lower().split())
+        
+        best_match = None
+        best_score = 0
+        
+        for entry in budget_entries:
+            entry_text = str(entry.get('description', '')).lower()
+            entry_words = set(entry_text.split())
+            
+            # Calculate overlap
+            overlap = len(goal_words & entry_words)
+            score = overlap / max(len(goal_words), len(entry_words), 1)
+            
+            if score > best_score and score > 0.3:  # Minimum threshold
+                best_score = score
+                best_match = entry
+        
+        return best_match
 
 
 class OperationalizationAuditor:
@@ -2567,6 +2864,46 @@ class OperationalizationAuditor:
         }
         return texts.get(omission, f"Completar {omission} para {node_id}")
 
+    def _perform_counterfactual_budget_check(self, nodes: Dict[str, MetaNode],
+                                            graph: nx.DiGraph) -> Dict[str, Any]:
+        """
+        Perform counterfactual budget check for operationalization audit.
+        
+        This method evaluates whether removing budget allocation would prevent
+        goal execution, helping identify necessary vs. superfluous allocations.
+        
+        Args:
+            nodes: Dictionary of meta nodes
+            graph: Causal graph
+            
+        Returns:
+            Dictionary with counterfactual analysis results
+        """
+        results = {
+            'nodes_analyzed': 0,
+            'budget_necessary': [],
+            'budget_optional': [],
+            'unallocated': []
+        }
+        
+        for node_id, node in nodes.items():
+            results['nodes_analyzed'] += 1
+            
+            has_budget = node.financial_allocation and node.financial_allocation > 0
+            has_mechanism = node.entity_activity is not None
+            has_dependencies = len(list(graph.successors(node_id))) > 0 if graph.has_node(node_id) else False
+            
+            if not has_budget:
+                results['unallocated'].append(node_id)
+            elif has_mechanism and has_dependencies:
+                # Budget seems necessary for execution
+                results['budget_necessary'].append(node_id)
+            else:
+                # Budget may be optional or disconnected
+                results['budget_optional'].append(node_id)
+        
+        return results
+
 
 class BayesianMechanismInference:
     """
@@ -3097,6 +3434,120 @@ class BayesianMechanismInference:
 
         return gaps
 
+    def _aggregate_bayesian_confidence(self, confidences: List[float]) -> float:
+        """
+        Aggregate multiple Bayesian confidence values.
+        
+        Args:
+            confidences: List of confidence values to aggregate
+            
+        Returns:
+            Aggregated confidence value
+        """
+        if not confidences:
+            return 0.5  # Default neutral confidence
+        return float(np.mean(confidences))
+
+    def _build_transition_matrix(self, mechanism_type: str) -> np.ndarray:
+        """
+        Build transition matrix for activity sequences.
+        
+        Args:
+            mechanism_type: Type of mechanism
+            
+        Returns:
+            Transition probability matrix
+        """
+        # Get typical sequence for this mechanism type
+        sequence = self.mechanism_sequences.get(mechanism_type, ['planificar', 'ejecutar', 'evaluar'])
+        n = len(sequence)
+        
+        # Create a simple sequential transition matrix
+        matrix = np.zeros((n, n))
+        for i in range(n - 1):
+            matrix[i, i + 1] = 0.7  # High probability of next step
+            matrix[i, i] = 0.2       # Some probability of staying in same step
+            if i < n - 2:
+                matrix[i, i + 2] = 0.1  # Small probability of skipping
+        matrix[n - 1, n - 1] = 1.0  # Final state is absorbing
+        
+        return matrix
+
+    def _calculate_type_transition_prior(self, from_type: str, to_type: str) -> float:
+        """
+        Calculate prior probability of transitioning between mechanism types.
+        
+        Args:
+            from_type: Source mechanism type
+            to_type: Target mechanism type
+            
+        Returns:
+            Prior probability of transition
+        """
+        # Same type has high probability
+        if from_type == to_type:
+            return 0.7
+        
+        # Related types have medium probability
+        related_pairs = [
+            ('administrativo', 'politico'),
+            ('tecnico', 'financiero'),
+            ('financiero', 'administrativo'),
+        ]
+        if (from_type, to_type) in related_pairs or (to_type, from_type) in related_pairs:
+            return 0.2
+        
+        # Unrelated types have low probability
+        return 0.1
+
+    def _classify_mechanism_type(self, observations: Dict[str, Any]) -> str:
+        """
+        Classify mechanism type based on observations.
+        
+        Args:
+            observations: Observed features
+            
+        Returns:
+            Classified mechanism type
+        """
+        # Extract features
+        verbs = observations.get('verbs', [])
+        entities = observations.get('entities', [])
+        budget = observations.get('budget', None)
+        
+        # Score each mechanism type
+        scores = {}
+        for mech_type, typical_verbs in self.mechanism_sequences.items():
+            score = 0.0
+            # Count matching verbs
+            for verb in verbs:
+                if any(tv in verb.lower() for tv in typical_verbs):
+                    score += 1.0
+            scores[mech_type] = score
+        
+        # Adjust for budget presence (indicates financial mechanism)
+        if budget and budget > 0:
+            scores['financiero'] = scores.get('financiero', 0) + 2.0
+        
+        # Adjust for political/administrative entities
+        for entity in entities:
+            entity_lower = entity.lower()
+            if any(word in entity_lower for word in ['alcaldía', 'consejo', 'gobernación']):
+                scores['politico'] = scores.get('politico', 0) + 1.0
+            if any(word in entity_lower for word in ['secretaría', 'dirección', 'oficina']):
+                scores['administrativo'] = scores.get('administrativo', 0) + 1.0
+        
+        # Return type with highest score, or 'mixto' if tie
+        if not scores or all(s == 0 for s in scores.values()):
+            return 'mixto'
+        
+        max_score = max(scores.values())
+        max_types = [t for t, s in scores.items() if s == max_score]
+        
+        if len(max_types) > 1:
+            return 'mixto'
+        return max_types[0]
+
 
 class CausalInferenceSetup:
     """Prepare model for causal inference"""
@@ -3275,6 +3726,24 @@ class CausalInferenceSetup:
             f"D6-Q5: {distinct_factors_count} factores contextuales distintos detectados - {d6_q5_quality}")
 
         return failure_points
+
+    def _get_dynamics_pattern(self, dynamics_type: str) -> str:
+        """
+        Get the pattern associated with a dynamics type.
+        
+        Args:
+            dynamics_type: Type of dynamics (suma, decreciente, constante, indefinido)
+            
+        Returns:
+            Pattern string for the dynamics type
+        """
+        patterns = {
+            'suma': 'suma|total|agregado|consolidado',
+            'decreciente': 'reducir|disminuir|decrementar|bajar',
+            'constante': 'mantener|sostener|preservar|conservar',
+            'indefinido': 'por definir|sin especificar|indefinido'
+        }
+        return patterns.get(dynamics_type, '')
 
 
 class ReportingEngine:
@@ -4060,6 +4529,193 @@ class CDAFFramework:
             self.logger.info(f"Reporte de cumplimiento DNP guardado en: {report_path}")
         except Exception as e:
             self.logger.error(f"Error guardando reporte DNP: {e}")
+
+    def _audit_causal_coherence(self, graph: nx.DiGraph, nodes: Dict[str, MetaNode]) -> Dict[str, Any]:
+        """
+        Audit causal coherence of the extracted model.
+        
+        Args:
+            graph: Causal graph
+            nodes: Dictionary of nodes
+            
+        Returns:
+            Dictionary with coherence audit results
+        """
+        audit = {
+            'total_nodes': len(nodes),
+            'total_edges': graph.number_of_edges(),
+            'disconnected_nodes': [],
+            'cycles': [],
+            'coherence_score': 0.0
+        }
+        
+        # Check for disconnected nodes
+        for node_id in nodes.keys():
+            if graph.has_node(node_id):
+                if graph.degree(node_id) == 0:
+                    audit['disconnected_nodes'].append(node_id)
+        
+        # Check for cycles (should not exist in causal DAG)
+        try:
+            cycles = list(nx.simple_cycles(graph))
+            audit['cycles'] = cycles
+        except:
+            pass
+        
+        # Calculate coherence score
+        connected_ratio = 1.0 - (len(audit['disconnected_nodes']) / max(len(nodes), 1))
+        acyclic_score = 1.0 if len(audit['cycles']) == 0 else 0.5
+        audit['coherence_score'] = (connected_ratio + acyclic_score) / 2.0
+        
+        return audit
+
+    def _generate_causal_model_json(self, graph: nx.DiGraph, nodes: Dict[str, MetaNode],
+                                   policy_code: str) -> None:
+        """
+        Generate JSON representation of causal model.
+        
+        Args:
+            graph: Causal graph
+            nodes: Dictionary of nodes
+            policy_code: Policy code for filename
+        """
+        model = {
+            'policy_code': policy_code,
+            'nodes': [],
+            'edges': []
+        }
+        
+        # Add nodes
+        for node_id, node in nodes.items():
+            model['nodes'].append({
+                'id': node_id,
+                'text': node.text,
+                'type': node.type,
+                'baseline': str(node.baseline) if node.baseline else None,
+                'target': str(node.target) if node.target else None
+            })
+        
+        # Add edges
+        for source, target in graph.edges():
+            edge_data = graph.get_edge_data(source, target)
+            model['edges'].append({
+                'source': source,
+                'target': target,
+                'logic': edge_data.get('logic', 'unknown'),
+                'strength': edge_data.get('strength', 0.5)
+            })
+        
+        # Write to file
+        output_path = self.output_dir / f"{policy_code}{CAUSAL_MODEL_SUFFIX}"
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(model, f, indent=2, ensure_ascii=False)
+            self.logger.info(f"Causal model JSON saved to: {output_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving causal model JSON: {e}")
+
+    def _generate_dnp_compliance_report(self, nodes: Dict[str, MetaNode],
+                                       policy_code: str) -> Dict[str, Any]:
+        """
+        Generate DNP compliance report.
+        
+        Args:
+            nodes: Dictionary of nodes
+            policy_code: Policy code
+            
+        Returns:
+            Compliance report dictionary
+        """
+        report = {
+            'policy_code': policy_code,
+            'total_products': 0,
+            'compliant_products': 0,
+            'compliance_rate': 0.0,
+            'gaps': []
+        }
+        
+        # Check products for DNP compliance
+        for node_id, node in nodes.items():
+            if node.type == 'producto':
+                report['total_products'] += 1
+                
+                # Check required fields
+                has_baseline = node.baseline is not None
+                has_target = node.target is not None
+                has_indicator = len(node.text) > 10  # Simple check
+                
+                is_compliant = has_baseline and has_target and has_indicator
+                
+                if is_compliant:
+                    report['compliant_products'] += 1
+                else:
+                    gaps = []
+                    if not has_baseline:
+                        gaps.append('missing_baseline')
+                    if not has_target:
+                        gaps.append('missing_target')
+                    if not has_indicator:
+                        gaps.append('missing_indicator')
+                    
+                    report['gaps'].append({
+                        'node_id': node_id,
+                        'issues': gaps
+                    })
+        
+        if report['total_products'] > 0:
+            report['compliance_rate'] = report['compliant_products'] / report['total_products']
+        
+        return report
+
+    def _generate_extraction_report(self, nodes: Dict[str, MetaNode],
+                                   graph: nx.DiGraph,
+                                   policy_code: str) -> None:
+        """
+        Generate extraction confidence report.
+        
+        Args:
+            nodes: Dictionary of nodes
+            graph: Causal graph
+            policy_code: Policy code
+        """
+        report = {
+            'policy_code': policy_code,
+            'extraction_summary': {
+                'total_nodes': len(nodes),
+                'total_edges': graph.number_of_edges(),
+                'nodes_by_type': {}
+            },
+            'node_confidence': []
+        }
+        
+        # Count nodes by type
+        for node in nodes.values():
+            node_type = node.type
+            report['extraction_summary']['nodes_by_type'][node_type] = \
+                report['extraction_summary']['nodes_by_type'].get(node_type, 0) + 1
+        
+        # Add confidence scores
+        for node_id, node in nodes.items():
+            confidence = 0.8  # Default
+            if hasattr(node, 'rigor_status'):
+                if node.rigor_status == 'fuerte':
+                    confidence = 0.9
+                elif node.rigor_status == 'débil':
+                    confidence = 0.6
+            
+            report['node_confidence'].append({
+                'node_id': node_id,
+                'confidence': confidence
+            })
+        
+        # Write report
+        output_path = self.output_dir / f"{policy_code}{EXTRACTION_REPORT_SUFFIX}"
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+            self.logger.info(f"Extraction report saved to: {output_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving extraction report: {e}")
 
 
 # ============================================================================
