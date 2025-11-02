@@ -1883,6 +1883,10 @@ class FrontierExecutorOrchestrator:
         return [question_ids[i % len(question_ids)] for i in indices]
 
 
+# Backwards compatibility alias
+DataFlowExecutor = AdvancedDataFlowExecutor
+
+
 # Export all executor classes and orchestrator
 __all__ = [
     # Executor classes for all 30 questions
@@ -1918,6 +1922,7 @@ __all__ = [
     'D6Q5_Executor',
     # Main orchestrator
     'FrontierExecutorOrchestrator',
-    # Base class
+    # Base classes
     'AdvancedDataFlowExecutor',
+    'DataFlowExecutor',  # Backwards compatibility alias
 ]
