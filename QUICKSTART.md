@@ -9,14 +9,22 @@ This repository now follows strict build hygiene practices. Here's what you need
 ### Quick Automated Setup (Recommended)
 
 ```bash
-# Run the automated setup script
+# Method 1: Using Makefile (simplest - installs dependencies and package)
+make install
+
+# Method 2: Using setup script (includes SpaCy models)
 bash scripts/setup.sh
 ```
 
-This will:
+**Using `make install` will:**
 1. Install all Python dependencies from requirements.txt
-2. Download required SpaCy language models (es_core_news_lg, es_dep_news_trf)
-3. Verify the installation
+2. Install the saaaaaa package in editable mode (required for imports to work)
+
+**Using `bash scripts/setup.sh` will:**
+1. Install all Python dependencies from requirements.txt
+2. Install the saaaaaa package in editable mode (required for imports to work)
+3. Download required SpaCy language models (es_core_news_lg, es_dep_news_trf)
+4. Verify the installation
 
 ### Manual Setup
 

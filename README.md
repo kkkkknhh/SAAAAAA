@@ -30,8 +30,10 @@
 ### Quick Start
 
 ```bash
-# 1. Install system
-bash scripts/setup.sh
+# 1. Install system (choose one method)
+make install           # Using Makefile (recommended)
+# OR
+bash scripts/setup.sh  # Using setup script
 
 # 2. Run analysis
 python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
@@ -115,10 +117,13 @@ compatibility shims for backward compatibility. **All new code should go in src/
 
 ### **Quick Setup (Recommended)**
 
-Use the automated setup script to install all dependencies:
+Use one of these methods to install all dependencies:
 
 ```bash
-# Run automated setup (installs dependencies and SpaCy models)
+# Method 1: Using Makefile (simplest)
+make install
+
+# Method 2: Using setup script (includes SpaCy models)
 bash scripts/setup.sh
 
 # Verify installation
