@@ -1,5 +1,8 @@
 name: D2 Method Concurrence Validation
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main, develop ]
@@ -37,10 +40,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     
@@ -62,9 +65,9 @@ jobs:
           --summary
       continue-on-error: true
     
-    - name: Upload validation report
+      - name: Upload validation report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: d2-validation-report
         path: d2_validation_report.json
@@ -83,10 +86,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     
@@ -110,7 +113,7 @@ jobs:
     
     - name: Upload validation report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: d2-validation-report-nonstrict
         path: d2_validation_report_nonstrict.json
@@ -128,10 +131,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     

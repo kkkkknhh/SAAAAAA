@@ -80,45 +80,10 @@ jobs:
         run: |
           echo "=== Step 3: Import-linter - Layer Contracts ==="
           
-          # Create .importlinter config if it doesn't exist
+          # Verify .importlinter config exists
           if [ ! -f ".importlinter" ]; then
-            echo "Creating .importlinter configuration..."
-            cat > .importlinter << 'EOFIMPORT'
-          [importlinter]
-          root_package = saaaaaa
-          include_external_packages = False
-          
-          [importlinter:contract:1]
-          name = Core modules should not depend on API
-          type = forbidden
-          source_modules =
-              saaaaaa.core
-          forbidden_modules =
-              saaaaaa.api
-          
-          [importlinter:contract:2]
-          name = Core modules should not depend on infrastructure
-          type = forbidden
-          source_modules =
-              saaaaaa.core
-          forbidden_modules =
-              saaaaaa.infrastructure
-          
-          [importlinter:contract:3]
-          name = Processing depends only on core
-          type = layers
-          layers =
-              saaaaaa.core
-              saaaaaa.processing
-          
-          [importlinter:contract:4]
-          name = Analysis depends on processing and core
-          type = layers
-          layers =
-              saaaaaa.core
-              saaaaaa.processing
-              saaaaaa.analysis
-          EOFIMPORT
+            echo "❌ ERROR: .importlinter configuration not found"
+            exit 1
           fi
           
           # Try running import-linter

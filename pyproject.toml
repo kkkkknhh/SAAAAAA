@@ -8,11 +8,11 @@ version = "0.1.0"
 description = "Municipal policy analysis system with strict type safety"
 requires-python = ">=3.10"
 dependencies = [
-    "hypothesis>=6",
-    "pandas>=2",
-    "pydantic>=1.10",
-    "scipy>=1.11",
-    "scikit-learn>=1.4",
+    "hypothesis>=6.0.0,<7.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "pydantic>=1.10.0,<3.0.0",
+    "scipy>=1.11.0,<2.0.0",
+    "scikit-learn>=1.4.0,<2.0.0",
 ]
 
 [tool.setuptools.packages.find]
