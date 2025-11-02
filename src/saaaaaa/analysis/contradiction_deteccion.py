@@ -304,7 +304,9 @@ class PolicyContradictionDetector:
         )
 
         # Procesamiento de lenguaje natural
-        self.nlp = spacy.load(spacy_model)
+        # Delegate to factory for I/O operation
+        from .factory import load_spacy_model
+        self.nlp = load_spacy_model(spacy_model)
 
         # Componentes especializados
         self.bayesian_calculator = BayesianConfidenceCalculator()

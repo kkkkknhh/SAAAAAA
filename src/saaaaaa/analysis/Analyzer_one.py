@@ -792,12 +792,10 @@ class MunicipalAnalyzer:
     def _load_document(self, document_path: str) -> List[str]:
         """Load and segment document."""
 
-        try:
-            with open(document_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            with open(document_path, 'r', encoding='latin-1') as f:
-                content = f.read()
+        # Delegate to factory for I/O operation
+        from .factory import read_text_file
+        
+        content = read_text_file(document_path)
 
         # Simple sentence segmentation
         sentences = re.split(r'[.!?]+', content)
@@ -888,8 +886,10 @@ def example_usage():
     """
 
     # Save sample to file
-    with open(SAMPLE_MUNICIPAL_PLAN, "w", encoding="utf-8") as f:
-        f.write(sample_text)
+    # Delegate to factory for I/O operation
+    from .factory import write_text_file
+    
+    write_text_file(sample_text, SAMPLE_MUNICIPAL_PLAN)
 
     try:
         # Analyze document
@@ -1212,7 +1212,12 @@ class DocumentProcessor:
         """Load text from PDF file."""
         try:
             import PyPDF2
-            with open(pdf_path, 'rb') as file:
+            # Delegate to factory for I/O operation
+            # Note: PyPDF2 requires file handle, so we need a special approach
+            from pathlib import Path
+            pdf_path_obj = Path(pdf_path)
+            
+            with open(pdf_path_obj, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
                 text = ""
                 for page in reader.pages:
@@ -1300,10 +1305,11 @@ class DocumentProcessor:
         if not rubric_file.exists():
             raise FileNotFoundError(f"Rubric file not found: {rubric_file}")
 
-        with questionnaire_file.open("r", encoding="utf-8") as handle:
-            questionnaire_data = json.load(handle)
-        with rubric_file.open("r", encoding="utf-8") as handle:
-            rubric_data = json.load(handle)
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
+        questionnaire_data = load_json(questionnaire_file)
+        rubric_data = load_json(rubric_file)
 
         questionnaire_meta = questionnaire_data.get("metadata", {})
         rubric_meta = rubric_data.get("metadata", {})
@@ -1515,9 +1521,11 @@ class ResultsExporter:
     @staticmethod
     def export_to_json(results: Dict[str, Any], output_path: str) -> None:
         """Export results to JSON file."""
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+        
         try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, ensure_ascii=False, default=str)
+            save_json(results, output_path)
             logger.info(f"Results exported to JSON: {output_path}")
         except Exception as e:
             logger.error(f"Error exporting to JSON: {e}")
@@ -1592,66 +1600,70 @@ class ResultsExporter:
         """Export a summary report in text format."""
 
         try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write("MUNICIPAL DEVELOPMENT PLAN ANALYSIS REPORT\n")
-                f.write("=" * 50 + "\n\n")
+            # Build content first
+            lines = []
+            lines.append("MUNICIPAL DEVELOPMENT PLAN ANALYSIS REPORT\n")
+            lines.append("=" * 50 + "\n\n")
 
-                # Basic info
-                f.write(f"Document: {results.get('document_path', 'Unknown')}\n")
-                f.write(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
-                f.write(f"Processing Time: {results.get('processing_time_seconds', 0):.2f} seconds\n\n")
+            # Basic info
+            lines.append(f"Document: {results.get('document_path', 'Unknown')}\n")
+            lines.append(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
+            lines.append(f"Processing Time: {results.get('processing_time_seconds', 0):.2f} seconds\n\n")
 
-                # Summary
-                summary = results.get('summary', {})
-                f.write("EXECUTIVE SUMMARY\n")
-                f.write("-" * 20 + "\n")
+            # Summary
+            summary = results.get('summary', {})
+            lines.append("EXECUTIVE SUMMARY\n")
+            lines.append("-" * 20 + "\n")
 
-                doc_coverage = summary.get('document_coverage', {})
-                f.write(f"Segments Analyzed: {doc_coverage.get('total_segments_analyzed', 0)}\n")
-                f.write(f"Value Chain Links: {doc_coverage.get('value_chain_links_identified', 0)}\n")
-                f.write(f"Policy Domains: {doc_coverage.get('policy_domains_covered', 0)}\n")
+            doc_coverage = summary.get('document_coverage', {})
+            lines.append(f"Segments Analyzed: {doc_coverage.get('total_segments_analyzed', 0)}\n")
+            lines.append(f"Value Chain Links: {doc_coverage.get('value_chain_links_identified', 0)}\n")
+            lines.append(f"Policy Domains: {doc_coverage.get('policy_domains_covered', 0)}\n")
 
-                perf_summary = summary.get('performance_summary', {})
-                f.write(f"Average Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
+            perf_summary = summary.get('performance_summary', {})
+            lines.append(f"Average Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
 
-                risk_summary = summary.get('risk_assessment', {})
-                f.write(f"Overall Risk Level: {risk_summary.get('overall_risk_level', 'Unknown')}\n\n")
+            risk_summary = summary.get('risk_assessment', {})
+            lines.append(f"Overall Risk Level: {risk_summary.get('overall_risk_level', 'Unknown')}\n\n")
 
-                # Performance details
-                f.write("PERFORMANCE ANALYSIS\n")
-                f.write("-" * 20 + "\n")
+            # Performance details
+            lines.append("PERFORMANCE ANALYSIS\n")
+            lines.append("-" * 20 + "\n")
 
-                perf_analysis = results.get('performance_analysis', {})
-                for link, metrics in perf_analysis.get('value_chain_metrics', {}).items():
-                    f.write(f"\n{link.replace('_', ' ').title()}:\n")
-                    f.write(f"  Efficiency: {metrics.get('efficiency_score', 0):.2f}\n")
-                    f.write(f"  Throughput: {metrics.get('throughput', 0):.1f}\n")
-                    f.write(f"  Capacity: {metrics.get('capacity_utilization', 0):.2f}\n")
+            perf_analysis = results.get('performance_analysis', {})
+            for link, metrics in perf_analysis.get('value_chain_metrics', {}).items():
+                lines.append(f"\n{link.replace('_', ' ').title()}:\n")
+                lines.append(f"  Efficiency: {metrics.get('efficiency_score', 0):.2f}\n")
+                lines.append(f"  Throughput: {metrics.get('throughput', 0):.1f}\n")
+                lines.append(f"  Capacity: {metrics.get('capacity_utilization', 0):.2f}\n")
 
-                # Recommendations
-                f.write("\n\nRECOMMENDATE OPTIONS\n")
-                f.write("-" * 20 + "\n")
+            # Recommendations
+            lines.append("\n\nRECOMMENDATE OPTIONS\n")
+            lines.append("-" * 20 + "\n")
 
-                recommendations = perf_analysis.get('optimization_recommendations', [])
-                for i, rec in enumerate(recommendations, 1):
-                    f.write(f"{i}. {rec.get('description', '')} (Priority: {rec.get('priority', '')})\n")
+            recommendations = perf_analysis.get('optimization_recommendations', [])
+            for i, rec in enumerate(recommendations, 1):
+                lines.append(f"{i}. {rec.get('description', '')} (Priority: {rec.get('priority', '')})\n")
 
-                # Critical links
-                f.write("\n\nCRITICAL LINKS\n")
-                f.write("-" * 15 + "\n")
+            # Critical links
+            lines.append("\n\nCRITICAL LINKS\n")
+            lines.append("-" * 15 + "\n")
 
-                diagnosis = results.get('critical_diagnosis', {})
-                for link, info in diagnosis.get('critical_links', {}).items():
-                    f.write(f"\n{link.replace('_', ' ').title()}:\n")
-                    f.write(f"  Criticality: {info.get('criticality_score', 0):.2f}\n")
+            diagnosis = results.get('critical_diagnosis', {})
+            for link, info in diagnosis.get('critical_links', {}).items():
+                lines.append(f"\n{link.replace('_', ' ').title()}:\n")
+                lines.append(f"  Criticality: {info.get('criticality_score', 0):.2f}\n")
 
-                    text_analysis = info.get('text_analysis', {})
-                    f.write(f"  Sentiment: {text_analysis.get('sentiment', 'neutral')}\n")
+                text_analysis = info.get('text_analysis', {})
+                lines.append(f"  Sentiment: {text_analysis.get('sentiment', 'neutral')}\n")
 
-                    if link in diagnosis.get('risk_assessment', {}):
-                        risk = diagnosis['risk_assessment'][link]
-                        f.write(f"  Risk Level: {risk.get('overall_risk', 'unknown')}\n")
+                if link in diagnosis.get('risk_assessment', {}):
+                    risk = diagnosis['risk_assessment'][link]
+                    lines.append(f"  Risk Level: {risk.get('overall_risk', 'unknown')}\n")
 
+            # Delegate to factory for I/O operation
+            from .factory import write_text_file
+            write_text_file(''.join(lines), output_path)
             logger.info(f"Summary report exported: {output_path}")
 
         except Exception as e:
@@ -1697,15 +1709,17 @@ class ConfigurationManager:
         }
 
         if Path(self.config_path).exists():
+            # Delegate to factory for I/O operation
+            from .factory import load_json
+            
             try:
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    user_config = json.load(f)
-                    # Merge with defaults
-                    for key, value in user_config.items():
-                        if key in default_config and isinstance(value, dict):
-                            default_config[key].update(value)
-                        else:
-                            default_config[key] = value
+                user_config = load_json(self.config_path)
+                # Merge with defaults
+                for key, value in user_config.items():
+                    if key in default_config and isinstance(value, dict):
+                        default_config[key].update(value)
+                    else:
+                        default_config[key] = value
             except Exception as e:
                 logger.warning(f"Error loading config: {e}. Using defaults.")
 
@@ -1713,9 +1727,11 @@ class ConfigurationManager:
 
     def save_config(self) -> None:
         """Save current configuration to file."""
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+        
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
+            save_json(self.config, self.config_path)
         except Exception as e:
             logger.error(f"Error saving config: {e}")
 
@@ -1777,40 +1793,44 @@ class BatchProcessor:
         summary_file = output_path / "batch_summary.txt"
 
         try:
-            with open(summary_file, 'w', encoding='utf-8') as f:
-                f.write("BATCH PROCESSING SUMMARY\n")
-                f.write("=" * 30 + "\n\n")
+            # Build content first
+            lines = []
+            lines.append("BATCH PROCESSING SUMMARY\n")
+            lines.append("=" * 30 + "\n\n")
 
-                total_files = len(batch_results)
-                successful = sum(1 for r in batch_results.values() if "error" not in r)
-                failed = total_files - successful
+            total_files = len(batch_results)
+            successful = sum(1 for r in batch_results.values() if "error" not in r)
+            failed = total_files - successful
 
-                f.write(f"Total files processed: {total_files}\n")
-                f.write(f"Successful: {successful}\n")
-                f.write(f"Failed: {failed}\n\n")
+            lines.append(f"Total files processed: {total_files}\n")
+            lines.append(f"Successful: {successful}\n")
+            lines.append(f"Failed: {failed}\n\n")
 
-                if failed > 0:
-                    f.write("FAILED FILES:\n")
-                    f.write("-" * 15 + "\n")
-                    for filename, result in batch_results.items():
-                        if "error" in result:
-                            f.write(f"- {filename}: {result['error']}\n")
-                    f.write("\n")
+            if failed > 0:
+                lines.append("FAILED FILES:\n")
+                lines.append("-" * 15 + "\n")
+                for filename, result in batch_results.items():
+                    if "error" in result:
+                        lines.append(f"- {filename}: {result['error']}\n")
+                lines.append("\n")
 
-                if successful > 0:
-                    f.write("SUCCESSFUL ANALYSES:\n")
-                    f.write("-" * 20 + "\n")
+            if successful > 0:
+                lines.append("SUCCESSFUL ANALYSES:\n")
+                lines.append("-" * 20 + "\n")
 
-                    for filename, result in batch_results.items():
-                        if "error" not in result:
-                            summary = result.get('summary', {})
-                            perf_summary = summary.get('performance_summary', {})
-                            risk_summary = summary.get('risk_assessment', {})
+                for filename, result in batch_results.items():
+                    if "error" not in result:
+                        summary = result.get('summary', {})
+                        perf_summary = summary.get('performance_summary', {})
+                        risk_summary = summary.get('risk_assessment', {})
 
-                            f.write(f"\n{filename}:\n")
-                            f.write(f"  Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
-                            f.write(f"  Risk Level: {risk_summary.get('overall_risk_level', 'unknown')}\n")
+                        lines.append(f"\n{filename}:\n")
+                        lines.append(f"  Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
+                        lines.append(f"  Risk Level: {risk_summary.get('overall_risk_level', 'unknown')}\n")
 
+            # Delegate to factory for I/O operation
+            from .factory import write_text_file
+            write_text_file(''.join(lines), summary_file)
             logger.info(f"Batch summary created: {summary_file}")
 
         except Exception as e:

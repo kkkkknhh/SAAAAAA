@@ -3611,6 +3611,9 @@ class CDAFFramework:
             retry_enabled = False
 
         # Load spaCy model with retry logic
+        # Delegate to factory for I/O operation
+        from .factory import load_spacy_model
+        
         if retry_enabled and self.retry_handler:
             @self.retry_handler.with_retry(
                 DependencyType.SPACY_MODEL,
@@ -3619,12 +3622,12 @@ class CDAFFramework:
             )
             def load_spacy_with_retry():
                 try:
-                    nlp = spacy.load("es_core_news_lg")
+                    nlp = load_spacy_model("es_core_news_lg")
                     self.logger.info("Modelo spaCy cargado: es_core_news_lg")
                     return nlp
                 except OSError:
                     self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
-                    nlp = spacy.load("es_core_news_sm")
+                    nlp = load_spacy_model("es_core_news_sm")
                     return nlp
 
             try:
@@ -3636,12 +3639,12 @@ class CDAFFramework:
         else:
             # Fallback to original logic without retry
             try:
-                self.nlp = spacy.load("es_core_news_lg")
+                self.nlp = load_spacy_model("es_core_news_lg")
                 self.logger.info("Modelo spaCy cargado: es_core_news_lg")
             except OSError:
                 self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
                 try:
-                    self.nlp = spacy.load("es_core_news_sm")
+                    self.nlp = load_spacy_model("es_core_news_sm")
                 except OSError:
                     self.logger.error("No se encontró ningún modelo de spaCy en español. "
                                       "Ejecute: python -m spacy download es_core_news_lg")
