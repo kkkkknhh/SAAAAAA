@@ -664,9 +664,10 @@ class BayesianRollUp:
         if not micro_analyses:
             return 0.0
         
-        # Extract posteriors
-        posteriors = [m.final_posterior for m in micro_analyses]
-        
+        # Extract posteriors (use micro-level adjusted scores so reconciliation
+        # penalties propagate into the meso aggregation)
+        posteriors = [m.adjusted_score for m in micro_analyses]
+
         # Calculate weighted mean (could use Beta-Binomial hierarchical model)
         raw_meso_posterior = np.mean(posteriors)
         
@@ -1240,7 +1241,7 @@ class MultiLevelBayesianOrchestrator:
                 peer_comparison=peer_comparison,
                 peer_penalty=peer_penalty,
                 total_penalty=total_penalty,
-                final_posterior=raw_meso_score,
+                final_posterior=adjusted_score,
                 adjusted_score=adjusted_score,
                 metadata={'question_ids': question_ids}  # Add question_ids to metadata
             )

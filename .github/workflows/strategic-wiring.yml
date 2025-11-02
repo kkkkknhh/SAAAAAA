@@ -14,17 +14,19 @@ jobs:
   validate-wiring:
     name: Validate Strategic Wiring
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for provenance tracking
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -36,29 +38,7 @@ jobs:
           pip install numpy || true
       
       - name: Validate Python syntax
-        run: |
-          echo "=== Validating Python syntax for all strategic files ==="
-          python3 -m py_compile demo_macro_prompts.py
-          python3 -m py_compile verify_complete_implementation.py
-          python3 -m py_compile validation_engine.py
-          python3 -m py_compile validate_system.py
-          python3 -m py_compile seed_factory.py
-          python3 -m py_compile qmcm_hooks.py
-          python3 -m py_compile meso_cluster_analysis.py
-          python3 -m py_compile macro_prompts.py
-          python3 -m py_compile json_contract_loader.py
-          python3 -m py_compile evidence_registry.py
-          python3 -m py_compile document_ingestion.py
-          python3 -m py_compile scoring.py
-          python3 -m py_compile recommendation_engine.py
-          python3 -m py_compile orchestrator.py
-          python3 -m py_compile micro_prompts.py
-          python3 -m py_compile coverage_gate.py
-          python3 -m py_compile scripts/bootstrap_validate.py
-          python3 -m py_compile validation/predicates.py
-          python3 -m py_compile validation/golden_rule.py
-          python3 -m py_compile validation/architecture_validator.py
-          echo "✓ All strategic files have valid Python syntax"
+        run: python3 tools/validate_strategic_files.py syntax
       
       - name: Run strategic wiring unit tests
         run: |
@@ -71,49 +51,7 @@ jobs:
           python3 validate_strategic_wiring.py
       
       - name: Verify provenance tracking
-        run: |
-          echo "=== Verifying provenance.csv includes all strategic files ==="
-          
-          # Check that provenance.csv exists
-          if [ ! -f provenance.csv ]; then
-            echo "❌ ERROR: provenance.csv not found"
-            exit 1
-          fi
-          
-          # Verify each strategic file is tracked
-          files=(
-            "demo_macro_prompts.py"
-            "verify_complete_implementation.py"
-            "validation_engine.py"
-            "validate_system.py"
-            "seed_factory.py"
-            "qmcm_hooks.py"
-            "meso_cluster_analysis.py"
-            "macro_prompts.py"
-            "json_contract_loader.py"
-            "evidence_registry.py"
-            "document_ingestion.py"
-            "scoring.py"
-            "recommendation_engine.py"
-            "orchestrator.py"
-            "micro_prompts.py"
-            "coverage_gate.py"
-          )
-          
-          missing_files=()
-          for file in "${files[@]}"; do
-            if ! grep -q "$file" provenance.csv; then
-              missing_files+=("$file")
-            fi
-          done
-          
-          if [ ${#missing_files[@]} -eq 0 ]; then
-            echo "✓ All strategic files tracked in provenance.csv"
-          else
-            echo "❌ ERROR: The following files are not tracked in provenance.csv:"
-            printf '  - %s\n' "${missing_files[@]}"
-            exit 1
-          fi
+        run: python3 tools/validate_strategic_files.py provenance
       
       - name: Validate documentation
         run: |
