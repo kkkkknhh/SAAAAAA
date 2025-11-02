@@ -628,9 +628,11 @@ class IndustrialPolicyProcessor:
 
     def _load_questionnaire(self) -> Dict[str, Any]:
         """Load and validate DECALOGO questionnaire structure."""
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
-            with open(self.questionnaire_file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            data = load_json(self.questionnaire_file_path)
 
             logger.info(
                 f"Loaded questionnaire: {len(data.get('questions', []))} questions"
@@ -1191,12 +1193,10 @@ class IndustrialPolicyProcessor:
         self, results: Dict[str, Any], output_path: Union[str, Path]
     ) -> None:
         """Export analysis results to JSON with formatted output."""
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
-
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+        
+        save_json(results, output_path)
         logger.info(f"Results exported to {output_path}")
 
 
@@ -1322,36 +1322,21 @@ class ResilientFileHandler:
         Raises:
             IOError: If file cannot be read with any supported encoding
         """
-        file_path = Path(file_path)
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
-
-        last_error = None
-        for encoding in cls.ENCODINGS:
-            try:
-                with open(file_path, "r", encoding=encoding) as f:
-                    content = f.read()
-                logger.debug(f"Successfully read {file_path} with {encoding}")
-                return content
-            except (UnicodeDecodeError, UnicodeError) as e:
-                last_error = e
-                continue
-
-        raise IOError(
-            f"Failed to read {file_path} with any supported encoding"
-        ) from last_error
+        # Delegate to factory for I/O operation
+        from .factory import read_text_file
+        
+        try:
+            return read_text_file(file_path, encodings=list(cls.ENCODINGS))
+        except Exception as e:
+            raise IOError(f"Failed to read {file_path} with any supported encoding") from e
 
     @classmethod
     def write_text(cls, content: str, file_path: Union[str, Path]) -> None:
         """Write text content with UTF-8 encoding and directory creation."""
-        file_path = Path(file_path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        logger.info(f"Written {len(content)} characters to {file_path}")
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+        
+        write_text_file(content, file_path)
 
 
 # ============================================================================

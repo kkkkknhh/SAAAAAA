@@ -356,24 +356,27 @@ class BayesianUpdater:
     
     def export_to_csv(self, output_path: Path):
         """Export posterior table to CSV"""
-        with open(output_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'test_name', 'test_type', 'test_passed', 'prior', 
-                'likelihood_ratio', 'posterior', 'evidence_weight'
-            ])
-            
-            for update in self.updates:
-                writer.writerow([
-                    update.test.test_name,
-                    update.test.test_type.value,
-                    update.test_passed,
-                    f"{update.prior:.4f}",
-                    f"{update.likelihood_ratio:.4f}",
-                    f"{update.posterior:.4f}",
-                    f"{update.evidence_weight:.4f}"
-                ])
+        # Delegate to factory for I/O operation
+        from .factory import write_csv
         
+        headers = [
+            'test_name', 'test_type', 'test_passed', 'prior', 
+            'likelihood_ratio', 'posterior', 'evidence_weight'
+        ]
+        
+        rows = []
+        for update in self.updates:
+            rows.append([
+                update.test.test_name,
+                update.test.test_type.value,
+                update.test_passed,
+                f"{update.prior:.4f}",
+                f"{update.likelihood_ratio:.4f}",
+                f"{update.posterior:.4f}",
+                f"{update.evidence_weight:.4f}"
+            ])
+        
+        write_csv(rows, output_path, headers=headers)
         self.logger.info(f"Exported {len(self.updates)} Bayesian updates to {output_path}")
 
 
@@ -661,9 +664,10 @@ class BayesianRollUp:
         if not micro_analyses:
             return 0.0
         
-        # Extract posteriors
-        posteriors = [m.final_posterior for m in micro_analyses]
-        
+        # Extract posteriors (use micro-level adjusted scores so reconciliation
+        # penalties propagate into the meso aggregation)
+        posteriors = [m.adjusted_score for m in micro_analyses]
+
         # Calculate weighted mean (could use Beta-Binomial hierarchical model)
         raw_meso_posterior = np.mean(posteriors)
         
@@ -690,26 +694,30 @@ class BayesianRollUp:
         output_path: Path
     ):
         """Export meso posterior table to CSV"""
-        with open(output_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'cluster_id', 'raw_meso_score', 'dispersion_penalty',
-                'peer_penalty', 'total_penalty', 'adjusted_score',
-                'cv', 'max_gap', 'gini'
+        # Delegate to factory for I/O operation
+        from .factory import write_csv
+        
+        headers = [
+            'cluster_id', 'raw_meso_score', 'dispersion_penalty',
+            'peer_penalty', 'total_penalty', 'adjusted_score',
+            'cv', 'max_gap', 'gini'
+        ]
+        
+        rows = []
+        for analysis in meso_analyses:
+            rows.append([
+                analysis.cluster_id,
+                f"{analysis.raw_meso_score:.4f}",
+                f"{analysis.dispersion_penalty:.4f}",
+                f"{analysis.peer_penalty:.4f}",
+                f"{analysis.total_penalty:.4f}",
+                f"{analysis.adjusted_score:.4f}",
+                f"{analysis.dispersion_metrics.get('cv', 0.0):.4f}",
+                f"{analysis.dispersion_metrics.get('max_gap', 0.0):.4f}",
+                f"{analysis.dispersion_metrics.get('gini', 0.0):.4f}"
             ])
-            
-            for analysis in meso_analyses:
-                writer.writerow([
-                    analysis.cluster_id,
-                    f"{analysis.raw_meso_score:.4f}",
-                    f"{analysis.dispersion_penalty:.4f}",
-                    f"{analysis.peer_penalty:.4f}",
-                    f"{analysis.total_penalty:.4f}",
-                    f"{analysis.adjusted_score:.4f}",
-                    f"{analysis.dispersion_metrics.get('cv', 0.0):.4f}",
-                    f"{analysis.dispersion_metrics.get('max_gap', 0.0):.4f}",
-                    f"{analysis.dispersion_metrics.get('gini', 0.0):.4f}"
-                ])
+        
+        write_csv(rows, output_path, headers=headers)
         
         self.logger.info(
             f"Exported {len(meso_analyses)} meso analyses to {output_path}"
@@ -1003,47 +1011,45 @@ class BayesianPortfolioComposer:
         output_path: Path
     ):
         """Export macro posterior table to CSV"""
-        with open(output_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'metric', 'value', 'penalty', 'description'
-            ])
-            
-            writer.writerow([
+        # Delegate to factory for I/O operation
+        from .factory import write_csv
+        
+        headers = ['metric', 'value', 'penalty', 'description']
+        
+        rows = [
+            [
                 'overall_posterior',
                 f"{macro_analysis.overall_posterior:.4f}",
                 f"{macro_analysis.total_penalty:.4f}",
                 'Raw overall score before penalties'
-            ])
-            
-            writer.writerow([
+            ],
+            [
                 'coverage',
                 f"{macro_analysis.coverage_score:.4f}",
                 f"{macro_analysis.coverage_penalty:.4f}",
                 'Question coverage ratio'
-            ])
-            
-            writer.writerow([
+            ],
+            [
                 'dispersion',
                 f"{macro_analysis.dispersion_score:.4f}",
                 f"{macro_analysis.dispersion_penalty:.4f}",
                 'Portfolio dispersion score'
-            ])
-            
-            writer.writerow([
+            ],
+            [
                 'contradictions',
                 str(macro_analysis.contradiction_count),
                 f"{macro_analysis.contradiction_penalty:.4f}",
                 'Number of detected contradictions'
-            ])
-            
-            writer.writerow([
+            ],
+            [
                 'adjusted_score',
                 f"{macro_analysis.adjusted_score:.4f}",
                 '0.0000',
                 'Final penalty-adjusted score'
-            ])
+            ]
+        ]
         
+        write_csv(rows, output_path, headers=headers)
         self.logger.info(f"Exported macro analysis to {output_path}")
 
 
@@ -1235,7 +1241,7 @@ class MultiLevelBayesianOrchestrator:
                 peer_comparison=peer_comparison,
                 peer_penalty=peer_penalty,
                 total_penalty=total_penalty,
-                final_posterior=raw_meso_score,
+                final_posterior=adjusted_score,
                 adjusted_score=adjusted_score,
                 metadata={'question_ids': question_ids}  # Add question_ids to metadata
             )
@@ -1287,7 +1293,5 @@ class MultiLevelBayesianOrchestrator:
 # MAIN ENTRY POINT
 # ============================================================================
 
-if __name__ == "__main__":
-    # Example usage
-    logger.info("Bayesian Multi-Level System initialized")
-    logger.info("Ready for integration with report_assembly.py")
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For usage examples, see examples/ directory.
