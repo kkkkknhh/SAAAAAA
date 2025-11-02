@@ -19,12 +19,9 @@ Validates:
 8. Evidence registry and audit trail integrity
 """
 
-import sys
 import ast
-import json
+import sys
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
-from datetime import datetime
 
 
 class Colors:
@@ -64,10 +61,10 @@ def check_file_exists(file_path: Path) -> bool:
     return file_path.exists() and file_path.is_file()
 
 
-def check_python_syntax(file_path: Path) -> Tuple[bool, str]:
+def check_python_syntax(file_path: Path) -> tuple[bool, str]:
     """Check Python file syntax."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             ast.parse(f.read())
         return True, "OK"
     except SyntaxError as e:
@@ -76,13 +73,13 @@ def check_python_syntax(file_path: Path) -> Tuple[bool, str]:
         return False, str(e)
 
 
-def extract_imports(file_path: Path) -> Set[str]:
+def extract_imports(file_path: Path) -> set[str]:
     """Extract all imports from a Python file."""
     imports = set()
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             tree = ast.parse(f.read())
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -90,17 +87,17 @@ def extract_imports(file_path: Path) -> Set[str]:
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
                     imports.add(node.module.split('.')[0])
-        
+
     except Exception:
         pass
-    
+
     return imports
 
 
-def validate_strategic_files() -> Dict[str, bool]:
+def validate_strategic_files() -> dict[str, bool]:
     """Validate all strategic files exist and are syntactically correct."""
     print_header("STRATEGIC FILES VALIDATION")
-    
+
     strategic_files = {
         "demo_macro_prompts.py": "Macro-level analysis demonstrations",
         "verify_complete_implementation.py": "Implementation verification",
@@ -123,20 +120,20 @@ def validate_strategic_files() -> Dict[str, bool]:
         "validation/golden_rule.py": "Golden rule enforcement",
         "validation/architecture_validator.py": "Architecture validation"
     }
-    
+
     results = {}
     all_pass = True
-    
+
     for file_path, description in strategic_files.items():
         full_path = Path(file_path)
-        
+
         # Check existence
         if not check_file_exists(full_path):
             print_error(f"{file_path}: File not found")
             results[file_path] = False
             all_pass = False
             continue
-        
+
         # Check syntax
         syntax_ok, error_msg = check_python_syntax(full_path)
         if not syntax_ok:
@@ -144,26 +141,26 @@ def validate_strategic_files() -> Dict[str, bool]:
             results[file_path] = False
             all_pass = False
             continue
-        
+
         print_success(f"{file_path}: {description}")
         results[file_path] = True
-    
+
     return results
 
 
 def validate_provenance() -> bool:
     """Validate provenance.csv includes all strategic files."""
     print_header("PROVENANCE TRACKING VALIDATION")
-    
+
     provenance_path = Path("provenance.csv")
-    
+
     if not provenance_path.exists():
         print_error("provenance.csv not found")
         return False
-    
-    with open(provenance_path, 'r') as f:
+
+    with open(provenance_path) as f:
         provenance_content = f.read()
-    
+
     strategic_files = [
         "demo_macro_prompts.py",
         "verify_complete_implementation.py",
@@ -182,7 +179,7 @@ def validate_provenance() -> bool:
         "micro_prompts.py",
         "coverage_gate.py"
     ]
-    
+
     all_tracked = True
     for file_name in strategic_files:
         if file_name in provenance_content:
@@ -190,14 +187,14 @@ def validate_provenance() -> bool:
         else:
             print_error(f"{file_name} NOT tracked in provenance")
             all_tracked = False
-    
+
     return all_tracked
 
 
 def validate_cross_file_wiring() -> bool:
     """Validate cross-file imports and dependencies."""
     print_header("CROSS-FILE WIRING VALIDATION")
-    
+
     wiring_specs = [
         {
             "file": "validation_engine.py",
@@ -220,33 +217,33 @@ def validate_cross_file_wiring() -> bool:
             "description": "EvidenceRegistry uses hashing for immutability"
         }
     ]
-    
+
     all_wired = True
-    
+
     for spec in wiring_specs:
         file_path = Path(spec["file"])
         imports = extract_imports(file_path)
-        
+
         missing = []
         for required in spec["must_import"]:
             # Check if the required module is imported (handle dot notation)
             base_module = required.split('.')[0]
             if base_module not in imports and required not in imports:
                 missing.append(required)
-        
+
         if not missing:
             print_success(f"{spec['file']}: {spec['description']}")
         else:
             print_error(f"{spec['file']}: Missing imports: {', '.join(missing)}")
             all_wired = False
-    
+
     return all_wired
 
 
 def validate_module_interfaces() -> bool:
     """Validate that modules expose expected interfaces."""
     print_header("MODULE INTERFACE VALIDATION")
-    
+
     interface_specs = [
         {
             "module": "seed_factory",
@@ -274,52 +271,52 @@ def validate_module_interfaces() -> bool:
             "expected_functions": []
         }
     ]
-    
+
     all_valid = True
-    
+
     for spec in interface_specs:
         try:
             module = __import__(spec["module"])
-            
+
             missing = []
             for class_name in spec["expected_classes"]:
                 if not hasattr(module, class_name):
                     missing.append(f"class {class_name}")
-            
+
             for func_name in spec["expected_functions"]:
                 if not hasattr(module, func_name):
                     missing.append(f"function {func_name}")
-            
+
             if not missing:
                 print_success(f"{spec['module']}: All interfaces exposed")
             else:
                 print_error(f"{spec['module']}: Missing {', '.join(missing)}")
                 all_valid = False
-        
+
         except ImportError as e:
             print_error(f"{spec['module']}: Import failed - {e}")
             all_valid = False
-    
+
     return all_valid
 
 
 def validate_determinism() -> bool:
     """Validate determinism guarantees."""
     print_header("DETERMINISM VALIDATION")
-    
+
     try:
         from seed_factory import create_deterministic_seed
-        
+
         # Test deterministic seed generation
         seed1 = create_deterministic_seed("test-001", question_id="Q1", policy_area="P1")
         seed2 = create_deterministic_seed("test-001", question_id="Q1", policy_area="P1")
-        
+
         if seed1 == seed2:
             print_success("SeedFactory produces deterministic seeds")
         else:
             print_error("SeedFactory NOT producing deterministic seeds")
             return False
-        
+
         # Test different inputs produce different seeds
         seed3 = create_deterministic_seed("test-002", question_id="Q1", policy_area="P1")
         if seed1 != seed3:
@@ -327,9 +324,9 @@ def validate_determinism() -> bool:
         else:
             print_error("SeedFactory producing identical seeds for different inputs")
             return False
-        
+
         return True
-    
+
     except Exception as e:
         print_error(f"Determinism validation failed: {e}")
         return False
@@ -338,18 +335,18 @@ def validate_determinism() -> bool:
 def validate_immutability() -> bool:
     """Validate immutability guarantees."""
     print_header("IMMUTABILITY VALIDATION")
-    
+
     try:
         from evidence_registry import EvidenceRegistry
-        
+
         registry = EvidenceRegistry(auto_load=False)
-        
+
         record1 = registry.append(
             method_name="test_method",
             evidence=["evidence1"],
             metadata={"key": "value"}
         )
-        
+
         # Try to modify frozen record (should fail)
         try:
             record1.index = 999
@@ -357,22 +354,22 @@ def validate_immutability() -> bool:
             return False
         except Exception:
             print_success("EvidenceRecord is properly frozen (immutable)")
-        
+
         # Verify chain integrity
         record2 = registry.append(
             method_name="test_method_2",
             evidence=["evidence2"],
             metadata={"key2": "value2"}
         )
-        
+
         if record2.previous_hash == record1.entry_hash:
             print_success("Evidence chain integrity maintained")
         else:
             print_error("Evidence chain integrity BROKEN")
             return False
-        
+
         return True
-    
+
     except Exception as e:
         print_error(f"Immutability validation failed: {e}")
         return False
@@ -381,15 +378,15 @@ def validate_immutability() -> bool:
 def validate_golden_rules() -> bool:
     """Validate Golden Rules enforcement."""
     print_header("GOLDEN RULES VALIDATION")
-    
+
     try:
         from validation.golden_rule import GoldenRuleValidator, GoldenRuleViolation
-        
+
         step_catalog = ["step1", "step2", "step3"]
         questionnaire_hash = "test_hash_123"
-        
+
         validator = GoldenRuleValidator(questionnaire_hash, step_catalog)
-        
+
         # Test immutable metadata enforcement
         try:
             validator.assert_immutable_metadata(questionnaire_hash, step_catalog)
@@ -397,7 +394,7 @@ def validate_golden_rules() -> bool:
         except GoldenRuleViolation:
             print_error("Golden Rules: Immutable metadata validation failed")
             return False
-        
+
         # Test mutation detection
         try:
             validator.assert_immutable_metadata("different_hash", step_catalog)
@@ -405,7 +402,7 @@ def validate_golden_rules() -> bool:
             return False
         except GoldenRuleViolation:
             print_success("Golden Rules: Metadata mutation detected")
-        
+
         # Test deterministic DAG
         try:
             validator.assert_deterministic_dag(["step1", "step2"])
@@ -413,9 +410,9 @@ def validate_golden_rules() -> bool:
         except GoldenRuleViolation:
             print_error("Golden Rules: Deterministic DAG validation failed")
             return False
-        
+
         return True
-    
+
     except Exception as e:
         print_error(f"Golden Rules validation failed: {e}")
         return False
@@ -429,7 +426,7 @@ def generate_wiring_report():
     print("║              AUDIT · ENSURE · FORCE · GUARANTEE · SUSTAIN                 ║")
     print("╚════════════════════════════════════════════════════════════════════════════╝")
     print(Colors.RESET)
-    
+
     results = {
         "Strategic Files": validate_strategic_files(),
         "Provenance Tracking": validate_provenance(),
@@ -439,15 +436,15 @@ def generate_wiring_report():
         "Immutability": validate_immutability(),
         "Golden Rules": validate_golden_rules()
     }
-    
+
     # Summary
     print_header("VALIDATION SUMMARY")
-    
+
     all_passed = all(
         all(v for v in result.values()) if isinstance(result, dict) else result
         for result in results.values()
     )
-    
+
     for category, result in results.items():
         if isinstance(result, dict):
             passed = sum(1 for v in result.values() if v)
@@ -461,9 +458,9 @@ def generate_wiring_report():
                 print_success(f"{category}: PASSED")
             else:
                 print_error(f"{category}: FAILED")
-    
+
     print("\n" + "=" * 80)
-    
+
     if all_passed:
         print(f"\n{Colors.GREEN}{Colors.BOLD}✅ ALL VALIDATIONS PASSED")
         print("Strategic high-level wiring is properly configured and sustained{Colors.RESET}\n")

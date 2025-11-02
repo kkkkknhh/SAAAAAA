@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Validation Engine - Centralized Rule-Based Validation
 =====================================================
@@ -16,12 +15,11 @@ Python: 3.10+
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from validation.predicates import ValidationPredicates, ValidationResult
-
 
 # Configure logging
 logging.basicConfig(
@@ -39,24 +37,24 @@ class ValidationReport:
     passed: int
     failed: int
     warnings: int
-    results: List[ValidationResult] = field(default_factory=list)
-    
+    results: list[ValidationResult] = field(default_factory=list)
+
     def add_result(self, result: ValidationResult):
         """Add a validation result to the report."""
         self.results.append(result)
         self.total_checks += 1
-        
+
         if result.severity == "ERROR" and not result.is_valid:
             self.failed += 1
         elif result.severity == "WARNING":
             self.warnings += 1
         elif result.is_valid:
             self.passed += 1
-    
+
     def has_errors(self) -> bool:
         """Check if report contains any errors."""
         return self.failed > 0
-    
+
     def summary(self) -> str:
         """Generate summary string."""
         return (f"Validation Summary: {self.passed}/{self.total_checks} passed, "
@@ -74,7 +72,7 @@ class ValidationEngine:
     - Severity-based logging (ERROR/WARNING/INFO)
     """
 
-    def __init__(self, cuestionario_data: Optional[Dict[str, Any]] = None):
+    def __init__(self, cuestionario_data: dict[str, Any] | None = None):
         """
         Initialize validation engine.
         
@@ -87,8 +85,8 @@ class ValidationEngine:
 
     def validate_scoring_preconditions(
         self,
-        question_spec: Dict[str, Any],
-        execution_results: Dict[str, Any],
+        question_spec: dict[str, Any],
+        execution_results: dict[str, Any],
         plan_text: str
     ) -> ValidationResult:
         """
@@ -106,17 +104,17 @@ class ValidationEngine:
         """
         logger.debug(f"Validating scoring preconditions for question: "
                     f"{question_spec.get('id', 'UNKNOWN')}")
-        
+
         result = self.predicates.verify_scoring_preconditions(
             question_spec, execution_results, plan_text
         )
-        
+
         self._log_result(result)
         return result
 
     def validate_expected_elements(
         self,
-        question_spec: Dict[str, Any]
+        question_spec: dict[str, Any]
     ) -> ValidationResult:
         """
         Validate expected_elements from cuestionario.
@@ -129,11 +127,11 @@ class ValidationEngine:
         """
         logger.debug(f"Validating expected_elements for question: "
                     f"{question_spec.get('id', 'UNKNOWN')}")
-        
+
         result = self.predicates.verify_expected_elements(
             question_spec, self.cuestionario_data
         )
-        
+
         self._log_result(result)
         return result
 
@@ -155,18 +153,18 @@ class ValidationEngine:
             ValidationResult
         """
         logger.debug(f"Validating execution context: {question_id}")
-        
+
         result = self.predicates.verify_execution_context(
             question_id, policy_area, dimension
         )
-        
+
         self._log_result(result)
         return result
 
     def validate_producer_availability(
         self,
         producer_name: str,
-        producers_dict: Dict[str, Any]
+        producers_dict: dict[str, Any]
     ) -> ValidationResult:
         """
         Validate that producer is available and initialized.
@@ -179,20 +177,20 @@ class ValidationEngine:
             ValidationResult
         """
         logger.debug(f"Validating producer availability: {producer_name}")
-        
+
         result = self.predicates.verify_producer_availability(
             producer_name, producers_dict
         )
-        
+
         self._log_result(result)
         return result
 
     def validate_all_preconditions(
         self,
-        question_spec: Dict[str, Any],
-        execution_results: Dict[str, Any],
+        question_spec: dict[str, Any],
+        execution_results: dict[str, Any],
         plan_text: str,
-        producers_dict: Dict[str, Any]
+        producers_dict: dict[str, Any]
     ) -> ValidationReport:
         """
         Run all validation checks for a question execution.
@@ -213,33 +211,33 @@ class ValidationEngine:
             failed=0,
             warnings=0
         )
-        
+
         logger.info("=" * 80)
         logger.info(f"Running validation checks for: {question_spec.get('id', 'UNKNOWN')}")
         logger.info("=" * 80)
-        
+
         # Check 1: Execution context
         question_id = question_spec.get("id", "")
         policy_area = question_spec.get("policy_area", "")
         dimension = question_spec.get("dimension", "")
-        
+
         result = self.validate_execution_context(question_id, policy_area, dimension)
         report.add_result(result)
-        
+
         # Check 2: Expected elements
         result = self.validate_expected_elements(question_spec)
         report.add_result(result)
-        
+
         # Check 3: Scoring preconditions
         result = self.validate_scoring_preconditions(
             question_spec, execution_results, plan_text
         )
         report.add_result(result)
-        
+
         # Check 4: Producer availability (if specified)
         evidence_sources = question_spec.get("evidence_sources", {})
         orchestrator_key = evidence_sources.get("orchestrator_key", "")
-        
+
         if orchestrator_key:
             # Handle both string and list formats
             if isinstance(orchestrator_key, str):
@@ -253,11 +251,11 @@ class ValidationEngine:
                         producer, producers_dict
                     )
                     report.add_result(result)
-        
+
         logger.info("=" * 80)
         logger.info(report.summary())
         logger.info("=" * 80)
-        
+
         return report
 
     def _log_result(self, result: ValidationResult):
@@ -274,7 +272,7 @@ class ValidationEngine:
 
     def create_validation_report(
         self,
-        results: List[ValidationResult]
+        results: list[ValidationResult]
     ) -> ValidationReport:
         """
         Create a validation report from a list of results.
@@ -292,8 +290,8 @@ class ValidationEngine:
             failed=0,
             warnings=0
         )
-        
+
         for result in results:
             report.add_result(result)
-        
+
         return report

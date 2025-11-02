@@ -6,7 +6,6 @@ For testing, use InMemoryEnvAdapter instead.
 """
 
 import os
-from typing import Optional
 
 
 class SystemEnvAdapter:
@@ -18,7 +17,7 @@ class SystemEnvAdapter:
         >>> debug = env_port.get_bool("DEBUG", default=False)
     """
 
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, default: str | None = None) -> str | None:
         """Get environment variable."""
         return os.environ.get(key, default)
 
@@ -34,7 +33,7 @@ class SystemEnvAdapter:
         value = os.environ.get(key)
         if value is None:
             return default
-        
+
         value_lower = value.lower()
         if value_lower in ('true', 'yes', '1', 'on'):
             return True
@@ -55,10 +54,10 @@ class InMemoryEnvAdapter:
         >>> assert env_port.get_bool("DEBUG") is True
     """
 
-    def __init__(self, initial_env: Optional[dict[str, str]] = None) -> None:
+    def __init__(self, initial_env: dict[str, str] | None = None) -> None:
         self._env = initial_env.copy() if initial_env else {}
 
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, default: str | None = None) -> str | None:
         """Get environment variable."""
         return self._env.get(key, default)
 
@@ -74,7 +73,7 @@ class InMemoryEnvAdapter:
         value = self._env.get(key)
         if value is None:
             return default
-        
+
         value_lower = value.lower()
         if value_lower in ('true', 'yes', '1', 'on'):
             return True

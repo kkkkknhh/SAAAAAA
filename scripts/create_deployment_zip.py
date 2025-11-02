@@ -7,7 +7,6 @@ Excludes deprecated files, documentation, tests, and development files.
 import os
 import zipfile
 from pathlib import Path
-from typing import Set, List
 
 # Base directory
 BASE_DIR = Path(__file__).parent.parent
@@ -23,17 +22,17 @@ EXCLUDE_PATTERNS = {
     # Deprecated files
     'ORCHESTRATOR_MONILITH.py',
     'docs/README_MONOLITH.md',
-    
+
     # Documentation files (not needed for deployment)
     '*.md',
     'DOCUMENTATION_OVERVIEW.txt',
-    
+
     # Development and testing
     'tests/',
     'examples/',
     '.github/',
     '.augment/',
-    
+
     # IDE and dev tools
     '.vscode/',
     '.DS_Store',
@@ -41,7 +40,7 @@ EXCLUDE_PATTERNS = {
     '.importlinter',
     '.pre-commit-config.yaml',
     '.python-version',
-    
+
     # Build and cache files
     '__pycache__/',
     '*.pyc',
@@ -51,24 +50,24 @@ EXCLUDE_PATTERNS = {
     '.mypy_cache/',
     '.coverage',
     'htmlcov/',
-    
+
     # Environment files
     '.env',
     '.env.example',
     '.env.local',
-    
+
     # Git directory
     '.git/',
-    
+
     # Package management
     'minipdm/',  # Separate subproject, not needed for runtime
-    
+
     # Development scripts
     'scripts/verify_dependencies.py',
     'scripts/setup.sh',
     'scripts/update_imports.py',
     'atroz_quickstart.sh',
-    
+
     # Tools directory (development only)
     'tools/',
 }
@@ -77,7 +76,7 @@ EXCLUDE_PATTERNS = {
 INCLUDE_PATTERNS = {
     # Main source code
     'src/',
-    
+
     # Compatibility shims (needed for backward compatibility)
     'orchestrator/',
     'concurrency/',
@@ -86,16 +85,16 @@ INCLUDE_PATTERNS = {
     'contracts/',
     'validation/',
     'scoring/',
-    
+
     # Configuration files
     'config/',
-    
+
     # Data files
     'data/',
-    
+
     # Essential scripts
     'scripts/create_deployment_zip.py',  # This script itself
-    
+
     # Root level compatibility shims
     'aggregation.py',
     'contracts.py',
@@ -114,7 +113,7 @@ INCLUDE_PATTERNS = {
     'seed_factory.py',
     'signature_validator.py',
     'validation_engine.py',
-    
+
     # Package files
     'setup.py',
     'pyproject.toml',
@@ -122,11 +121,11 @@ INCLUDE_PATTERNS = {
     'requirements_atroz.txt',
     'constraints.txt',
     'Makefile',
-    
+
     # Symlinks
     'rules',
     'schemas',
-    
+
     # Essential documentation (minimal)
     'README.md',
     'QUICKSTART.md',
@@ -137,17 +136,17 @@ def should_include(path: Path, base: Path) -> bool:
     """Determine if a file should be included in the deployment zip."""
     relative_path = path.relative_to(base)
     path_str = str(relative_path)
-    
+
     # Check if it's the deprecated ORCHESTRATOR_MONILITH
     if 'ORCHESTRATOR_MONILITH.py' in path_str:
         return False
-    
+
     # Exclude markdown files except essential ones
     if path_str.endswith('.md'):
         if path_str in ESSENTIAL_DOCS:
             return True
         return False
-    
+
     # Check exclude patterns
     for pattern in EXCLUDE_PATTERNS:
         if pattern.endswith('/'):
@@ -168,7 +167,7 @@ def should_include(path: Path, base: Path) -> bool:
             parts = Path(path_str).parts
             if pattern in parts:
                 return False
-    
+
     # Check include patterns
     for pattern in INCLUDE_PATTERNS:
         if pattern.endswith('/'):
@@ -178,52 +177,52 @@ def should_include(path: Path, base: Path) -> bool:
         elif pattern == path_str:
             # Exact match
             return True
-    
+
     # If in src/ directory, include by default
     if path_str.startswith('src/'):
         return True
-    
+
     return False
 
 
 def create_deployment_zip(output_path: Path) -> None:
     """Create a deployment zip file."""
     print(f"Creating deployment zip at {output_path}")
-    
-    included_files: List[str] = []
-    excluded_files: List[str] = []
-    
+
+    included_files: list[str] = []
+    excluded_files: list[str] = []
+
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(BASE_DIR):
             root_path = Path(root)
-            
+
             # Skip excluded directories
             dirs_to_remove = []
             for d in dirs:
                 dir_path = root_path / d
                 if not should_include(dir_path, BASE_DIR):
                     dirs_to_remove.append(d)
-            
+
             for d in dirs_to_remove:
                 dirs.remove(d)
-            
+
             # Add files
             for file in files:
                 file_path = root_path / file
-                
+
                 if should_include(file_path, BASE_DIR):
                     arcname = file_path.relative_to(BASE_DIR)
                     zipf.write(file_path, arcname)
                     included_files.append(str(arcname))
                 else:
                     excluded_files.append(str(file_path.relative_to(BASE_DIR)))
-    
-    print(f"\n✅ Deployment zip created successfully!")
+
+    print("\n✅ Deployment zip created successfully!")
     print(f"   Output: {output_path}")
     print(f"   Size: {output_path.stat().st_size / 1024 / 1024:.2f} MB")
     print(f"   Included files: {len(included_files)}")
     print(f"   Excluded files: {len(excluded_files)}")
-    
+
     # Print summary
     print("\n📦 Included components:")
     components = set()
@@ -233,21 +232,21 @@ def create_deployment_zip(output_path: Path) -> None:
     for comp in sorted(components):
         count = sum(1 for f in included_files if f.startswith(comp))
         print(f"   - {comp}: {count} files")
-    
+
     print("\n🚫 Excluded deprecated/development files:")
     print(f"   - Total excluded: {len(excluded_files)}")
-    
+
     # Count different types of excluded files
     deprecated_count = sum(1 for f in excluded_files if 'MONOLITH' in f)
     doc_count = sum(1 for f in excluded_files if f.endswith('.md'))
     test_count = sum(1 for f in excluded_files if f.startswith('tests/'))
     example_count = sum(1 for f in excluded_files if f.startswith('examples/'))
-    
+
     print(f"   - Deprecated files: {deprecated_count}")
     print(f"   - Documentation: {doc_count}")
     print(f"   - Tests: {test_count}")
     print(f"   - Examples: {example_count}")
-    
+
     # Save manifest
     manifest_path = output_path.with_suffix('.txt')
     with open(manifest_path, 'w') as f:
@@ -258,7 +257,7 @@ def create_deployment_zip(output_path: Path) -> None:
         f.write("-" * 60 + "\n")
         for file in sorted(included_files):
             f.write(f"{file}\n")
-    
+
     print(f"\n📄 Manifest saved to: {manifest_path}")
 
 

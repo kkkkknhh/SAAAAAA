@@ -11,7 +11,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 try:
     import jsonschema
@@ -22,11 +21,11 @@ except ImportError:
 
 def load_schema(schema_path: str) -> dict:
     """Load JSON schema from file."""
-    with open(schema_path, 'r') as f:
+    with open(schema_path) as f:
         return json.load(f)
 
 
-def validate_log_entry(entry: dict, schema: dict, line_num: int) -> Tuple[bool, str]:
+def validate_log_entry(entry: dict, schema: dict, line_num: int) -> tuple[bool, str]:
     """
     Validate a single log entry against schema.
     
@@ -58,23 +57,23 @@ def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) ->
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in schema file: {e}", file=sys.stderr)
         return 1
-    
+
     # Check if log file exists
     if not Path(log_path).exists():
         print(f"Error: Log file not found: {log_path}", file=sys.stderr)
         return 1
-    
+
     # Process log file
     valid_count = 0
     invalid_count = 0
-    errors: List[str] = []
-    
-    with open(log_path, 'r') as f:
+    errors: list[str] = []
+
+    with open(log_path) as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line:
                 continue  # Skip empty lines
-            
+
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError as e:
@@ -84,9 +83,9 @@ def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) ->
                 if verbose:
                     print(f"✗ {error_msg}", file=sys.stderr)
                 continue
-            
+
             is_valid, error_msg = validate_log_entry(entry, schema, line_num)
-            
+
             if is_valid:
                 valid_count += 1
                 if verbose:
@@ -96,24 +95,24 @@ def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) ->
                 errors.append(error_msg)
                 if verbose:
                     print(f"✗ {error_msg}", file=sys.stderr)
-    
+
     # Print summary
     total = valid_count + invalid_count
-    print(f"\nValidation Summary:")
+    print("\nValidation Summary:")
     print(f"  Total entries: {total}")
     print(f"  Valid: {valid_count} ({valid_count*100//total if total > 0 else 0}%)")
     print(f"  Invalid: {invalid_count} ({invalid_count*100//total if total > 0 else 0}%)")
-    
+
     if invalid_count > 0:
-        print(f"\nErrors found:")
+        print("\nErrors found:")
         for error in errors[:10]:  # Show first 10 errors
             print(f"  - {error}")
-        
+
         if len(errors) > 10:
             print(f"  ... and {len(errors) - 10} more errors")
-        
+
         return 1
-    
+
     print("\n✓ All log entries are valid!")
     return 0
 
@@ -137,9 +136,9 @@ def main():
         action="store_true",
         help="Print validation status for each log entry"
     )
-    
+
     args = parser.parse_args()
-    
+
     exit_code = validate_log_file(args.log_file, args.schema, args.verbose)
     sys.exit(exit_code)
 

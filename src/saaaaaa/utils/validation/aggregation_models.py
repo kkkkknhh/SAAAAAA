@@ -5,8 +5,7 @@ This module provides strict type-safe validation for aggregation weights,
 ensuring zero-tolerance for invalid values at ingestion time.
 """
 
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 
@@ -19,15 +18,15 @@ class AggregationWeights(BaseModel):
     - All weights must be <= 1.0
     - Weights must sum to 1.0 (within tolerance)
     """
-    
+
     model_config = ConfigDict(frozen=True, extra='forbid')
-    
-    weights: List[float] = Field(..., min_length=1, description="List of aggregation weights")
+
+    weights: list[float] = Field(..., min_length=1, description="List of aggregation weights")
     tolerance: float = Field(default=1e-6, ge=0, description="Tolerance for sum validation")
-    
+
     @field_validator('weights')
     @classmethod
-    def validate_non_negative(cls, v: List[float]) -> List[float]:
+    def validate_non_negative(cls, v: list[float]) -> list[float]:
         """Ensure all weights are non-negative."""
         for i, weight in enumerate(v):
             if weight < 0:
@@ -41,7 +40,7 @@ class AggregationWeights(BaseModel):
                     f"All weights must be <= 1.0."
                 )
         return v
-    
+
     @model_validator(mode='after')
     def validate_sum(self) -> Self:
         """Ensure weights sum to 1.0 within tolerance."""
@@ -56,37 +55,37 @@ class AggregationWeights(BaseModel):
 
 class DimensionAggregationConfig(BaseModel):
     """Configuration for dimension-level aggregation."""
-    
+
     model_config = ConfigDict(frozen=True, extra='forbid')
-    
+
     dimension_id: str = Field(..., pattern=r'^DIM\d{2}$')
     area_id: str = Field(..., pattern=r'^PA\d{2}$')
-    weights: Optional[AggregationWeights] = None
+    weights: AggregationWeights | None = None
     expected_question_count: int = Field(default=5, ge=1, le=10)
 
 
 class AreaAggregationConfig(BaseModel):
     """Configuration for area-level aggregation."""
-    
+
     model_config = ConfigDict(frozen=True, extra='forbid')
-    
+
     area_id: str = Field(..., pattern=r'^PA\d{2}$')
     expected_dimension_count: int = Field(default=6, ge=1, le=10)
-    weights: Optional[AggregationWeights] = None
+    weights: AggregationWeights | None = None
 
 
 class ClusterAggregationConfig(BaseModel):
     """Configuration for cluster-level aggregation."""
-    
+
     model_config = ConfigDict(frozen=True, extra='forbid')
-    
+
     cluster_id: str = Field(..., pattern=r'^CL\d{2}$')
-    policy_area_ids: List[str] = Field(..., min_length=1)
-    weights: Optional[AggregationWeights] = None
-    
+    policy_area_ids: list[str] = Field(..., min_length=1)
+    weights: AggregationWeights | None = None
+
     @field_validator('policy_area_ids')
     @classmethod
-    def validate_policy_areas(cls, v: List[str]) -> List[str]:
+    def validate_policy_areas(cls, v: list[str]) -> list[str]:
         """Ensure all policy area IDs follow the correct pattern."""
         for pa_id in v:
             if len(pa_id) < 3 or not pa_id.startswith('PA') or not pa_id[2:].isdigit():
@@ -96,15 +95,15 @@ class ClusterAggregationConfig(BaseModel):
 
 class MacroAggregationConfig(BaseModel):
     """Configuration for macro-level aggregation."""
-    
+
     model_config = ConfigDict(frozen=True, extra='forbid')
-    
-    cluster_ids: List[str] = Field(..., min_length=1)
-    weights: Optional[AggregationWeights] = None
-    
+
+    cluster_ids: list[str] = Field(..., min_length=1)
+    weights: AggregationWeights | None = None
+
     @field_validator('cluster_ids')
     @classmethod
-    def validate_clusters(cls, v: List[str]) -> List[str]:
+    def validate_clusters(cls, v: list[str]) -> list[str]:
         """Ensure all cluster IDs follow the correct pattern."""
         for cl_id in v:
             if len(cl_id) < 3 or not cl_id.startswith('CL') or not cl_id[2:].isdigit():
@@ -112,7 +111,7 @@ class MacroAggregationConfig(BaseModel):
         return v
 
 
-def validate_weights(weights: List[float], tolerance: float = 1e-6) -> AggregationWeights:
+def validate_weights(weights: list[float], tolerance: float = 1e-6) -> AggregationWeights:
     """
     Convenience function to validate a list of weights.
     
@@ -132,7 +131,7 @@ def validate_weights(weights: List[float], tolerance: float = 1e-6) -> Aggregati
 def validate_dimension_config(
     dimension_id: str,
     area_id: str,
-    weights: Optional[List[float]] = None,
+    weights: list[float] | None = None,
     expected_question_count: int = 5
 ) -> DimensionAggregationConfig:
     """
@@ -153,7 +152,7 @@ def validate_dimension_config(
     weight_model = None
     if weights is not None:
         weight_model = validate_weights(weights)
-    
+
     return DimensionAggregationConfig(
         dimension_id=dimension_id,
         area_id=area_id,

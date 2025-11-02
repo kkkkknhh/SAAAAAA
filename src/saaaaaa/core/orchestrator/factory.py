@@ -17,28 +17,28 @@ Version: 1.0.0
 Status: Skeleton implementation (to be expanded with I/O migration)
 """
 
-from dataclasses import dataclass
 import copy
-from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional
 import json
 import logging
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any, Optional
 
 from ..contracts import (
-    DocumentData,
-    SemanticAnalyzerInputContract,
     CDAFFrameworkInputContract,
-    PDETAnalyzerInputContract,
-    TeoriaCambioInputContract,
     ContradictionDetectorInputContract,
+    DocumentData,
     EmbeddingPolicyInputContract,
-    SemanticChunkingInputContract,
+    PDETAnalyzerInputContract,
     PolicyProcessorInputContract,
+    SemanticAnalyzerInputContract,
+    SemanticChunkingInputContract,
+    TeoriaCambioInputContract,
 )
-
-from .core import MethodExecutor
 from . import get_questionnaire_provider
+from .core import MethodExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class ProcessorBundle:
 # FILE I/O OPERATIONS
 # ============================================================================
 
-def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire monolith JSON file.
     
     This is the ONLY place in the system that should read questionnaire_monolith.json.
@@ -87,10 +87,10 @@ def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
     """
     if path is None:
         path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
-    
+
     logger.info(f"Loading questionnaire from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         payload = json.load(f)
 
     if not isinstance(payload, dict):
@@ -101,7 +101,7 @@ def load_questionnaire_monolith(path: Optional[Path] = None) -> Dict[str, Any]:
     return payload
 
 
-def load_catalog(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
     
     Args:
@@ -112,14 +112,14 @@ def load_catalog(path: Optional[Path] = None) -> Dict[str, Any]:
     """
     if path is None:
         path = Path("rules/METODOS/metodos_completos_nivel3.json")
-    
+
     logger.info(f"Loading catalog from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
-def load_method_map(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
     
     Args:
@@ -130,14 +130,14 @@ def load_method_map(path: Optional[Path] = None) -> Dict[str, Any]:
     """
     if path is None:
         path = Path("COMPLETE_METHOD_CLASS_MAP.json")
-    
+
     logger.info(f"Loading method map from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
-def load_schema(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
     
     Args:
@@ -148,10 +148,10 @@ def load_schema(path: Optional[Path] = None) -> Dict[str, Any]:
     """
     if path is None:
         path = Path("schemas/questionnaire.schema.json")
-    
+
     logger.info(f"Loading schema from {path}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
+
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -167,15 +167,15 @@ def load_document(file_path: Path) -> DocumentData:
         DocumentData contract with parsed content
     """
     logger.info(f"Loading document from {file_path}")
-    
+
     # Read file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding='utf-8') as f:
         raw_text = f.read()
-    
+
     # Basic parsing (to be enhanced)
     sentences = raw_text.split('.')
     sentences = [s.strip() for s in sentences if s.strip()]
-    
+
     return DocumentData(
         raw_text=raw_text,
         sentences=sentences,
@@ -188,7 +188,7 @@ def load_document(file_path: Path) -> DocumentData:
     )
 
 
-def save_results(results: Dict[str, Any], output_path: Path) -> None:
+def save_results(results: dict[str, Any], output_path: Path) -> None:
     """Save analysis results to file.
     
     This is the ONLY place that should write analysis results.
@@ -199,7 +199,7 @@ def save_results(results: Dict[str, Any], output_path: Path) -> None:
         output_path: Path to output file
     """
     logger.info(f"Saving results to {output_path}")
-    
+
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
@@ -403,17 +403,17 @@ class CoreModuleFactory:
         # analyzer = SemanticAnalyzer()
         # result = analyzer.analyze(input_contract)
     """
-    
-    def __init__(self, data_dir: Optional[Path] = None):
+
+    def __init__(self, data_dir: Path | None = None):
         """Initialize factory.
         
         Args:
             data_dir: Optional directory for data files
         """
         self.data_dir = data_dir or _DEFAULT_DATA_DIR
-        self.questionnaire_cache: Optional[Dict[str, Any]] = None
-    
-    def get_questionnaire(self) -> Dict[str, Any]:
+        self.questionnaire_cache: dict[str, Any] | None = None
+
+    def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
         
         Returns:
@@ -425,7 +425,7 @@ class CoreModuleFactory:
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
         return self.questionnaire_cache
-    
+
     def load_document(self, file_path: Path) -> DocumentData:
         """Load document and return structured data.
         
@@ -437,7 +437,7 @@ class CoreModuleFactory:
         """
         return load_document(file_path)
 
-    def save_results(self, results: Dict[str, Any], output_path: Path) -> None:
+    def save_results(self, results: dict[str, Any], output_path: Path) -> None:
         """Save analysis results.
         
         Args:
@@ -445,7 +445,7 @@ class CoreModuleFactory:
             output_path: Output file path
         """
         save_results(results, output_path)
-    
+
     # Contract constructor methods
     construct_semantic_analyzer_input = construct_semantic_analyzer_input
     construct_cdaf_input = construct_cdaf_input
@@ -459,8 +459,8 @@ class CoreModuleFactory:
 
 def build_processor(
     *,
-    questionnaire_path: Optional[Path] = None,
-    data_dir: Optional[Path] = None,
+    questionnaire_path: Path | None = None,
+    data_dir: Path | None = None,
     factory: Optional["CoreModuleFactory"] = None,
 ) -> ProcessorBundle:
     """Create a processor bundle with orchestrator dependencies wired together.
@@ -523,7 +523,7 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # TODO: Migrate I/O operations from core modules
 # Track progress:
 # - Analyzer_one.py: 72 I/O operations to migrate
-# - dereck_beach.py: 40 I/O operations to migrate  
+# - dereck_beach.py: 40 I/O operations to migrate
 # - financiero_viabilidad_tablas.py: Multiple operations to migrate
 # - teoria_cambio.py: Some operations to migrate
 # Others are clean

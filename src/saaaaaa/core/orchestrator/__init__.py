@@ -3,24 +3,25 @@ import inspect
 from threading import RLock
 from typing import Any, Dict, Optional
 
+
 class _QuestionnaireProvider:
     """Centralized access to the questionnaire monolith payload.
     
     This is now a pure data holder - I/O operations have been moved to factory.py.
     The provider receives pre-loaded data and manages caching.
     """
-    
-    def __init__(self, initial_data: Optional[Dict[str, Any]] = None) -> None:
+
+    def __init__(self, initial_data: dict[str, Any] | None = None) -> None:
         """Initialize provider with optional pre-loaded data.
         
         Args:
             initial_data: Pre-loaded questionnaire data. If None, data must be
                          set via set_data() before calling get_data().
         """
-        self._cache: Optional[Dict[str, Any]] = initial_data
+        self._cache: dict[str, Any] | None = initial_data
         self._lock = RLock()
-    
-    def set_data(self, data: Dict[str, Any]) -> None:
+
+    def set_data(self, data: dict[str, Any]) -> None:
         """Set questionnaire data (typically called by factory).
         
         Args:
@@ -28,8 +29,8 @@ class _QuestionnaireProvider:
         """
         with self._lock:
             self._cache = data
-    
-    def get_data(self) -> Dict[str, Any]:
+
+    def get_data(self) -> dict[str, Any]:
         """Get cached questionnaire data.
         
         Returns:
@@ -44,7 +45,7 @@ class _QuestionnaireProvider:
                     "Questionnaire data not loaded. Use factory.py to load data first."
                 )
             return self._cache
-    
+
     def has_data(self) -> bool:
         """Check if data is loaded.
         
@@ -60,7 +61,7 @@ def get_questionnaire_provider() -> _QuestionnaireProvider:
     """Get the global questionnaire provider instance."""
     return _questionnaire_provider
 
-def get_questionnaire_payload() -> Dict[str, Any]:
+def get_questionnaire_payload() -> dict[str, Any]:
     """Get questionnaire payload with caller boundary enforcement.
     
     Note: Data must be pre-loaded via factory.py before calling this function.
@@ -78,14 +79,6 @@ def get_questionnaire_payload() -> Dict[str, Any]:
     return _questionnaire_provider.get_data()
 
 # Import utilities from submodules
-from .evidence_registry import (
-    EvidenceRecord,
-    EvidenceRegistry,
-    ProvenanceDAG,
-    ProvenanceNode,
-    get_global_registry,
-)
-
 from .contract_loader import (
     JSONContractLoader,
     LoadError,
@@ -94,17 +87,24 @@ from .contract_loader import (
 
 # Import core classes from the refactored package
 from .core import (
-    Orchestrator,
-    MethodExecutor,
-    PreprocessedDocument,
-    Evidence,
-    AbortSignal,
     AbortRequested,
-    ResourceLimits,
+    AbortSignal,
+    Evidence,
+    MethodExecutor,
+    MicroQuestionRun,
+    Orchestrator,
     PhaseInstrumentation,
     PhaseResult,
-    MicroQuestionRun,
+    PreprocessedDocument,
+    ResourceLimits,
     ScoredMicroQuestion,
+)
+from .evidence_registry import (
+    EvidenceRecord,
+    EvidenceRegistry,
+    ProvenanceDAG,
+    ProvenanceNode,
+    get_global_registry,
 )
 
 __all__ = [

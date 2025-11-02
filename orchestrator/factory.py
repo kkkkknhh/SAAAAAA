@@ -20,7 +20,7 @@ def _load_questionnaire(path: Path) -> Any:
 def build_processor(
     path: str | Path = "questionnaire_monolith.json",
     locale: str = "es",
-) -> "IndustrialPolicyProcessor":
+) -> IndustrialPolicyProcessor:
     """Build an :class:`IndustrialPolicyProcessor` initialised with questionnaire data."""
     questionnaire_path = Path(path)
     data = _load_questionnaire(questionnaire_path)

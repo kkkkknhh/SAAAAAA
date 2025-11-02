@@ -15,14 +15,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Imports de los productores principales
 try:
-    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
     from Analyzer_one import MunicipalAnalyzer
     from contradiction_deteccion import ContradictionDetector
-    from embedding_policy import PolicyEmbeddingAnalyzer
-    from teoria_cambio import TeoriaCambio
     from dereck_beach import BeachProcessor
-    from policy_processor import IndustrialPolicyProcessor
+    from financiero_viabilidad_tablas import PDETMunicipalPlanAnalyzer
     from report_assembly import ReportAssembler
+    from teoria_cambio import TeoriaCambio
+
+    from embedding_policy import PolicyEmbeddingAnalyzer
+    from policy_processor import IndustrialPolicyProcessor
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Ensure all dependencies are installed and paths are correct")
@@ -34,15 +35,15 @@ class NIVEL3ExecutionGuide:
     Guía de ejecución para métodos NIVEL3
     Proporciona patrones y ejemplos para ejecución prioritaria
     """
-    
+
     def __init__(self):
         """Inicializar guía de ejecución"""
         self.execution_log = []
-    
+
     # ========================================================================
     # MÉTODOS CRÍTICOS (CRITICAL PRIORITY) - Ejecución Obligatoria
     # ========================================================================
-    
+
     def ejemplo_financiero_critical(self):
         """
         Ejemplo: PDETMunicipalPlanAnalyzer.__init__
@@ -53,7 +54,7 @@ class NIVEL3ExecutionGuide:
         print("MÉTODO: PDETMunicipalPlanAnalyzer.__init__")
         print("PRIORIDAD: CRITICAL")
         print("REQUISITOS: Configuración de contexto municipal colombiano")
-        
+
         try:
             # Inicializar analizador con contexto municipal
             analyzer = PDETMunicipalPlanAnalyzer()
@@ -73,7 +74,7 @@ class NIVEL3ExecutionGuide:
                 "error": str(e)
             })
             return None
-    
+
     def ejemplo_municipal_analyzer_critical(self):
         """
         Ejemplo: MunicipalAnalyzer.__init__
@@ -83,7 +84,7 @@ class NIVEL3ExecutionGuide:
         print("\n=== EJEMPLO 2: Inicialización Analizador Municipal ===")
         print("MÉTODO: MunicipalAnalyzer.__init__")
         print("PRIORIDAD: CRITICAL")
-        
+
         try:
             analyzer = MunicipalAnalyzer()
             print("✓ MunicipalAnalyzer inicializado")
@@ -96,7 +97,7 @@ class NIVEL3ExecutionGuide:
         except Exception as e:
             print(f"✗ Error: {e}")
             return None
-    
+
     def ejemplo_policy_processor_critical(self):
         """
         Ejemplo: IndustrialPolicyProcessor.process
@@ -107,20 +108,20 @@ class NIVEL3ExecutionGuide:
         print("MÉTODO: IndustrialPolicyProcessor.process")
         print("PRIORIDAD: CRITICAL")
         print("REQUISITOS: Texto de política, configuración procesador")
-        
+
         try:
             from policy_processor import IndustrialPolicyProcessor
-            
+
             # Texto de ejemplo
             sample_text = """
             El Plan de Desarrollo contempla la inversión de 50.000 millones de pesos
             en infraestructura vial para mejorar la conectividad del municipio.
             """
-            
+
             processor = IndustrialPolicyProcessor()
             result = processor.process(sample_text)
-            
-            print(f"✓ Política procesada exitosamente")
+
+            print("✓ Política procesada exitosamente")
             print(f"  - Evidencias encontradas: {len(result.get('evidences', []))}")
             self.execution_log.append({
                 "method": "IndustrialPolicyProcessor.process",
@@ -131,11 +132,11 @@ class NIVEL3ExecutionGuide:
         except Exception as e:
             print(f"✗ Error: {e}")
             return None
-    
+
     # ========================================================================
     # MÉTODOS DE ALTA PRIORIDAD (HIGH PRIORITY)
     # ========================================================================
-    
+
     def ejemplo_bayesian_inference_high(self):
         """
         Ejemplo: Métodos de inferencia bayesiana
@@ -146,19 +147,19 @@ class NIVEL3ExecutionGuide:
         print("MÉTODOS: _bayesian_risk_inference, compute_evidence_score")
         print("PRIORIDAD: HIGH")
         print("COMPLEJIDAD: HIGH")
-        
+
         try:
             from policy_processor import BayesianEvidenceScorer
-            
+
             scorer = BayesianEvidenceScorer()
-            
+
             # Ejemplo de evidencias
             evidences = [
                 {"type": "numerical", "value": 0.85, "source": "document_1"},
                 {"type": "textual", "value": 0.72, "source": "document_2"},
                 {"type": "statistical", "value": 0.90, "source": "analysis_1"}
             ]
-            
+
             score = scorer.compute_evidence_score(evidences)
             print(f"✓ Score de evidencia calculado: {score}")
             self.execution_log.append({
@@ -170,7 +171,7 @@ class NIVEL3ExecutionGuide:
         except Exception as e:
             print(f"✗ Error: {e}")
             return None
-    
+
     def ejemplo_causal_dag_high(self):
         """
         Ejemplo: Construcción y análisis de DAG causal
@@ -182,23 +183,23 @@ class NIVEL3ExecutionGuide:
         print("PRIORIDAD: HIGH")
         print("COMPLEJIDAD: HIGH")
         print("DEPENDENCIAS: networkx, análisis de grafos")
-        
+
         try:
             analyzer = PDETMunicipalPlanAnalyzer()
-            
+
             # Texto de ejemplo con relaciones causales
             sample_text = """
             La inversión en educación mejora los indicadores de desarrollo humano,
             lo cual a su vez incrementa la productividad económica del municipio.
             El desarrollo económico permite mayor inversión en educación.
             """
-            
+
             dag = analyzer.construct_causal_dag(sample_text)
-            print(f"✓ DAG construido exitosamente")
+            print("✓ DAG construido exitosamente")
             if dag:
                 print(f"  - Nodos identificados: {len(dag.nodes) if hasattr(dag, 'nodes') else 'N/A'}")
                 print(f"  - Aristas causales: {len(dag.edges) if hasattr(dag, 'edges') else 'N/A'}")
-            
+
             self.execution_log.append({
                 "method": "construct_causal_dag",
                 "status": "SUCCESS",
@@ -208,11 +209,11 @@ class NIVEL3ExecutionGuide:
         except Exception as e:
             print(f"✗ Error: {e}")
             return None
-    
+
     # ========================================================================
     # MÉTODOS DE COMPLEJIDAD ALTA - Atención Especial
     # ========================================================================
-    
+
     def ejemplo_monte_carlo_simulation(self):
         """
         Ejemplo: Simulaciones Monte Carlo
@@ -223,23 +224,23 @@ class NIVEL3ExecutionGuide:
         print("COMPLEJIDAD: HIGH")
         print("RECURSOS: Computación intensiva, alta memoria")
         print("NOTA: Método de ejemplo - implementación específica varía")
-        
+
         print("⚠ Métodos Monte Carlo requieren:")
         print("  - Múltiples iteraciones (típicamente 1000-10000)")
         print("  - Gestión de memoria para resultados")
         print("  - Tiempo de ejecución extendido")
         print("  - Validación de convergencia")
-        
+
         self.execution_log.append({
             "method": "monte_carlo_simulation",
             "status": "INFO",
             "note": "Requiere configuración específica"
         })
-    
+
     # ========================================================================
     # PIPELINE DE EJECUCIÓN COMPLETO
     # ========================================================================
-    
+
     def ejecutar_pipeline_completo(self, document_path: str = None):
         """
         Ejecuta un pipeline completo de análisis
@@ -248,54 +249,54 @@ class NIVEL3ExecutionGuide:
         print("\n" + "="*70)
         print("PIPELINE COMPLETO DE EJECUCIÓN")
         print("="*70)
-        
+
         if not document_path:
             print("⚠ No se proporcionó documento. Usando datos de ejemplo.")
             document_path = "ejemplo_pdet.pdf"
-        
+
         # Paso 1: Inicialización (CRITICAL)
         print("\n[1/7] Inicializando componentes...")
         financial_analyzer = self.ejemplo_financiero_critical()
         municipal_analyzer = self.ejemplo_municipal_analyzer_critical()
-        
+
         # Paso 2: Procesamiento de texto (CRITICAL)
         print("\n[2/7] Procesando políticas...")
         policy_result = self.ejemplo_policy_processor_critical()
-        
+
         # Paso 3: Análisis Bayesiano (HIGH)
         print("\n[3/7] Realizando inferencia bayesiana...")
         bayesian_score = self.ejemplo_bayesian_inference_high()
-        
+
         # Paso 4: Construcción DAG Causal (HIGH)
         print("\n[4/7] Construyendo DAG causal...")
         causal_dag = self.ejemplo_causal_dag_high()
-        
+
         # Paso 5: Detección de contradicciones
         print("\n[5/7] Detectando contradicciones...")
         print("  (Requiere ContradictionDetector)")
-        
+
         # Paso 6: Análisis de embeddings
         print("\n[6/7] Analizando embeddings semánticos...")
         print("  (Requiere PolicyEmbeddingAnalyzer)")
-        
+
         # Paso 7: Ensamblaje de reporte
         print("\n[7/7] Ensamblando reporte final...")
         print("  (Requiere ReportAssembler)")
-        
+
         print("\n" + "="*70)
         print("RESUMEN DE EJECUCIÓN")
         print("="*70)
         self.print_execution_summary()
-    
+
     def print_execution_summary(self):
         """Imprime resumen de ejecución"""
         successful = sum(1 for log in self.execution_log if log.get('status') == 'SUCCESS')
         failed = sum(1 for log in self.execution_log if log.get('status') == 'FAILED')
-        
+
         print(f"\nMétodos ejecutados: {len(self.execution_log)}")
         print(f"  ✓ Exitosos: {successful}")
         print(f"  ✗ Fallidos: {failed}")
-        
+
         if failed > 0:
             print("\nMétodos fallidos:")
             for log in self.execution_log:
@@ -309,28 +310,28 @@ def main():
     print("NIVEL3 - SISTEMA DE EJEMPLOS DE USO")
     print("Sistema de 593 Métodos para Análisis de Políticas Públicas")
     print("="*70)
-    
+
     guide = NIVEL3ExecutionGuide()
-    
+
     # Ejecutar ejemplos individuales
     print("\n### EJEMPLOS INDIVIDUALES ###\n")
-    
+
     # Críticos
     guide.ejemplo_financiero_critical()
     guide.ejemplo_municipal_analyzer_critical()
     guide.ejemplo_policy_processor_critical()
-    
+
     # Alta prioridad
     guide.ejemplo_bayesian_inference_high()
     guide.ejemplo_causal_dag_high()
-    
+
     # Alta complejidad
     guide.ejemplo_monte_carlo_simulation()
-    
+
     # Pipeline completo
     print("\n\n### PIPELINE COMPLETO ###")
     guide.ejecutar_pipeline_completo()
-    
+
     print("\n" + "="*70)
     print("Para más información, consultar:")
     print("  - metodos_completos_nivel3.json (catálogo completo)")

@@ -12,10 +12,8 @@ This follows the Ports and Adapters (Hexagonal) architecture pattern:
 Version: 1.0.0
 """
 
-from abc import ABC, abstractmethod
-from typing import Protocol, Dict, Any, Optional
 from datetime import datetime
-from pathlib import Path
+from typing import Any, Protocol
 
 
 class FilePort(Protocol):
@@ -126,7 +124,7 @@ class JsonPort(Protocol):
         """
         ...
 
-    def dumps(self, obj: Any, indent: Optional[int] = None) -> str:
+    def dumps(self, obj: Any, indent: int | None = None) -> str:
         """Serialize object to JSON string.
         
         Args:
@@ -148,7 +146,7 @@ class EnvPort(Protocol):
     Allows core modules to access configuration without direct os.environ coupling.
     """
 
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, default: str | None = None) -> str | None:
         """Get environment variable.
         
         Args:

@@ -8,11 +8,11 @@ the Ports and Adapters (Hexagonal Architecture) pattern.
 All file I/O for the processing package should be handled through this factory.
 """
 
-from pathlib import Path
-from typing import Dict, Any, Union
-import json
 import hashlib
+import json
 import logging
+from pathlib import Path
+from typing import Any
 
 try:
     import pdfplumber
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # FILE I/O OPERATIONS
 # ============================================================================
 
-def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
+def load_json(file_path: str | Path) -> dict[str, Any]:
     """
     Load JSON data from file.
     
@@ -41,18 +41,18 @@ def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
         json.JSONDecodeError: If file contains invalid JSON
     """
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    
-    with open(file_path, "r", encoding="utf-8") as f:
+
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
-    
+
     logger.info(f"Loaded JSON from {file_path}")
     return data
 
 
-def save_json(data: Dict[str, Any], file_path: Union[str, Path], indent: int = 2) -> None:
+def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
     
@@ -63,14 +63,14 @@ def save_json(data: Dict[str, Any], file_path: Union[str, Path], indent: int = 2
     """
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=indent)
-    
+
     logger.info(f"Saved JSON to {file_path}")
 
 
-def read_text_file(file_path: Union[str, Path], encodings: list = None) -> str:
+def read_text_file(file_path: str | Path, encodings: list = None) -> str:
     """
     Read text file with automatic encoding detection.
     
@@ -87,30 +87,30 @@ def read_text_file(file_path: Union[str, Path], encodings: list = None) -> str:
     """
     if encodings is None:
         encodings = ["utf-8", "latin-1", "cp1252"]
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    
+
     last_error = None
     for encoding in encodings:
         try:
-            with open(file_path, "r", encoding=encoding) as f:
+            with open(file_path, encoding=encoding) as f:
                 content = f.read()
             logger.debug(f"Successfully read {file_path} with {encoding}")
             return content
         except (UnicodeDecodeError, UnicodeError) as e:
             last_error = e
             continue
-    
+
     raise UnicodeDecodeError(
         "utf-8", b"", 0, 0,
         f"Could not decode {file_path} with any of: {encodings}. Last error: {last_error}"
     )
 
 
-def write_text_file(content: str, file_path: Union[str, Path]) -> None:
+def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
     
@@ -120,14 +120,14 @@ def write_text_file(content: str, file_path: Union[str, Path]) -> None:
     """
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
-    
+
     logger.info(f"Written {len(content)} characters to {file_path}")
 
 
-def calculate_file_hash(file_path: Union[str, Path]) -> str:
+def calculate_file_hash(file_path: str | Path) -> str:
     """
     Calculate SHA-256 hash of a file for traceability.
     
@@ -139,11 +139,11 @@ def calculate_file_hash(file_path: Union[str, Path]) -> str:
     """
     file_path = Path(file_path)
     sha256_hash = hashlib.sha256()
-    
+
     with open(file_path, "rb") as f:
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
-    
+
     return sha256_hash.hexdigest()
 
 
@@ -151,7 +151,7 @@ def calculate_file_hash(file_path: Union[str, Path]) -> str:
 # PDF OPERATIONS
 # ============================================================================
 
-def extract_pdf_text_all_pages(file_path: Union[str, Path]) -> str:
+def extract_pdf_text_all_pages(file_path: str | Path) -> str:
     """
     Extract all text from a PDF file.
     
@@ -167,14 +167,14 @@ def extract_pdf_text_all_pages(file_path: Union[str, Path]) -> str:
     """
     if pdfplumber is None:
         raise ImportError("pdfplumber is required for PDF operations. Install with: pip install pdfplumber")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"PDF file not found: {file_path}")
-    
+
     all_text = []
-    
+
     with pdfplumber.open(file_path) as pdf:
         for page_num, page in enumerate(pdf.pages, start=1):
             try:
@@ -185,13 +185,13 @@ def extract_pdf_text_all_pages(file_path: Union[str, Path]) -> str:
             except Exception as e:
                 logger.warning(f"Error extracting page {page_num}: {e}")
                 continue
-    
+
     result = "\n".join(all_text)
     logger.info(f"Extracted {len(result)} characters from {file_path}")
     return result
 
 
-def extract_pdf_text_single_page(file_path: Union[str, Path], page_num: int, total_pages: int = None) -> str:
+def extract_pdf_text_single_page(file_path: str | Path, page_num: int, total_pages: int = None) -> str:
     """
     Extract text from a single page of a PDF.
     
@@ -210,24 +210,24 @@ def extract_pdf_text_single_page(file_path: Union[str, Path], page_num: int, tot
     """
     if pdfplumber is None:
         raise ImportError("pdfplumber is required for PDF operations. Install with: pip install pdfplumber")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"PDF file not found: {file_path}")
-    
+
     with pdfplumber.open(file_path) as pdf:
         if total_pages and (page_num < 1 or page_num > total_pages):
             raise ValueError(f"Page {page_num} out of range (1-{total_pages})")
-        
+
         if page_num < 1 or page_num > len(pdf.pages):
             raise ValueError(f"Page {page_num} out of range (1-{len(pdf.pages)})")
-        
+
         text = pdf.pages[page_num - 1].extract_text() or ""
         return text
 
 
-def get_pdf_page_count(file_path: Union[str, Path]) -> int:
+def get_pdf_page_count(file_path: str | Path) -> int:
     """
     Get the number of pages in a PDF file.
     
@@ -243,11 +243,11 @@ def get_pdf_page_count(file_path: Union[str, Path]) -> int:
     """
     if pdfplumber is None:
         raise ImportError("pdfplumber is required for PDF operations. Install with: pip install pdfplumber")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"PDF file not found: {file_path}")
-    
+
     with pdfplumber.open(file_path) as pdf:
         return len(pdf.pages)

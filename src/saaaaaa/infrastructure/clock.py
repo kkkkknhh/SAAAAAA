@@ -6,7 +6,6 @@ For testing, use FrozenClockAdapter instead.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 
 
 class SystemClockAdapter:
@@ -39,7 +38,7 @@ class FrozenClockAdapter:
         >>> assert clock_port.now() == datetime(2024, 1, 1, 13, 0, 0)
     """
 
-    def __init__(self, frozen_time: Optional[datetime] = None) -> None:
+    def __init__(self, frozen_time: datetime | None = None) -> None:
         self._frozen_time = frozen_time or datetime.now()
 
     def now(self) -> datetime:

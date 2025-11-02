@@ -14,15 +14,16 @@ Exit codes:
     1 - Validation failures detected
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from validation.aggregation_models import validate_weights
 from pydantic import ValidationError
+
+from validation.aggregation_models import validate_weights
 
 
 def verify_aggregation_system():
@@ -33,7 +34,7 @@ def verify_aggregation_system():
         tuple: (passed: bool, errors: list)
     """
     errors = []
-    
+
     # Test cases representing common aggregation scenarios
     test_cases = [
         {
@@ -67,12 +68,12 @@ def verify_aggregation_system():
             'should_pass': False
         }
     ]
-    
+
     for test_case in test_cases:
         name = test_case['name']
         weights = test_case['weights']
         should_pass = test_case['should_pass']
-        
+
         try:
             validate_weights(weights)
             if not should_pass:
@@ -89,7 +90,7 @@ def verify_aggregation_system():
                 )
             else:
                 print(f"✅ {name}: Correctly rejected (as expected)")
-    
+
     return len(errors) == 0, errors
 
 
@@ -103,19 +104,19 @@ def main():
         action='store_true',
         help='Enable strict mode (fail on any issue)'
     )
-    
+
     args = parser.parse_args()
-    
+
     print("=" * 70)
     print("AGGREGATION WEIGHT VERIFICATION")
     print("=" * 70)
     print()
-    
+
     passed, errors = verify_aggregation_system()
-    
+
     print()
     print("=" * 70)
-    
+
     if passed:
         print("✅ ALL WEIGHT VALIDATIONS PASSED")
         print("=" * 70)

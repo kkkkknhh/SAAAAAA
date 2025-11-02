@@ -41,19 +41,17 @@ Memory Requirements:
 - Large Documents (10MB+): Additional 50-100MB working memory
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Callable, TypeVar, Generic
-from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
-from enum import Enum
-import numpy as np
-from collections import defaultdict
-import math
-from functools import lru_cache, wraps
-import warnings
 import logging
+import math
 import time
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from collections.abc import Callable
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from typing import Any, Generic, TypeVar
 
+import numpy as np
 
 # ============================================================================
 # LOGGING AND METRICS SETUP
@@ -70,12 +68,12 @@ class ExecutionMetrics:
     failed_executions: int = 0
     total_execution_time: float = 0.0
     quantum_optimizations: int = 0
-    quantum_convergence_times: List[float] = field(default_factory=list)
-    meta_learner_strategy_selections: Dict[int, int] = field(default_factory=dict)
+    quantum_convergence_times: list[float] = field(default_factory=list)
+    meta_learner_strategy_selections: dict[int, int] = field(default_factory=dict)
     information_bottlenecks_detected: int = 0
     retry_attempts: int = 0
-    method_execution_times: Dict[str, List[float]] = field(default_factory=dict)
-    
+    method_execution_times: dict[str, list[float]] = field(default_factory=dict)
+
     def record_execution(self, success: bool, execution_time: float, method_key: str = None):
         """Record an execution attempt"""
         self.total_executions += 1
@@ -88,27 +86,27 @@ class ExecutionMetrics:
             if method_key not in self.method_execution_times:
                 self.method_execution_times[method_key] = []
             self.method_execution_times[method_key].append(execution_time)
-    
+
     def record_quantum_optimization(self, convergence_time: float):
         """Record quantum optimization metrics"""
         self.quantum_optimizations += 1
         self.quantum_convergence_times.append(convergence_time)
-    
+
     def record_meta_learner_selection(self, strategy_idx: int):
         """Record meta-learner strategy selection"""
         if strategy_idx not in self.meta_learner_strategy_selections:
             self.meta_learner_strategy_selections[strategy_idx] = 0
         self.meta_learner_strategy_selections[strategy_idx] += 1
-    
+
     def record_information_bottleneck(self):
         """Record information bottleneck detection"""
         self.information_bottlenecks_detected += 1
-    
+
     def record_retry(self):
         """Record retry attempt"""
         self.retry_attempts += 1
-    
-    def get_summary(self) -> Dict[str, Any]:
+
+    def get_summary(self) -> dict[str, Any]:
         """Get metrics summary"""
         return {
             'total_executions': self.total_executions,
@@ -157,7 +155,7 @@ class QuantumState:
         self.amplitudes = np.ones(dimension, dtype=complex) / np.sqrt(dimension)
         self.phase = np.zeros(dimension)
 
-    def apply_oracle(self, marked_states: List[int]):
+    def apply_oracle(self, marked_states: list[int]):
         """Apply oracle function to mark optimal states"""
         for state in marked_states:
             if 0 <= state < self.dimension:
@@ -192,12 +190,12 @@ class QuantumExecutionOptimizer:
     def __init__(self, num_methods: int):
         self.num_methods = num_methods
         self.state = QuantumState(num_methods)
-        self.execution_history: List[Tuple[int, float]] = []
+        self.execution_history: list[tuple[int, float]] = []
 
-    def select_optimal_path(self, available_methods: List[int]) -> List[int]:
+    def select_optimal_path(self, available_methods: list[int]) -> list[int]:
         """Select optimal execution path using quantum annealing principles"""
         start_time = time.time()
-        
+
         if self.execution_history:
             top_methods = sorted(self.execution_history, key=lambda x: x[1], reverse=True)
             marked = [m[0] for m in top_methods[:len(top_methods) // 3]]
@@ -205,15 +203,15 @@ class QuantumExecutionOptimizer:
 
         optimal_idx = self.state.optimize_path()
         path = self._construct_path(optimal_idx, available_methods)
-        
+
         # Record convergence time
         convergence_time = time.time() - start_time
         _global_metrics.record_quantum_optimization(convergence_time)
         logger.debug(f"Quantum optimization converged in {convergence_time:.4f}s, path length: {len(path)}")
-        
+
         return path
 
-    def _construct_path(self, start_idx: int, available: List[int]) -> List[int]:
+    def _construct_path(self, start_idx: int, available: list[int]) -> list[int]:
         """Construct execution path from starting point"""
         if not available:
             return []
@@ -228,7 +226,7 @@ class QuantumExecutionOptimizer:
 
         return path
 
-    def _tunneling_probabilities(self, current: int, candidates: List[int]) -> np.ndarray:
+    def _tunneling_probabilities(self, current: int, candidates: list[int]) -> np.ndarray:
         """Calculate quantum tunneling probabilities to candidate states"""
         distances = np.array([abs(current - c) for c in candidates])
         probs = np.exp(-distances / self.num_methods)
@@ -250,7 +248,7 @@ class SpikingNeuron:
         self.potential = 0.0
         self.threshold = threshold
         self.decay = decay
-        self.spike_history: List[float] = []
+        self.spike_history: list[float] = []
 
     def receive_input(self, signal: float) -> bool:
         """Receive input signal and check for spike"""
@@ -280,7 +278,7 @@ class NeuromorphicFlowController:
         self.synaptic_weights = np.random.rand(num_stages, num_stages) * 0.5
         self.stdp_learning_rate = 0.01
 
-    def process_data_flow(self, data_quality: List[float]) -> List[bool]:
+    def process_data_flow(self, data_quality: list[float]) -> list[bool]:
         """Process data flow through neuromorphic network"""
         activations = []
 
@@ -305,7 +303,7 @@ class NeuromorphicFlowController:
             self.synaptic_weights[pre_idx, post_idx], 0.0, 1.0
         )
 
-    def adapt_flow(self, performance_metrics: List[float]):
+    def adapt_flow(self, performance_metrics: list[float]):
         """Adapt flow based on performance using neuromorphic learning"""
         for i in range(len(self.neurons) - 1):
             pre_rate = self.neurons[i].get_firing_rate()
@@ -370,7 +368,7 @@ class CausalGraph:
         return p_value > alpha
 
     def _partial_correlation(self, data: np.ndarray, i: int, j: int,
-                             cond: List[int]) -> float:
+                             cond: list[int]) -> float:
         """Calculate partial correlation"""
         if len(cond) == 0:
             return np.corrcoef(data[:, i], data[:, j])[0, 1]
@@ -400,7 +398,7 @@ class CausalGraph:
         from itertools import combinations
         return [set(c) for c in combinations(s, size)]
 
-    def get_execution_order(self) -> List[int]:
+    def get_execution_order(self) -> list[int]:
         """Get topological execution order"""
         in_degree = self.adjacency.sum(axis=0)
         order = []
@@ -429,7 +427,7 @@ class InformationFlowOptimizer:
     def __init__(self, num_stages: int):
         self.num_stages = num_stages
         self.mutual_information_matrix = np.zeros((num_stages, num_stages))
-        self.entropy_history: List[float] = []
+        self.entropy_history: list[float] = []
 
     def calculate_entropy(self, data: Any) -> float:
         """Calculate Shannon entropy of data"""
@@ -470,7 +468,7 @@ class InformationFlowOptimizer:
                     mi = self.calculate_mutual_information(prev_data, entropy)
                     self.mutual_information_matrix[prev_stage, stage] = mi
 
-    def get_information_bottlenecks(self) -> List[int]:
+    def get_information_bottlenecks(self) -> list[int]:
         """Identify information bottlenecks in the flow
         
         Instrumentation: Records bottleneck detection events
@@ -485,7 +483,7 @@ class InformationFlowOptimizer:
         for i, grad in enumerate(gradients):
             if grad < threshold:
                 bottlenecks.append(i + 1)
-        
+
         # Record bottleneck detection
         if bottlenecks:
             _global_metrics.record_information_bottleneck()
@@ -493,7 +491,7 @@ class InformationFlowOptimizer:
 
         return bottlenecks
 
-    def optimize_information_flow(self, current_order: List[int]) -> List[int]:
+    def optimize_information_flow(self, current_order: list[int]) -> list[int]:
         """Reorder execution to maximize information flow"""
         if len(current_order) <= 1:
             return current_order
@@ -547,11 +545,11 @@ class MetaLearningStrategy:
             strategy_idx = np.random.randint(self.num_strategies)
         else:
             strategy_idx = np.argmax(self.strategy_performance)
-        
+
         # Record strategy selection
         _global_metrics.record_meta_learner_selection(strategy_idx)
         logger.debug(f"Meta-learner selected strategy {strategy_idx} (performance: {self.strategy_performance[strategy_idx]:.3f})")
-        
+
         return strategy_idx
 
     def update_strategy_performance(self, strategy_idx: int, reward: float):
@@ -563,10 +561,10 @@ class MetaLearningStrategy:
         )
 
         self.strategy_performance /= self.strategy_performance.sum()
-        
+
         logger.debug(f"Updated strategy {strategy_idx} performance: {current_perf:.3f} -> {self.strategy_performance[strategy_idx]:.3f} (reward: {reward:.3f})")
 
-    def get_strategy_config(self, strategy_idx: int) -> Dict[str, Any]:
+    def get_strategy_config(self, strategy_idx: int) -> dict[str, Any]:
         """Get configuration for selected strategy"""
         strategies = [
             {"parallel": True, "batch_size": 10, "pruning": False},
@@ -599,8 +597,8 @@ class AttentionMechanism:
         embedding = np.random.randn(self.embedding_dim)
         return embedding / np.linalg.norm(embedding)
 
-    def compute_attention(self, query_methods: List[str],
-                          key_methods: List[str]) -> np.ndarray:
+    def compute_attention(self, query_methods: list[str],
+                          key_methods: list[str]) -> np.ndarray:
         """Compute attention scores using scaled dot-product attention"""
         Q = np.array([self.embed_method(m) @ self.query_weights for m in query_methods])
         K = np.array([self.embed_method(m) @ self.key_weights for m in key_methods])
@@ -618,8 +616,8 @@ class AttentionMechanism:
         exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
         return exp_x / exp_x.sum(axis=-1, keepdims=True)
 
-    def prioritize_methods(self, available_methods: List[str],
-                           context_methods: List[str]) -> List[Tuple[str, float]]:
+    def prioritize_methods(self, available_methods: list[str],
+                           context_methods: list[str]) -> list[tuple[str, float]]:
         """Prioritize methods based on attention scores"""
         if not available_methods or not context_methods:
             return [(m, 1.0) for m in available_methods]
@@ -643,7 +641,7 @@ class PersistentHomology:
     """Persistent homology for understanding data topology"""
 
     def __init__(self):
-        self.persistence_diagram: List[Tuple[float, float]] = []
+        self.persistence_diagram: list[tuple[float, float]] = []
 
     def compute_persistence(self, data: np.ndarray, max_dimension: int = 1):
         """Compute persistence diagram"""
@@ -671,7 +669,7 @@ class PersistentHomology:
 
         return distances
 
-    def get_topological_features(self) -> Dict[str, float]:
+    def get_topological_features(self) -> dict[str, float]:
         """Extract topological features from persistence diagram"""
         if not self.persistence_diagram:
             return {"persistence": 0.0, "num_features": 0}
@@ -708,7 +706,7 @@ class ExecutionMonad(Functor):
 
     def __init__(self, value: Any):
         self.value = value
-        self.history: List[str] = []
+        self.history: list[str] = []
 
     def fmap(self, f: Callable) -> 'ExecutionMonad':
         """Apply function and wrap result"""
@@ -717,7 +715,7 @@ class ExecutionMonad(Functor):
             monad = ExecutionMonad(result)
             monad.history = self.history + [f.__name__]
             return monad
-        except Exception as e:
+        except Exception:
             return ExecutionMonad(None)
 
     def bind(self, f: Callable[[Any], 'ExecutionMonad']) -> 'ExecutionMonad':
@@ -746,7 +744,7 @@ class CategoryTheoryExecutor:
     """Executor using category theory abstractions"""
 
     def __init__(self):
-        self.morphisms: Dict[str, Callable] = {}
+        self.morphisms: dict[str, Callable] = {}
 
     def add_morphism(self, name: str, f: Callable):
         """Add morphism (function) to category"""
@@ -765,7 +763,7 @@ class CategoryTheoryExecutor:
         return composed
 
     def execute_pipeline(self, initial_value: Any,
-                         morphism_sequence: List[str]) -> ExecutionMonad:
+                         morphism_sequence: list[str]) -> ExecutionMonad:
         """Execute pipeline using monadic composition"""
         monad = ExecutionMonad.unit(initial_value)
 
@@ -784,8 +782,8 @@ class ProbabilisticExecutor:
     """Probabilistic programming for uncertainty quantification"""
 
     def __init__(self):
-        self.distributions: Dict[str, Any] = {}
-        self.samples: Dict[str, List[float]] = defaultdict(list)
+        self.distributions: dict[str, Any] = {}
+        self.samples: dict[str, list[float]] = defaultdict(list)
 
     def define_prior(self, param_name: str, distribution: str, **kwargs):
         """Define prior distribution for parameter"""
@@ -821,7 +819,7 @@ class ProbabilisticExecutor:
 
         return np.mean(self.samples[param_name])
 
-    def get_credible_interval(self, param_name: str, alpha: float = 0.95) -> Tuple[float, float]:
+    def get_credible_interval(self, param_name: str, alpha: float = 0.95) -> tuple[float, float]:
         """Get credible interval for parameter"""
         if param_name not in self.samples or not self.samples[param_name]:
             return (0.0, 1.0)
@@ -853,11 +851,11 @@ class AdvancedDataFlowExecutor(ABC):
         self.category_executor = CategoryTheoryExecutor()
         self.probabilistic_executor = ProbabilisticExecutor()
 
-        self.execution_metrics: Dict[str, List[float]] = defaultdict(list)
-        self.method_dependencies: Dict[str, set] = {}
+        self.execution_metrics: dict[str, list[float]] = defaultdict(list)
+        self.method_dependencies: dict[str, set] = {}
 
     def execute_with_optimization(self, doc, method_executor,
-                                  method_sequence: List[Tuple[str, str]]) -> Dict[str, Any]:
+                                  method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
         """Execute with advanced optimization strategies
         
         Includes:
@@ -878,7 +876,7 @@ class AdvancedDataFlowExecutor(ABC):
         prioritized = self.attention.prioritize_methods(method_names, method_names[:3])
 
         logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
-        
+
         total_entropy = 0.0
 
         for idx, (class_name, method_name) in enumerate(method_sequence):
@@ -894,7 +892,7 @@ class AdvancedDataFlowExecutor(ABC):
             success = False
             max_retries = 3
             last_exception = None
-            
+
             for attempt in range(max_retries):
                 try:
                     result = self.executor.execute(
@@ -922,7 +920,7 @@ class AdvancedDataFlowExecutor(ABC):
 
                     if result is not None:
                         current_data = result
-                    
+
                     break  # Success, exit retry loop
 
                 except Exception as e:
@@ -947,7 +945,7 @@ class AdvancedDataFlowExecutor(ABC):
                                 'error_type': type(e).__name__
                             }
                         )
-            
+
             # Record execution metrics
             method_time = time.time() - method_start
             _global_metrics.record_execution(success, method_time, method_key)
@@ -957,7 +955,7 @@ class AdvancedDataFlowExecutor(ABC):
         self.meta_learner.update_strategy_performance(strategy_idx, reward)
 
         bottlenecks = self.info_optimizer.get_information_bottlenecks()
-        
+
         total_time = time.time() - execution_start
         logger.info(
             f"Execution completed in {total_time:.3f}s: {_global_metrics.successful_executions}/{_global_metrics.total_executions} methods successful",
@@ -998,7 +996,7 @@ class AdvancedDataFlowExecutor(ABC):
         """Calculate reward for meta-learning"""
         return min(avg_entropy / 8.0, 1.0)
 
-    def _get_confidence_intervals(self, method_sequence: List[Tuple[str, str]]) -> Dict[str, Tuple[float, float]]:
+    def _get_confidence_intervals(self, method_sequence: list[tuple[str, str]]) -> dict[str, tuple[float, float]]:
         """Get confidence intervals for all methods"""
         intervals = {}
         for class_name, method_name in method_sequence:
@@ -1007,7 +1005,7 @@ class AdvancedDataFlowExecutor(ABC):
         return intervals
 
     @abstractmethod
-    def _extract(self, results: Dict) -> List:
+    def _extract(self, results: dict) -> list:
         """Extract final results (to be implemented by subclasses)"""
         pass
 
@@ -2063,7 +2061,7 @@ class FrontierExecutorOrchestrator:
         self.global_causal_graph = CausalGraph(num_variables=30)
         self.global_meta_learner = MetaLearningStrategy(num_strategies=10)
 
-    def execute_question(self, question_id: str, doc, method_executor) -> Dict[str, Any]:
+    def execute_question(self, question_id: str, doc, method_executor) -> dict[str, Any]:
         """Execute specific question with frontier optimizations"""
         if question_id not in self.executors:
             logger.error(f"Unknown question ID: {question_id}")
@@ -2071,22 +2069,22 @@ class FrontierExecutorOrchestrator:
 
         logger.info(f"Executing question {question_id}")
         start_time = time.time()
-        
+
         executor_class = self.executors[question_id]
         executor = executor_class(method_executor)
 
         result = executor.execute(doc, method_executor)
-        
+
         execution_time = time.time() - start_time
         logger.info(f"Question {question_id} completed in {execution_time:.3f}s")
 
         return result
 
-    def batch_execute(self, question_ids: List[str], doc, method_executor) -> Dict[str, Any]:
+    def batch_execute(self, question_ids: list[str], doc, method_executor) -> dict[str, Any]:
         """Execute multiple questions with cross-question optimization"""
         logger.info(f"Starting batch execution of {len(question_ids)} questions")
         batch_start = time.time()
-        
+
         results = {}
 
         execution_order = self._optimize_execution_order(question_ids)
@@ -2094,28 +2092,28 @@ class FrontierExecutorOrchestrator:
 
         for qid in execution_order:
             results[qid] = self.execute_question(qid, doc, method_executor)
-        
+
         batch_time = time.time() - batch_start
         logger.info(f"Batch execution completed in {batch_time:.3f}s")
 
         return results
 
-    def _optimize_execution_order(self, question_ids: List[str]) -> List[str]:
+    def _optimize_execution_order(self, question_ids: list[str]) -> list[str]:
         """Optimize execution order using causal inference"""
         if len(question_ids) <= 1:
             return question_ids
-        
+
         # Create a temporary causal graph for the actual number of questions
         n_questions = len(question_ids)
         temp_graph = CausalGraph(num_variables=n_questions)
-        
+
         # Generate synthetic data for structure learning
         data = np.random.randn(max(100, n_questions * 10), n_questions)
         temp_graph.learn_structure(data, alpha=0.05)
-        
+
         # Get optimal execution order
         indices = temp_graph.get_execution_order()
-        
+
         # Map indices to question IDs
         return [question_ids[i] for i in indices if i < len(question_ids)]
 

@@ -16,11 +16,10 @@ import importlib.util
 import pkgutil
 import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Dict, Iterable, List
 
 import pytest
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src"
@@ -30,13 +29,13 @@ PACKAGE_ROOT = SRC_ROOT / "saaaaaa"
 
 
 # Modules that must stay pure (no __main__ and no direct I/O).
-PURE_MODULE_PATHS: Dict[str, Path] = {
+PURE_MODULE_PATHS: dict[str, Path] = {
     "saaaaaa.processing.embedding_policy": PACKAGE_ROOT / "processing" / "embedding_policy.py",
 }
 
 # Legacy modules still undergoing I/O migration. We record them so that the
 # detector can surface the locations without failing the build yet.
-LEGACY_IO_MODULES: Dict[str, Path] = {
+LEGACY_IO_MODULES: dict[str, Path] = {
     "saaaaaa.analysis.Analyzer_one": PACKAGE_ROOT / "analysis" / "Analyzer_one.py",
     "saaaaaa.analysis.dereck_beach": PACKAGE_ROOT / "analysis" / "dereck_beach.py",
     "saaaaaa.analysis.financiero_viabilidad_tablas": PACKAGE_ROOT / "analysis" / "financiero_viabilidad_tablas.py",
@@ -71,7 +70,7 @@ class _IODetector(ast.NodeVisitor):
     IO_MODULES = {"pickle", "json", "yaml", "toml", "pathlib"}
 
     def __init__(self) -> None:
-        self.matches: List[int] = []
+        self.matches: list[int] = []
 
     def visit_Call(self, node: ast.Call) -> None:  # pragma: no cover - simple visitor
         func = node.func
@@ -79,9 +78,7 @@ class _IODetector(ast.NodeVisitor):
             if func.id in self.IO_FUNCTIONS:
                 self.matches.append(node.lineno)
         elif isinstance(func, ast.Attribute) and isinstance(func.attr, str):
-            if func.attr in self.IO_FUNCTIONS:
-                self.matches.append(node.lineno)
-            elif isinstance(func.value, ast.Name) and func.value.id in self.IO_MODULES:
+            if func.attr in self.IO_FUNCTIONS or isinstance(func.value, ast.Name) and func.value.id in self.IO_MODULES:
                 self.matches.append(node.lineno)
         self.generic_visit(node)
 
@@ -98,7 +95,7 @@ class _MainDetector(ast.NodeVisitor):
     """AST visitor that flags ``if __name__ == '__main__'`` blocks."""
 
     def __init__(self) -> None:
-        self.locations: List[int] = []
+        self.locations: list[int] = []
 
     def visit_If(self, node: ast.If) -> None:  # pragma: no cover - simple visitor
         test = node.test

@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any
 
 try:
     import jsonschema
@@ -18,8 +19,8 @@ class DuplicateKeyError(ValueError):
     """Raised when duplicate keys are encountered."""
 
 
-def _no_duplicate_object_pairs(pairs: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
-    obj: Dict[str, Any] = {}
+def _no_duplicate_object_pairs(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
+    obj: dict[str, Any] = {}
     for key, value in pairs:
         if key in obj:
             raise DuplicateKeyError(f"Duplicate key detected: {key}")

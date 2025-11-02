@@ -10,11 +10,10 @@ Usage:
     python tools/testing/boot_check.py --verbose
 """
 
-import sys
 import importlib
+import sys
 import traceback
 from pathlib import Path
-from typing import List, Tuple
 
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -42,7 +41,7 @@ OPTIONAL_MODULES = [
 ]
 
 
-def check_module_import(module_name: str, verbose: bool = False) -> Tuple[bool, str]:
+def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, str]:
     """
     Try to import a module and return success status.
     
@@ -52,12 +51,12 @@ def check_module_import(module_name: str, verbose: bool = False) -> Tuple[bool, 
     try:
         if verbose:
             print(f"  Importing {module_name}...", end=" ")
-        
+
         module = importlib.import_module(module_name)
-        
+
         if verbose:
             print("✓")
-        
+
         return True, ""
     except ModuleNotFoundError as e:
         error = f"Module not found: {e}"
@@ -78,7 +77,7 @@ def check_module_import(module_name: str, verbose: bool = False) -> Tuple[bool, 
         return False, error
 
 
-def check_registry_validation(verbose: bool = False) -> Tuple[bool, str]:
+def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that the orchestrator registry loads without ClassNotFoundError.
     
@@ -88,17 +87,17 @@ def check_registry_validation(verbose: bool = False) -> Tuple[bool, str]:
     try:
         if verbose:
             print("  Validating orchestrator registry...", end=" ")
-        
+
         # Try to import and access the registry
         from orchestrator import registry
-        
+
         # Try to validate all classes (if method exists)
         if hasattr(registry, 'validate_all_classes'):
             registry.validate_all_classes()
-        
+
         if verbose:
             print("✓")
-        
+
         return True, ""
     except NameError as e:
         if "ClassNotFoundError" in str(e) or "not defined" in str(e):
@@ -120,7 +119,7 @@ def check_registry_validation(verbose: bool = False) -> Tuple[bool, str]:
         return False, error
 
 
-def check_runtime_validators(verbose: bool = False) -> Tuple[bool, str]:
+def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that runtime validators initialize correctly.
     
@@ -130,19 +129,19 @@ def check_runtime_validators(verbose: bool = False) -> Tuple[bool, str]:
     try:
         if verbose:
             print("  Initializing runtime validators...", end=" ")
-        
+
         # Try to import and initialize validators
         from validation_engine import RuntimeValidator
-        
+
         validator = RuntimeValidator()
-        
+
         # Try to run health check if available
         if hasattr(validator, 'health_check'):
             validator.health_check()
-        
+
         if verbose:
             print("✓")
-        
+
         return True, ""
     except ImportError:
         # validation_engine doesn't exist or RuntimeValidator not available
@@ -167,10 +166,10 @@ def run_boot_checks(verbose: bool = False) -> int:
     print("=" * 60)
     print("Boot Check - Module and Runtime Validation")
     print("=" * 60)
-    
+
     all_passed = True
     failed_checks = []
-    
+
     # Check core modules
     print("\nChecking core modules:")
     core_failed = []
@@ -180,7 +179,7 @@ def run_boot_checks(verbose: bool = False) -> int:
             all_passed = False
             core_failed.append(f"{module}: {error}")
             failed_checks.append(f"Core module {module} failed to load")
-    
+
     if not verbose:
         if core_failed:
             print(f"  ✗ {len(core_failed)} core module(s) failed to load")
@@ -190,7 +189,7 @@ def run_boot_checks(verbose: bool = False) -> int:
                 print(f"    ... and {len(core_failed) - 3} more")
         else:
             print(f"  ✓ All {len(CORE_MODULES)} core modules loaded successfully")
-    
+
     # Check optional modules
     print("\nChecking optional modules:")
     optional_failed = []
@@ -199,13 +198,13 @@ def run_boot_checks(verbose: bool = False) -> int:
         if not success:
             optional_failed.append(f"{module}: {error}")
             # Don't fail overall for optional modules
-    
+
     if not verbose:
         loaded_count = len(OPTIONAL_MODULES) - len(optional_failed)
         print(f"  ✓ {loaded_count}/{len(OPTIONAL_MODULES)} optional modules loaded")
         if optional_failed:
             print(f"  ⚠ {len(optional_failed)} optional module(s) not available")
-    
+
     # Check registry
     print("\nChecking orchestrator registry:")
     success, error = check_registry_validation(verbose)
@@ -214,7 +213,7 @@ def run_boot_checks(verbose: bool = False) -> int:
         failed_checks.append(f"Registry validation failed: {error}")
     elif not verbose:
         print("  ✓ Registry validation passed")
-    
+
     # Check runtime validators
     print("\nChecking runtime validators:")
     success, error = check_runtime_validators(verbose)
@@ -223,7 +222,7 @@ def run_boot_checks(verbose: bool = False) -> int:
         failed_checks.append(f"Runtime validator initialization failed: {error}")
     elif not verbose:
         print("  ✓ Runtime validators initialized successfully")
-    
+
     # Summary
     print("\n" + "=" * 60)
     if all_passed:
@@ -241,7 +240,7 @@ def run_boot_checks(verbose: bool = False) -> int:
 
 def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
-    
+
     exit_code = run_boot_checks(verbose)
     sys.exit(exit_code)
 

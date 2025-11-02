@@ -6,13 +6,13 @@ and reproducible results.
 """
 
 from .scoring import (
-    ScoringModality,
-    QualityLevel,
-    ScoringError,
-    ModalityValidationError,
     EvidenceStructureError,
-    ScoredResult,
     ModalityConfig,
+    ModalityValidationError,
+    QualityLevel,
+    ScoredResult,
+    ScoringError,
+    ScoringModality,
     ScoringValidator,
     apply_scoring,
     determine_quality_level,

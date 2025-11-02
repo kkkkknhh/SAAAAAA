@@ -21,49 +21,40 @@ COMPLIANCE:
 ✓ Calibrado para estructura de PDM colombianos
 """
 from __future__ import annotations
+
 import asyncio
+import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Literal, Set
-from pathlib import Path
-from decimal import Decimal
 from datetime import datetime
-import warnings
-
-# === CORE SCIENTIFIC COMPUTING ===
-import numpy as np
-from scipy import stats
-from scipy.optimize import minimize
-from scipy.special import expit, logit
-import pandas as pd
+from decimal import Decimal
+from pathlib import Path
+from typing import Any, Literal
 
 # === EXTRACCIÓN AVANZADA DE PDF Y TABLAS ===
 import camelot
-import tabula
-import pdfplumber
-import fitz # PyMuPDF
-
-# === NLP Y TRANSFORMERS ===
-from sentence_transformers import SentenceTransformer, util
-import spacy
-from transformers import pipeline
-import torch
-
-# === MACHINE LEARNING Y SCORING ===
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import DBSCAN, AgglomerativeClustering
-from sklearn.preprocessing import StandardScaler
-
-# === ESTADÍSTICA BAYESIANA Y CAUSAL INFERENCE ===
-import pymc as pm
-import arviz as az
-import pytensor.tensor as pt
 
 # === NETWORKING Y GRAFOS CAUSALES ===
 import networkx as nx
-from itertools import combinations, permutations
-import logging
+
+# === CORE SCIENTIFIC COMPUTING ===
+import numpy as np
+import pandas as pd
+
+# === ESTADÍSTICA BAYESIANA Y CAUSAL INFERENCE ===
+import pymc as pm
+import spacy
+import tabula
+import torch
+from scipy import stats
+
+# === NLP Y TRANSFORMERS ===
+from sentence_transformers import SentenceTransformer, util
+from sklearn.cluster import DBSCAN, AgglomerativeClustering
+
+# === MACHINE LEARNING Y SCORING ===
+from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import pipeline
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -78,7 +69,7 @@ logger = logging.getLogger(__name__)
 class ColombianMunicipalContext:
     """Contexto específico del marco normativo colombiano para PDM"""
 
-    OFFICIAL_SYSTEMS: Dict[str, str] = {
+    OFFICIAL_SYSTEMS: dict[str, str] = {
         'SISBEN': r'SISB[EÉ]N\s*(?:I{1,4}|IV)?',
         'SGP': r'Sistema\s+General\s+de\s+Participaciones|SGP',
         'SGR': r'Sistema\s+General\s+de\s+Regal[íi]as|SGR',
@@ -90,7 +81,7 @@ class ColombianMunicipalContext:
         'POAI': r'Plan\s+Operativo\s+Anual\s+de\s+Inversiones|POAI'
     }
 
-    TERRITORIAL_CATEGORIES: Dict[int, Dict[str, Any]] = {
+    TERRITORIAL_CATEGORIES: dict[int, dict[str, Any]] = {
         1: {'name': 'Especial', 'min_pop': 500_001, 'min_income_smmlv': 400_000},
         2: {'name': 'Primera', 'min_pop': 100_001, 'min_income_smmlv': 100_000},
         3: {'name': 'Segunda', 'min_pop': 50_001, 'min_income_smmlv': 50_000},
@@ -100,7 +91,7 @@ class ColombianMunicipalContext:
         7: {'name': 'Sexta', 'min_pop': 0, 'min_income_smmlv': 0}
     }
 
-    DNP_DIMENSIONS: List[str] = [
+    DNP_DIMENSIONS: list[str] = [
         'Dimensión Económica',
         'Dimensión Social',
         'Dimensión Ambiental',
@@ -108,7 +99,7 @@ class ColombianMunicipalContext:
         'Dimensión Territorial'
     ]
 
-    PDET_PILLARS: List[str] = [
+    PDET_PILLARS: list[str] = [
         'Ordenamiento social de la propiedad rural',
         'Infraestructura y adecuación de tierras',
         'Salud rural',
@@ -119,7 +110,7 @@ class ColombianMunicipalContext:
         'Reconciliación, convivencia y paz'
     ]
 
-    PDET_THEORY_OF_CHANGE: Dict[str, Dict[str, Any]] = {
+    PDET_THEORY_OF_CHANGE: dict[str, dict[str, Any]] = {
         'Ordenamiento social de la propiedad rural': {
             'outcomes': ['seguridad_juridica', 'reduccion_conflictos_tierra'],
             'mediators': ['formalizacion', 'acceso_justicia'],
@@ -162,7 +153,7 @@ class ColombianMunicipalContext:
         }
     }
 
-    INDICATOR_STRUCTURE: Dict[str, List[str]] = {
+    INDICATOR_STRUCTURE: dict[str, list[str]] = {
         'resultado': ['línea_base', 'meta', 'año_base', 'año_meta', 'fuente', 'responsable'],
         'producto': ['indicador', 'fórmula', 'unidad_medida', 'línea_base', 'meta', 'periodicidad'],
         'gestión': ['eficacia', 'eficiencia', 'economía', 'costo_beneficio']
@@ -178,8 +169,8 @@ class CausalNode:
     """Nodo en el grafo causal"""
     name: str
     node_type: Literal['pilar', 'outcome', 'mediator', 'confounder']
-    embedding: Optional[np.ndarray] = None
-    associated_budget: Optional[Decimal] = None
+    embedding: np.ndarray | None = None
+    associated_budget: Decimal | None = None
     temporal_lag: int = 0
     evidence_strength: float = 0.0
 
@@ -190,17 +181,17 @@ class CausalEdge:
     source: str
     target: str
     edge_type: Literal['direct', 'mediated', 'confounded']
-    effect_size_posterior: Optional[Tuple[float, float, float]] = None
+    effect_size_posterior: tuple[float, float, float] | None = None
     mechanism: str = ""
-    evidence_quotes: List[str] = field(default_factory=list)
+    evidence_quotes: list[str] = field(default_factory=list)
     probability: float = 0.0
 
 
 @dataclass
 class CausalDAG:
     """Grafo Acíclico Dirigido completo"""
-    nodes: Dict[str, CausalNode]
-    edges: List[CausalEdge]
+    nodes: dict[str, CausalNode]
+    edges: list[CausalEdge]
     adjacency_matrix: np.ndarray
     graph: nx.DiGraph
 
@@ -213,19 +204,19 @@ class CausalEffect:
     effect_type: Literal['ATE', 'ATT', 'direct', 'indirect', 'total']
     point_estimate: float
     posterior_mean: float
-    credible_interval_95: Tuple[float, float]
+    credible_interval_95: tuple[float, float]
     probability_positive: float
     probability_significant: float
-    mediating_paths: List[List[str]] = field(default_factory=list)
-    confounders_adjusted: List[str] = field(default_factory=list)
+    mediating_paths: list[list[str]] = field(default_factory=list)
+    confounders_adjusted: list[str] = field(default_factory=list)
 
 
 @dataclass
 class CounterfactualScenario:
     """Escenario contrafactual"""
-    intervention: Dict[str, float]
-    predicted_outcomes: Dict[str, Tuple[float, float, float]]
-    probability_improvement: Dict[str, float]
+    intervention: dict[str, float]
+    predicted_outcomes: dict[str, tuple[float, float, float]]
+    probability_improvement: dict[str, float]
     narrative: str
 
 
@@ -233,11 +224,11 @@ class CounterfactualScenario:
 class ExtractedTable:
     df: pd.DataFrame
     page_number: int
-    table_type: Optional[str]
+    table_type: str | None
     extraction_method: Literal['camelot_lattice', 'camelot_stream', 'tabula', 'pdfplumber']
     confidence_score: float
     is_fragmented: bool = False
-    continuation_of: Optional[int] = None
+    continuation_of: int | None = None
 
 
 @dataclass
@@ -245,11 +236,11 @@ class FinancialIndicator:
     source_text: str
     amount: Decimal
     currency: str
-    fiscal_year: Optional[int]
+    fiscal_year: int | None
     funding_source: str
     budget_category: str
-    execution_percentage: Optional[float]
-    confidence_interval: Tuple[float, float]
+    execution_percentage: float | None
+    confidence_interval: tuple[float, float]
     risk_level: float
 
 
@@ -259,9 +250,9 @@ class ResponsibleEntity:
     entity_type: Literal['secretaría', 'oficina', 'dirección', 'alcaldía', 'externo']
     specificity_score: float
     mentioned_count: int
-    associated_programs: List[str]
-    associated_indicators: List[str]
-    budget_allocated: Optional[Decimal]
+    associated_programs: list[str]
+    associated_indicators: list[str]
+    budget_allocated: Decimal | None
 
 
 @dataclass
@@ -273,8 +264,8 @@ class QualityScore:
     temporal_consistency: float
     pdet_alignment: float
     causal_coherence: float
-    confidence_interval: Tuple[float, float]
-    evidence: Dict[str, Any]
+    confidence_interval: tuple[float, float]
+    evidence: dict[str, Any]
 
 
 # ============================================================================
@@ -298,7 +289,7 @@ class PDETMunicipalPlanAnalyzer:
 
         # Delegate to factory for I/O operation
         from .factory import load_spacy_model
-        
+
         try:
             self.nlp = load_spacy_model("es_dep_news_trf")
         except OSError:
@@ -328,7 +319,7 @@ class PDETMunicipalPlanAnalyzer:
 
         print("✅ Modelos inicializados correctamente\n")
 
-    def _get_spanish_stopwords(self) -> List[str]:
+    def _get_spanish_stopwords(self) -> list[str]:
         base_stopwords = spacy.lang.es.stop_words.STOP_WORDS
         gov_stopwords = {
             'artículo', 'decreto', 'mediante', 'conforme', 'respecto',
@@ -340,9 +331,9 @@ class PDETMunicipalPlanAnalyzer:
     # EXTRACCIÓN DE TABLAS
     # ========================================================================
 
-    async def extract_tables(self, pdf_path: str) -> List[ExtractedTable]:
+    async def extract_tables(self, pdf_path: str) -> list[ExtractedTable]:
         print("📊 Iniciando extracción avanzada de tablas...")
-        all_tables: List[ExtractedTable] = []
+        all_tables: list[ExtractedTable] = []
         pdf_path_str = str(pdf_path)
 
         # Camelot Lattice
@@ -448,7 +439,7 @@ class PDETMunicipalPlanAnalyzer:
                 f"_is_likely_header received unexpected keyword arguments: {list(kwargs.keys())}. "
                 "These will be ignored. Expected signature: _is_likely_header(self, row: pd.Series)"
             )
-        
+
         text = ' '.join(row.astype(str))
         doc = self.nlp(text)
         pos_counts = pd.Series([token.pos_ for token in doc]).value_counts()
@@ -456,7 +447,7 @@ class PDETMunicipalPlanAnalyzer:
         verb_ratio = pos_counts.get('VERB', 0) / max(len(doc), 1)
         return noun_ratio > verb_ratio and len(text) < 200
 
-    def _deduplicate_tables(self, tables: List[ExtractedTable]) -> List[ExtractedTable]:
+    def _deduplicate_tables(self, tables: list[ExtractedTable]) -> list[ExtractedTable]:
         if len(tables) <= 1:
             return tables
 
@@ -480,7 +471,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return to_keep
 
-    async def _reconstruct_fragmented_tables(self, tables: List[ExtractedTable]) -> List[ExtractedTable]:
+    async def _reconstruct_fragmented_tables(self, tables: list[ExtractedTable]) -> list[ExtractedTable]:
         if len(tables) < 2:
             return tables
 
@@ -523,7 +514,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return reconstructed
 
-    def _classify_tables(self, tables: List[ExtractedTable]) -> List[ExtractedTable]:
+    def _classify_tables(self, tables: list[ExtractedTable]) -> list[ExtractedTable]:
         classification_patterns = {
             'presupuesto': ['presupuesto', 'recursos', 'millones', 'sgp', 'sgr', 'fuente', 'financiación'],
             'indicadores': ['indicador', 'línea base', 'meta', 'fórmula', 'unidad de medida', 'periodicidad'],
@@ -549,7 +540,7 @@ class PDETMunicipalPlanAnalyzer:
     # ANÁLISIS FINANCIERO
     # ========================================================================
 
-    def analyze_financial_feasibility(self, tables: List[ExtractedTable], text: str) -> Dict[str, Any]:
+    def analyze_financial_feasibility(self, tables: list[ExtractedTable], text: str) -> dict[str, Any]:
         print("💰 Analizando feasibility financiero...")
 
         financial_indicators = self._extract_financial_amounts(text, tables)
@@ -566,7 +557,7 @@ class PDETMunicipalPlanAnalyzer:
             'confidence': risk_assessment['confidence_interval']
         }
 
-    def _extract_financial_amounts(self, text: str, tables: List[ExtractedTable]) -> List[FinancialIndicator]:
+    def _extract_financial_amounts(self, text: str, tables: list[ExtractedTable]) -> list[FinancialIndicator]:
         patterns = [
             r'\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*millones?',
             r'\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*(?:mil\s+)?millones?',
@@ -630,7 +621,7 @@ class PDETMunicipalPlanAnalyzer:
                 return source_name
         return 'No especificada'
 
-    def _extract_from_budget_table(self, df: pd.DataFrame) -> List[FinancialIndicator]:
+    def _extract_from_budget_table(self, df: pd.DataFrame) -> list[FinancialIndicator]:
         indicators = []
         amount_cols = [col for col in df.columns if any(
             kw in str(col).lower() for kw in ['monto', 'valor', 'presupuesto', 'recursos']
@@ -670,7 +661,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return indicators
 
-    def _analyze_funding_sources(self, indicators: List[FinancialIndicator], tables: List[ExtractedTable]) -> Dict[
+    def _analyze_funding_sources(self, indicators: list[FinancialIndicator], tables: list[ExtractedTable]) -> dict[
         str, Any]:
         source_distribution = {}
         for ind in indicators:
@@ -691,8 +682,8 @@ class PDETMunicipalPlanAnalyzer:
             'dependency_risk': 1.0 - (diversity / np.log(max(len(source_distribution), 2)))
         }
 
-    def _assess_financial_sustainability(self, indicators: List[FinancialIndicator],
-                                         funding_sources: Dict[str, Any]) -> float:
+    def _assess_financial_sustainability(self, indicators: list[FinancialIndicator],
+                                         funding_sources: dict[str, Any]) -> float:
         if not indicators:
             return 0.0
 
@@ -707,8 +698,8 @@ class PDETMunicipalPlanAnalyzer:
         sustainability = (diversity_score * 0.3 + own_resources * 0.4 + (1 - pdet_risk) * 0.3)
         return float(sustainability)
 
-    def _bayesian_risk_inference(self, indicators: List[FinancialIndicator], funding_sources: Dict[str, Any],
-                                 sustainability: float) -> Dict[str, Any]:
+    def _bayesian_risk_inference(self, indicators: list[FinancialIndicator], funding_sources: dict[str, Any],
+                                 sustainability: float) -> dict[str, Any]:
         print(" 🎲 Ejecutando inferencia bayesiana...")
 
         observed_data = {
@@ -761,7 +752,7 @@ class PDETMunicipalPlanAnalyzer:
         else:
             return "Riesgo crítico - Inviabilidad financiera probable"
 
-    def _indicator_to_dict(self, ind: FinancialIndicator) -> Dict[str, Any]:
+    def _indicator_to_dict(self, ind: FinancialIndicator) -> dict[str, Any]:
         return {
             'source_text': ind.source_text,
             'amount': float(ind.amount),
@@ -775,7 +766,7 @@ class PDETMunicipalPlanAnalyzer:
     # IDENTIFICACIÓN DE RESPONSABLES
     # ========================================================================
 
-    def identify_responsible_entities(self, text: str, tables: List[ExtractedTable]) -> List[ResponsibleEntity]:
+    def identify_responsible_entities(self, text: str, tables: list[ExtractedTable]) -> list[ResponsibleEntity]:
         print("👥 Identificando entidades responsables...")
 
         entities_ner = self._extract_entities_ner(text)
@@ -789,7 +780,7 @@ class PDETMunicipalPlanAnalyzer:
         print(f" ✓ {len(scored_entities)} entidades responsables identificadas")
         return sorted(scored_entities, key=lambda x: x.specificity_score, reverse=True)
 
-    def _extract_entities_ner(self, text: str) -> List[ResponsibleEntity]:
+    def _extract_entities_ner(self, text: str) -> list[ResponsibleEntity]:
         entities = []
         max_length = 512
         words = text.split()
@@ -814,7 +805,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return entities
 
-    def _extract_entities_syntax(self, text: str) -> List[ResponsibleEntity]:
+    def _extract_entities_syntax(self, text: str) -> list[ResponsibleEntity]:
         entities = []
         responsibility_patterns = [
             r'(?:responsable|ejecutor|encargado|a\s+cargo)[:\s]+([A-ZÁ-Ú][^\.\n]{10,100})',
@@ -854,7 +845,7 @@ class PDETMunicipalPlanAnalyzer:
         else:
             return 'externo'
 
-    def _extract_from_responsibility_tables(self, tables: List[ExtractedTable]) -> List[ResponsibleEntity]:
+    def _extract_from_responsibility_tables(self, tables: list[ExtractedTable]) -> list[ResponsibleEntity]:
         entities = []
         resp_tables = [t for t in tables if t.table_type == 'responsables']
 
@@ -885,7 +876,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return entities
 
-    def _consolidate_entities(self, entities: List[ResponsibleEntity]) -> List[ResponsibleEntity]:
+    def _consolidate_entities(self, entities: list[ResponsibleEntity]) -> list[ResponsibleEntity]:
         if not entities:
             return []
 
@@ -919,7 +910,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return consolidated
 
-    def _score_entity_specificity(self, entities: List[ResponsibleEntity], full_text: str) -> List[ResponsibleEntity]:
+    def _score_entity_specificity(self, entities: list[ResponsibleEntity], full_text: str) -> list[ResponsibleEntity]:
         scored = []
         for entity in entities:
             doc = self.nlp(entity.name)
@@ -944,8 +935,8 @@ class PDETMunicipalPlanAnalyzer:
     # INFERENCIA CAUSAL - DAG CONSTRUCTION
     # ========================================================================
 
-    def construct_causal_dag(self, text: str, tables: List[ExtractedTable],
-                             financial_analysis: Dict[str, Any]) -> CausalDAG:
+    def construct_causal_dag(self, text: str, tables: list[ExtractedTable],
+                             financial_analysis: dict[str, Any]) -> CausalDAG:
         print("🔗 Construyendo grafo causal (DAG)...")
 
         nodes = self._identify_causal_nodes(text, tables, financial_analysis)
@@ -986,8 +977,8 @@ class PDETMunicipalPlanAnalyzer:
 
         return CausalDAG(nodes=nodes, edges=edges, adjacency_matrix=adj_matrix, graph=G)
 
-    def _identify_causal_nodes(self, text: str, tables: List[ExtractedTable], financial_analysis: Dict[str, Any]) -> \
-            Dict[str, CausalNode]:
+    def _identify_causal_nodes(self, text: str, tables: list[ExtractedTable], financial_analysis: dict[str, Any]) -> \
+            dict[str, CausalNode]:
         nodes = {}
 
         for pillar in self.context.PDET_PILLARS:
@@ -1036,7 +1027,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return nodes
 
-    def _find_semantic_mentions(self, text: str, concept: str, concept_embedding: np.ndarray) -> List[str]:
+    def _find_semantic_mentions(self, text: str, concept: str, concept_embedding: np.ndarray) -> list[str]:
         sentences = [s.text for s in self.nlp(text[:50000]).sents]
 
         mentions = []
@@ -1054,7 +1045,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return mentions
 
-    def _find_outcome_mentions(self, text: str, outcome: str) -> List[str]:
+    def _find_outcome_mentions(self, text: str, outcome: str) -> list[str]:
         outcome_keywords = {
             'seguridad_juridica': ['seguridad jurídica', 'formalización', 'títulos', 'propiedad'],
             'reduccion_conflictos_tierra': ['conflicto', 'tierra', 'disputa', 'territorial'],
@@ -1086,7 +1077,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return mentions[:10]
 
-    def _find_mediator_mentions(self, text: str, mediator: str) -> List[str]:
+    def _find_mediator_mentions(self, text: str, mediator: str) -> list[str]:
         mediator_patterns = {
             'formalizacion': ['formalización', 'titulación', 'escrituras'],
             'acceso_justicia': ['acceso justicia', 'juzgados', 'defensoría'],
@@ -1117,8 +1108,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return mentions[:8]
 
-    def _extract_budget_for_pillar(self, pillar: str, text: str, financial_analysis: Dict[str, Any]) -> Optional[
-        Decimal]:
+    def _extract_budget_for_pillar(self, pillar: str, text: str, financial_analysis: dict[str, Any]) -> Decimal | None:
         pillar_lower = pillar.lower()
 
         for indicator in financial_analysis.get('financial_indicators', []):
@@ -1138,7 +1128,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return None
 
-    def _identify_causal_edges(self, text: str, nodes: Dict[str, CausalNode]) -> List[CausalEdge]:
+    def _identify_causal_edges(self, text: str, nodes: dict[str, CausalNode]) -> list[CausalEdge]:
         edges = []
 
         for pillar, theory in self.context.PDET_THEORY_OF_CHANGE.items():
@@ -1201,7 +1191,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return edges
 
-    def _match_text_to_node(self, text: str, nodes: Dict[str, CausalNode]) -> Optional[str]:
+    def _match_text_to_node(self, text: str, nodes: dict[str, CausalNode]) -> str | None:
         if len(text) < 5:
             return None
 
@@ -1224,7 +1214,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return best_match
 
-    def _refine_edge_probabilities(self, edges: List[CausalEdge], text: str, nodes: Dict[str, CausalNode]) -> List[
+    def _refine_edge_probabilities(self, edges: list[CausalEdge], text: str, nodes: dict[str, CausalNode]) -> list[
         CausalEdge]:
         text_lower = text.lower()
 
@@ -1262,7 +1252,7 @@ class PDETMunicipalPlanAnalyzer:
     # ESTIMACIÓN BAYESIANA DE EFECTOS CAUSALES
     # ========================================================================
 
-    def estimate_causal_effects(self, dag: CausalDAG, text: str, financial_analysis: Dict[str, Any]) -> List[
+    def estimate_causal_effects(self, dag: CausalDAG, text: str, financial_analysis: dict[str, Any]) -> list[
         CausalEffect]:
         print("📈 Estimando efectos causales bayesianos...")
 
@@ -1288,7 +1278,7 @@ class PDETMunicipalPlanAnalyzer:
         return effects
 
     def _estimate_effect_bayesian(self, treatment: str, outcome: str, dag: CausalDAG,
-                                  financial_analysis: Dict[str, Any]) -> Optional[CausalEffect]:
+                                  financial_analysis: dict[str, Any]) -> CausalEffect | None:
         G = dag.graph
         try:
             all_paths = list(nx.all_simple_paths(G, treatment, outcome, cutoff=4))
@@ -1357,7 +1347,7 @@ class PDETMunicipalPlanAnalyzer:
             confounders_adjusted=confounders
         )
 
-    def _get_prior_effect(self, treatment: str, outcome: str) -> Tuple[float, float]:
+    def _get_prior_effect(self, treatment: str, outcome: str) -> tuple[float, float]:
         """
         Priors informados basados en meta-análisis de programas PDET
         Referencia: Cinelli et al. (2022) - Sensitivity Analysis for Causal Inference
@@ -1377,7 +1367,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return (0.2, 0.25)
 
-    def _identify_confounders(self, treatment: str, outcome: str, dag: CausalDAG) -> List[str]:
+    def _identify_confounders(self, treatment: str, outcome: str, dag: CausalDAG) -> list[str]:
         """
         Identifica confounders usando d-separation (Pearl, 2009)
         """
@@ -1397,8 +1387,8 @@ class PDETMunicipalPlanAnalyzer:
     # ANÁLISIS CONTRAFACTUAL (Pearl's Three-Layer Causal Hierarchy)
     # ========================================================================
 
-    def generate_counterfactuals(self, dag: CausalDAG, causal_effects: List[CausalEffect],
-                                 financial_analysis: Dict[str, Any]) -> List[CounterfactualScenario]:
+    def generate_counterfactuals(self, dag: CausalDAG, causal_effects: list[CausalEffect],
+                                 financial_analysis: dict[str, Any]) -> list[CounterfactualScenario]:
         """
         Genera escenarios contrafactuales usando el framework de Pearl (2009)
         Level 3 - Counterfactual: "What if we had done X instead of Y?"
@@ -1461,8 +1451,8 @@ class PDETMunicipalPlanAnalyzer:
         print(f" ✓ {len(scenarios)} escenarios contrafactuales generados")
         return scenarios
 
-    def _simulate_intervention(self, intervention: Dict[str, float], dag: CausalDAG,
-                               causal_effects: List[CausalEffect], description: str) -> CounterfactualScenario:
+    def _simulate_intervention(self, intervention: dict[str, float], dag: CausalDAG,
+                               causal_effects: list[CausalEffect], description: str) -> CounterfactualScenario:
         """
         Simula intervención usando do-calculus (Pearl, 2009)
         Implementa: P(Y | do(X=x)) mediante propagación por el DAG
@@ -1527,9 +1517,9 @@ class PDETMunicipalPlanAnalyzer:
             narrative=narrative
         )
 
-    def _generate_scenario_narrative(self, description: str, intervention: Dict[str, float],
-                                     predicted_outcomes: Dict[str, Tuple[float, float, float]],
-                                     probabilities: Dict[str, float]) -> str:
+    def _generate_scenario_narrative(self, description: str, intervention: dict[str, float],
+                                     predicted_outcomes: dict[str, tuple[float, float, float]],
+                                     probabilities: dict[str, float]) -> str:
         """Genera narrativa interpretable del escenario contrafactual"""
 
         narrative = f"**{description}**\n\n"
@@ -1557,7 +1547,7 @@ class PDETMunicipalPlanAnalyzer:
     # ANÁLISIS DE SENSIBILIDAD (Cinelli et al., 2022)
     # ========================================================================
 
-    def sensitivity_analysis(self, causal_effects: List[CausalEffect], dag: CausalDAG) -> Dict[str, Any]:
+    def sensitivity_analysis(self, causal_effects: list[CausalEffect], dag: CausalDAG) -> dict[str, Any]:
         """
         Análisis de sensibilidad para supuestos de identificación causal
         Basado en: Cinelli, Forney & Pearl (2022) - "A Crash Course in Good and Bad Controls"
@@ -1604,9 +1594,7 @@ class PDETMunicipalPlanAnalyzer:
         """
         ci_lower, ci_upper = effect.credible_interval_95
 
-        if ci_lower > 0:
-            return 1.0
-        elif ci_upper < 0:
+        if ci_lower > 0 or ci_upper < 0:
             return 1.0
 
         width = ci_upper - ci_lower
@@ -1633,11 +1621,11 @@ class PDETMunicipalPlanAnalyzer:
     # SCORING INTEGRAL DE CALIDAD
     # ========================================================================
 
-    def calculate_quality_score(self, text: str, tables: List[ExtractedTable],
-                                financial_analysis: Dict[str, Any],
-                                responsible_entities: List[ResponsibleEntity],
+    def calculate_quality_score(self, text: str, tables: list[ExtractedTable],
+                                financial_analysis: dict[str, Any],
+                                responsible_entities: list[ResponsibleEntity],
                                 causal_dag: CausalDAG,
-                                causal_effects: List[CausalEffect]) -> QualityScore:
+                                causal_effects: list[CausalEffect]) -> QualityScore:
         """
         Puntaje bayesiano integral de calidad del PDM
         Integra todas las dimensiones de análisis con pesos calibrados
@@ -1684,7 +1672,7 @@ class PDETMunicipalPlanAnalyzer:
             evidence=evidence
         )
 
-    def _score_financial_component(self, financial_analysis: Dict[str, Any]) -> float:
+    def _score_financial_component(self, financial_analysis: dict[str, Any]) -> float:
         """Score componente financiero (0-10)"""
 
         budget = financial_analysis.get('total_budget', 0)
@@ -1705,7 +1693,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(budget_score + diversity_score + sustainability_score + risk_score, 10.0))
 
-    def _score_indicators(self, tables: List[ExtractedTable], text: str) -> float:
+    def _score_indicators(self, tables: list[ExtractedTable], text: str) -> float:
         """Score calidad de indicadores (0-10)"""
 
         indicator_tables = [t for t in tables if t.table_type == 'indicadores']
@@ -1743,7 +1731,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(completeness_score + smart_score + technical_score, 10.0))
 
-    def _score_responsibility_clarity(self, entities: List[ResponsibleEntity]) -> float:
+    def _score_responsibility_clarity(self, entities: list[ResponsibleEntity]) -> float:
         """Score claridad de responsables (0-10)"""
 
         if not entities:
@@ -1760,7 +1748,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(count_score + specificity_score + institutional_score, 10.0))
 
-    def _score_temporal_consistency(self, text: str, tables: List[ExtractedTable]) -> float:
+    def _score_temporal_consistency(self, text: str, tables: list[ExtractedTable]) -> float:
         """Score consistencia temporal (0-10)"""
 
         years_mentioned = set(re.findall(r'20[2-3]\d', text))
@@ -1781,7 +1769,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(range_score + cronograma_score + term_score, 10.0))
 
-    def _score_pdet_alignment(self, text: str, tables: List[ExtractedTable], dag: CausalDAG) -> float:
+    def _score_pdet_alignment(self, text: str, tables: list[ExtractedTable], dag: CausalDAG) -> float:
         """Score alineación con pilares PDET (0-10)"""
 
         text_lower = text.lower()
@@ -1806,7 +1794,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(coverage_score + explicit_score + table_score, 10.0))
 
-    def _score_causal_coherence(self, dag: CausalDAG, effects: List[CausalEffect]) -> float:
+    def _score_causal_coherence(self, dag: CausalDAG, effects: list[CausalEffect]) -> float:
         """Score coherencia causal del plan (0-10)"""
 
         G = dag.graph
@@ -1830,7 +1818,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return float(min(structure_score + effect_quality + connectivity, 10.0))
 
-    def _estimate_score_confidence(self, scores: np.ndarray, weights: np.ndarray) -> Tuple[float, float]:
+    def _estimate_score_confidence(self, scores: np.ndarray, weights: np.ndarray) -> tuple[float, float]:
         """Estima intervalo de confianza para el score usando bootstrap"""
 
         n_bootstrap = 1000
@@ -1869,7 +1857,7 @@ class PDETMunicipalPlanAnalyzer:
         nx.write_graphml(G, output_path)
         print(f"✅ Red causal exportada a: {output_path}")
 
-    def generate_executive_report(self, analysis_results: Dict[str, Any]) -> str:
+    def generate_executive_report(self, analysis_results: dict[str, Any]) -> str:
         """Genera reporte ejecutivo en Markdown"""
 
         report = "# ANÁLISIS INTEGRAL - PLAN DE DESARROLLO MUNICIPAL PDET\n\n"
@@ -1972,7 +1960,7 @@ class PDETMunicipalPlanAnalyzer:
                     "El plan presenta deficiencias críticas que comprometen su viabilidad. "
                     "Se requiere reformulación integral.")
 
-    def _generate_recommendations(self, analysis_results: Dict[str, Any]) -> str:
+    def _generate_recommendations(self, analysis_results: dict[str, Any]) -> str:
         """Genera recomendaciones específicas basadas en el análisis"""
 
         recommendations = []
@@ -2050,7 +2038,7 @@ class PDETMunicipalPlanAnalyzer:
     # PIPELINE PRINCIPAL
     # ========================================================================
 
-    def analyze_municipal_plan_sync(self, pdf_path: str, output_dir: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_municipal_plan_sync(self, pdf_path: str, output_dir: str | None = None) -> dict[str, Any]:
         """Synchronous wrapper for analyze_municipal_plan."""
 
         loop = asyncio.new_event_loop()
@@ -2059,7 +2047,7 @@ class PDETMunicipalPlanAnalyzer:
         finally:
             loop.close()
 
-    async def analyze_municipal_plan(self, pdf_path: str, output_dir: Optional[str] = None) -> Dict[str, Any]:
+    async def analyze_municipal_plan(self, pdf_path: str, output_dir: str | None = None) -> dict[str, Any]:
         """
         Pipeline completo de análisis
 
@@ -2148,8 +2136,8 @@ class PDETMunicipalPlanAnalyzer:
 
             # Exportar reporte
             # Delegate to factory for I/O operation
-            from .factory import write_text_file, save_json
-            
+            from .factory import save_json, write_text_file
+
             report = self.generate_executive_report(results)
             report_path = output_path / "executive_report.md"
             write_text_file(report, report_path)
@@ -2174,7 +2162,7 @@ class PDETMunicipalPlanAnalyzer:
         # Método 1: PyMuPDF (rápido y eficiente)
         # Delegate to factory for I/O operation
         from .factory import open_pdf_with_fitz, open_pdf_with_pdfplumber
-        
+
         try:
             doc = open_pdf_with_fitz(pdf_path)
             for page in doc:
@@ -2202,7 +2190,7 @@ class PDETMunicipalPlanAnalyzer:
 
         return full_text
 
-    def _entity_to_dict(self, entity: ResponsibleEntity) -> Dict[str, Any]:
+    def _entity_to_dict(self, entity: ResponsibleEntity) -> dict[str, Any]:
         """Convierte ResponsibleEntity a diccionario"""
         return {
             'name': entity.name,
@@ -2213,7 +2201,7 @@ class PDETMunicipalPlanAnalyzer:
             'budget': float(entity.budget_allocated) if entity.budget_allocated else None
         }
 
-    def _effect_to_dict(self, effect: CausalEffect) -> Dict[str, Any]:
+    def _effect_to_dict(self, effect: CausalEffect) -> dict[str, Any]:
         """Convierte CausalEffect a diccionario"""
         return {
             'treatment': effect.treatment,
@@ -2228,7 +2216,7 @@ class PDETMunicipalPlanAnalyzer:
             'confounders_adjusted': effect.confounders_adjusted
         }
 
-    def _scenario_to_dict(self, scenario: CounterfactualScenario) -> Dict[str, Any]:
+    def _scenario_to_dict(self, scenario: CounterfactualScenario) -> dict[str, Any]:
         """Convierte CounterfactualScenario a diccionario"""
         return {
             'intervention': scenario.intervention,
@@ -2237,7 +2225,7 @@ class PDETMunicipalPlanAnalyzer:
             'narrative': scenario.narrative
         }
 
-    def _quality_to_dict(self, quality: QualityScore) -> Dict[str, Any]:
+    def _quality_to_dict(self, quality: QualityScore) -> dict[str, Any]:
         """Convierte QualityScore a diccionario"""
         return {
             'overall_score': quality.overall_score,
@@ -2251,7 +2239,7 @@ class PDETMunicipalPlanAnalyzer:
             'evidence': quality.evidence
         }
 
-    def _find_product_mentions(self, text: str) -> List[str]:
+    def _find_product_mentions(self, text: str) -> list[str]:
         """
         Find mentions of products in text.
         
@@ -2262,7 +2250,7 @@ class PDETMunicipalPlanAnalyzer:
             List of product mentions
         """
         products = []
-        
+
         # Common product keywords
         product_patterns = [
             r'producto\s+(\d+)',
@@ -2270,22 +2258,22 @@ class PDETMunicipalPlanAnalyzer:
             r'bien\s+(\d+)',
             r'actividad\s+(\d+)',
         ]
-        
+
         for pattern in product_patterns:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
                 products.append(match.group(0))
-        
+
         # Also look for numbered lists that might be products
         list_pattern = r'^\s*\d+\.\s+([^\n]+)'
         for match in re.finditer(list_pattern, text, re.MULTILINE):
             item_text = match.group(1).lower()
             if any(word in item_text for word in ['producto', 'servicio', 'actividad', 'bien']):
                 products.append(match.group(1))
-        
+
         return products
 
-    def _generate_optimal_remediations(self, gaps: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    def _generate_optimal_remediations(self, gaps: list[dict[str, Any]]) -> list[dict[str, str]]:
         """
         Generate optimal remediations for identified gaps.
         
@@ -2296,16 +2284,16 @@ class PDETMunicipalPlanAnalyzer:
             List of remediation recommendations
         """
         remediations = []
-        
+
         for gap in gaps:
             remediation = {
                 'gap_type': gap.get('type', 'unknown'),
                 'priority': 'high' if gap.get('severity') == 'high' else 'medium',
                 'recommendation': ''
             }
-            
+
             gap_type = gap.get('type', '')
-            
+
             if gap_type == 'missing_baseline':
                 remediation['recommendation'] = "Establecer línea base cuantitativa basada en diagnóstico actual"
             elif gap_type == 'missing_target':
@@ -2318,12 +2306,12 @@ class PDETMunicipalPlanAnalyzer:
                 remediation['recommendation'] = "Definir indicador medible con fórmula de cálculo"
             else:
                 remediation['recommendation'] = f"Completar {gap_type} según estándares DNP"
-            
+
             remediations.append(remediation)
-        
+
         return remediations
 
-    def generate_recommendations(self, analysis_results: Dict[str, Any]) -> List[str]:
+    def generate_recommendations(self, analysis_results: dict[str, Any]) -> list[str]:
         """
         Generate recommendations based on analysis results.
         
@@ -2334,50 +2322,50 @@ class PDETMunicipalPlanAnalyzer:
             List of actionable recommendations
         """
         recommendations = []
-        
+
         # Check financial feasibility
         if analysis_results.get('financial_feasibility', 0) < 0.7:
             recommendations.append(
                 "Revisar sostenibilidad financiera y diversificar fuentes de financiación"
             )
-        
+
         # Check indicator quality
         if analysis_results.get('indicator_quality', 0) < 0.7:
             recommendations.append(
                 "Mejorar calidad de indicadores: asegurar línea base, meta y fuente de información"
             )
-        
+
         # Check responsibility clarity
         if analysis_results.get('responsibility_clarity', 0) < 0.7:
             recommendations.append(
                 "Clarificar entidades responsables para cada producto y resultado"
             )
-        
+
         # Check temporal consistency
         if analysis_results.get('temporal_consistency', 0) < 0.7:
             recommendations.append(
                 "Establecer cronograma claro con hitos y plazos definidos"
             )
-        
+
         # Check causal coherence
         if analysis_results.get('causal_coherence', 0) < 0.7:
             recommendations.append(
                 "Fortalecer coherencia causal: vincular productos con resultados e impactos"
             )
-        
+
         # PDET-specific recommendations
         if analysis_results.get('is_pdet_municipality', False):
             if analysis_results.get('pdet_alignment', 0) < 0.7:
                 recommendations.append(
                     "Alinear intervenciones con lineamientos PDET y enfoque territorial"
                 )
-        
+
         # Generic recommendation if no specific issues
         if not recommendations:
             recommendations.append(
                 "El plan cumple con estándares mínimos. Considerar monitoreo continuo."
             )
-        
+
         return recommendations
 
 
@@ -2460,7 +2448,7 @@ async def main_example():
         )
 
         # Acceder a resultados específicos
-        print(f"\n📊 RESULTADOS PRINCIPALES:")
+        print("\n📊 RESULTADOS PRINCIPALES:")
         print(f" Score de Calidad: {results['quality_score']['overall_score']:.2f}/10")
         print(f" Presupuesto Total: ${results['financial_analysis']['total_budget']:,.0f}")
         print(f" Efectos Causales Identificados: {len(results['causal_effects'])}")

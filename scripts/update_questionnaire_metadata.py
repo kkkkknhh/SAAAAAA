@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 QUESTIONNAIRE_FILES = [
@@ -80,8 +80,8 @@ def assign_specificity(group_name: str) -> str:
     return "MEDIUM"
 
 
-def normalize_scoring(scoring: Dict[str, Any]) -> Dict[str, Any]:
-    normalized: Dict[str, Any] = {}
+def normalize_scoring(scoring: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
     for level in SCORING_LEVELS:
         entry = scoring.get(level, {})
         entry_dict = dict(entry) if isinstance(entry, dict) else {}
@@ -98,7 +98,7 @@ def normalize_scoring(scoring: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-def update_verification_blocks(question: Dict[str, Any]) -> bool:
+def update_verification_blocks(question: dict[str, Any]) -> bool:
     updated = False
     for key, value in list(question.items()):
         if not key.startswith("verificacion"):

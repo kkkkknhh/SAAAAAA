@@ -12,22 +12,21 @@ import pytest
 from pydantic import ValidationError
 
 from saaaaaa.utils.contracts_runtime import (
-    SemanticAnalyzerInputModel,
-    SemanticAnalyzerOutputModel,
     CDAFFrameworkInputModel,
     CDAFFrameworkOutputModel,
-    PDETAnalyzerInputModel,
-    PDETAnalyzerOutputModel,
-    TeoriaCambioInputModel,
-    TeoriaCambioOutputModel,
     ContradictionDetectorInputModel,
     ContradictionDetectorOutputModel,
     EmbeddingPolicyInputModel,
     EmbeddingPolicyOutputModel,
-    SemanticChunkingInputModel,
-    SemanticChunkingOutputModel,
+    PDETAnalyzerInputModel,
+    PDETAnalyzerOutputModel,
     PolicyProcessorInputModel,
     PolicyProcessorOutputModel,
+    SemanticAnalyzerInputModel,
+    SemanticAnalyzerOutputModel,
+    SemanticChunkingInputModel,
+    SemanticChunkingOutputModel,
+    TeoriaCambioInputModel,
 )
 
 
@@ -316,7 +315,7 @@ class TestSchemaVersioning:
         if hasattr(model_class.model_fields.get('data'), 'annotation'):
             kwargs['data'] = {}
             kwargs['text'] = "Sample text"
-        
+
         model = model_class(**kwargs)
         assert model.schema_version == "sem-1.0"
 

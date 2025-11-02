@@ -15,8 +15,7 @@ import argparse
 import json
 import random
 import sys
-from typing import List, Dict, Any
-
+from typing import Any
 
 # Modality definitions and their evidence requirements
 MODALITY_TEMPLATES = {
@@ -57,15 +56,15 @@ POLICY_AREAS = ["PA01", "PA02", "PA03", "PA04", "PA05", "PA06", "PA07", "PA08", 
 DIMENSIONS = ["DIM01", "DIM02", "DIM03", "DIM04", "DIM05", "DIM06"]
 
 
-def generate_evidence(modality: str) -> Dict[str, Any]:
+def generate_evidence(modality: str) -> dict[str, Any]:
     """Generate synthetic evidence for a modality."""
     template = MODALITY_TEMPLATES[modality]
-    
+
     elements_count = random.randint(*template["elements_range"])
     elements = [f"Element {i+1} for {modality}" for i in range(elements_count)]
-    
+
     evidence = {"elements": elements}
-    
+
     if modality == "TYPE_A":
         evidence["confidence"] = random.uniform(*template["confidence_range"])
     elif modality == "TYPE_B":
@@ -78,27 +77,27 @@ def generate_evidence(modality: str) -> Dict[str, Any]:
         evidence["traceability"] = random.choice(template["traceability_options"])
     elif modality == "TYPE_F":
         evidence["plausibility"] = random.uniform(*template["plausibility_range"])
-    
+
     return evidence
 
 
 def generate_request(
-    modalities: List[str],
-    policy_areas: List[str],
+    modalities: list[str],
+    policy_areas: list[str],
     request_id: int
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate a synthetic policy analysis request."""
     modality = random.choice(modalities)
     policy_area = random.choice(policy_areas)
     dimension = random.choice(DIMENSIONS)
-    
+
     # Generate question number (1-300)
     question_global = random.randint(1, 300)
-    
+
     # Generate base slot
     question_local = random.randint(1, 30)
     base_slot = f"{policy_area}-{dimension}-Q{question_local:03d}"
-    
+
     return {
         "request_id": f"synthetic-{request_id:06d}",
         "question_global": question_global,
@@ -116,10 +115,10 @@ def generate_request(
 
 def generate_traffic(
     volume: int,
-    modalities: List[str],
-    policy_areas: List[str],
+    modalities: list[str],
+    policy_areas: list[str],
     output_file: str = None
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Generate synthetic traffic.
     
@@ -133,59 +132,59 @@ def generate_traffic(
         List of generated requests
     """
     requests = []
-    
+
     for i in range(volume):
         request = generate_request(modalities, policy_areas, i + 1)
         requests.append(request)
-        
+
         # Write to output file if specified
         if output_file:
             with open(output_file, 'a') as f:
                 f.write(json.dumps(request) + '\n')
-    
+
     return requests
 
 
-def print_statistics(requests: List[Dict[str, Any]]) -> None:
+def print_statistics(requests: list[dict[str, Any]]) -> None:
     """Print statistics about generated traffic."""
     print("\n" + "=" * 60)
     print("Synthetic Traffic Generation Summary")
     print("=" * 60)
-    
+
     # Count by modality
     modality_counts = {}
     for req in requests:
         modality = req["modality"]
         modality_counts[modality] = modality_counts.get(modality, 0) + 1
-    
+
     print("\nRequests by Modality:")
     for modality in sorted(modality_counts.keys()):
         count = modality_counts[modality]
         percentage = (count / len(requests)) * 100
         print(f"  {modality}: {count} ({percentage:.1f}%)")
-    
+
     # Count by policy area
     policy_area_counts = {}
     for req in requests:
         policy_area = req["policy_area"]
         policy_area_counts[policy_area] = policy_area_counts.get(policy_area, 0) + 1
-    
+
     print("\nRequests by Policy Area:")
     for policy_area in sorted(policy_area_counts.keys()):
         count = policy_area_counts[policy_area]
         percentage = (count / len(requests)) * 100
         print(f"  {policy_area}: {count} ({percentage:.1f}%)")
-    
+
     # Check minimum sample size requirement (10 per modality per policy area)
     print("\nMinimum Sample Size Check (10 per modality per policy area):")
     violations = []
-    for modality in MODALITY_TEMPLATES.keys():
+    for modality in MODALITY_TEMPLATES:
         for policy_area in POLICY_AREAS:
-            count = sum(1 for r in requests 
+            count = sum(1 for r in requests
                        if r["modality"] == modality and r["policy_area"] == policy_area)
             if count > 0 and count < 10:
                 violations.append(f"  {modality} x {policy_area}: {count} (needs ≥10)")
-    
+
     if violations:
         print("  ⚠ Warning: Some combinations below minimum:")
         for v in violations[:5]:
@@ -194,7 +193,7 @@ def print_statistics(requests: List[Dict[str, Any]]) -> None:
             print(f"  ... and {len(violations) - 5} more")
     else:
         print("  ✓ All populated combinations meet minimum requirements")
-    
+
     print("\nTotal requests generated: " + str(len(requests)))
     print("=" * 60 + "\n")
 
@@ -231,38 +230,38 @@ def main():
         type=int,
         help="Random seed for reproducibility"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Parse modalities and policy areas
     modalities = [m.strip() for m in args.modalities.split(",")]
     policy_areas = [p.strip() for p in args.policy_areas.split(",")]
-    
+
     # Validate modalities
     invalid_modalities = [m for m in modalities if m not in MODALITY_TEMPLATES]
     if invalid_modalities:
         print(f"Error: Invalid modalities: {invalid_modalities}", file=sys.stderr)
         print(f"Valid modalities: {list(MODALITY_TEMPLATES.keys())}", file=sys.stderr)
         return 1
-    
+
     # Set random seed if provided
     if args.seed:
         random.seed(args.seed)
-    
+
     # Clear output file if it exists
     if args.output:
         open(args.output, 'w').close()
-    
+
     # Generate traffic
     print(f"Generating {args.volume} synthetic requests...")
     requests = generate_traffic(args.volume, modalities, policy_areas, args.output)
-    
+
     # Print statistics
     print_statistics(requests)
-    
+
     if args.output:
         print(f"✓ Output written to {args.output}")
-    
+
     return 0
 
 

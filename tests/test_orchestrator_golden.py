@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import sys
 import types
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
-import importlib
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -43,14 +43,14 @@ from saaaaaa.core.orchestrator.core import PreprocessedDocument
 from saaaaaa.core.orchestrator.factory import CoreModuleFactory, construct_policy_processor_input
 
 
-def _contract_keys(contract: Mapping[str, object]) -> List[str]:
+def _contract_keys(contract: Mapping[str, object]) -> list[str]:
     """Return the declared keys for a TypedDict class."""
 
     annotations = getattr(contract, "__annotations__", {})
     return sorted(annotations.keys())
 
 
-CONTRACT_KEY_MAP: Dict[str, Sequence[str]] = {
+CONTRACT_KEY_MAP: dict[str, Sequence[str]] = {
     "IndustrialPolicyProcessor": _contract_keys(core_contracts.PolicyProcessorOutputContract),
     "PolicyContradictionDetector": _contract_keys(core_contracts.ContradictionDetectorOutputContract),
     "PolicyAnalysisEmbedder": _contract_keys(core_contracts.EmbeddingPolicyOutputContract),
@@ -68,8 +68,8 @@ class FakeMethodExecutor:
 
     def __init__(self, contract_map: Mapping[str, Sequence[str]]):
         self.contract_map = contract_map
-        self.calls: List[Tuple[str, str]] = []
-        self.outputs: Dict[str, Dict[str, object]] = {}
+        self.calls: list[tuple[str, str]] = []
+        self.outputs: dict[str, dict[str, object]] = {}
 
     def expected_keys(self, class_name: str) -> Sequence[str]:
         return self.contract_map.get(class_name, ())
@@ -97,7 +97,7 @@ def factory(tmp_path: Path) -> CoreModuleFactory:
 
 
 @pytest.fixture()
-def sample_document(factory: CoreModuleFactory, tmp_path: Path) -> Tuple[PreprocessedDocument, Dict[str, object]]:
+def sample_document(factory: CoreModuleFactory, tmp_path: Path) -> tuple[PreprocessedDocument, dict[str, object]]:
     """Create a sample document and policy processor input contract."""
 
     document_path = tmp_path / "plan.txt"
@@ -114,7 +114,7 @@ def sample_document(factory: CoreModuleFactory, tmp_path: Path) -> Tuple[Preproc
     return preprocessed, policy_input
 
 
-def _iter_executor_classes() -> Iterable[Tuple[str, type]]:
+def _iter_executor_classes() -> Iterable[tuple[str, type]]:
     for name in dir(executors):
         if not name.endswith("_Executor"):
             continue
@@ -127,7 +127,7 @@ def _iter_executor_classes() -> Iterable[Tuple[str, type]]:
 def test_executor_golden_path_returns_contracts(
     executor_name: str,
     executor_cls: type,
-    sample_document: Tuple[PreprocessedDocument, Dict[str, object]],
+    sample_document: tuple[PreprocessedDocument, dict[str, object]],
 ) -> None:
     document, policy_input = sample_document
     assert set(policy_input.keys()) >= {"data", "text", "sentences", "tables"}

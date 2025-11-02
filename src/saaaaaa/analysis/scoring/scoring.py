@@ -28,12 +28,12 @@ import hashlib
 import json
 import logging
 import math
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_EVEN, ROUND_DOWN, InvalidOperation
+from decimal import ROUND_DOWN, ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation
 from enum import Enum
 from numbers import Real
-from typing import Any, ClassVar, Dict, List, Optional, Tuple
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -98,15 +98,15 @@ class ScoredResult:
     normalized_score: float
     quality_level: str
     evidence_hash: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return asdict(self)
-    
+
     @staticmethod
-    def compute_evidence_hash(evidence: Dict[str, Any]) -> str:
+    def compute_evidence_hash(evidence: dict[str, Any]) -> str:
         """
         Compute reproducible hash of evidence.
         
@@ -137,14 +137,14 @@ class ModalityConfig:
     """
     name: str
     description: str
-    score_range: Tuple[float, float]
+    score_range: tuple[float, float]
     rounding_mode: str = "half_up"
     rounding_precision: int = 2
-    required_evidence_keys: List[str] = field(default_factory=list)
-    expected_elements: Optional[int] = None
+    required_evidence_keys: list[str] = field(default_factory=list)
+    expected_elements: int | None = None
     deterministic: bool = True
-    
-    def validate_evidence(self, evidence: Dict[str, Any]) -> None:
+
+    def validate_evidence(self, evidence: dict[str, Any]) -> None:
         """
         Validate evidence structure against modality requirements.
         
@@ -159,14 +159,14 @@ class ModalityConfig:
             raise EvidenceStructureError(
                 f"Evidence must be a dictionary, got {type(evidence).__name__}"
             )
-        
+
         # Check required keys
         missing_keys = [key for key in self.required_evidence_keys if key not in evidence]
         if missing_keys:
             raise EvidenceStructureError(
                 f"Evidence missing required keys for {self.name}: {missing_keys}"
             )
-        
+
         # Validate expected elements if applicable
         if self.expected_elements is not None:
             elements = evidence.get("elements", [])
@@ -178,9 +178,9 @@ class ModalityConfig:
 
 class ScoringValidator:
     """Validates evidence structure against modality requirements."""
-    
+
     # Modality configurations
-    MODALITY_CONFIGS: ClassVar[Dict[ScoringModality, ModalityConfig]] = {
+    MODALITY_CONFIGS: ClassVar[dict[ScoringModality, ModalityConfig]] = {
         ScoringModality.TYPE_A: ModalityConfig(
             name="TYPE_A",
             description="Bayesian: Numerical claims, gaps, risks",
@@ -222,11 +222,11 @@ class ScoringValidator:
             required_evidence_keys=["elements", "plausibility"],
         ),
     }
-    
+
     @classmethod
     def validate(
         cls,
-        evidence: Dict[str, Any],
+        evidence: dict[str, Any],
         modality: ScoringModality,
     ) -> None:
         """
@@ -246,16 +246,16 @@ class ScoringValidator:
         config = cls.MODALITY_CONFIGS.get(modality)
         if not config:
             raise ModalityValidationError(f"Unknown modality: {modality}")
-        
+
         logger.info(f"Validating evidence for {modality.value}")
-        
+
         try:
             config.validate_evidence(evidence)
             logger.info(f"✓ Evidence validation passed for {modality.value}")
         except (EvidenceStructureError, ModalityValidationError) as e:
             logger.exception(f"✗ Evidence validation failed for {modality.value}: {e}")
             raise
-    
+
     @classmethod
     def get_config(cls, modality: ScoringModality) -> ModalityConfig:
         """Get configuration for a modality."""
@@ -313,7 +313,7 @@ def apply_rounding(
     return float(rounded)
 
 
-def _validate_quality_thresholds(thresholds: Dict[str, float]) -> Dict[str, float]:
+def _validate_quality_thresholds(thresholds: dict[str, float]) -> dict[str, float]:
     """Validate custom quality thresholds.
 
     Returns a copy of *thresholds* with float values if validation succeeds.
@@ -327,7 +327,7 @@ def _validate_quality_thresholds(thresholds: Dict[str, float]) -> Dict[str, floa
     if missing:
         raise ValueError(f"Missing quality thresholds for: {', '.join(missing)}")
 
-    validated: Dict[str, float] = {}
+    validated: dict[str, float] = {}
     for key in required_keys:
         value = thresholds[key]
 
@@ -357,7 +357,7 @@ def _validate_quality_thresholds(thresholds: Dict[str, float]) -> Dict[str, floa
     return validated
 
 
-def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_a(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_A evidence: Bayesian numerical claims, gaps, risks.
     
@@ -379,16 +379,16 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     confidence = evidence.get("confidence", 0.0)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_A: 'elements' must be a list")
-    
+
     if not isinstance(confidence, (int, float)) or not (0 <= confidence <= 1):
         raise ModalityValidationError("TYPE_A: 'confidence' must be a number between 0 and 1")
-    
+
     # Count valid elements (up to expected)
     element_count = min(len(elements), config.expected_elements or 4)
-    
+
     max_elements = config.expected_elements or 4
     max_score = config.score_range[1] if config.score_range else 3.0
     min_score = config.score_range[0] if config.score_range else 0.0
@@ -408,16 +408,16 @@ def score_type_a(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
         "expected_elements": config.expected_elements,
         "max_score": max_score,
     }
-    
+
     logger.info(
         f"TYPE_A score: {score:.2f} "
         f"(elements={element_count}, confidence={confidence:.2f})"
     )
-    
+
     return score, metadata
 
 
-def score_type_b(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_b(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_B evidence: DAG causal chains, ToC completeness.
     
@@ -439,38 +439,38 @@ def score_type_b(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     completeness = evidence.get("completeness", 0.0)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_B: 'elements' must be a list")
-    
+
     if not isinstance(completeness, (int, float)) or not (0 <= completeness <= 1):
         raise ModalityValidationError("TYPE_B: 'completeness' must be a number between 0 and 1")
-    
+
     # Count valid elements (up to expected)
     element_count = min(len(elements), config.expected_elements or 3)
-    
+
     # Calculate raw score: each element worth 1 point, weighted by completeness
     raw_score = float(element_count) * completeness
-    
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "completeness": completeness,
         "raw_score": raw_score,
         "expected_elements": config.expected_elements,
     }
-    
+
     logger.info(
         f"TYPE_B score: {score:.2f} "
         f"(elements={element_count}, completeness={completeness:.2f})"
     )
-    
+
     return score, metadata
 
 
-def score_type_c(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_c(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_C evidence: Coherence via inverted contradictions.
     
@@ -492,38 +492,38 @@ def score_type_c(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     coherence_score = evidence.get("coherence_score", 0.0)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_C: 'elements' must be a list")
-    
+
     if not isinstance(coherence_score, (int, float)) or not (0 <= coherence_score <= 1):
         raise ModalityValidationError("TYPE_C: 'coherence_score' must be a number between 0 and 1")
-    
+
     # Count valid elements (up to expected)
     element_count = min(len(elements), config.expected_elements or 2)
-    
+
     # Calculate raw score: scale elements to range, weighted by coherence
     raw_score = (element_count / 2.0) * 3.0 * coherence_score
-    
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "coherence_score": coherence_score,
         "raw_score": raw_score,
         "expected_elements": config.expected_elements,
     }
-    
+
     logger.info(
         f"TYPE_C score: {score:.2f} "
         f"(elements={element_count}, coherence={coherence_score:.2f})"
     )
-    
+
     return score, metadata
 
 
-def score_type_d(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_d(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_D evidence: Pattern matching for baseline data.
     
@@ -545,41 +545,41 @@ def score_type_d(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     pattern_matches = evidence.get("pattern_matches", 0)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_D: 'elements' must be a list")
-    
+
     if not isinstance(pattern_matches, (int, float)) or pattern_matches < 0:
         raise ModalityValidationError("TYPE_D: 'pattern_matches' must be a non-negative number")
-    
+
     # Count valid elements (up to expected)
     element_count = min(len(elements), config.expected_elements or 3)
-    
+
     # Use actual pattern matches if available, otherwise use element count
     match_count = min(pattern_matches, element_count) if pattern_matches > 0 else element_count
-    
+
     # Calculate raw score: scale to 0-3 range
     raw_score = (match_count / 3.0) * 3.0
-    
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "pattern_matches": match_count,
         "raw_score": raw_score,
         "expected_elements": config.expected_elements,
     }
-    
+
     logger.info(
         f"TYPE_D score: {score:.2f} "
         f"(elements={element_count}, matches={match_count})"
     )
-    
+
     return score, metadata
 
 
-def score_type_e(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_e(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_E evidence: Financial budget traceability.
     
@@ -601,10 +601,10 @@ def score_type_e(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     traceability = evidence.get("traceability", False)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_E: 'elements' must be a list")
-    
+
     # Handle both boolean and numeric traceability
     if isinstance(traceability, bool):
         traceability_score = 1.0 if traceability else 0.0
@@ -614,33 +614,33 @@ def score_type_e(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
         traceability_score = float(traceability)
     else:
         raise ModalityValidationError("TYPE_E: 'traceability' must be boolean or numeric")
-    
+
     # Count valid elements
     element_count = len(elements)
     has_elements = element_count > 0
-    
+
     # Calculate raw score: presence check weighted by traceability
     raw_score = 3.0 * traceability_score if has_elements else 0.0
-    
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "traceability": traceability_score,
         "raw_score": raw_score,
         "has_elements": has_elements,
     }
-    
+
     logger.info(
         f"TYPE_E score: {score:.2f} "
         f"(elements={element_count}, traceability={traceability_score:.2f})"
     )
-    
+
     return score, metadata
 
 
-def score_type_f(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[float, Dict[str, Any]]:
+def score_type_f(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_F evidence: Beach mechanism inference and plausibility.
     
@@ -662,33 +662,33 @@ def score_type_f(evidence: Dict[str, Any], config: ModalityConfig) -> Tuple[floa
     """
     elements = evidence.get("elements", [])
     plausibility = evidence.get("plausibility", 0.0)
-    
+
     if not isinstance(elements, list):
         raise ModalityValidationError("TYPE_F: 'elements' must be a list")
-    
+
     if not isinstance(plausibility, (int, float)) or not (0 <= plausibility <= 1):
         raise ModalityValidationError("TYPE_F: 'plausibility' must be a number between 0 and 1")
-    
+
     # Count valid elements
     element_count = len(elements)
-    
+
     # Calculate raw score: continuous scale weighted by plausibility
     raw_score = 3.0 * plausibility if element_count > 0 else 0.0
-    
+
     # Clamp to valid range
     score = max(config.score_range[0], min(config.score_range[1], raw_score))
-    
+
     metadata = {
         "element_count": element_count,
         "plausibility": plausibility,
         "raw_score": raw_score,
     }
-    
+
     logger.info(
         f"TYPE_F score: {score:.2f} "
         f"(elements={element_count}, plausibility={plausibility:.2f})"
     )
-    
+
     return score, metadata
 
 
@@ -705,7 +705,7 @@ SCORING_FUNCTIONS = {
 
 def determine_quality_level(
     normalized_score: float,
-    thresholds: Optional[Dict[str, float]] = None,
+    thresholds: dict[str, float] | None = None,
 ) -> QualityLevel:
     """
     Determine quality level from normalized score.
@@ -751,9 +751,9 @@ def apply_scoring(
     base_slot: str,
     policy_area: str,
     dimension: str,
-    evidence: Dict[str, Any],
+    evidence: dict[str, Any],
     modality: str,
-    quality_thresholds: Optional[Dict[str, float]] = None,
+    quality_thresholds: dict[str, float] | None = None,
 ) -> ScoredResult:
     """
     Apply scoring to evidence using specified modality.
@@ -790,7 +790,7 @@ def apply_scoring(
         f"Scoring question {question_global} ({base_slot}) "
         f"using {modality}"
     )
-    
+
     # Parse modality
     try:
         modality_enum = ScoringModality(modality)
@@ -799,18 +799,18 @@ def apply_scoring(
             f"Invalid modality: {modality}. "
             f"Must be one of: {[m.value for m in ScoringModality]}"
         ) from e
-    
+
     # Validate evidence structure
     ScoringValidator.validate(evidence, modality_enum)
-    
+
     # Get modality configuration
     config = ScoringValidator.get_config(modality_enum)
-    
+
     # Get scoring function
     scoring_func = SCORING_FUNCTIONS.get(modality_enum)
     if not scoring_func:
         raise ScoringError(f"No scoring function for {modality}")
-    
+
     # Apply scoring
     try:
         score, metadata = scoring_func(evidence, config)
@@ -820,7 +820,7 @@ def apply_scoring(
     except Exception as e:
         logger.exception(f"Unexpected error in scoring {modality}: {e}")
         raise ScoringError(f"Unexpected error in scoring {modality}: {e}") from e
-    
+
     # Apply rounding
     rounded_score = apply_rounding(
         score,
@@ -867,12 +867,12 @@ def apply_scoring(
             "score_clamped": score_clamped,
         },
     )
-    
+
     logger.info(
         f"✓ Scoring complete: score={rounded_score:.2f}, "
         f"normalized={normalized_score:.2f}, quality={quality_level.value}"
     )
-    
+
     return result
 
 

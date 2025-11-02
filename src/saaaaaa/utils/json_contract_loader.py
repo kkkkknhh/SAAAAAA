@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Union
-
+from typing import Union
 
 PathLike = Union[str, Path]
 
@@ -20,7 +20,7 @@ class ContractDocument:
     """Materialized JSON contract with checksum information."""
 
     path: Path
-    payload: Dict[str, object]
+    payload: dict[str, object]
     checksum: str
 
 
@@ -28,8 +28,8 @@ class ContractDocument:
 class ContractLoadReport:
     """Result of attempting to load multiple contract documents."""
 
-    documents: Dict[str, ContractDocument]
-    errors: List[str]
+    documents: dict[str, ContractDocument]
+    errors: list[str]
 
     @property
     def is_successful(self) -> bool:
@@ -45,12 +45,12 @@ class ContractLoadReport:
 class JSONContractLoader:
     """Load JSON contract files and compute integrity metadata."""
 
-    def __init__(self, base_path: Optional[Path] = None):
+    def __init__(self, base_path: Path | None = None):
         self.base_path = base_path or Path(__file__).resolve().parent
 
     def load(self, paths: Iterable[PathLike]) -> ContractLoadReport:
-        documents: Dict[str, ContractDocument] = {}
-        errors: List[str] = []
+        documents: dict[str, ContractDocument] = {}
+        errors: list[str] = []
         for raw in paths:
             path = self._resolve_path(raw)
             try:
@@ -83,7 +83,7 @@ class JSONContractLoader:
         return path
 
     @staticmethod
-    def _read_payload(path: Path) -> Dict[str, object]:
+    def _read_payload(path: Path) -> dict[str, object]:
         text = path.read_text(encoding="utf-8")
         data = json.loads(text)
         if not isinstance(data, dict):

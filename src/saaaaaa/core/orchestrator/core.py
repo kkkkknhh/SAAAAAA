@@ -15,36 +15,31 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import inspect
-import json
 import logging
 import os
-import re
 import statistics
 import threading
 import time
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
-    DimensionAggregator,
     AreaPolicyAggregator,
-    ClusterAggregator,
-    MacroAggregator,
-    ScoredResult,
-    DimensionScore,
     AreaScore,
+    ClusterAggregator,
     ClusterScore,
+    DimensionAggregator,
+    DimensionScore,
+    MacroAggregator,
     MacroScore,
+    ScoredResult,
 )
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
-from .class_registry import build_class_registry, ClassRegistryError
+from .class_registry import ClassRegistryError, build_class_registry
 
 if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
@@ -61,9 +56,9 @@ class PreprocessedDocument:
     """
     document_id: str
     raw_text: str
-    sentences: List[Any]
-    tables: List[Any]
-    metadata: Dict[str, Any]
+    sentences: list[Any]
+    tables: list[Any]
+    metadata: dict[str, Any]
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
@@ -74,7 +69,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: Optional[str] = None
+        cls, document: Any, *, document_id: str | None = None
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
         if isinstance(document, cls):
@@ -91,13 +86,13 @@ class PreprocessedDocument:
     @classmethod
     def _from_ingestion(
         cls,
-        document: Union[IngestionPreprocessedDocument, Any],
+        document: IngestionPreprocessedDocument | Any,
         *,
-        document_id: Optional[str] = None,
+        document_id: str | None = None,
     ) -> PreprocessedDocument:
         """Build an orchestrator document from the ingestion schema."""
         raw_doc = getattr(document, "raw_document", None)
-        derived_id: Optional[str] = document_id or getattr(document, "document_id", None)
+        derived_id: str | None = document_id or getattr(document, "document_id", None)
 
         if not derived_id and raw_doc is not None:
             derived_id = getattr(raw_doc, "file_name", None)
@@ -120,8 +115,8 @@ class PreprocessedDocument:
         if not derived_id:
             derived_id = "document_1"
 
-        metadata: Dict[str, Any] = {}
-        preprocessing_block: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] = {}
+        preprocessing_block: dict[str, Any] | None = None
         if hasattr(document, "preprocessing_metadata"):
             preprocessing_metadata = document.preprocessing_metadata
             if isinstance(preprocessing_metadata, dict):
@@ -172,8 +167,8 @@ class PreprocessedDocument:
 class Evidence:
     """Evidence container for orchestrator results."""
     modality: str
-    elements: List[Any] = field(default_factory=list)
-    raw_results: Dict[str, Any] = field(default_factory=dict)
+    elements: list[Any] = field(default_factory=list)
+    raw_results: dict[str, Any] = field(default_factory=dict)
 
 
 class AbortRequested(RuntimeError):
@@ -186,8 +181,8 @@ class AbortSignal:
     def __init__(self) -> None:
         self._event = threading.Event()
         self._lock = threading.Lock()
-        self._reason: Optional[str] = None
-        self._timestamp: Optional[datetime] = None
+        self._reason: str | None = None
+        self._timestamp: datetime | None = None
 
     def abort(self, reason: str) -> None:
         """Trigger an abort with a reason and timestamp."""
@@ -203,12 +198,12 @@ class AbortSignal:
         """Check whether abort has been triggered."""
         return self._event.is_set()
 
-    def get_reason(self) -> Optional[str]:
+    def get_reason(self) -> str | None:
         """Return the abort reason if set."""
         with self._lock:
             return self._reason
 
-    def get_timestamp(self) -> Optional[datetime]:
+    def get_timestamp(self) -> datetime | None:
         """Return the abort timestamp if set."""
         with self._lock:
             return self._timestamp
@@ -226,7 +221,7 @@ class ResourceLimits:
 
     def __init__(
         self,
-        max_memory_mb: Optional[float] = 4096.0,
+        max_memory_mb: float | None = 4096.0,
         max_cpu_percent: float = 85.0,
         max_workers: int = 32,
         min_workers: int = 4,
@@ -238,10 +233,10 @@ class ResourceLimits:
         self.min_workers = max(1, min_workers)
         self.hard_max_workers = max(self.min_workers, hard_max_workers)
         self._max_workers = max(self.min_workers, min(max_workers, self.hard_max_workers))
-        self._usage_history: deque[Dict[str, float]] = deque(maxlen=history)
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._usage_history: deque[dict[str, float]] = deque(maxlen=history)
+        self._semaphore: asyncio.Semaphore | None = None
         self._semaphore_limit = self._max_workers
-        self._async_lock: Optional[asyncio.Lock] = None
+        self._async_lock: asyncio.Lock | None = None
         self._psutil = None
         self._psutil_process = None
         try:  # pragma: no cover - optional dependency
@@ -284,7 +279,7 @@ class ResourceLimits:
             self._semaphore_limit = desired
             return self._max_workers
 
-    def _record_usage(self, usage: Dict[str, float]) -> None:
+    def _record_usage(self, usage: dict[str, float]) -> None:
         """Record resource usage and predict worker budget."""
         self._usage_history.append(usage)
         self._predict_worker_budget()
@@ -302,9 +297,7 @@ class ResourceLimits:
         avg_mem = statistics.mean(recent_mem)
 
         new_budget = self._max_workers
-        if self.max_cpu_percent and avg_cpu > self.max_cpu_percent * 0.95:
-            new_budget = max(self.min_workers, self._max_workers - 1)
-        elif self.max_memory_mb and avg_mem > 90.0:
+        if self.max_cpu_percent and avg_cpu > self.max_cpu_percent * 0.95 or self.max_memory_mb and avg_mem > 90.0:
             new_budget = max(self.min_workers, self._max_workers - 1)
         elif avg_cpu < self.max_cpu_percent * 0.6 and avg_mem < 70.0:
             new_budget = min(self.hard_max_workers, self._max_workers + 1)
@@ -312,8 +305,8 @@ class ResourceLimits:
         self._max_workers = max(self.min_workers, min(new_budget, self.hard_max_workers))
 
     def check_memory_exceeded(
-        self, usage: Optional[Dict[str, float]] = None
-    ) -> Tuple[bool, Dict[str, float]]:
+        self, usage: dict[str, float] | None = None
+    ) -> tuple[bool, dict[str, float]]:
         """Check if memory limit has been exceeded."""
         usage = usage or self.get_resource_usage()
         exceeded = False
@@ -322,8 +315,8 @@ class ResourceLimits:
         return exceeded, usage
 
     def check_cpu_exceeded(
-        self, usage: Optional[Dict[str, float]] = None
-    ) -> Tuple[bool, Dict[str, float]]:
+        self, usage: dict[str, float] | None = None
+    ) -> tuple[bool, dict[str, float]]:
         """Check if CPU limit has been exceeded."""
         usage = usage or self.get_resource_usage()
         exceeded = False
@@ -331,7 +324,7 @@ class ResourceLimits:
             exceeded = usage.get("cpu_percent", 0.0) > self.max_cpu_percent
         return exceeded, usage
 
-    def get_resource_usage(self) -> Dict[str, float]:
+    def get_resource_usage(self) -> dict[str, float]:
         """Capture current resource usage metrics."""
         timestamp = datetime.utcnow().isoformat()
         cpu_percent = 0.0
@@ -371,7 +364,7 @@ class ResourceLimits:
         self._record_usage(usage)
         return usage
 
-    def get_usage_history(self) -> List[Dict[str, float]]:
+    def get_usage_history(self) -> list[dict[str, float]]:
         """Return the recorded usage history."""
         return list(self._usage_history)
 
@@ -383,9 +376,9 @@ class PhaseInstrumentation:
         self,
         phase_id: int,
         name: str,
-        items_total: Optional[int] = None,
+        items_total: int | None = None,
         snapshot_interval: int = 10,
-        resource_limits: Optional[ResourceLimits] = None,
+        resource_limits: ResourceLimits | None = None,
     ) -> None:
         self.phase_id = phase_id
         self.name = name
@@ -393,21 +386,21 @@ class PhaseInstrumentation:
         self.snapshot_interval = max(1, snapshot_interval)
         self.resource_limits = resource_limits
         self.items_processed = 0
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
-        self.warnings: List[Dict[str, Any]] = []
-        self.errors: List[Dict[str, Any]] = []
-        self.resource_snapshots: List[Dict[str, Any]] = []
-        self.latencies: List[float] = []
-        self.anomalies: List[Dict[str, Any]] = []
+        self.start_time: float | None = None
+        self.end_time: float | None = None
+        self.warnings: list[dict[str, Any]] = []
+        self.errors: list[dict[str, Any]] = []
+        self.resource_snapshots: list[dict[str, Any]] = []
+        self.latencies: list[float] = []
+        self.anomalies: list[dict[str, Any]] = []
 
-    def start(self, items_total: Optional[int] = None) -> None:
+    def start(self, items_total: int | None = None) -> None:
         """Mark the start of phase execution."""
         if items_total is not None:
             self.items_total = items_total
         self.start_time = time.perf_counter()
 
-    def increment(self, count: int = 1, latency: Optional[float] = None) -> None:
+    def increment(self, count: int = 1, latency: float | None = None) -> None:
         """Increment processed item count and optionally record latency."""
         self.items_processed += count
         if latency is not None:
@@ -474,19 +467,19 @@ class PhaseInstrumentation:
         """Mark the end of phase execution."""
         self.end_time = time.perf_counter()
 
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         """Return the phase duration in milliseconds."""
         if self.start_time is None or self.end_time is None:
             return None
         return (self.end_time - self.start_time) * 1000.0
 
-    def progress(self) -> Optional[float]:
+    def progress(self) -> float | None:
         """Return the progress fraction (0.0 to 1.0)."""
         if not self.items_total:
             return None
         return min(1.0, self.items_processed / float(self.items_total))
 
-    def throughput(self) -> Optional[float]:
+    def throughput(self) -> float | None:
         """Return items processed per second."""
         if self.start_time is None:
             return None
@@ -499,7 +492,7 @@ class PhaseInstrumentation:
             return None
         return self.items_processed / elapsed
 
-    def latency_histogram(self) -> Dict[str, Optional[float]]:
+    def latency_histogram(self) -> dict[str, float | None]:
         """Return latency percentiles."""
         if not self.latencies:
             return {"p50": None, "p95": None, "p99": None}
@@ -523,7 +516,7 @@ class PhaseInstrumentation:
             "p99": percentile(99.0),
         }
 
-    def build_metrics(self) -> Dict[str, Any]:
+    def build_metrics(self) -> dict[str, Any]:
         """Build a metrics summary dictionary."""
         return {
             "phase_id": self.phase_id,
@@ -547,7 +540,7 @@ class PhaseResult:
     success: bool
     phase_id: str
     data: Any
-    error: Optional[Exception]
+    error: Exception | None
     duration_ms: float
     mode: str
     aborted: bool = False
@@ -559,10 +552,10 @@ class MicroQuestionRun:
     question_id: str
     question_global: int
     base_slot: str
-    metadata: Dict[str, Any]
-    evidence: Optional[Evidence]
-    error: Optional[str] = None
-    duration_ms: Optional[float] = None
+    metadata: dict[str, Any]
+    evidence: Evidence | None
+    error: str | None = None
+    duration_ms: float | None = None
     aborted: bool = False
 
 
@@ -572,13 +565,13 @@ class ScoredMicroQuestion:
     question_id: str
     question_global: int
     base_slot: str
-    score: Optional[float]
-    normalized_score: Optional[float]
-    quality_level: Optional[str]
-    evidence: Optional[Evidence]
-    scoring_details: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    score: float | None
+    normalized_score: float | None
+    quality_level: str | None
+    evidence: Evidence | None
+    scoring_details: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 class MethodExecutor:
@@ -597,7 +590,7 @@ class MethodExecutor:
             registry = {}
 
         # Instantiate all classes
-        self.instances: Dict[str, Any] = {}
+        self.instances: dict[str, Any] = {}
         ontology_instance = None
 
         for class_name, cls in registry.items():
@@ -659,10 +652,10 @@ class MethodExecutor:
         try:
             args, routed_kwargs = self._router.route(class_name, method_name, dict(kwargs))
             return method(*args, **routed_kwargs)
-        except (ArgRouterError, ArgumentValidationError) as exc:
+        except (ArgRouterError, ArgumentValidationError):
             logger.exception("Argument routing failed for %s.%s", class_name, method_name)
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
 
@@ -675,7 +668,7 @@ class Orchestrator:
     with full instrumentation and abort capability.
     """
 
-    FASES: List[Tuple[int, str, str, str]] = [
+    FASES: list[tuple[int, str, str, str]] = [
         (0, "sync", "_load_configuration", "FASE 0 - Validación de Configuración"),
         (1, "sync", "_ingest_document", "FASE 1 - Ingestión de Documento"),
         (2, "async", "_execute_micro_questions_async", "FASE 2 - Micro Preguntas"),
@@ -689,7 +682,7 @@ class Orchestrator:
         (10, "async", "_format_and_export", "FASE 10 - Formateo y Exportación"),
     ]
 
-    PHASE_ITEM_TARGETS: Dict[int, int] = {
+    PHASE_ITEM_TARGETS: dict[int, int] = {
         0: 1,
         1: 1,
         2: 300,
@@ -703,7 +696,7 @@ class Orchestrator:
         10: 1,
     }
 
-    PHASE_OUTPUT_KEYS: Dict[int, str] = {
+    PHASE_OUTPUT_KEYS: dict[int, str] = {
         0: "config",
         1: "document",
         2: "micro_results",
@@ -717,7 +710,7 @@ class Orchestrator:
         10: "export_payload",
     }
 
-    PHASE_ARGUMENT_KEYS: Dict[int, List[str]] = {
+    PHASE_ARGUMENT_KEYS: dict[int, list[str]] = {
         1: ["pdf_path", "config"],
         2: ["document", "config"],
         3: ["micro_results", "config"],
@@ -732,15 +725,15 @@ class Orchestrator:
 
     def __init__(
         self,
-        catalog: Optional[Dict[str, Any]] = None,
-        monolith: Optional[Dict[str, Any]] = None,
-        method_map: Optional[Dict[str, Any]] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        catalog_path: Optional[str] = None,
-        monolith_path: Optional[str] = None,
-        method_map_path: Optional[str] = None,
-        schema_path: Optional[str] = None,
-        resource_limits: Optional[ResourceLimits] = None,
+        catalog: dict[str, Any] | None = None,
+        monolith: dict[str, Any] | None = None,
+        method_map: dict[str, Any] | None = None,
+        schema: dict[str, Any] | None = None,
+        catalog_path: str | None = None,
+        monolith_path: str | None = None,
+        method_map_path: str | None = None,
+        schema_path: str | None = None,
+        resource_limits: ResourceLimits | None = None,
         resource_snapshot_interval: int = 10,
     ) -> None:
         """Initialize the orchestrator.
@@ -766,7 +759,7 @@ class Orchestrator:
         self._monolith_data = monolith
         self._method_map_data = method_map
         self._schema_data = schema
-        
+
         # Store paths for backward compatibility
         self.catalog_path = self._resolve_path(catalog_path) if catalog_path else None
         self.monolith_path = self._resolve_path(monolith_path) if monolith_path else None
@@ -784,10 +777,10 @@ class Orchestrator:
             self.catalog = None
 
         self.executor = MethodExecutor()
-        
+
         # Import executors from the executors module
         from . import executors
-        
+
         self.executors = {
             "D1-Q1": executors.D1Q1_Executor,
             "D1-Q2": executors.D1Q2_Executor,
@@ -822,14 +815,14 @@ class Orchestrator:
         }
 
         self.abort_signal = AbortSignal()
-        self.phase_results: List[PhaseResult] = []
-        self._phase_instrumentation: Dict[int, PhaseInstrumentation] = {}
-        self._phase_status: Dict[int, str] = {
+        self.phase_results: list[PhaseResult] = []
+        self._phase_instrumentation: dict[int, PhaseInstrumentation] = {}
+        self._phase_status: dict[int, str] = {
             phase_id: "not_started" for phase_id, *_ in self.FASES
         }
-        self._phase_outputs: Dict[int, Any] = {}
-        self._context: Dict[str, Any] = {}
-        self._start_time: Optional[float] = None
+        self._phase_outputs: dict[int, Any] = {}
+        self._context: dict[str, Any] = {}
+        self._start_time: float | None = None
 
         # Initialize RecommendationEngine for 3-level recommendations
         try:
@@ -851,7 +844,7 @@ class Orchestrator:
             logger.warning(f"Failed to initialize RecommendationEngine: {e}")
             self.recommendation_engine = None
 
-    def _resolve_path(self, path: Optional[str]) -> Optional[str]:
+    def _resolve_path(self, path: str | None) -> str | None:
         """Resolve a relative or absolute path, searching multiple candidate locations."""
         if path is None:
             return None
@@ -871,8 +864,8 @@ class Orchestrator:
         return path
 
     def process_development_plan(
-            self, pdf_path: str, preprocessed_document: Optional[Any] = None
-    ) -> List[PhaseResult]:
+            self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> list[PhaseResult]:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -886,8 +879,8 @@ class Orchestrator:
         )
 
     async def process_development_plan_async(
-            self, pdf_path: str, preprocessed_document: Optional[Any] = None
-    ) -> List[PhaseResult]:
+            self, pdf_path: str, preprocessed_document: Any | None = None
+    ) -> list[PhaseResult]:
         self.reset_abort()
         self.phase_results = []
         self._phase_instrumentation = {}
@@ -916,7 +909,7 @@ class Orchestrator:
 
             success = False
             data: Any = None
-            error: Optional[Exception] = None
+            error: Exception | None = None
             try:
                 if mode == "sync":
                     data = handler(*args)
@@ -964,7 +957,7 @@ class Orchestrator:
 
         return self.phase_results
 
-    def get_processing_status(self) -> Dict[str, Any]:
+    def get_processing_status(self) -> dict[str, Any]:
         if self._start_time is None:
             status = "not_started"
             elapsed = 0.0
@@ -997,7 +990,7 @@ class Orchestrator:
             "completed": completed_flag,
         }
 
-    def get_phase_metrics(self) -> Dict[str, Any]:
+    def get_phase_metrics(self) -> dict[str, Any]:
         return {
             str(phase_id): instr.build_metrics()
             for phase_id, instr in self._phase_instrumentation.items()
@@ -1014,7 +1007,7 @@ class Orchestrator:
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
         cpu_headroom = max(0.0, self.resource_limits.max_cpu_percent - usage.get("cpu_percent", 0.0))
         mem_headroom = max(0.0, (self.resource_limits.max_memory_mb or 0.0) - usage.get("rss_mb", 0.0))
@@ -1026,7 +1019,7 @@ class Orchestrator:
             score = min(score, 20.0)
         return {"score": score, "resource_usage": usage, "abort": self.abort_signal.is_aborted()}
 
-    def _load_configuration(self) -> Dict[str, Any]:
+    def _load_configuration(self) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[0]
         start = time.perf_counter()
@@ -1044,9 +1037,9 @@ class Orchestrator:
                 "data and pass via monolith parameter for I/O-free initialization."
             )
 
-        micro_questions: List[Dict[str, Any]] = monolith["blocks"].get("micro_questions", [])
-        meso_questions: List[Dict[str, Any]] = monolith["blocks"].get("meso_questions", [])
-        macro_question: Dict[str, Any] = monolith["blocks"].get("macro_question", {})
+        micro_questions: list[dict[str, Any]] = monolith["blocks"].get("micro_questions", [])
+        meso_questions: list[dict[str, Any]] = monolith["blocks"].get("meso_questions", [])
+        macro_question: dict[str, Any] = monolith["blocks"].get("macro_question", {})
 
         question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
         if question_total != 305:
@@ -1056,7 +1049,7 @@ class Orchestrator:
 
         structure_report = self._validate_contract_structure(monolith, instrumentation)
 
-        method_summary: Dict[str, Any] = {}
+        method_summary: dict[str, Any] = {}
         # Use pre-loaded method_map data (I/O-free path)
         if self._method_map_data is not None:
             method_map = self._method_map_data
@@ -1074,7 +1067,7 @@ class Orchestrator:
                 "metadata": summary,
             }
 
-        schema_report: Dict[str, Any] = {"errors": []}
+        schema_report: dict[str, Any] = {"errors": []}
         # Use pre-loaded schema data (I/O-free path)
         if self._schema_data is not None:
             try:  # pragma: no cover - optional dependency
@@ -1117,7 +1110,7 @@ class Orchestrator:
 
         return config
 
-    def _validate_contract_structure(self, monolith: Dict[str, Any], instrumentation: PhaseInstrumentation) -> Dict[
+    def _validate_contract_structure(self, monolith: dict[str, Any], instrumentation: PhaseInstrumentation) -> dict[
         str, Any]:
         micro_questions = monolith["blocks"].get("micro_questions", [])
         base_slots = {question.get("base_slot") for question in micro_questions}
@@ -1140,8 +1133,8 @@ class Orchestrator:
                 missing=sorted(missing_modalities),
             )
 
-        slot_area_map: Dict[str, str] = {}
-        area_cluster_map: Dict[str, str] = {}
+        slot_area_map: dict[str, str] = {}
+        area_cluster_map: dict[str, str] = {}
         for question in micro_questions:
             slot = question.get("base_slot")
             area = question.get("policy_area_id")
@@ -1174,7 +1167,7 @@ class Orchestrator:
             "area_cluster_map": area_cluster_map,
         }
 
-    def _ingest_document(self, pdf_path: str, config: Dict[str, Any]) -> PreprocessedDocument:
+    def _ingest_document(self, pdf_path: str, config: dict[str, Any]) -> PreprocessedDocument:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[1]
         start = time.perf_counter()
@@ -1210,15 +1203,15 @@ class Orchestrator:
     async def _execute_micro_questions_async(
             self,
             document: PreprocessedDocument,
-            config: Dict[str, Any],
-    ) -> List[MicroQuestionRun]:
+            config: dict[str, Any],
+    ) -> list[MicroQuestionRun]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[2]
         micro_questions = config.get("micro_questions", [])
         instrumentation.items_total = len(micro_questions)
-        ordered_questions: List[Dict[str, Any]] = []
+        ordered_questions: list[dict[str, Any]] = []
 
-        questions_by_slot: Dict[str, deque] = {}
+        questions_by_slot: dict[str, deque] = {}
         for question in micro_questions:
             slot = question.get("base_slot")
             questions_by_slot.setdefault(slot, deque()).append(question)
@@ -1237,14 +1230,14 @@ class Orchestrator:
         semaphore = asyncio.Semaphore(self.resource_limits.max_workers)
         self.resource_limits.attach_semaphore(semaphore)
 
-        circuit_breakers: Dict[str, Dict[str, Any]] = {
+        circuit_breakers: dict[str, dict[str, Any]] = {
             slot: {"failures": 0, "open": False}
             for slot in self.executors
         }
 
-        results: List[MicroQuestionRun] = []
+        results: list[MicroQuestionRun] = []
 
-        async def process_question(question: Dict[str, Any]) -> MicroQuestionRun:
+        async def process_question(question: dict[str, Any]) -> MicroQuestionRun:
             await self.resource_limits.apply_worker_budget()
             async with semaphore:
                 self._ensure_not_aborted()
@@ -1294,8 +1287,8 @@ class Orchestrator:
 
                 executor_class = self.executors.get(base_slot)
                 start_time = time.perf_counter()
-                evidence: Optional[Evidence] = None
-                error_message: Optional[str] = None
+                evidence: Evidence | None = None
+                error_message: str | None = None
 
                 if not executor_class:
                     error_message = f"Ejecutor no definido para {base_slot}"
@@ -1360,17 +1353,18 @@ class Orchestrator:
 
     async def _score_micro_results_async(
             self,
-            micro_results: List[MicroQuestionRun],
-            config: Dict[str, Any],
-    ) -> List[ScoredMicroQuestion]:
+            micro_results: list[MicroQuestionRun],
+            config: dict[str, Any],
+    ) -> list[ScoredMicroQuestion]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[3]
         instrumentation.items_total = len(micro_results)
 
-        from scoring import MicroQuestionScorer, ScoringModality, Evidence as ScoringEvidence
+        from scoring import Evidence as ScoringEvidence
+        from scoring import MicroQuestionScorer, ScoringModality
 
         scorer = MicroQuestionScorer()
-        results: List[ScoredMicroQuestion] = []
+        results: list[ScoredMicroQuestion] = []
         semaphore = asyncio.Semaphore(self.resource_limits.max_workers)
         self.resource_limits.attach_semaphore(semaphore)
 
@@ -1466,9 +1460,9 @@ class Orchestrator:
 
     async def _aggregate_dimensions_async(
             self,
-            scored_results: List[ScoredMicroQuestion],
-            config: Dict[str, Any],
-    ) -> List[DimensionScore]:
+            scored_results: list[ScoredMicroQuestion],
+            config: dict[str, Any],
+    ) -> list[DimensionScore]:
         """Aggregate micro question scores into dimension scores using DimensionAggregator.
         
         Args:
@@ -1480,18 +1474,18 @@ class Orchestrator:
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[4]
-        
+
         # Get monolith from config
         monolith = config.get("monolith")
         if not monolith:
             logger.error("No monolith in config for dimension aggregation")
             return []
-        
+
         # Initialize dimension aggregator
         aggregator = DimensionAggregator(monolith, abort_on_insufficient=False)
-        
+
         # Convert ScoredMicroQuestion to ScoredResult
-        converted_results: List[ScoredResult] = []
+        converted_results: list[ScoredResult] = []
         for item in scored_results:
             if item.score is None or item.metadata is None:
                 continue
@@ -1507,22 +1501,22 @@ class Orchestrator:
                     raw_results=item.scoring_details,
                 )
             )
-        
+
         # Group by dimension and area
-        dimension_map: Dict[Tuple[str, str], List[ScoredResult]] = {}
+        dimension_map: dict[tuple[str, str], list[ScoredResult]] = {}
         for result in converted_results:
             key = (result.dimension, result.policy_area)
             dimension_map.setdefault(key, []).append(result)
-        
+
         instrumentation.items_total = len(dimension_map)
-        dimension_scores: List[DimensionScore] = []
-        
+        dimension_scores: list[DimensionScore] = []
+
         # Aggregate each dimension
         for (dimension_id, area_id), items in dimension_map.items():
             self._ensure_not_aborted()
             await asyncio.sleep(0)
             start = time.perf_counter()
-            
+
             try:
                 dim_score = aggregator.aggregate_dimension(
                     dimension_id=dimension_id,
@@ -1533,16 +1527,16 @@ class Orchestrator:
                 dimension_scores.append(dim_score)
             except Exception as e:
                 logger.error(f"Failed to aggregate dimension {dimension_id}/{area_id}: {e}")
-            
+
             instrumentation.increment(latency=time.perf_counter() - start)
-        
+
         return dimension_scores
 
     async def _aggregate_policy_areas_async(
             self,
-            dimension_scores: List[DimensionScore],
-            config: Dict[str, Any],
-    ) -> List[AreaScore]:
+            dimension_scores: list[DimensionScore],
+            config: dict[str, Any],
+    ) -> list[AreaScore]:
         """Aggregate dimension scores into policy area scores using AreaPolicyAggregator.
         
         Args:
@@ -1554,32 +1548,32 @@ class Orchestrator:
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[5]
-        
+
         # Get monolith from config
         monolith = config.get("monolith")
         if not monolith:
             logger.error("No monolith in config for area aggregation")
             return []
-        
+
         # Initialize area aggregator
         aggregator = AreaPolicyAggregator(monolith, abort_on_insufficient=False)
-        
+
         # Group dimension scores by area
-        areas: Dict[str, List[DimensionScore]] = {}
+        areas: dict[str, list[DimensionScore]] = {}
         for score in dimension_scores:
             area_id = score.area_id
             if area_id:
                 areas.setdefault(area_id, []).append(score)
-        
+
         instrumentation.items_total = len(areas)
-        area_scores: List[AreaScore] = []
-        
+        area_scores: list[AreaScore] = []
+
         # Aggregate each area
         for area_id, scores in areas.items():
             self._ensure_not_aborted()
             await asyncio.sleep(0)
             start = time.perf_counter()
-            
+
             try:
                 area_score = aggregator.aggregate_area(
                     area_id=area_id,
@@ -1588,16 +1582,16 @@ class Orchestrator:
                 area_scores.append(area_score)
             except Exception as e:
                 logger.error(f"Failed to aggregate area {area_id}: {e}")
-            
+
             instrumentation.increment(latency=time.perf_counter() - start)
-        
+
         return area_scores
 
     def _aggregate_clusters(
             self,
-            policy_area_scores: List[AreaScore],
-            config: Dict[str, Any],
-    ) -> List[ClusterScore]:
+            policy_area_scores: list[AreaScore],
+            config: dict[str, Any],
+    ) -> list[ClusterScore]:
         """Aggregate policy area scores into cluster scores using ClusterAggregator.
         
         Args:
@@ -1609,28 +1603,28 @@ class Orchestrator:
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[6]
-        
+
         # Get monolith from config
         monolith = config.get("monolith")
         if not monolith:
             logger.error("No monolith in config for cluster aggregation")
             return []
-        
+
         # Initialize cluster aggregator
         aggregator = ClusterAggregator(monolith, abort_on_insufficient=False)
-        
+
         # Get cluster definitions from monolith
         clusters = monolith["blocks"]["niveles_abstraccion"]["clusters"]
-        
+
         instrumentation.items_total = len(clusters)
-        cluster_scores: List[ClusterScore] = []
-        
+        cluster_scores: list[ClusterScore] = []
+
         # Aggregate each cluster
         for cluster_def in clusters:
             self._ensure_not_aborted()
             start = time.perf_counter()
             cluster_id = cluster_def["cluster_id"]
-            
+
             try:
                 cluster_score = aggregator.aggregate_cluster(
                     cluster_id=cluster_id,
@@ -1640,12 +1634,12 @@ class Orchestrator:
                 cluster_scores.append(cluster_score)
             except Exception as e:
                 logger.error(f"Failed to aggregate cluster {cluster_id}: {e}")
-            
+
             instrumentation.increment(latency=time.perf_counter() - start)
-        
+
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: List[ClusterScore], config: Dict[str, Any]) -> MacroScore:
+    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScore:
         """Evaluate macro level using MacroAggregator.
         
         Args:
@@ -1658,7 +1652,7 @@ class Orchestrator:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
         start = time.perf_counter()
-        
+
         # Get monolith from config
         monolith = config.get("monolith")
         if not monolith:
@@ -1673,19 +1667,19 @@ class Orchestrator:
                 validation_passed=False,
                 validation_details={"error": "No monolith", "type": "config"}
             )
-        
+
         # Initialize macro aggregator
         aggregator = MacroAggregator(monolith, abort_on_insufficient=False)
-        
+
         # Extract area_scores and dimension_scores from cluster_scores
-        area_scores: List[AreaScore] = []
-        dimension_scores: List[DimensionScore] = []
-        
+        area_scores: list[AreaScore] = []
+        dimension_scores: list[DimensionScore] = []
+
         for cluster in cluster_scores:
             area_scores.extend(cluster.area_scores)
             for area in cluster.area_scores:
                 dimension_scores.extend(area.dimension_scores)
-        
+
         # Remove duplicates (in case areas appear in multiple clusters)
         seen_areas = set()
         unique_areas = []
@@ -1693,7 +1687,7 @@ class Orchestrator:
             if area.area_id not in seen_areas:
                 seen_areas.add(area.area_id)
                 unique_areas.append(area)
-        
+
         seen_dims = set()
         unique_dims = []
         for dim in dimension_scores:
@@ -1701,7 +1695,7 @@ class Orchestrator:
             if key not in seen_dims:
                 seen_dims.add(key)
                 unique_dims.append(dim)
-        
+
         # Evaluate macro
         try:
             macro_score = aggregator.evaluate_macro(
@@ -1721,7 +1715,7 @@ class Orchestrator:
                 validation_passed=False,
                 validation_details={"error": str(e), "type": "exception"}
             )
-        
+
         instrumentation.increment(latency=time.perf_counter() - start)
         # macro_score is already normalized to 0-1 range from averaging cluster scores
         macro_score_normalized = macro_score
@@ -1734,9 +1728,9 @@ class Orchestrator:
 
     async def _generate_recommendations(
             self,
-            macro_result: Dict[str, Any],
-            config: Dict[str, Any],
-    ) -> Dict[str, Any]:
+            macro_result: dict[str, Any],
+            config: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Generate recommendations at MICRO, MESO, and MACRO levels using RecommendationEngine.
         
@@ -1774,11 +1768,11 @@ class Orchestrator:
             # ========================================================================
             # MICRO LEVEL: Transform scored results to PA-DIM scores
             # ========================================================================
-            micro_scores: Dict[str, float] = {}
+            micro_scores: dict[str, float] = {}
             scored_results = self._context.get('scored_results', [])
 
             # Group by policy area and dimension to calculate average scores
-            pa_dim_groups: Dict[str, List[float]] = {}
+            pa_dim_groups: dict[str, list[float]] = {}
             for result in scored_results:
                 if hasattr(result, 'metadata') and result.metadata:
                     pa_id = result.metadata.get('policy_area_id')
@@ -1801,7 +1795,7 @@ class Orchestrator:
             # ========================================================================
             # MESO LEVEL: Transform cluster scores
             # ========================================================================
-            cluster_data: Dict[str, Any] = {}
+            cluster_data: dict[str, Any] = {}
             cluster_scores = self._context.get('cluster_scores', [])
 
             for cluster in cluster_scores:
@@ -1950,7 +1944,7 @@ class Orchestrator:
         instrumentation.increment(latency=time.perf_counter() - start)
         return recommendations
 
-    def _assemble_report(self, recommendations: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    def _assemble_report(self, recommendations: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[9]
         start = time.perf_counter()
@@ -1967,7 +1961,7 @@ class Orchestrator:
         instrumentation.increment(latency=time.perf_counter() - start)
         return report
 
-    async def _format_and_export(self, report: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _format_and_export(self, report: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[10]
         start = time.perf_counter()

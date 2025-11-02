@@ -9,7 +9,7 @@ This module contains fixes for three critical runtime errors:
 These fixes are applied defensively to prevent crashes in production.
 """
 
-from typing import Any, List, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import numpy as np
@@ -24,7 +24,7 @@ except ImportError:
     HAS_NUMPY = False
 
 
-def ensure_list_return(value: Any) -> List[Any]:
+def ensure_list_return(value: Any) -> list[Any]:
     """
     Ensure a value is a list, converting bool/None to empty list.
     
@@ -62,18 +62,18 @@ def safe_text_extract(obj: Any) -> str:
     # If it's already a string, return it
     if isinstance(obj, str):
         return obj
-    
+
     # If it has a .text attribute, extract it
     if hasattr(obj, 'text'):
-        text_value = getattr(obj, 'text')
+        text_value = obj.text
         if isinstance(text_value, str):
             return text_value
-    
+
     # Fallback: convert to string
     return str(obj)
 
 
-def safe_weighted_multiply(items: Union[List[float], NumpyArray], weight: float) -> Union[List[float], NumpyArray]:
+def safe_weighted_multiply(items: list[float] | NumpyArray, weight: float) -> list[float] | NumpyArray:
     """
     Safely multiply a list or array by a weight.
     
@@ -91,11 +91,11 @@ def safe_weighted_multiply(items: Union[List[float], NumpyArray], weight: float)
         import numpy as np  # Import here for runtime use
         if isinstance(items, np.ndarray):
             return items * weight
-    
+
     # If it's a list, use list comprehension
     if isinstance(items, list):
         return [item * weight for item in items]
-    
+
     # If it's something else iterable, convert and multiply
     try:
         return [item * weight for item in items]
@@ -104,7 +104,7 @@ def safe_weighted_multiply(items: Union[List[float], NumpyArray], weight: float)
         return []
 
 
-def safe_list_iteration(value: Any) -> List[Any]:
+def safe_list_iteration(value: Any) -> list[Any]:
     """
     Ensure a value can be safely iterated over.
     
@@ -120,19 +120,19 @@ def safe_list_iteration(value: Any) -> List[Any]:
     # Reject booleans explicitly
     if isinstance(value, bool):
         return []
-    
+
     # Handle None
     if value is None:
         return []
-    
+
     # If it's already a list, return it
     if isinstance(value, list):
         return value
-    
+
     # If it's a string, don't iterate over characters - return as single item
     if isinstance(value, str):
         return [value]
-    
+
     # Try to convert to list
     try:
         return list(value)

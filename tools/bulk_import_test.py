@@ -2,32 +2,33 @@
 """
 Bulk import test - verifies all modules can be imported
 """
-import sys
 import importlib
+import sys
 from pathlib import Path
+
 
 def main():
     """Test importing all modules in the package."""
     errors = []
     success = []
-    
+
     # Add src to path
     sys.path.insert(0, 'src')
-    
+
     # Find all Python modules
     src_path = Path('src/saaaaaa')
     if not src_path.exists():
         print(f"Error: {src_path} does not exist")
         sys.exit(1)
-    
+
     for py_file in src_path.rglob('*.py'):
         if py_file.name == '__init__.py':
             continue
-        
+
         # Convert path to module name
         rel_path = py_file.relative_to('src')
         module_name = str(rel_path.with_suffix('')).replace('/', '.')
-        
+
         try:
             importlib.import_module(module_name)
             success.append(module_name)
@@ -35,11 +36,11 @@ def main():
         except Exception as e:
             errors.append((module_name, str(e)))
             print(f'✗ {module_name}: {e}')
-    
-    print(f'\n=== Bulk Import Results ===')
+
+    print('\n=== Bulk Import Results ===')
     print(f'Success: {len(success)} modules')
     print(f'Errors: {len(errors)} modules')
-    
+
     if errors:
         print('\nFailed imports:')
         for module, error in errors[:10]:  # Show first 10

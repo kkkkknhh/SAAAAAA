@@ -8,11 +8,11 @@ the Ports and Adapters (Hexagonal Architecture) pattern.
 All file I/O for the analysis package should be handled through this factory.
 """
 
-from pathlib import Path
-from typing import Dict, Any, Union, List
-import json
 import csv
+import json
 import logging
+from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # JSON I/O OPERATIONS
 # ============================================================================
 
-def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
+def load_json(file_path: str | Path) -> dict[str, Any]:
     """
     Load JSON data from file.
     
@@ -56,18 +56,18 @@ def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
         json.JSONDecodeError: If file contains invalid JSON
     """
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    
-    with open(file_path, "r", encoding="utf-8") as f:
+
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
-    
+
     logger.info(f"Loaded JSON from {file_path}")
     return data
 
 
-def save_json(data: Dict[str, Any], file_path: Union[str, Path], indent: int = 2) -> None:
+def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
     
@@ -78,10 +78,10 @@ def save_json(data: Dict[str, Any], file_path: Union[str, Path], indent: int = 2
     """
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=indent)
-    
+
     logger.info(f"Saved JSON to {file_path}")
 
 
@@ -89,7 +89,7 @@ def save_json(data: Dict[str, Any], file_path: Union[str, Path], indent: int = 2
 # YAML I/O OPERATIONS
 # ============================================================================
 
-def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
+def load_yaml(file_path: str | Path) -> dict[str, Any]:
     """
     Load YAML data from file.
     
@@ -105,15 +105,15 @@ def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
     """
     if yaml is None:
         raise ImportError("PyYAML is required for YAML operations. Install with: pip install pyyaml")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    
-    with open(file_path, "r", encoding="utf-8") as f:
+
+    with open(file_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    
+
     logger.info(f"Loaded YAML from {file_path}")
     return data
 
@@ -122,7 +122,7 @@ def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
 # TEXT FILE I/O OPERATIONS
 # ============================================================================
 
-def read_text_file(file_path: Union[str, Path]) -> str:
+def read_text_file(file_path: str | Path) -> str:
     """
     Read text file with UTF-8 encoding.
     
@@ -136,18 +136,18 @@ def read_text_file(file_path: Union[str, Path]) -> str:
         FileNotFoundError: If file doesn't exist
     """
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    
-    with open(file_path, "r", encoding="utf-8") as f:
+
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
-    
+
     logger.debug(f"Read {len(content)} characters from {file_path}")
     return content
 
 
-def write_text_file(content: str, file_path: Union[str, Path]) -> None:
+def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
     
@@ -157,10 +157,10 @@ def write_text_file(content: str, file_path: Union[str, Path]) -> None:
     """
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
-    
+
     logger.info(f"Written {len(content)} characters to {file_path}")
 
 
@@ -168,7 +168,7 @@ def write_text_file(content: str, file_path: Union[str, Path]) -> None:
 # CSV I/O OPERATIONS
 # ============================================================================
 
-def write_csv(rows: List[List[Any]], file_path: Union[str, Path], headers: List[str] = None) -> None:
+def write_csv(rows: list[list[Any]], file_path: str | Path, headers: list[str] = None) -> None:
     """
     Write data to CSV file.
     
@@ -179,15 +179,15 @@ def write_csv(rows: List[List[Any]], file_path: Union[str, Path], headers: List[
     """
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(file_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        
+
         if headers:
             writer.writerow(headers)
-        
+
         writer.writerows(rows)
-    
+
     logger.info(f"Written {len(rows)} rows to CSV {file_path}")
 
 
@@ -195,7 +195,7 @@ def write_csv(rows: List[List[Any]], file_path: Union[str, Path], headers: List[
 # PDF OPERATIONS
 # ============================================================================
 
-def open_pdf_with_fitz(file_path: Union[str, Path]):
+def open_pdf_with_fitz(file_path: str | Path):
     """
     Open a PDF file using PyMuPDF (fitz).
     
@@ -211,16 +211,16 @@ def open_pdf_with_fitz(file_path: Union[str, Path]):
     """
     if fitz is None:
         raise ImportError("PyMuPDF (fitz) is required. Install with: pip install PyMuPDF")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"PDF file not found: {file_path}")
-    
+
     return fitz.open(file_path)
 
 
-def open_pdf_with_pdfplumber(file_path: Union[str, Path]):
+def open_pdf_with_pdfplumber(file_path: str | Path):
     """
     Open a PDF file using pdfplumber.
     
@@ -236,12 +236,12 @@ def open_pdf_with_pdfplumber(file_path: Union[str, Path]):
     """
     if pdfplumber is None:
         raise ImportError("pdfplumber is required. Install with: pip install pdfplumber")
-    
+
     file_path = Path(file_path)
-    
+
     if not file_path.exists():
         raise FileNotFoundError(f"PDF file not found: {file_path}")
-    
+
     return pdfplumber.open(file_path)
 
 
@@ -265,7 +265,7 @@ def load_spacy_model(model_name: str):
     """
     if spacy is None:
         raise ImportError("spaCy is required. Install with: pip install spacy")
-    
+
     try:
         nlp = spacy.load(model_name)
         logger.info(f"Loaded spaCy model: {model_name}")

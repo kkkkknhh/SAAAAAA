@@ -3,8 +3,8 @@
 Strategic file validation helper script.
 Validates syntax and provenance for strategic files listed in config/strategic_files.txt.
 """
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -23,7 +23,7 @@ def read_strategic_files(config_path: str = "config/strategic_files.txt") -> lis
 def validate_python_syntax(files: list[str]) -> int:
     """Validate Python syntax for all strategic files."""
     print("=== Validating Python syntax for all strategic files ===")
-    
+
     failed = []
     for file_path in files:
         if Path(file_path).exists():
@@ -38,7 +38,7 @@ def validate_python_syntax(files: list[str]) -> int:
                 print(f"✓ {file_path}")
         else:
             print(f"⚠️  {file_path} - file not found (skipping)")
-    
+
     if failed:
         print(f"\n❌ {len(failed)} file(s) failed syntax validation")
         return 1
@@ -50,21 +50,21 @@ def validate_python_syntax(files: list[str]) -> int:
 def check_provenance(files: list[str], provenance_file: str = "provenance.csv") -> int:
     """Check that all strategic files are tracked in provenance.csv."""
     print(f"\n=== Verifying provenance tracking in {provenance_file} ===")
-    
+
     if not Path(provenance_file).exists():
         print(f"❌ ERROR: {provenance_file} not found")
         return 1
-    
+
     with open(provenance_file) as f:
         provenance_content = f.read()
-    
+
     missing_files = []
     for file_path in files:
         # Extract just the filename for checking
         filename = Path(file_path).name
         if filename not in provenance_content:
             missing_files.append(file_path)
-    
+
     if not missing_files:
         print(f"✓ All {len(files)} strategic files tracked in {provenance_file}")
         return 0
@@ -84,28 +84,28 @@ def main():
         print("  provenance  - Check provenance tracking")
         print("  all         - Run all validations")
         sys.exit(1)
-    
+
     command = sys.argv[1]
-    
+
     try:
         files = read_strategic_files()
         print(f"Loaded {len(files)} strategic files from config\n")
     except FileNotFoundError:
         print("ERROR: config/strategic_files.txt not found")
         sys.exit(1)
-    
+
     if command == "syntax":
         sys.exit(validate_python_syntax(files))
-    
+
     elif command == "provenance":
         sys.exit(check_provenance(files))
-    
+
     elif command == "all":
         exit_code = 0
         exit_code |= validate_python_syntax(files)
         exit_code |= check_provenance(files)
         sys.exit(exit_code)
-    
+
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)

@@ -7,7 +7,7 @@ For testing, use InMemoryFileAdapter instead.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class LocalFileAdapter:
@@ -57,7 +57,7 @@ class JsonAdapter:
         """Parse JSON from string."""
         return json.loads(text)
 
-    def dumps(self, obj: Any, indent: Optional[int] = None) -> str:
+    def dumps(self, obj: Any, indent: int | None = None) -> str:
         """Serialize object to JSON string."""
         if indent is not None:
             return json.dumps(obj, indent=indent, ensure_ascii=False, default=str)
@@ -109,7 +109,7 @@ class InMemoryFileAdapter:
         if path in self._dirs and not exist_ok:
             raise FileExistsError(f"Directory already exists: {path}")
         self._dirs.add(path)
-        
+
         if parents:
             # Add all parent directories
             parts = Path(path).parts

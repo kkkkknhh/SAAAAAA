@@ -1,5 +1,6 @@
 """Compatibility wrapper for the refactored contracts module."""
 from saaaaaa.utils.contracts import (  # noqa: F401
+    MISSING,
     AnalysisInputV1,
     AnalysisInputV1Optional,
     AnalysisOutputV1,
@@ -11,7 +12,6 @@ from saaaaaa.utils.contracts import (  # noqa: F401
     DocumentMetadataV1Optional,
     ExecutionContextV1,
     ExecutionContextV1Optional,
-    MISSING,
     ProcessedTextV1,
     ProcessedTextV1Optional,
     SentenceCollection,

@@ -20,13 +20,13 @@ with the rest of the analytics toolbox.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import reduce
 from statistics import fmean, pstdev
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 
-def _to_float_sequence(values: Iterable[float]) -> List[float]:
+def _to_float_sequence(values: Iterable[float]) -> list[float]:
     return [float(v) for v in values]
 
 
@@ -83,7 +83,7 @@ def _gini(values: Iterable[float]) -> float:
     return float(gini)
 
 
-def _tukey_bounds(p25: float, p75: float) -> Tuple[float, float]:
+def _tukey_bounds(p25: float, p75: float) -> tuple[float, float]:
     lower_quartile, upper_quartile = sorted((float(p25), float(p75)))
     iqr = upper_quartile - lower_quartile
     return (lower_quartile - 1.5 * iqr, upper_quartile + 1.5 * iqr)
@@ -93,7 +93,7 @@ def analyze_policy_dispersion(
     policy_area_scores: Mapping[str, float],
     peer_dispersion_stats: Mapping[str, float],
     thresholds: Mapping[str, float],
-) -> Tuple[Dict[str, object], str]:
+) -> tuple[dict[str, object], str]:
     """Evaluate intra-cluster dispersion and recommend a penalty.
 
     Parameters
@@ -144,12 +144,12 @@ def analyze_policy_dispersion(
         3: "Crítico",
     }[severity]
 
-    penalty_components: List[float] = []
+    penalty_components: list[float] = []
     if cv_fail:
         penalty_components.append(min(cv / cv_fail, 1.5))
     if gap_fail:
         penalty_components.append(min(max_gap / gap_fail, 1.5))
-    peer_signal: List[float] = []
+    peer_signal: list[float] = []
     if peer_cv:
         peer_signal.append(min(cv / peer_cv, 2.0))
     if peer_gap:
@@ -208,7 +208,7 @@ class MetricViolation:
     entity_misalignment: bool = False
     out_of_range: bool = False
 
-    def to_flag_dict(self) -> Dict[str, object]:
+    def to_flag_dict(self) -> dict[str, object]:
         return {
             "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
@@ -223,7 +223,7 @@ def _convert_unit(
     from_unit: str,
     to_unit: str,
     crosswalk: Mapping[str, Mapping[str, float]],
-) -> Tuple[float, str]:
+) -> tuple[float, str]:
     if from_unit == to_unit:
         return value, to_unit
     conversions = crosswalk.get(from_unit, {})
@@ -236,14 +236,14 @@ def _convert_unit(
 def reconcile_cross_metrics(
     aggregated_metrics: Iterable[Mapping[str, object]],
     macro_json: Mapping[str, object],
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Validate heterogeneous metrics against an authoritative macro source."""
 
     reference: Mapping[str, Mapping[str, object]] = macro_json.get("metrics", {})  # type: ignore[assignment]
     crosswalk: Mapping[str, Mapping[str, float]] = macro_json.get("unit_crosswalk", {})  # type: ignore[assignment]
 
-    validated_metrics: List[Dict[str, object]] = []
-    violations: List[Dict[str, object]] = []
+    validated_metrics: list[dict[str, object]] = []
+    violations: list[dict[str, object]] = []
 
     for metric in aggregated_metrics:
         metric_id = str(metric.get("metric_id"))
@@ -318,9 +318,9 @@ def reconcile_cross_metrics(
 
 def compose_cluster_posterior(
     micro_posteriors: Iterable[float],
-    weighting_trace: Optional[Iterable[float]] = None,
-    reconciliation_penalties: Optional[Mapping[str, float]] = None,
-) -> Tuple[Dict[str, object], str]:
+    weighting_trace: Iterable[float] | None = None,
+    reconciliation_penalties: Mapping[str, float] | None = None,
+) -> tuple[dict[str, object], str]:
     """Combine micro posteriors and reconciliation penalties into a cluster view."""
 
     posts = _to_float_sequence(micro_posteriors)
@@ -389,11 +389,11 @@ def compose_cluster_posterior(
 def calibrate_against_peers(
     policy_area_scores: Mapping[str, float],
     peer_context: Mapping[str, Mapping[str, float]],
-) -> Tuple[Dict[str, object], str]:
+) -> tuple[dict[str, object], str]:
     """Compare cluster scores against peer medians and inter-quartile ranges."""
 
-    area_positions: Dict[str, str] = {}
-    outliers: Dict[str, bool] = {}
+    area_positions: dict[str, str] = {}
+    outliers: dict[str, bool] = {}
     dispersion_values = _to_float_sequence(policy_area_scores.values())
     if dispersion_values:
         cluster_mean = _safe_mean(dispersion_values)

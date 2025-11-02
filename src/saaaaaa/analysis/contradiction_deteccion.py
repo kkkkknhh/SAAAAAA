@@ -16,27 +16,22 @@ Innovations:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Protocol
+from typing import Any
 
+import networkx as nx
 import numpy as np
-import pandas as pd
+import torch
 from scipy import stats
 from scipy.spatial.distance import cosine
-from scipy.stats import beta, chi2_contingency, ks_2samp
+from scipy.stats import beta
+from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import networkx as nx
-from sentence_transformers import SentenceTransformer, util
-import spacy
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-import torch
+from transformers import pipeline
 
 # Import runtime error fixes for defensive programming
 from saaaaaa.utils.runtime_error_fixes import ensure_list_return, safe_text_extract
@@ -76,14 +71,14 @@ class PolicyStatement:
     """Representación estructurada de una declaración de política"""
     text: str
     dimension: PolicyDimension
-    position: Tuple[int, int]  # (start, end) in document
-    entities: List[str] = field(default_factory=list)
-    temporal_markers: List[str] = field(default_factory=list)
-    quantitative_claims: List[Dict[str, Any]] = field(default_factory=list)
-    embedding: Optional[np.ndarray] = None
+    position: tuple[int, int]  # (start, end) in document
+    entities: list[str] = field(default_factory=list)
+    temporal_markers: list[str] = field(default_factory=list)
+    quantitative_claims: list[dict[str, Any]] = field(default_factory=list)
+    embedding: np.ndarray | None = None
     context_window: str = ""
-    semantic_role: Optional[str] = None
-    dependencies: Set[str] = field(default_factory=set)
+    semantic_role: str | None = None
+    dependencies: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -97,11 +92,11 @@ class ContradictionEvidence:
     semantic_similarity: float
     logical_conflict_score: float
     temporal_consistency: bool
-    numerical_divergence: Optional[float]
-    affected_dimensions: List[PolicyDimension]
-    resolution_suggestions: List[str]
-    graph_path: Optional[List[str]] = None
-    statistical_significance: Optional[float] = None
+    numerical_divergence: float | None
+    affected_dimensions: list[PolicyDimension]
+    resolution_suggestions: list[str]
+    graph_path: list[str] | None = None
+    statistical_significance: float | None = None
 
 
 class BayesianConfidenceCalculator:
@@ -155,8 +150,8 @@ class TemporalLogicVerifier:
 
     def verify_temporal_consistency(
             self,
-            statements: List[PolicyStatement]
-    ) -> Tuple[bool, List[Dict[str, Any]]]:
+            statements: list[PolicyStatement]
+    ) -> tuple[bool, list[dict[str, Any]]]:
         """
         Verifica consistencia temporal entre declaraciones
 
@@ -182,7 +177,7 @@ class TemporalLogicVerifier:
 
         return len(conflicts) == 0, conflicts
 
-    def _build_timeline(self, statements: List[PolicyStatement]) -> List[Dict]:
+    def _build_timeline(self, statements: list[PolicyStatement]) -> list[dict]:
         """Construye línea temporal a partir de declaraciones"""
         timeline = []
         for stmt in statements:
@@ -196,7 +191,7 @@ class TemporalLogicVerifier:
                 })
         return sorted(timeline, key=lambda x: x.get('timestamp', 0))
 
-    def _parse_temporal_marker(self, marker: str) -> Optional[int]:
+    def _parse_temporal_marker(self, marker: str) -> int | None:
         """Parsea marcador temporal a timestamp numérico"""
         # Implementación específica para formato colombiano
         year_match = re.search(r'20\d{2}', marker)
@@ -213,7 +208,7 @@ class TemporalLogicVerifier:
 
         return None
 
-    def _has_temporal_conflict(self, event_a: Dict, event_b: Dict) -> bool:
+    def _has_temporal_conflict(self, event_a: dict, event_b: dict) -> bool:
         """Detecta conflictos temporales entre eventos"""
         if event_a['timestamp'] and event_b['timestamp']:
             # Verificar si eventos mutuamente excluyentes ocurren simultáneamente
@@ -236,7 +231,7 @@ class TemporalLogicVerifier:
 
         return len(resources_a & resources_b) > 0
 
-    def _extract_resources(self, text: str) -> List[str]:
+    def _extract_resources(self, text: str) -> list[str]:
         """Extrae recursos mencionados en el texto"""
         resource_patterns = [
             r'presupuesto',
@@ -251,7 +246,7 @@ class TemporalLogicVerifier:
             resources.extend(matches)
         return resources
 
-    def _check_deadline_constraints(self, timeline: List[Dict]) -> List[Dict]:
+    def _check_deadline_constraints(self, timeline: list[dict]) -> list[dict]:
         """Verifica violaciones de restricciones de plazo"""
         violations = []
         for event in timeline:
@@ -355,7 +350,7 @@ class PolicyContradictionDetector:
             text: str,
             plan_name: str = "PDM",
             dimension: PolicyDimension = PolicyDimension.ESTRATEGICO
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Detecta contradicciones con análisis multi-dimensional avanzado
 
@@ -424,7 +419,7 @@ class PolicyContradictionDetector:
             self,
             text: str,
             dimension: PolicyDimension
-    ) -> List[PolicyStatement]:
+    ) -> list[PolicyStatement]:
         """Extrae declaraciones de política estructuradas del texto"""
         doc = self.nlp(text)
         statements = []
@@ -463,8 +458,8 @@ class PolicyContradictionDetector:
 
     def _generate_embeddings(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[PolicyStatement]:
+            statements: list[PolicyStatement]
+    ) -> list[PolicyStatement]:
         """Genera embeddings semánticos para las declaraciones"""
         texts = [stmt.text for stmt in statements]
         embeddings = self.semantic_model.encode(texts, convert_to_numpy=True)
@@ -488,7 +483,7 @@ class PolicyContradictionDetector:
 
         return enhanced_statements
 
-    def _build_knowledge_graph(self, statements: List[PolicyStatement]):
+    def _build_knowledge_graph(self, statements: list[PolicyStatement]):
         """Construye grafo de conocimiento para razonamiento"""
         self.knowledge_graph.clear()
 
@@ -516,8 +511,8 @@ class PolicyContradictionDetector:
 
     def _detect_semantic_contradictions(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[ContradictionEvidence]:
+            statements: list[PolicyStatement]
+    ) -> list[ContradictionEvidence]:
         """Detecta contradicciones semánticas usando transformers"""
         contradictions = []
 
@@ -560,8 +555,8 @@ class PolicyContradictionDetector:
 
     def _detect_numerical_inconsistencies(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[ContradictionEvidence]:
+            statements: list[PolicyStatement]
+    ) -> list[ContradictionEvidence]:
         """Detecta inconsistencias numéricas con análisis estadístico"""
         contradictions = []
 
@@ -612,8 +607,8 @@ class PolicyContradictionDetector:
 
     def _detect_temporal_conflicts(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[ContradictionEvidence]:
+            statements: list[PolicyStatement]
+    ) -> list[ContradictionEvidence]:
         """Detecta conflictos temporales usando verificación lógica"""
         contradictions = []
 
@@ -656,8 +651,8 @@ class PolicyContradictionDetector:
 
     def _detect_logical_incompatibilities(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[ContradictionEvidence]:
+            statements: list[PolicyStatement]
+    ) -> list[ContradictionEvidence]:
         """Detecta incompatibilidades lógicas usando razonamiento en grafo"""
         contradictions = []
 
@@ -709,8 +704,8 @@ class PolicyContradictionDetector:
 
     def _detect_resource_conflicts(
             self,
-            statements: List[PolicyStatement]
-    ) -> List[ContradictionEvidence]:
+            statements: list[PolicyStatement]
+    ) -> list[ContradictionEvidence]:
         """Detecta conflictos en asignación de recursos"""
         contradictions = []
         resource_allocations = {}
@@ -764,10 +759,10 @@ class PolicyContradictionDetector:
 
     def _calculate_coherence_metrics(
             self,
-            contradictions: List[ContradictionEvidence],
-            statements: List[PolicyStatement],
+            contradictions: list[ContradictionEvidence],
+            statements: list[PolicyStatement],
             text: str
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Calcula métricas avanzadas de coherencia del documento"""
 
         # Densidad de contradicciones normalizada
@@ -821,7 +816,7 @@ class PolicyContradictionDetector:
 
     def _calculate_global_semantic_coherence(
             self,
-            statements: List[PolicyStatement]
+            statements: list[PolicyStatement]
     ) -> float:
         """Calcula coherencia semántica global usando embeddings"""
         if len(statements) < 2:
@@ -849,7 +844,7 @@ class PolicyContradictionDetector:
 
     def _calculate_objective_alignment(
             self,
-            statements: List[PolicyStatement]
+            statements: list[PolicyStatement]
     ) -> float:
         """Calcula alineación entre objetivos declarados"""
         objective_statements = [
@@ -889,7 +884,7 @@ class PolicyContradictionDetector:
 
     def _calculate_contradiction_entropy(
             self,
-            contradictions: List[ContradictionEvidence]
+            contradictions: list[ContradictionEvidence]
     ) -> float:
         """Calcula entropía de distribución de tipos de contradicción"""
         if not contradictions:
@@ -955,7 +950,7 @@ class PolicyContradictionDetector:
             self,
             score: float,
             n_observations: int
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Calcula intervalo de confianza del 95% para el score"""
         # Usar distribución t de Student para muestras pequeñas
         if n_observations < 30:
@@ -976,8 +971,8 @@ class PolicyContradictionDetector:
 
     def _generate_resolution_recommendations(
             self,
-            contradictions: List[ContradictionEvidence]
-    ) -> List[Dict[str, Any]]:
+            contradictions: list[ContradictionEvidence]
+    ) -> list[dict[str, Any]]:
         """Genera recomendaciones específicas para resolver contradicciones"""
         recommendations = []
 
@@ -1050,8 +1045,8 @@ class PolicyContradictionDetector:
 
     def _identify_affected_sections(
             self,
-            conflicts: List[ContradictionEvidence]
-    ) -> List[str]:
+            conflicts: list[ContradictionEvidence]
+    ) -> list[str]:
         """Identifica secciones del plan afectadas por contradicciones"""
         affected = set()
         for c in conflicts:
@@ -1067,7 +1062,7 @@ class PolicyContradictionDetector:
     def _serialize_contradiction(
             self,
             contradiction: ContradictionEvidence
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Serializa evidencia de contradicción para output"""
         return {
             "statement_1": contradiction.statement_a.text,
@@ -1089,7 +1084,7 @@ class PolicyContradictionDetector:
             "graph_path": contradiction.graph_path
         }
 
-    def _get_graph_statistics(self) -> Dict[str, Any]:
+    def _get_graph_statistics(self) -> dict[str, Any]:
         """Obtiene estadísticas del grafo de conocimiento"""
         if self.knowledge_graph.number_of_nodes() == 0:
             return {"nodes": 0, "edges": 0, "components": 0}
@@ -1106,7 +1101,7 @@ class PolicyContradictionDetector:
 
     # Métodos auxiliares
 
-    def _extract_temporal_markers(self, text: str) -> List[str]:
+    def _extract_temporal_markers(self, text: str) -> list[str]:
         """Extrae marcadores temporales del texto"""
         markers = []
 
@@ -1127,7 +1122,7 @@ class PolicyContradictionDetector:
 
         return markers
 
-    def _extract_quantitative_claims(self, text: str) -> List[Dict[str, Any]]:
+    def _extract_quantitative_claims(self, text: str) -> list[dict[str, Any]]:
         """Extrae afirmaciones cuantitativas estructuradas"""
         claims = []
 
@@ -1166,7 +1161,7 @@ class PolicyContradictionDetector:
         except ValueError:
             return 0.0
 
-    def _extract_resource_mentions(self, text: str) -> List[Tuple[str, Optional[float]]]:
+    def _extract_resource_mentions(self, text: str) -> list[tuple[str, float | None]]:
         """Extrae menciones de recursos con montos"""
         resources = []
 
@@ -1189,7 +1184,7 @@ class PolicyContradictionDetector:
 
         return resources
 
-    def _determine_semantic_role(self, sent) -> Optional[str]:
+    def _determine_semantic_role(self, sent) -> str | None:
         """Determina el rol semántico de una oración"""
         # Safely extract text (handles both strings and spacy objects)
         text_lower = safe_text_extract(sent).lower()
@@ -1209,7 +1204,7 @@ class PolicyContradictionDetector:
 
         return None
 
-    def _identify_dependencies(self, sent, doc) -> Set[str]:
+    def _identify_dependencies(self, sent, doc) -> set[str]:
         """Identifica dependencias entre declaraciones"""
         dependencies = set()
 
@@ -1269,7 +1264,7 @@ class PolicyContradictionDetector:
         }
         return weights.get(dimension, 1.0)
 
-    def _suggest_resolutions(self, contradiction_type: ContradictionType) -> List[str]:
+    def _suggest_resolutions(self, contradiction_type: ContradictionType) -> list[str]:
         """Sugiere resoluciones específicas por tipo de contradicción"""
         suggestions = {
             ContradictionType.NUMERICAL_INCONSISTENCY: [
@@ -1300,7 +1295,7 @@ class PolicyContradictionDetector:
         }
         return suggestions.get(contradiction_type, ["Revisar y ajustar según contexto"])
 
-    def _are_comparable_claims(self, claim_a: Dict, claim_b: Dict) -> bool:
+    def _are_comparable_claims(self, claim_a: dict, claim_b: dict) -> bool:
         """Determina si dos afirmaciones cuantitativas son comparables"""
         # Mismo tipo y contexto similar
         if claim_a['type'] != claim_b['type']:
@@ -1334,9 +1329,9 @@ class PolicyContradictionDetector:
 
     def _calculate_numerical_divergence(
             self,
-            claim_a: Dict,
-            claim_b: Dict
-    ) -> Optional[float]:
+            claim_a: dict,
+            claim_b: dict
+    ) -> float | None:
         """Calcula divergencia entre valores numéricos"""
         value_a = claim_a.get('value', 0)
         value_b = claim_b.get('value', 0)
@@ -1354,8 +1349,8 @@ class PolicyContradictionDetector:
 
     def _statistical_significance_test(
             self,
-            claim_a: Dict,
-            claim_b: Dict
+            claim_a: dict,
+            claim_b: dict
     ) -> float:
         """Realiza test de significancia estadística"""
         value_a = claim_a.get('value', 0)
@@ -1443,11 +1438,11 @@ class PolicyContradictionDetector:
                 return "enables"
             elif stmt_a.semantic_role == "action" and stmt_b.semantic_role in ["indicator", "resource"]:
                 return "requires"
-        
+
         # Analizar dependencias
         if stmt_a.dependencies & {stmt_b.text[:50]}:
             return "depends_on"
-        
+
         # Por defecto, relación de similaridad
         return "related"
 
@@ -1458,18 +1453,18 @@ class PolicyContradictionDetector:
     ) -> float:
         """Calcula la severidad de una contradicción entre declaraciones"""
         severity = 0.5  # Base severity
-        
+
         # Incrementar si las declaraciones están en la misma dimensión
         if stmt_a.dimension == stmt_b.dimension:
             severity += 0.2
-        
+
         # Incrementar si tienen muchas entidades en común
         common_entities = set(stmt_a.entities) & set(stmt_b.entities)
         if len(common_entities) > 0:
             severity += min(0.2, len(common_entities) * 0.05)
-        
+
         # Incrementar si tienen marcadores temporales en conflicto
         if stmt_a.temporal_markers and stmt_b.temporal_markers:
             severity += 0.1
-        
+
         return min(1.0, severity)

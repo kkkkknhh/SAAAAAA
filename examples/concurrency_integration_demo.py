@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Concurrency Integration Demo - How to use WorkerPool in the Orchestrator.
 
@@ -20,7 +19,6 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Tuple
 
 from concurrency import WorkerPool, WorkerPoolConfig
 from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
@@ -37,7 +35,7 @@ class Evidence:
     """Mock evidence result."""
 
     modality: str
-    elements: Tuple[str, ...]
+    elements: tuple[str, ...]
 
 
 def process_micro_question(
@@ -63,11 +61,11 @@ def process_micro_question(
     """
     # Simulate processing time
     time.sleep(0.01)
-    
+
     # Simulate some questions failing occasionally
     if question_num % 50 == 0:
         raise ValueError(f"Question {question_num} encountered an error")
-    
+
     # Return mock evidence
     return Evidence(
         modality="TYPE_A",
@@ -89,7 +87,7 @@ def orchestrator_with_workerpool_demo():
     logger.info("=" * 70)
     logger.info("ORCHESTRATOR WITH WORKERPOOL DEMO")
     logger.info("=" * 70)
-    
+
     # Create preprocessed document (mock payload using the shared DTO)
     doc = PreprocessedDocument(
         document_id="doc_1",
@@ -103,7 +101,7 @@ def orchestrator_with_workerpool_demo():
         metadata=MappingProxyType({"source": "demo"}),
         ingested_at=datetime.utcnow(),
     )
-    
+
     # Configure WorkerPool
     config = WorkerPoolConfig(
         max_workers=50,           # Same as before
@@ -113,26 +111,26 @@ def orchestrator_with_workerpool_demo():
         backoff_max_seconds=60.0, # Cap backoff at 60s
         enable_instrumentation=True  # Enable detailed logging
     )
-    
-    logger.info(f"Creating WorkerPool with config:")
+
+    logger.info("Creating WorkerPool with config:")
     logger.info(f"  - max_workers: {config.max_workers}")
     logger.info(f"  - max_retries: {config.max_retries}")
     logger.info(f"  - task_timeout: {config.task_timeout_seconds}s")
     logger.info("")
-    
+
     # Create WorkerPool
     with WorkerPool(config) as pool:
         start_time = time.time()
-        
+
         # Submit all 300 micro questions
         logger.info("Submitting 300 micro questions to WorkerPool...")
         task_ids = []
-        
+
         for q_num in range(1, 301):
             # Map to base slot (same as before)
             base_idx = (q_num - 1) % 30
             base_slot = f"D{base_idx//5+1}-Q{base_idx%5+1}"
-            
+
             # Submit task to pool
             task_id = pool.submit_task(
                 task_name=f"Q{q_num:03d}_{base_slot}",
@@ -140,32 +138,32 @@ def orchestrator_with_workerpool_demo():
                 args=(q_num, doc, base_slot)
             )
             task_ids.append((task_id, q_num, base_slot))
-        
+
         logger.info(f"Submitted {len(task_ids)} tasks")
         logger.info("")
-        
+
         # Wait for all tasks to complete
         logger.info("Waiting for all tasks to complete...")
         results = pool.wait_for_all(timeout=600.0)  # 10 minute timeout
-        
+
         elapsed = time.time() - start_time
-        
+
         # Process results
         logger.info("")
         logger.info("=" * 70)
         logger.info("RESULTS SUMMARY")
         logger.info("=" * 70)
-        
+
         successful = [r for r in results if r.success]
         failed = [r for r in results if not r.success]
-        
+
         logger.info(f"Total tasks: {len(results)}")
         logger.info(f"Successful: {len(successful)}")
         logger.info(f"Failed: {len(failed)}")
         logger.info(f"Success rate: {len(successful)/len(results)*100:.1f}%")
         logger.info(f"Total time: {elapsed:.2f}s")
         logger.info("")
-        
+
         # Get detailed metrics
         summary = pool.get_summary_metrics()
         logger.info("DETAILED METRICS:")
@@ -175,7 +173,7 @@ def orchestrator_with_workerpool_demo():
         logger.info(f"  - Average execution time: {summary['avg_execution_time_ms']:.2f}ms")
         logger.info(f"  - Total retries used: {summary['total_retries']}")
         logger.info("")
-        
+
         # Show sample of failed tasks
         if failed:
             logger.info("SAMPLE OF FAILED TASKS:")
@@ -184,7 +182,7 @@ def orchestrator_with_workerpool_demo():
             if len(failed) > 5:
                 logger.info(f"  ... and {len(failed) - 5} more")
             logger.info("")
-        
+
         # Return results in orchestrator format
         processed_results = []
         for result in successful:
@@ -195,11 +193,11 @@ def orchestrator_with_workerpool_demo():
             )
             if q_num:
                 processed_results.append((q_num, result.result))
-        
+
         logger.info("=" * 70)
         logger.info("DEMO COMPLETED SUCCESSFULLY")
         logger.info("=" * 70)
-        
+
         return {
             'results': processed_results,
             'time': elapsed,
@@ -216,16 +214,16 @@ def orchestrator_with_abort_demo():
     logger.info("=" * 70)
     logger.info("ABORT FUNCTIONALITY DEMO")
     logger.info("=" * 70)
-    
+
     doc = PreprocessedDocument("doc_1", "mock text")
-    
+
     config = WorkerPoolConfig(
         max_workers=5,  # Low number to queue up tasks
         task_timeout_seconds=180,
         max_retries=1,
         enable_instrumentation=True
     )
-    
+
     with WorkerPool(config) as pool:
         # Submit 50 tasks (but only 5 can run at once)
         logger.info("Submitting 50 tasks (max_workers=5)...")
@@ -235,15 +233,15 @@ def orchestrator_with_abort_demo():
                 task_fn=process_micro_question,
                 args=(q_num, doc, "D1-Q1")
             )
-        
+
         # Let a few start
         time.sleep(0.2)
-        
+
         # Abort remaining tasks
         logger.info("Aborting pending tasks...")
         cancelled = pool.abort_pending_tasks()
         logger.info(f"Cancelled {cancelled} tasks")
-        
+
         # Get summary
         summary = pool.get_summary_metrics()
         logger.info("")
@@ -252,7 +250,7 @@ def orchestrator_with_abort_demo():
         logger.info(f"  - Failed: {summary['failed']}")
         logger.info(f"  - Cancelled: {summary['cancelled']}")
         logger.info("")
-        
+
         logger.info("=" * 70)
         logger.info("ABORT DEMO COMPLETED")
         logger.info("=" * 70)
@@ -265,7 +263,7 @@ def main():
     result = orchestrator_with_workerpool_demo()
     logger.info(f"Processed {len(result['results'])} questions successfully")
     logger.info("")
-    
+
     # Demo 2: Abort functionality
     logger.info("")
     orchestrator_with_abort_demo()

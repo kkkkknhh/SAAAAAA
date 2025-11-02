@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
@@ -53,20 +52,20 @@ def test_no_duplicate_return_statements():
         tree = ast.parse(source, filename=str(MODULE_PATH))
     except SyntaxError:
         pytest.fail("File has syntax errors")
-    
+
     # Find the _extract_key_excerpts method
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             if node.name == '_extract_key_excerpts':
                 # Count return statements in this function
                 returns = [n for n in ast.walk(node) if isinstance(n, ast.Return)]
-                
+
                 # Should have exactly 1 return statement
                 assert len(returns) == 1, (
                     f"_extract_key_excerpts should have exactly 1 return statement, "
                     f"found {len(returns)}. This may indicate the duplicate return bug."
                 )
-                
+
                 # Check that the return statement is a dict
                 ret_value = returns[0].value
                 assert isinstance(ret_value, ast.Name), (
@@ -81,42 +80,42 @@ def test_no_duplicate_return_statements():
 def test_extract_key_excerpts_method_structure():
     """Test the structure of _extract_key_excerpts to catch similar bugs."""
     lines = _load_source().splitlines()
-    
+
     # Look for the method definition
     method_start = None
     for i, line in enumerate(lines):
         if 'def _extract_key_excerpts(' in line:
             method_start = i
             break
-    
+
     if method_start is None:
         pytest.skip("_extract_key_excerpts method not found")
-    
+
     # Find the method end (next def or class at same/lower indentation)
     method_end = len(lines)
     base_indent = len(lines[method_start]) - len(lines[method_start].lstrip())
-    
+
     for i in range(method_start + 1, len(lines)):
         line = lines[i]
         if line.strip() and not line.strip().startswith('#'):
             indent = len(line) - len(line.lstrip())
-            if indent <= base_indent and (line.strip().startswith('def ') or 
+            if indent <= base_indent and (line.strip().startswith('def ') or
                                          line.strip().startswith('class ')):
                 method_end = i
                 break
-    
+
     method_lines = lines[method_start:method_end]
-    
+
     # Check for duplicate return statements
     return_count = sum(1 for line in method_lines if 'return excerpts' in line)
     assert return_count == 1, (
         f"Found {return_count} 'return excerpts' statements in _extract_key_excerpts. "
         f"Expected exactly 1. This may indicate the duplicate lines bug."
     )
-    
+
     # Check for duplicate list comprehension closings
     list_comp_closing_count = sum(
-        1 for line in method_lines 
+        1 for line in method_lines
         if line.strip().startswith('for c in top_chunks')
     )
     assert list_comp_closing_count == 1, (
@@ -128,7 +127,7 @@ def test_extract_key_excerpts_method_structure():
 def test_no_main_block():
     """Test that semantic_chunking_policy.py has no __main__ block."""
     source = _load_source()
-    
+
     # Simple check for __main__ block
     assert 'if __name__ == "__main__"' not in source, (
         "semantic_chunking_policy.py should not have a __main__ block"

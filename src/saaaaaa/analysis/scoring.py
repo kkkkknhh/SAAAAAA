@@ -39,8 +39,9 @@ Monolito del cuestionario líneas 34512-34607
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
+from typing import Any
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -78,33 +79,33 @@ class ScoringConfig:
     Configuración de scoring extraída del monolith.
     Líneas 34512-34607 del monolito del cuestionario
     """
-    
+
     # TYPE_A config (línea 34568)
     type_a_threshold: float = 0.7
     type_a_max_score: float = 3.0
     type_a_expected_elements: int = 4
-    
+
     # TYPE_B config (línea 34574)
     type_b_max_score: float = 3.0
     type_b_max_elements: int = 3
-    
+
     # TYPE_C config (línea 34580)
     type_c_threshold: float = 0.5
     type_c_max_score: float = 3.0
     type_c_expected_elements: int = 2
-    
+
     # TYPE_D config (línea 34586)
-    type_d_weights: List[float] = field(default_factory=lambda: [0.4, 0.3, 0.3])
+    type_d_weights: list[float] = field(default_factory=lambda: [0.4, 0.3, 0.3])
     type_d_max_score: float = 3.0
     type_d_expected_elements: int = 3
-    
+
     # TYPE_E config (línea 34596)
     type_e_max_score: float = 3.0
-    
+
     # TYPE_F config (línea 34601)
     type_f_max_score: float = 3.0
     type_f_normalization: str = "minmax"
-    
+
     # Quality levels (línea 34513)
     level_excelente_min: float = 0.85
     level_bueno_min: float = 0.70
@@ -118,11 +119,11 @@ class Evidence:
     Evidencia extraída para una pregunta.
     Producida por evaluadores en FASE 2.
     """
-    elements_found: List[str] = field(default_factory=list)
-    confidence_scores: List[float] = field(default_factory=list)
-    semantic_similarity: Optional[float] = None
-    pattern_matches: Dict[str, int] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    elements_found: list[str] = field(default_factory=list)
+    confidence_scores: list[float] = field(default_factory=list)
+    semantic_similarity: float | None = None
+    pattern_matches: dict[str, int] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -139,7 +140,7 @@ class ScoredResult:
     quality_level: QualityLevel
     quality_color: str  # "green", "blue", "yellow", "red"
     evidence: Evidence
-    scoring_details: Dict[str, Any] = field(default_factory=dict)
+    scoring_details: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================================
@@ -155,8 +156,8 @@ class MicroQuestionScorer:
     - Calcular score 0-3
     - Determinar nivel de calidad (EXCELENTE/BUENO/ACEPTABLE/INSUFICIENTE)
     """
-    
-    def __init__(self, config: Optional[ScoringConfig] = None):
+
+    def __init__(self, config: ScoringConfig | None = None):
         """
         Inicializa scorer con configuración del monolith.
         
@@ -165,12 +166,12 @@ class MicroQuestionScorer:
         """
         self.config = config or ScoringConfig()
         self.logger = logger
-    
+
     # ========================================================================
     # MÉTODO 1: SCORE TYPE_A
     # ========================================================================
-    
-    def score_type_a(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_a(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 1: TYPE_A - Count 4 elements and scale to 0-3.
         
@@ -203,10 +204,10 @@ class MicroQuestionScorer:
         expected = self.config.type_a_expected_elements
         threshold = self.config.type_a_threshold
         max_score = self.config.type_a_max_score
-        
+
         # Calcular ratio
         ratio = elements_found / expected if expected > 0 else 0.0
-        
+
         # Aplicar threshold del monolith
         if ratio >= threshold:
             # Escala proporcional: ratio * max_score
@@ -214,10 +215,10 @@ class MicroQuestionScorer:
         else:
             # Penalización: escala cuadrática para ratios bajos
             score = (ratio / threshold) * (ratio * max_score)
-        
+
         # Clip al rango [0, max_score]
         score = max(0.0, min(max_score, score))
-        
+
         details = {
             'modality': 'TYPE_A',
             'elements_found': elements_found,
@@ -228,16 +229,16 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'ratio * max_score if ratio >= threshold else penalized'
         }
-        
+
         self.logger.debug(f"TYPE_A: {elements_found}/{expected} elementos ({ratio:.2f}) → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 2: SCORE TYPE_B
     # ========================================================================
-    
-    def score_type_b(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_b(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 2: TYPE_B - Count up to 3 elements, each worth 1 point.
         
@@ -266,13 +267,13 @@ class MicroQuestionScorer:
         elements_found = len(evidence.elements_found)
         max_elements = self.config.type_b_max_elements
         max_score = self.config.type_b_max_score
-        
+
         # Binary sum: cada elemento vale 1 punto, hasta max_elements
         score = min(float(elements_found), max_elements)
-        
+
         # Asegurar que no excede max_score
         score = min(score, max_score)
-        
+
         details = {
             'modality': 'TYPE_B',
             'elements_found': elements_found,
@@ -280,16 +281,16 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'min(elements_found, 3)'
         }
-        
+
         self.logger.debug(f"TYPE_B: {elements_found} elementos → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 3: SCORE TYPE_C
     # ========================================================================
-    
-    def score_type_c(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_c(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 3: TYPE_C - Count 2 elements and scale to 0-3.
         
@@ -320,10 +321,10 @@ class MicroQuestionScorer:
         expected = self.config.type_c_expected_elements
         threshold = self.config.type_c_threshold
         max_score = self.config.type_c_max_score
-        
+
         # Calcular ratio
         ratio = elements_found / expected if expected > 0 else 0.0
-        
+
         # Aplicar threshold del monolith
         if ratio >= threshold:
             # Escala proporcional
@@ -331,10 +332,10 @@ class MicroQuestionScorer:
         else:
             # Penalización cuadrática
             score = (ratio / threshold) * (ratio * max_score)
-        
+
         # Clip al rango [0, max_score]
         score = max(0.0, min(max_score, score))
-        
+
         details = {
             'modality': 'TYPE_C',
             'elements_found': elements_found,
@@ -345,16 +346,16 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'ratio * max_score if ratio >= threshold else penalized'
         }
-        
+
         self.logger.debug(f"TYPE_C: {elements_found}/{expected} elementos ({ratio:.2f}) → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 4: SCORE TYPE_D
     # ========================================================================
-    
-    def score_type_d(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_d(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 4: TYPE_D - Count 3 elements, weighted [0.4, 0.3, 0.3].
         
@@ -387,7 +388,7 @@ class MicroQuestionScorer:
         expected = self.config.type_d_expected_elements
         weights = self.config.type_d_weights
         max_score = self.config.type_d_max_score
-        
+
         # Calcular suma ponderada
         # Asumimos que elements_found está ordenado por importancia
         # o usamos confidence_scores si están disponibles
@@ -395,20 +396,20 @@ class MicroQuestionScorer:
             # Ordenar por confidence (descendente) y aplicar pesos
             sorted_confidences = sorted(evidence.confidence_scores[:elements_found], reverse=True)
             weighted_sum = sum(
-                conf * weights[i] 
-                for i, conf in enumerate(sorted_confidences) 
+                conf * weights[i]
+                for i, conf in enumerate(sorted_confidences)
                 if i < len(weights)
             )
         else:
             # Sin confidence scores: asumir presencia binaria
             weighted_sum = sum(weights[:min(elements_found, len(weights))])
-        
+
         # Score = weighted_sum * max_score
         score = weighted_sum * max_score
-        
+
         # Clip al rango [0, max_score]
         score = max(0.0, min(max_score, score))
-        
+
         details = {
             'modality': 'TYPE_D',
             'elements_found': elements_found,
@@ -418,16 +419,16 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'weighted_sum * max_score'
         }
-        
+
         self.logger.debug(f"TYPE_D: {elements_found}/{expected} elementos, weighted_sum={weighted_sum:.2f} → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 5: SCORE TYPE_E
     # ========================================================================
-    
-    def score_type_e(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_e(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 5: TYPE_E - Boolean presence check.
         
@@ -451,17 +452,17 @@ class MicroQuestionScorer:
             Tuple de (score, details)
         """
         max_score = self.config.type_e_max_score
-        
+
         # Verificar presencia de cualquier evidencia
         has_evidence = (
             len(evidence.elements_found) > 0 or
             bool(evidence.pattern_matches) or
             (evidence.semantic_similarity is not None and evidence.semantic_similarity > 0.5)
         )
-        
+
         # Binary: todo o nada
         score = max_score if has_evidence else 0.0
-        
+
         details = {
             'modality': 'TYPE_E',
             'has_evidence': has_evidence,
@@ -471,16 +472,16 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'max_score if has_evidence else 0.0'
         }
-        
+
         self.logger.debug(f"TYPE_E: evidencia={'presente' if has_evidence else 'ausente'} → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 6: SCORE TYPE_F
     # ========================================================================
-    
-    def score_type_f(self, evidence: Evidence) -> Tuple[float, Dict[str, Any]]:
+
+    def score_type_f(self, evidence: Evidence) -> tuple[float, dict[str, Any]]:
         """
         MÉTODO 6: TYPE_F - Semantic matching with cosine similarity.
         
@@ -508,7 +509,7 @@ class MicroQuestionScorer:
             Tuple de (score, details)
         """
         max_score = self.config.type_f_max_score
-        
+
         # Obtener similarity
         if evidence.semantic_similarity is not None:
             similarity = evidence.semantic_similarity
@@ -518,13 +519,13 @@ class MicroQuestionScorer:
                 similarity = float(np.mean(evidence.confidence_scores))
             else:
                 similarity = 0.0
-        
+
         # Normalización minmax (ya está en rango 0-1)
         normalized_similarity = max(0.0, min(1.0, similarity))
-        
+
         # Score continuo
         score = normalized_similarity * max_score
-        
+
         details = {
             'modality': 'TYPE_F',
             'semantic_similarity': similarity,
@@ -532,15 +533,15 @@ class MicroQuestionScorer:
             'raw_score': score,
             'formula': 'normalized_similarity * max_score'
         }
-        
+
         self.logger.debug(f"TYPE_F: similarity={similarity:.3f} → score={score:.2f}")
-        
+
         return score, details
-    
+
     # ========================================================================
     # MÉTODO 7: APPLY SCORING MODALITY (ORQUESTADOR)
     # ========================================================================
-    
+
     def apply_scoring_modality(
         self,
         question_id: str,
@@ -563,35 +564,35 @@ class MicroQuestionScorer:
             ScoredResult con score 0-3 y nivel de calidad
         """
         self.logger.info(f"Aplicando scoring {modality.value} a {question_id}")
-        
+
         # Delegar a método específico
         if modality == ScoringModality.TYPE_A:
             raw_score, details = self.score_type_a(evidence)
-        
+
         elif modality == ScoringModality.TYPE_B:
             raw_score, details = self.score_type_b(evidence)
-        
+
         elif modality == ScoringModality.TYPE_C:
             raw_score, details = self.score_type_c(evidence)
-        
+
         elif modality == ScoringModality.TYPE_D:
             raw_score, details = self.score_type_d(evidence)
-        
+
         elif modality == ScoringModality.TYPE_E:
             raw_score, details = self.score_type_e(evidence)
-        
+
         elif modality == ScoringModality.TYPE_F:
             raw_score, details = self.score_type_f(evidence)
-        
+
         else:
             raise ValueError(f"Modalidad desconocida: {modality}")
-        
+
         # Normalizar a 0-1
         normalized_score = raw_score / 3.0
-        
+
         # Determinar nivel de calidad
         quality_level, quality_color = self.determine_quality_level(normalized_score)
-        
+
         # Construir resultado
         scored_result = ScoredResult(
             question_id=question_id,
@@ -604,19 +605,19 @@ class MicroQuestionScorer:
             evidence=evidence,
             scoring_details=details
         )
-        
+
         self.logger.info(
             f"✓ {question_id}: score={raw_score:.2f}/3.0 "
             f"({normalized_score:.2%}), nivel={quality_level.value}"
         )
-        
+
         return scored_result
-    
+
     # ========================================================================
     # MÉTODO 8: DETERMINE QUALITY LEVEL
     # ========================================================================
-    
-    def determine_quality_level(self, normalized_score: float) -> Tuple[QualityLevel, str]:
+
+    def determine_quality_level(self, normalized_score: float) -> tuple[QualityLevel, str]:
         """
         MÉTODO 8: Determina nivel de calidad según umbrales del monolith.
         
@@ -634,13 +635,13 @@ class MicroQuestionScorer:
         """
         if normalized_score >= self.config.level_excelente_min:
             return QualityLevel.EXCELENTE, "green"
-        
+
         elif normalized_score >= self.config.level_bueno_min:
             return QualityLevel.BUENO, "blue"
-        
+
         elif normalized_score >= self.config.level_aceptable_min:
             return QualityLevel.ACEPTABLE, "yellow"
-        
+
         else:
             return QualityLevel.INSUFICIENTE, "red"
 
@@ -653,7 +654,7 @@ def score_question(
     question_id: str,
     question_global: int,
     modality_str: str,
-    evidence_dict: Dict[str, Any]
+    evidence_dict: dict[str, Any]
 ) -> ScoredResult:
     """
     Función de conveniencia para scoring de una pregunta.
@@ -669,7 +670,7 @@ def score_question(
     """
     # Parsear modalidad
     modality = ScoringModality(modality_str)
-    
+
     # Construir Evidence
     evidence = Evidence(
         elements_found=evidence_dict.get('elements_found', []),
@@ -678,7 +679,7 @@ def score_question(
         pattern_matches=evidence_dict.get('pattern_matches', {}),
         metadata=evidence_dict.get('metadata', {})
     )
-    
+
     # Aplicar scoring
     scorer = MicroQuestionScorer()
     result = scorer.apply_scoring_modality(
@@ -687,7 +688,7 @@ def score_question(
         modality=modality,
         evidence=evidence
     )
-    
+
     return result
 
 

@@ -55,17 +55,16 @@ def test_import_orchestrator_package():
 def test_no_import_cycles():
     """Test that importing the package doesn't create cycles."""
     import sys
-    import importlib
-    
+
     # Clear any cached imports
     modules_to_clear = [m for m in sys.modules if m.startswith('orchestrator')]
     for mod in modules_to_clear:
         del sys.modules[mod]
-    
+
     # Import fresh
     import orchestrator
     from orchestrator import core, executors
-    
+
     # Should complete without errors
     assert orchestrator is not None
     assert core is not None
@@ -75,7 +74,7 @@ def test_no_import_cycles():
 def test_provider_boundary_guard():
     """Test that provider boundary guard restricts access."""
     from orchestrator import get_questionnaire_payload
-    
+
     # This should raise RuntimeError when called from tests (outside orchestrator package)
     with pytest.raises(RuntimeError, match="Questionnaire provider access restricted"):
         get_questionnaire_payload()
@@ -86,12 +85,12 @@ def test_provider_boundary_guard_allows_orchestrator():
     # Create a test module within orchestrator namespace
     import sys
     from types import ModuleType
-    
+
     # Mock a module inside orchestrator package
     test_module = ModuleType('orchestrator.test_internal')
     test_module.__name__ = 'orchestrator.test_internal'
     sys.modules['orchestrator.test_internal'] = test_module
-    
+
     # Define a function in that module
     code = """
 from orchestrator import get_questionnaire_payload
@@ -104,7 +103,7 @@ def internal_access():
         return None
 """
     exec(code, test_module.__dict__)
-    
+
     # This should NOT raise RuntimeError (but might raise FileNotFoundError)
     try:
         result = test_module.internal_access()
@@ -126,9 +125,9 @@ def test_orchestrator_instantiation():
     """Test that Orchestrator can be instantiated."""
     # Skip if required dependencies are missing (dereck_beach.py sys.exit(1))
     pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
-    
+
     from orchestrator import Orchestrator
-    
+
     # Should be able to create instance (might fail on file access, that's OK)
     try:
         orch = Orchestrator()
@@ -145,9 +144,9 @@ def test_orchestrator_health_check():
     """Test that health_check method works."""
     # Skip if required dependencies are missing
     pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
-    
+
     from orchestrator import Orchestrator
-    
+
     try:
         orch = Orchestrator()
         health = orch.health_check()
@@ -162,15 +161,15 @@ def test_orchestrator_health_check():
 
 def test_abort_signal():
     """Test abort signal functionality."""
-    from orchestrator import AbortSignal, AbortRequested
-    
+    from orchestrator import AbortSignal
+
     signal = AbortSignal()
     assert not signal.is_aborted()
-    
+
     signal.abort("Test abort")
     assert signal.is_aborted()
     assert signal.get_reason() == "Test abort"
-    
+
     signal.reset()
     assert not signal.is_aborted()
 
@@ -178,7 +177,7 @@ def test_abort_signal():
 def test_preprocessed_document():
     """Test PreprocessedDocument dataclass."""
     from orchestrator import PreprocessedDocument
-    
+
     doc = PreprocessedDocument(
         document_id="test_doc",
         raw_text="Test content",
@@ -186,7 +185,7 @@ def test_preprocessed_document():
         tables=[],
         metadata={"source": "test"}
     )
-    
+
     assert doc.document_id == "test_doc"
     assert doc.raw_text == "Test content"
     assert doc.metadata["source"] == "test"
@@ -195,13 +194,13 @@ def test_preprocessed_document():
 def test_evidence_dataclass():
     """Test Evidence dataclass."""
     from orchestrator import Evidence
-    
+
     evidence = Evidence(
         modality="TYPE_A",
         elements=["element1", "element2"],
         raw_results={"key": "value"}
     )
-    
+
     assert evidence.modality == "TYPE_A"
     assert len(evidence.elements) == 2
     assert evidence.raw_results["key"] == "value"
@@ -210,15 +209,15 @@ def test_evidence_dataclass():
 def test_resource_limits():
     """Test ResourceLimits class."""
     from orchestrator import ResourceLimits
-    
+
     limits = ResourceLimits(
         max_memory_mb=1024.0,
         max_cpu_percent=80.0
     )
-    
+
     assert limits.max_memory_mb == 1024.0
     assert limits.max_cpu_percent == 80.0
-    
+
     # Test resource usage check
     usage = limits.get_resource_usage()
     assert isinstance(usage, dict)
@@ -227,7 +226,7 @@ def test_resource_limits():
 def test_method_executor():
     """Test MethodExecutor instantiation."""
     from orchestrator import MethodExecutor
-    
+
     # MethodExecutor may fail if dependencies are missing
     try:
         executor = MethodExecutor()
