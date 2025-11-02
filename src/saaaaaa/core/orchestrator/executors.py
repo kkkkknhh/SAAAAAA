@@ -71,10 +71,10 @@ class ExecutionMetrics:
     total_execution_time: float = 0.0
     quantum_optimizations: int = 0
     quantum_convergence_times: List[float] = field(default_factory=list)
-    meta_learner_strategy_selections: Dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    meta_learner_strategy_selections: Dict[int, int] = field(default_factory=dict)
     information_bottlenecks_detected: int = 0
     retry_attempts: int = 0
-    method_execution_times: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
+    method_execution_times: Dict[str, List[float]] = field(default_factory=dict)
     
     def record_execution(self, success: bool, execution_time: float, method_key: str = None):
         """Record an execution attempt"""
@@ -85,6 +85,8 @@ class ExecutionMetrics:
             self.failed_executions += 1
         self.total_execution_time += execution_time
         if method_key:
+            if method_key not in self.method_execution_times:
+                self.method_execution_times[method_key] = []
             self.method_execution_times[method_key].append(execution_time)
     
     def record_quantum_optimization(self, convergence_time: float):
@@ -94,6 +96,8 @@ class ExecutionMetrics:
     
     def record_meta_learner_selection(self, strategy_idx: int):
         """Record meta-learner strategy selection"""
+        if strategy_idx not in self.meta_learner_strategy_selections:
+            self.meta_learner_strategy_selections[strategy_idx] = 0
         self.meta_learner_strategy_selections[strategy_idx] += 1
     
     def record_information_bottleneck(self):
