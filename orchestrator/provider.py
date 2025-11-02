@@ -8,7 +8,6 @@ from saaaaaa.core.orchestrator import get_questionnaire_provider as _core_get_pr
 
 ALLOWED_PACKAGES = {"orchestrator", "saaaaaa", "scripts", "build_monolith", "__main__"}
 
-
 def _resolve_root_package(frame_globals: dict[str, Any]) -> str:
     """Return the root package for the caller represented by *frame_globals*."""
     package = frame_globals.get("__package__")
@@ -18,7 +17,6 @@ def _resolve_root_package(frame_globals: dict[str, Any]) -> str:
     if module_name:
         return module_name.split(".", 1)[0]
     return ""
-
 
 def _enforce_boundary() -> None:
     """Ensure only orchestrator package consumers reach the provider."""
@@ -41,12 +39,10 @@ def _enforce_boundary() -> None:
                 orchestrator_intermediate = True
         frame = frame.f_back
 
-
 def get_questionnaire_provider():
     """Return the shared questionnaire provider if boundary checks pass."""
     _enforce_boundary()
     return _core_get_provider()
-
 
 def get_questionnaire_payload(*, force_reload: bool = False):
     """Retrieve questionnaire payload while honouring boundary restrictions."""

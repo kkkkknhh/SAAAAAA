@@ -23,7 +23,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-
 class BoundaryViolationVisitor(ast.NodeVisitor):
     """AST visitor to detect boundary violations in core modules."""
 
@@ -134,7 +133,6 @@ class BoundaryViolationVisitor(ast.NodeVisitor):
                 })
         self.generic_visit(node)
 
-
 def scan_file(filepath: Path) -> dict[str, any]:
     """Scan a single Python file for boundary violations."""
     try:
@@ -170,7 +168,6 @@ def scan_file(filepath: Path) -> dict[str, any]:
         'error': None
     }
 
-
 def scan_directory(directory: Path, pattern: str = '*.py') -> list[dict[str, any]]:
     """Scan all Python files in a directory."""
     results = []
@@ -180,7 +177,6 @@ def scan_directory(directory: Path, pattern: str = '*.py') -> list[dict[str, any
             continue
         results.append(scan_file(filepath))
     return results
-
 
 def generate_sarif_report(results: list[dict[str, any]], tool_version: str = "1.0.0") -> dict:
     """Generate SARIF 2.1.0 format report for GitHub annotations."""
@@ -281,7 +277,6 @@ def generate_sarif_report(results: list[dict[str, any]], tool_version: str = "1.
 
     return sarif
 
-
 def generate_json_report(results: list[dict[str, any]]) -> dict:
     """Generate JSON violations report keyed by file, line, and node type."""
     violations_by_file = {}
@@ -304,12 +299,10 @@ def generate_json_report(results: list[dict[str, any]]) -> dict:
         'violations_by_file': violations_by_file
     }
 
-
 def should_allow_path(filepath: Path, allowed_paths: list[str]) -> bool:
     """Check if filepath is in any of the allowed paths."""
     filepath_str = str(filepath)
     return any(allowed in filepath_str for allowed in allowed_paths)
-
 
 def print_report(results: list[dict[str, any]], fail_on_types: set[str] | None = None) -> int:
     """Print scan results and return exit code."""
@@ -374,7 +367,6 @@ def print_report(results: list[dict[str, any]], fail_on_types: set[str] | None =
     )
 
     return 1 if should_fail else 0
-
 
 def main() -> int:
     """Main entry point."""
@@ -498,7 +490,6 @@ Examples:
         print(f"JSON report written to {json_output}")
 
     return print_report(results, fail_on_types)
-
 
 if __name__ == '__main__':
     sys.exit(main())

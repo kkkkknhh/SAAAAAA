@@ -11,10 +11,9 @@ from collections import defaultdict
 from json import JSONDecodeError
 from pathlib import Path
 
-from orchestrator import get_questionnaire_provider
+from saaaaaa.core.orchestrator import get_questionnaire_provider
 
 QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
-
 
 class MonolithValidator:
     """Validator for the orchestrator-managed questionnaire monolith."""
@@ -457,7 +456,6 @@ class MonolithValidator:
             else:
                 self.warning("Missing failure_contract in questions")
 
-
 def main():
     """Main entry point."""
     import argparse
@@ -476,7 +474,6 @@ def main():
     success = validator.validate()
 
     sys.exit(0 if success else 1)
-
 
 if __name__ == '__main__':
     main()

@@ -22,10 +22,6 @@ import sys
 from pathlib import Path
 
 # Add project paths
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
-sys.path.insert(0, str(PROJECT_ROOT))
-
 
 class Color:
     """ANSI color codes for terminal output"""
@@ -35,7 +31,6 @@ class Color:
     BLUE = '\033[94m'
     BOLD = '\033[1m'
     END = '\033[0m'
-
 
 class ImportValidator:
     """Validates all imports in the SAAAAAA system"""
@@ -209,7 +204,6 @@ class ImportValidator:
 
         return 0
 
-
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
@@ -241,7 +235,6 @@ Examples:
     )
     exit_code = validator.validate_all()
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

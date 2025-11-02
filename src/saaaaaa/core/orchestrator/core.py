@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class PreprocessedDocument:
     """Orchestrator representation of a processed document.
@@ -162,7 +161,6 @@ class PreprocessedDocument:
             metadata=metadata,
         )
 
-
 @dataclass
 class Evidence:
     """Evidence container for orchestrator results."""
@@ -170,10 +168,8 @@ class Evidence:
     elements: list[Any] = field(default_factory=list)
     raw_results: dict[str, Any] = field(default_factory=dict)
 
-
 class AbortRequested(RuntimeError):
     """Raised when an abort signal is triggered during orchestration."""
-
 
 class AbortSignal:
     """Thread-safe abort signal shared across orchestration phases."""
@@ -214,7 +210,6 @@ class AbortSignal:
             self._event.clear()
             self._reason = None
             self._timestamp = None
-
 
 class ResourceLimits:
     """Runtime resource guard with adaptive worker prediction."""
@@ -367,7 +362,6 @@ class ResourceLimits:
     def get_usage_history(self) -> list[dict[str, float]]:
         """Return the recorded usage history."""
         return list(self._usage_history)
-
 
 class PhaseInstrumentation:
     """Collects granular telemetry for each orchestration phase."""
@@ -533,7 +527,6 @@ class PhaseInstrumentation:
             "anomalies": list(self.anomalies),
         }
 
-
 @dataclass
 class PhaseResult:
     """Result of a single orchestration phase."""
@@ -544,7 +537,6 @@ class PhaseResult:
     duration_ms: float
     mode: str
     aborted: bool = False
-
 
 @dataclass
 class MicroQuestionRun:
@@ -557,7 +549,6 @@ class MicroQuestionRun:
     error: str | None = None
     duration_ms: float | None = None
     aborted: bool = False
-
 
 @dataclass
 class ScoredMicroQuestion:
@@ -572,7 +563,6 @@ class ScoredMicroQuestion:
     scoring_details: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
-
 
 class MethodExecutor:
     """Execute catalog methods using ArgRouter and class registry.
@@ -658,7 +648,6 @@ class MethodExecutor:
         except Exception:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
-
 
 class Orchestrator:
     """Robust 11-phase orchestrator with abort support and resource control.
@@ -1975,5 +1964,4 @@ class Orchestrator:
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return export_payload
-
 

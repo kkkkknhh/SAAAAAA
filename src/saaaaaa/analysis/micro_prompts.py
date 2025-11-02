@@ -39,7 +39,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # PROVENANCE AUDITOR - QMCM INTEGRITY CHECK
 # ============================================================================
@@ -54,7 +53,6 @@ class QMCMRecord:
     output_schema: dict[str, Any]
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class ProvenanceNode:
     """Node in the provenance DAG"""
@@ -64,7 +62,6 @@ class ProvenanceNode:
     qmcm_record_id: str | None = None
     timing: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class ProvenanceDAG:
@@ -83,7 +80,6 @@ class ProvenanceDAG:
             if not node.parent_ids and node.node_type != 'input'
         ]
 
-
 @dataclass
 class AuditResult:
     """Result of provenance audit"""
@@ -95,7 +91,6 @@ class AuditResult:
     severity: str  # 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
     narrative: str  # 3-4 line explanation
     timestamp: float = field(default_factory=time.time)
-
 
 class ProvenanceAuditor:
     """
@@ -295,7 +290,6 @@ class ProvenanceAuditor:
         """Export audit result as JSON"""
         return asdict(result)
 
-
 # ============================================================================
 # BAYESIAN POSTERIOR JUSTIFICATION
 # ============================================================================
@@ -311,7 +305,6 @@ class Signal:
     delta_posterior: float = 0.0
     reason: str = ""
 
-
 @dataclass
 class PosteriorJustification:
     """Bayesian posterior justification result"""
@@ -323,7 +316,6 @@ class PosteriorJustification:
     cap_delta: float  # How much was capped
     robustness_narrative: str  # 5-6 line synthesis
     timestamp: float = field(default_factory=time.time)
-
 
 class BayesianPosteriorExplainer:
     """
@@ -471,7 +463,6 @@ class BayesianPosteriorExplainer:
         """Export justification as JSON"""
         return asdict(result)
 
-
 # ============================================================================
 # ANTI-MILAGRO STRESS TEST
 # ============================================================================
@@ -485,14 +476,12 @@ class CausalChain:
     def length(self) -> int:
         return len(self.steps)
 
-
 @dataclass
 class ProportionalityPattern:
     """Pattern indicating proportional causal relationship"""
     pattern_type: str  # 'linear', 'dose-response', 'threshold', 'mechanism'
     strength: float  # 0.0-1.0
     location: str  # Where in chain this appears
-
 
 @dataclass
 class StressTestResult:
@@ -504,7 +493,6 @@ class StressTestResult:
     pattern_coverage: float  # Fraction of chain covered by patterns
     missing_patterns: list[str]  # Required patterns not found
     timestamp: float = field(default_factory=time.time)
-
 
 class AntiMilagroStressTester:
     """
@@ -645,7 +633,6 @@ class AntiMilagroStressTester:
         """Export stress test result as JSON"""
         return asdict(result)
 
-
 # ============================================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================================
@@ -657,11 +644,9 @@ def create_provenance_auditor(
     """Factory function for ProvenanceAuditor"""
     return ProvenanceAuditor(p95_latency, contracts)
 
-
 def create_posterior_explainer(anti_miracle_cap: float = 0.95) -> BayesianPosteriorExplainer:
     """Factory function for BayesianPosteriorExplainer"""
     return BayesianPosteriorExplainer(anti_miracle_cap)
-
 
 def create_stress_tester(fragility_threshold: float = 0.3) -> AntiMilagroStressTester:
     """Factory function for AntiMilagroStressTester"""

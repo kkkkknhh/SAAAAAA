@@ -35,14 +35,12 @@ if TYPE_CHECKING:
 # not at module import time to avoid side effects
 logger = logging.getLogger("policy_framework")
 
-
 def _get_chunk_content(chunk: dict[str, Any]) -> str:
     """Compatibility helper returning the canonical chunk content field."""
 
     if "content" in chunk:
         return chunk["content"]
     return chunk.get("text", "")
-
 
 def _upgrade_chunk_schema(chunk: dict[str, Any]) -> dict[str, Any]:
     """Return a chunk dict that guarantees ``content`` availability."""
@@ -67,11 +65,9 @@ RENYI_CURVATURE_GAIN: float = 0.85  # Amplifies curvature impact without destabi
 RENYI_FLUX_TEMPERATURE: float = 0.65  # Controls saturation of Renyi coherence flux
 RENYI_STABILITY_EPSILON: float = 1e-9  # Numerical guard-rail for degenerative posteriors
 
-
 # ========================
 # DOMAIN ONTOLOGY
 # ========================
-
 
 class CausalDimension(Enum):
     """Marco Lógico standard (DNP Colombia)"""
@@ -81,7 +77,6 @@ class CausalDimension(Enum):
     RESULTADOS = "resultados"  # Efectos mediano plazo
     IMPACTOS = "impactos"  # Transformación estructural largo plazo
     SUPUESTOS = "supuestos"  # Condiciones habilitantes
-
 
 class PDMSection(Enum):
     """
@@ -95,7 +90,6 @@ class PDMSection(Enum):
     PLAN_INVERSIONES = "plan_inversiones"
     MARCO_FISCAL = "marco_fiscal"
     SEGUIMIENTO = "seguimiento_evaluacion"
-
 
 @dataclass(frozen=True, slots=True)
 class SemanticConfig:
@@ -111,11 +105,9 @@ class SemanticConfig:
     batch_size: int = 32
     fp16: bool = True  # Memory optimization
 
-
 # ========================
 # SEMANTIC PROCESSOR (SOTA)
 # ========================
-
 
 class SemanticProcessor:
     """
@@ -275,11 +267,9 @@ class SemanticProcessor:
         """Single text embedding"""
         return self._embed_batch([text])[0]
 
-
 # ========================
 # MATHEMATICAL ENHANCER (RIGOROUS)
 # ========================
-
 
 class BayesianEvidenceIntegrator:
     """
@@ -433,11 +423,9 @@ class BayesianEvidenceIntegrator:
         strength = ((sim_ce + 1) / 2) * cond_indep
         return float(np.clip(strength, 0.0, 1.0))
 
-
 # ========================
 # POLICY ANALYZER (INTEGRATED)
 # ========================
-
 
 class PolicyDocumentAnalyzer:
     """
@@ -562,11 +550,9 @@ class PolicyDocumentAnalyzer:
             ]
         return excerpts
 
-
 # ========================
 # PRODUCER CLASS - Registry Exposure
 # ========================
-
 
 class SemanticChunkingProducer:
     """
@@ -773,11 +759,9 @@ class SemanticChunkingProducer:
         )
         self.analyzer = PolicyDocumentAnalyzer(self.config)
 
-
 # ========================
 # CLI INTERFACE
 # ========================
-
 
 def main() -> None:
     """Example usage"""

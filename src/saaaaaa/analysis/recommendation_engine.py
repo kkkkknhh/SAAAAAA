@@ -30,7 +30,6 @@ import jsonschema
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # DATA STRUCTURES FOR RECOMMENDATIONS
 # ============================================================================
@@ -71,7 +70,6 @@ class Recommendation:
         # Remove None values for cleaner output
         return {k: v for k, v in result.items() if v is not None}
 
-
 @dataclass
 class RecommendationSet:
     """
@@ -94,7 +92,6 @@ class RecommendationSet:
             'rules_matched': self.rules_matched,
             'metadata': self.metadata
         }
-
 
 # ============================================================================
 # RECOMMENDATION ENGINE
@@ -643,7 +640,6 @@ class RecommendationEngine:
 
         return "\n".join(lines)
 
-
 # ============================================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================================
@@ -663,8 +659,6 @@ def load_recommendation_engine(
         Initialized RecommendationEngine
     """
     return RecommendationEngine(rules_path=rules_path, schema_path=schema_path)
-
-
 
 # Note: Main entry point removed to maintain I/O boundary separation.
 # For usage examples, see examples/ directory.

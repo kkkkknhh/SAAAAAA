@@ -20,7 +20,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class LoadError:
     """Represents an error that occurred during loading."""
@@ -36,7 +35,6 @@ class LoadError:
         if self.line_number:
             location += f":{self.line_number}"
         return f"{location}: {self.error_type}: {self.message}"
-
 
 @dataclass
 class LoadResult:
@@ -60,7 +58,6 @@ class LoadResult:
         self.errors.extend(other.errors)
         self.files_loaded.extend(other.files_loaded)
         self.success = self.success and other.success
-
 
 class JSONContractLoader:
     """
@@ -375,7 +372,6 @@ class JSONContractLoader:
             lines.append(f"  - {error}")
 
         return "\n".join(lines)
-
 
 __all__ = [
     "LoadError",

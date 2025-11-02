@@ -8,7 +8,7 @@ import json
 import unittest
 from pathlib import Path
 
-from orchestrator import get_questionnaire_provider
+from saaaaaa.core.orchestrator import get_questionnaire_provider
 from orchestrator.coreographer import (
     Choreographer,
     DAGNode,
@@ -22,7 +22,6 @@ from orchestrator.coreographer import (
 )
 
 QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
-
 
 class TestChoreographer(unittest.TestCase):
     """Test the Choreographer class (single question execution)."""
@@ -158,7 +157,6 @@ class TestChoreographer(unittest.TestCase):
         self.assertEqual(result.base_slot, "D1-Q1")
         self.assertIn('successful_methods', result.evidence)
 
-
 class TestMethodExecutor(unittest.TestCase):
     """Test the MethodExecutor class."""
 
@@ -171,7 +169,6 @@ class TestMethodExecutor(unittest.TestCase):
 
         self.assertIsNotNone(executor)
         self.assertEqual(executor.dispatcher, dispatcher)
-
 
 class TestFlowController(unittest.TestCase):
     """Test the FlowController class."""
@@ -186,7 +183,6 @@ class TestFlowController(unittest.TestCase):
 
         branches = FlowController.identify_parallel_branches(plan)
         self.assertEqual(len(branches), 0)
-
 
 if __name__ == "__main__":
     unittest.main()

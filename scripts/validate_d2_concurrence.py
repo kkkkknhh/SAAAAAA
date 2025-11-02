@@ -12,17 +12,13 @@ Exit codes:
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from orchestrator.d2_activities_orchestrator import (
     D2ActivitiesOrchestrator,
     OrchestrationError,
 )
-
 
 def main():
     """Main entry point for CI validation."""
@@ -121,7 +117,6 @@ def main():
         traceback.print_exc()
         return 2
 
-
 def print_summary(report: dict, success_rate: float):
     """Print a summary of the validation results."""
     print("VALIDATION RESULTS")
@@ -155,7 +150,6 @@ def print_summary(report: dict, success_rate: float):
 
         if len(report["failed_methods"]) > 10:
             print(f"  ... and {len(report['failed_methods']) - 10} more")
-
 
 if __name__ == "__main__":
     sys.exit(main())

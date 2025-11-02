@@ -19,7 +19,6 @@ from saaaaaa.core.orchestrator.factory import (
     load_schema,
 )
 
-
 def main():
     print("=== I/O-Free Orchestrator Initialization Example ===\n")
 
@@ -109,7 +108,6 @@ def main():
     print("  • Performance: Data loaded once and reused")
     print("  • Flexibility: Easy to inject different data sources")
     print("  • Separation: Clear boundary between I/O and business logic")
-
 
 if __name__ == "__main__":
     main()

@@ -23,9 +23,6 @@ from typing import Any, Dict
 _SRC_PATH = Path(__file__).resolve().parent.parent / "src"
 if _SRC_PATH.exists():  # pragma: no cover - executed at import time
     src_str = str(_SRC_PATH)
-    if src_str not in sys.path:
-        sys.path.insert(0, src_str)
-
 # Import from unified orchestrator package (if available) or fall back to submodules
 try:
     from saaaaaa.core.orchestrator import (
@@ -134,7 +131,6 @@ for alias, target in _SUBMODULE_ALIASES.items():
         except ImportError:
             # Skip modules that have missing dependencies
             pass
-
 
 def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
     """Delegate unknown attributes to the core module or lazily load executors."""

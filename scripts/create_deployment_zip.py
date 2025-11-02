@@ -131,7 +131,6 @@ INCLUDE_PATTERNS = {
     'QUICKSTART.md',
 }
 
-
 def should_include(path: Path, base: Path) -> bool:
     """Determine if a file should be included in the deployment zip."""
     relative_path = path.relative_to(base)
@@ -178,7 +177,6 @@ def should_include(path: Path, base: Path) -> bool:
 
     # If in src/ directory, include by default
     return bool(path_str.startswith('src/'))
-
 
 def create_deployment_zip(output_path: Path) -> None:
     """Create a deployment zip file."""
@@ -254,7 +252,6 @@ def create_deployment_zip(output_path: Path) -> None:
             f.write(f"{file}\n")
 
     print(f"\n📄 Manifest saved to: {manifest_path}")
-
 
 if __name__ == "__main__":
     output_zip = BASE_DIR / "saaaaaa-deployment.zip"

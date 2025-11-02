@@ -14,11 +14,9 @@ from typing import Any
 import jsonschema
 from pydantic import BaseModel, ConfigDict, Field
 
-
 class SchemaInitializationError(Exception):
     """Raised when schema initialization validation fails."""
     pass
-
 
 class MonolithIntegrityReport(BaseModel):
     """Report of monolith integrity validation."""
@@ -33,7 +31,6 @@ class MonolithIntegrityReport(BaseModel):
     schema_hash: str
     question_counts: dict[str, int]
     referential_integrity: dict[str, bool]
-
 
 class MonolithSchemaValidator:
     """
@@ -344,7 +341,6 @@ class MonolithSchemaValidator:
                 indent=2,
                 ensure_ascii=False
             )
-
 
 def validate_monolith_schema(
     monolith: dict[str, Any],

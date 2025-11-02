@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 @dataclass
 class FunctionSignature:
     name: str
@@ -24,7 +23,6 @@ class FunctionSignature:
     line_end: int
     docstring: str | None
 
-
 @dataclass
 class ClassInfo:
     name: str
@@ -33,7 +31,6 @@ class ClassInfo:
     line_start: int
     line_end: int
     docstring: str | None
-
 
 @dataclass
 class FileInventory:
@@ -49,7 +46,6 @@ class FileInventory:
     dependencies: list[str]
     is_orphan: bool
     orphan_reason: str | None
-
 
 class CodeInventoryGenerator:
     """Generate exhaustive code inventory with dependency analysis"""
@@ -415,7 +411,6 @@ class CodeInventoryGenerator:
 
         return '\n'.join(lines)
 
-
 def main():
     workspace = Path(__file__).parent.parent
 
@@ -460,7 +455,6 @@ def main():
         print("See dependency_graph.md for details")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

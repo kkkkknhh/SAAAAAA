@@ -7,7 +7,6 @@ saaaaaa. prefix in their import paths.
 
 import pytest
 
-
 def test_class_registry_paths_have_saaaaaa_prefix():
     """Verify all class paths use absolute imports with saaaaaa. prefix."""
     from saaaaaa.core.orchestrator.class_registry import get_class_paths
@@ -18,7 +17,6 @@ def test_class_registry_paths_have_saaaaaa_prefix():
     for class_name, import_path in paths.items():
         assert import_path.startswith("saaaaaa."), \
             f"{class_name} has invalid path: {import_path} (should start with 'saaaaaa.')"
-
 
 def test_class_registry_has_all_expected_classes():
     """Verify all 22 classes from problem statement are registered."""
@@ -73,7 +71,6 @@ def test_class_registry_has_all_expected_classes():
     assert not missing_classes, f"Missing classes: {missing_classes}"
     assert not extra_classes, f"Unexpected classes: {extra_classes}"
     assert len(paths) == 22, f"Expected 22 classes, got {len(paths)}"
-
 
 def test_class_registry_paths_match_expected_modules():
     """Verify classes are mapped to the correct analysis/processing modules."""
@@ -134,7 +131,6 @@ def test_class_registry_paths_match_expected_modules():
         assert paths[class_name].startswith("saaaaaa.processing.policy_processor."), \
             f"{class_name} should be in saaaaaa.processing.policy_processor"
 
-
 def test_class_registry_import_structure():
     """Test that class registry can be imported and has correct structure."""
     from saaaaaa.core.orchestrator.class_registry import (
@@ -155,7 +151,6 @@ def test_class_registry_import_structure():
     assert isinstance(paths, dict) or hasattr(paths, '__getitem__')
     assert len(paths) > 0
 
-
 def test_semantic_chunker_alias():
     """Verify SemanticChunker is an alias for AdvancedSemanticChunker."""
     from saaaaaa.core.orchestrator.class_registry import get_class_paths
@@ -166,7 +161,6 @@ def test_semantic_chunker_alias():
     assert paths["SemanticChunker"] == paths["AdvancedSemanticChunker"], \
         "SemanticChunker should be an alias for AdvancedSemanticChunker"
     assert paths["SemanticChunker"] == "saaaaaa.processing.embedding_policy.AdvancedSemanticChunker"
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

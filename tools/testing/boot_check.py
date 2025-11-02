@@ -16,9 +16,6 @@ import traceback
 from pathlib import Path
 
 # Add project root to Python path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 
 # Modules to validate
 CORE_MODULES = [
@@ -39,7 +36,6 @@ OPTIONAL_MODULES = [
     "macro_prompts",
     "micro_prompts",
 ]
-
 
 def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, str]:
     """
@@ -76,7 +72,6 @@ def check_module_import(module_name: str, verbose: bool = False) -> tuple[bool, 
             traceback.print_exc()
         return False, error
 
-
 def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that the orchestrator registry loads without ClassNotFoundError.
@@ -89,7 +84,7 @@ def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
             print("  Validating orchestrator registry...", end=" ")
 
         # Try to import and access the registry
-        from orchestrator import registry
+        from saaaaaa.core.orchestrator import registry
 
         # Try to validate all classes (if method exists)
         if hasattr(registry, 'validate_all_classes'):
@@ -118,7 +113,6 @@ def check_registry_validation(verbose: bool = False) -> tuple[bool, str]:
             traceback.print_exc()
         return False, error
 
-
 def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
     """
     Validate that runtime validators initialize correctly.
@@ -131,7 +125,7 @@ def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
             print("  Initializing runtime validators...", end=" ")
 
         # Try to import and initialize validators
-        from validation_engine import RuntimeValidator
+        from saaaaaa.validation.validation_engine import RuntimeValidator
 
         validator = RuntimeValidator()
 
@@ -154,7 +148,6 @@ def check_runtime_validators(verbose: bool = False) -> tuple[bool, str]:
             print(f"✗ {error}")
             traceback.print_exc()
         return False, error
-
 
 def run_boot_checks(verbose: bool = False) -> int:
     """
@@ -237,13 +230,11 @@ def run_boot_checks(verbose: bool = False) -> int:
         print("=" * 60)
         return 1
 
-
 def main() -> None:
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
 
     exit_code = run_boot_checks(verbose)
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

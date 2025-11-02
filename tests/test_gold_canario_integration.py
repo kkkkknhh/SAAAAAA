@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from macro_prompts import (
+from saaaaaa.processing.macro_prompts import (
     BayesianPortfolioComposer,
     ContradictionScanner,
     CoverageGapStressor,
@@ -24,12 +24,12 @@ from macro_prompts import (
     PeerNormalizer,
     RoadmapOptimizer,
 )
-from meso_cluster_analysis import (
+from saaaaaa.analysis.meso_cluster_analysis import (
     analyze_policy_dispersion,
     calibrate_against_peers,
     compose_cluster_posterior,
 )
-from micro_prompts import (
+from saaaaaa.processing.micro_prompts import (
     AntiMilagroStressTester,
     BayesianPosteriorExplainer,
     CausalChain,
@@ -40,7 +40,6 @@ from micro_prompts import (
     QMCMRecord,
     Signal,
 )
-
 
 class TestMicroToMesoIntegration:
     """Test integration from micro to meso level"""
@@ -155,7 +154,6 @@ class TestMicroToMesoIntegration:
         assert not stress_result.fragility_flag
         assert 'area_positions' in meso_result
         assert 'outliers' in meso_result
-
 
 class TestMesoToMacroIntegration:
     """Test integration from meso to macro level"""
@@ -279,7 +277,6 @@ class TestMesoToMacroIntegration:
         assert 'area_positions' in meso_calibration
         assert len(macro_normalization.z_scores) == len(policy_scores)
         assert macro_normalization.peer_position in ["above_average", "average", "below_average"]
-
 
 class TestFullWorkflowIntegration:
     """Test complete end-to-end workflow"""
@@ -444,7 +441,6 @@ class TestFullWorkflowIntegration:
         assert meso_composition['prior_meso'] > 0
         assert macro_portfolio.prior_global > 0
 
-
 class TestMacroOrchestrator:
     """Test MacroPromptsOrchestrator for unified execution"""
 
@@ -490,7 +486,6 @@ class TestMacroOrchestrator:
         assert 'phases' in results['implementation_roadmap']
         assert 'z_scores' in results['peer_normalization']
 
-
 class TestErrorHandlingAndEdgeCases:
     """Test error handling across integration points"""
 
@@ -528,7 +523,6 @@ class TestErrorHandlingAndEdgeCases:
             assert meso_result['cv'] >= 0.0
         except Exception as e:
             pytest.fail(f"Workflow should handle failures gracefully: {e}")
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

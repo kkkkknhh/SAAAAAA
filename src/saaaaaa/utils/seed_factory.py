@@ -15,7 +15,6 @@ except ImportError:
     NUMPY_AVAILABLE = False
     np = None  # type: ignore
 
-
 class SeedFactory:
     """
     Factory for generating deterministic seeds
@@ -110,7 +109,6 @@ class SeedFactory:
         # TODO: Add torch.manual_seed(seed) if PyTorch is used
         # TODO: Add tf.random.set_seed(seed) if TensorFlow is used
 
-
 class DeterministicContext:
     """
     Context manager for deterministic execution
@@ -168,7 +166,6 @@ class DeterministicContext:
             np.random.set_state(self.previous_numpy_state)
 
         return False
-
 
 def create_deterministic_seed(
     correlation_id: str,

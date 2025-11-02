@@ -5,20 +5,15 @@ These tests validate that the synthetic traffic generator produces valid
 requests that conform to the expected structure and constraints.
 """
 
-import sys
 import unittest
 from pathlib import Path
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 from tools.testing.generate_synthetic_traffic import (
     MODALITY_TEMPLATES,
     generate_evidence,
     generate_request,
 )
-
 
 class TestSyntheticTraffic(unittest.TestCase):
     """Test synthetic traffic generation."""
@@ -128,7 +123,6 @@ class TestSyntheticTraffic(unittest.TestCase):
         self.assertTrue(parts[0].startswith("PA"))
         self.assertTrue(parts[1].startswith("DIM"))
         self.assertTrue(parts[2].startswith("Q"))
-
 
 if __name__ == "__main__":
     unittest.main()

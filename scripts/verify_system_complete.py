@@ -17,7 +17,6 @@ API_SERVER_PATHS = [
     'saaaaaa/api/api_server.py',
 ]
 
-
 class Colors:
     """ANSI color codes for terminal output."""
     GREEN = '\033[92m'
@@ -26,7 +25,6 @@ class Colors:
     BLUE = '\033[94m'
     BOLD = '\033[1m'
     END = '\033[0m'
-
 
 class SystemVerifier:
     """Comprehensive system verification."""
@@ -277,7 +275,6 @@ class SystemVerifier:
         print()
         return all_passed
 
-
 def main():
     """Run master verification."""
     root = Path(__file__).parent.parent
@@ -286,7 +283,6 @@ def main():
     success = verifier.run_verification()
 
     return 0 if success else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

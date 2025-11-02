@@ -17,15 +17,12 @@ Tests cover:
 - Error handling and abortability
 """
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from aggregation import (
+from saaaaaa.core.aggregation import (
     AreaPolicyAggregator,
     AreaScore,
     ClusterAggregator,
@@ -97,7 +94,6 @@ def minimal_monolith() -> dict[str, Any]:
         }
     }
 
-
 @pytest.fixture
 def sample_scored_results() -> list[ScoredResult]:
     """Sample scored results for a dimension."""
@@ -115,7 +111,6 @@ def sample_scored_results() -> list[ScoredResult]:
         for i in range(1, 6)
     ]
 
-
 @pytest.fixture
 def sample_dimension_scores() -> list[DimensionScore]:
     """Sample dimension scores for an area."""
@@ -130,7 +125,6 @@ def sample_dimension_scores() -> list[DimensionScore]:
         )
         for i in range(1, 7)
     ]
-
 
 # ============================================================================
 # DIMENSION AGGREGATOR TESTS
@@ -262,7 +256,6 @@ class TestDimensionAggregator:
         assert result1.score == result2.score
         assert result1.quality_level == result2.quality_level
 
-
 # ============================================================================
 # AREA POLICY AGGREGATOR TESTS
 # ============================================================================
@@ -310,7 +303,6 @@ class TestAreaPolicyAggregator:
         assert 0.0 <= result.score <= 3.0
         assert result.quality_level in ["EXCELENTE", "BUENO", "ACEPTABLE", "INSUFICIENTE"]
 
-
 # ============================================================================
 # CLUSTER AGGREGATOR TESTS
 # ============================================================================
@@ -336,7 +328,6 @@ class TestClusterAggregator:
         area_ids = {"P1"}
         is_hermetic, msg = aggregator.validate_cluster_hermeticity(area_ids, cluster_id="CL01")
         assert not is_hermetic
-
 
 # ============================================================================
 # MACRO AGGREGATOR TESTS
@@ -367,7 +358,6 @@ class TestMacroAggregator:
 
         coherence = aggregator.calculate_cross_cutting_coherence(cluster_scores)
         assert 0.0 <= coherence <= 1.0
-
 
 # ============================================================================
 # INTEGRATION TESTS
@@ -408,7 +398,6 @@ class TestAggregationPipeline:
 
         assert isinstance(area_score, AreaScore)
         assert area_score.area_id == "P1"
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

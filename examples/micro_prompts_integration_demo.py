@@ -6,17 +6,14 @@ Demonstrates how to integrate the three micro prompts with the existing
 bayesian_multilevel_system, evidence_registry, and report_assembly modules.
 """
 
-import sys
 import time
 from pathlib import Path
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 # Import micro prompts
 import importlib.util
 
-from micro_prompts import (
+from saaaaaa.processing.micro_prompts import (
     CausalChain,
     ProportionalityPattern,
     ProvenanceDAG,
@@ -40,7 +37,6 @@ if _registry_spec is None:
 REGISTRY_AVAILABLE = _registry_spec is not None
 if not REGISTRY_AVAILABLE:
     print("Note: evidence_registry not fully imported")
-
 
 def example_1_provenance_audit():
     """
@@ -181,7 +177,6 @@ def example_1_provenance_audit():
 
     return result
 
-
 def example_2_bayesian_posterior_justification():
     """
     Example 2: Bayesian Posterior Justification
@@ -272,7 +267,6 @@ def example_2_bayesian_posterior_justification():
     print(f"\n✓ JSON export contains {len(justification_json['signals_ranked'])} ranked signals")
 
     return result
-
 
 def example_3_anti_milagro_stress_test():
     """
@@ -368,7 +362,6 @@ def example_3_anti_milagro_stress_test():
 
     return result
 
-
 def example_4_integrated_workflow():
     """
     Example 4: Integrated Workflow
@@ -436,7 +429,6 @@ def example_4_integrated_workflow():
         'stress': stress_result,
         'qa_score': overall_qa
     }
-
 
 if __name__ == '__main__':
     print("\n" + "="*70)

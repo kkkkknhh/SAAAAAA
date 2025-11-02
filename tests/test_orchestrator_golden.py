@@ -10,12 +10,6 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_ROOT = PROJECT_ROOT / "src"
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
-if "recommendation_engine" not in sys.modules:
     dummy = types.ModuleType("recommendation_engine")
 
     class _DummyRecommendationEngine:
@@ -46,13 +40,11 @@ from saaaaaa.core.orchestrator.factory import CoreModuleFactory, construct_polic
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
-
 def _contract_keys(contract: Mapping[str, object]) -> list[str]:
     """Return the declared keys for a TypedDict class."""
 
     annotations = getattr(contract, "__annotations__", {})
     return sorted(annotations.keys())
-
 
 CONTRACT_KEY_MAP: dict[str, Sequence[str]] = {
     "IndustrialPolicyProcessor": _contract_keys(core_contracts.PolicyProcessorOutputContract),
@@ -65,7 +57,6 @@ CONTRACT_KEY_MAP: dict[str, Sequence[str]] = {
     "TeoriaCambio": _contract_keys(core_contracts.TeoriaCambioOutputContract),
     "SemanticChunker": _contract_keys(core_contracts.SemanticChunkingOutputContract),
 }
-
 
 class FakeMethodExecutor:
     """Deterministic stub for :class:`MethodExecutor`."""
@@ -88,7 +79,6 @@ class FakeMethodExecutor:
         self.outputs[f"{class_name}.{method_name}"] = result
         return result
 
-
 @pytest.fixture()
 def factory(tmp_path: Path) -> CoreModuleFactory:
     """Provide a factory anchored to a temporary directory."""
@@ -98,7 +88,6 @@ def factory(tmp_path: Path) -> CoreModuleFactory:
     questionnaire = tmp_data / "questionnaire_monolith.json"
     questionnaire.write_text("{}", encoding="utf-8")
     return CoreModuleFactory(data_dir=tmp_data)
-
 
 @pytest.fixture()
 def sample_document(factory: CoreModuleFactory, tmp_path: Path) -> tuple[PreprocessedDocument, dict[str, object]]:
@@ -117,7 +106,6 @@ def sample_document(factory: CoreModuleFactory, tmp_path: Path) -> tuple[Preproc
     )
     return preprocessed, policy_input
 
-
 def _iter_executor_classes() -> Iterable[tuple[str, type]]:
     for name in dir(executors):
         if not name.endswith("_Executor"):
@@ -125,7 +113,6 @@ def _iter_executor_classes() -> Iterable[tuple[str, type]]:
         candidate = getattr(executors, name)
         if inspect.isclass(candidate) and candidate is not executors.DataFlowExecutor:
             yield name, candidate
-
 
 @pytest.mark.parametrize("executor_name, executor_cls", sorted(_iter_executor_classes()))
 def test_executor_golden_path_returns_contracts(

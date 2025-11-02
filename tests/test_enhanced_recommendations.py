@@ -5,14 +5,10 @@ Tests all 7 enhanced features across MICRO, MESO, and MACRO levels.
 """
 
 import json
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from recommendation_engine import load_recommendation_engine
-
+from saaaaaa.analysis.recommendation_engine import load_recommendation_engine
 
 def test_enhanced_recommendation_engine():
     """Test all 7 enhanced features"""

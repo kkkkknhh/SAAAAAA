@@ -19,14 +19,11 @@ import networkx as nx
 import numpy as np
 
 # Import TRES AGUJAS desde dereck_beach
-sys.path.insert(0, str(Path(__file__).parent))
-
-from dereck_beach import (
+from saaaaaa.utils.dereck_beach import (
     AdaptivePriorCalculator,
     BayesianCounterfactualAuditor,
     HierarchicalGenerativeModel,
 )
-
 
 def create_sample_dag():
     """Crea un DAG de ejemplo para demos"""
@@ -47,7 +44,6 @@ def create_sample_dag():
     dag.add_edges_from(edges)
 
     return dag
-
 
 def demo_aguja_i():
     """AGUJA I: Prior Adaptativo Bayesiano"""
@@ -106,7 +102,6 @@ def demo_aguja_i():
 
     print("\n✅ AGUJA I COMPLETADA")
     return evidence
-
 
 def demo_aguja_ii():
     """AGUJA II: Modelo Generativo Jerárquico"""
@@ -186,7 +181,6 @@ def demo_aguja_ii():
 
     print("\n✅ AGUJA II COMPLETADA")
     return posterior_samples
-
 
 def demo_aguja_iii():
     """AGUJA III: Auditor Contrafactual Bayesiano"""
@@ -275,7 +269,6 @@ def demo_aguja_iii():
     print("\n✅ AGUJA III COMPLETADA")
     return refutation
 
-
 def generate_summary_report():
     """Genera reporte resumen de las tres agujas"""
     print("\n" + "="*80)
@@ -330,7 +323,6 @@ def generate_summary_report():
     print("       BayesianCounterfactualAuditor")
     print("   )")
 
-
 def main():
     """Ejecuta demo completa de las TRES AGUJAS"""
     print("\n" + "="*80)
@@ -358,7 +350,6 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

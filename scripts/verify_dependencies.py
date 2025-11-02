@@ -16,12 +16,6 @@ from importlib import import_module
 from pathlib import Path
 
 # Add src to path if not already present
-src_path = str(Path(__file__).parent.parent / "src")
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
-
-def check_class_registry_paths():
     """Verify all class paths have saaaaaa. prefix."""
     print("=" * 70)
     print("1. Checking Class Registry Paths")
@@ -59,7 +53,6 @@ def check_class_registry_paths():
         print(f"✗ ERROR: Failed to check class registry: {e}")
         return False
 
-
 def check_core_dependencies():
     """Check that core Python dependencies are installed."""
     print("\n" + "=" * 70)
@@ -88,7 +81,6 @@ def check_core_dependencies():
 
     return len(missing) == 0
 
-
 def check_pdf_dependencies():
     """Check PDF processing dependencies."""
     print("\n" + "=" * 70)
@@ -113,7 +105,6 @@ def check_pdf_dependencies():
 
     return len(missing) == 0
 
-
 def check_nlp_dependencies():
     """Check NLP-specific dependencies."""
     print("\n" + "=" * 70)
@@ -137,7 +128,6 @@ def check_nlp_dependencies():
             missing.append(package)
 
     return len(missing) == 0
-
 
 def check_spacy_models():
     """Check SpaCy language models."""
@@ -170,7 +160,6 @@ def check_spacy_models():
         print("✗ ERROR: spacy not installed")
         return False
 
-
 def check_class_registry_loading():
     """Attempt to actually load the class registry."""
     print("\n" + "=" * 70)
@@ -201,7 +190,6 @@ def check_class_registry_loading():
         import traceback
         traceback.print_exc()
         return False
-
 
 def main():
     """Run all verification checks."""
@@ -256,7 +244,6 @@ def main():
         print("  python -m spacy download es_core_news_lg")
         print("  python -m spacy download es_dep_news_trf")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

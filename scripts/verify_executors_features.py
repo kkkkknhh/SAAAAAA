@@ -13,12 +13,9 @@ This script demonstrates that all advanced features in executors.py are function
 - Topological data analysis
 """
 
-import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 import numpy as np
 
 from saaaaaa.core.orchestrator.executors import (
@@ -36,7 +33,6 @@ from saaaaaa.core.orchestrator.executors import (
     QuantumState,
     SpikingNeuron,
 )
-
 
 def test_quantum_optimization():
     """Test quantum-inspired optimization features."""
@@ -67,7 +63,6 @@ def test_quantum_optimization():
 
     print()
 
-
 def test_neuromorphic_computing():
     """Test neuromorphic computing patterns."""
     print("=" * 60)
@@ -96,7 +91,6 @@ def test_neuromorphic_computing():
 
     print()
 
-
 def test_causal_inference():
     """Test causal inference framework."""
     print("=" * 60)
@@ -115,7 +109,6 @@ def test_causal_inference():
     print(f"✓ Topological execution order: {order}")
 
     print()
-
 
 def test_information_theory():
     """Test information-theoretic flow optimization."""
@@ -140,7 +133,6 @@ def test_information_theory():
 
     print()
 
-
 def test_meta_learning():
     """Test meta-learning strategy."""
     print("=" * 60)
@@ -159,7 +151,6 @@ def test_meta_learning():
     print("✓ Updated strategy performance")
 
     print()
-
 
 def test_attention_mechanism():
     """Test attention mechanism."""
@@ -182,7 +173,6 @@ def test_attention_mechanism():
 
     print()
 
-
 def test_topological_data_analysis():
     """Test topological data analysis."""
     print("=" * 60)
@@ -200,7 +190,6 @@ def test_topological_data_analysis():
     print(f"✓ Topological features: {features}")
 
     print()
-
 
 def test_category_theory():
     """Test category theory abstractions."""
@@ -228,7 +217,6 @@ def test_category_theory():
 
     print()
 
-
 def test_probabilistic_programming():
     """Test probabilistic programming."""
     print("=" * 60)
@@ -253,7 +241,6 @@ def test_probabilistic_programming():
     print(f"✓ 95% credible interval: [{ci[0]:.3f}, {ci[1]:.3f}]")
 
     print()
-
 
 def test_orchestrator():
     """Test FrontierExecutorOrchestrator."""
@@ -281,7 +268,6 @@ def test_orchestrator():
     print(f"✓ Optimized execution order: {optimized_order}")
 
     print()
-
 
 def main():
     """Run all verification tests."""
@@ -317,7 +303,6 @@ def main():
     print("  • Probabilistic programming")
     print("  • 30 specialized executors (D1Q1-D6Q5)")
     print()
-
 
 if __name__ == "__main__":
     main()

@@ -28,12 +28,9 @@ from pathlib import Path
 from typing import Any
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from signature_validator import FunctionSignature, SignatureRegistry, audit_project_signatures
+from saaaaaa.validation.signature_validator import FunctionSignature, SignatureRegistry, audit_project_signatures
 
 logger = logging.getLogger(__name__)
-
 
 class SignatureCIChecker:
     """
@@ -155,7 +152,6 @@ class SignatureCIChecker:
 
         print("=" * 70 + "\n")
 
-
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
@@ -241,7 +237,6 @@ def main():
             exit_code = 1
 
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

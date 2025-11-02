@@ -37,7 +37,6 @@ from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
-
 class ScoringModality(Enum):
     """Scoring modality types."""
     TYPE_A = "TYPE_A"  # Bayesian: Numerical claims, gaps, risks
@@ -47,7 +46,6 @@ class ScoringModality(Enum):
     TYPE_E = "TYPE_E"  # Financial: Budget traceability
     TYPE_F = "TYPE_F"  # Beach: Mechanism inference, plausibility
 
-
 class QualityLevel(Enum):
     """Quality level classifications."""
     EXCELENTE = "EXCELENTE"
@@ -55,21 +53,17 @@ class QualityLevel(Enum):
     ACEPTABLE = "ACEPTABLE"
     INSUFICIENTE = "INSUFICIENTE"
 
-
 class ScoringError(Exception):
     """Base exception for scoring errors."""
     pass
-
 
 class ModalityValidationError(ScoringError):
     """Exception raised when evidence structure doesn't match modality requirements."""
     pass
 
-
 class EvidenceStructureError(ScoringError):
     """Exception raised when evidence structure is invalid."""
     pass
-
 
 @dataclass(frozen=True)
 class ScoredResult:
@@ -118,7 +112,6 @@ class ScoredResult:
         """
         canonical = json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
 
 @dataclass
 class ModalityConfig:
@@ -174,7 +167,6 @@ class ModalityConfig:
                 raise ModalityValidationError(
                     f"{self.name} requires 'elements' to be a list, got {type(elements).__name__}"
                 )
-
 
 class ScoringValidator:
     """Validates evidence structure against modality requirements."""
@@ -264,7 +256,6 @@ class ScoringValidator:
             raise ModalityValidationError(f"Unknown modality: {modality}")
         return config
 
-
 def clamp(value: float, lower: float, upper: float) -> float:
     """Clamp *value* to the inclusive range ``[lower, upper]``."""
 
@@ -272,7 +263,6 @@ def clamp(value: float, lower: float, upper: float) -> float:
         raise ValueError("Lower bound cannot exceed upper bound")
 
     return min(max(value, lower), upper)
-
 
 def apply_rounding(
     value: float,
@@ -311,7 +301,6 @@ def apply_rounding(
         raise ValueError(f"Failed to round value {value}: {exc}") from exc
 
     return float(rounded)
-
 
 def _validate_quality_thresholds(thresholds: dict[str, float]) -> dict[str, float]:
     """Validate custom quality thresholds.
@@ -355,7 +344,6 @@ def _validate_quality_thresholds(thresholds: dict[str, float]) -> dict[str, floa
         )
 
     return validated
-
 
 def score_type_a(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
@@ -416,7 +404,6 @@ def score_type_a(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 
     return score, metadata
 
-
 def score_type_b(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_B evidence: DAG causal chains, ToC completeness.
@@ -469,7 +456,6 @@ def score_type_b(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 
     return score, metadata
 
-
 def score_type_c(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_C evidence: Coherence via inverted contradictions.
@@ -521,7 +507,6 @@ def score_type_c(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
     )
 
     return score, metadata
-
 
 def score_type_d(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
@@ -577,7 +562,6 @@ def score_type_d(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
     )
 
     return score, metadata
-
 
 def score_type_e(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
@@ -639,7 +623,6 @@ def score_type_e(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 
     return score, metadata
 
-
 def score_type_f(evidence: dict[str, Any], config: ModalityConfig) -> tuple[float, dict[str, Any]]:
     """
     Score TYPE_F evidence: Beach mechanism inference and plausibility.
@@ -691,7 +674,6 @@ def score_type_f(evidence: dict[str, Any], config: ModalityConfig) -> tuple[floa
 
     return score, metadata
 
-
 # Scoring function registry
 SCORING_FUNCTIONS = {
     ScoringModality.TYPE_A: score_type_a,
@@ -701,7 +683,6 @@ SCORING_FUNCTIONS = {
     ScoringModality.TYPE_E: score_type_e,
     ScoringModality.TYPE_F: score_type_f,
 }
-
 
 def determine_quality_level(
     normalized_score: float,
@@ -744,7 +725,6 @@ def determine_quality_level(
         return QualityLevel.ACEPTABLE
     else:
         return QualityLevel.INSUFICIENTE
-
 
 def apply_scoring(
     question_global: int,
@@ -874,7 +854,6 @@ def apply_scoring(
     )
 
     return result
-
 
 __all__ = [
     "ScoringModality",

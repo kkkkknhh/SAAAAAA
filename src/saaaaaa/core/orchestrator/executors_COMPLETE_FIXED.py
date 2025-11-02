@@ -17,7 +17,6 @@ class DataFlowExecutor:
     def __init__(self, method_executor) -> None:
         self.executor = method_executor
 
-
 class D1Q1_Executor(DataFlowExecutor):
     """
     D1-Q1: Líneas Base y Brechas Cuantificadas
@@ -274,7 +273,6 @@ class D1Q1_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q2_Executor(DataFlowExecutor):
     """
     D1-Q2: Normalización y Fuentes
@@ -452,7 +450,6 @@ class D1Q2_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D1Q3_Executor(DataFlowExecutor):
     """
@@ -762,7 +759,6 @@ class D1Q3_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q4_Executor(DataFlowExecutor):
     """
     D1-Q4: Capacidad Institucional
@@ -993,7 +989,6 @@ class D1Q4_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q5_Executor(DataFlowExecutor):
     """
     D1-Q5: Restricciones Temporales
@@ -1197,7 +1192,6 @@ class D1Q5_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q1_Executor(DataFlowExecutor):
     """
@@ -1480,7 +1474,6 @@ class D2Q1_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q2_Executor(DataFlowExecutor):
     """
@@ -1803,7 +1796,6 @@ class D2Q2_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D2Q3_Executor(DataFlowExecutor):
     """
     D2-Q3: Responsables de Actividades
@@ -2020,7 +2012,6 @@ class D2Q3_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q4_Executor(DataFlowExecutor):
     """
@@ -2277,7 +2268,6 @@ class D2Q4_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q5_Executor(DataFlowExecutor):
     """
@@ -2548,7 +2538,6 @@ class D2Q5_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D3Q1_Executor(DataFlowExecutor):
     """
     D3-Q1: Indicadores de Producto
@@ -2804,7 +2793,6 @@ class D3Q1_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q2_Executor(DataFlowExecutor):
     """
@@ -3075,7 +3063,6 @@ class D3Q2_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D3Q3_Executor(DataFlowExecutor):
     """
     D3-Q3: Responsables de Productos
@@ -3292,7 +3279,6 @@ class D3Q3_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q4_Executor(DataFlowExecutor):
     """
@@ -3536,7 +3522,6 @@ class D3Q4_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q5_Executor(DataFlowExecutor):
     """
@@ -4002,7 +3987,6 @@ class D3Q5_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q1_Executor(DataFlowExecutor):
     """
     D4-Q1: Indicadores de Resultado
@@ -4258,7 +4242,6 @@ class D4Q1_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D4Q2_Executor(DataFlowExecutor):
     """
@@ -4594,7 +4577,6 @@ class D4Q2_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q3_Executor(DataFlowExecutor):
     """
     D4-Q3: Justificación de Ambición
@@ -4877,7 +4859,6 @@ class D4Q3_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q4_Executor(DataFlowExecutor):
     """
     D4-Q4: Población Objetivo
@@ -5095,7 +5076,6 @@ class D4Q4_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q5_Executor(DataFlowExecutor):
     """
     D4-Q5: Alineación con Objetivos Superiores
@@ -5312,7 +5292,6 @@ class D4Q5_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D5Q1_Executor(DataFlowExecutor):
     """
@@ -5543,7 +5522,6 @@ class D5Q1_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D5Q2_Executor(DataFlowExecutor):
     """
@@ -5892,7 +5870,6 @@ class D5Q2_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q3_Executor(DataFlowExecutor):
     """
     D5-Q3: Evidencia de Causalidad
@@ -6149,7 +6126,6 @@ class D5Q3_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q4_Executor(DataFlowExecutor):
     """
     D5-Q4: Plazos de Impacto
@@ -6354,7 +6330,6 @@ class D5Q4_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q5_Executor(DataFlowExecutor):
     """
     D5-Q5: Sostenibilidad Financiera
@@ -6558,7 +6533,6 @@ class D5Q5_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q1_Executor(DataFlowExecutor):
     """
@@ -7010,7 +6984,6 @@ class D6Q1_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q2_Executor(DataFlowExecutor):
     """
@@ -7528,7 +7501,6 @@ class D6Q2_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D6Q3_Executor(DataFlowExecutor):
     """
     D6-Q3: Inconsistencias (Sistema Bicameral - Ruta 1)
@@ -7836,7 +7808,6 @@ class D6Q3_Executor(DataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q4_Executor(DataFlowExecutor):
     """
@@ -8341,7 +8312,6 @@ class D6Q4_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D6Q5_Executor(DataFlowExecutor):
     """
     D6-Q5: Contextualización y Enfoque Diferencial
@@ -8676,7 +8646,6 @@ class D6Q5_Executor(DataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 # ============================================================================
 # CASOS ESPECIALES
 # ============================================================================
@@ -8697,7 +8666,6 @@ class D6Q2_Executor_AntiMilagro(D6Q2_Executor):
     def _detect_miracle(self, result) -> bool:
         # TODO: Implementar lógica de detección
         return False
-
 
 class D6Q3_Executor_Bicameral(D6Q3_Executor):
     """D6-Q3 con sistema bicameral"""
@@ -8729,7 +8697,6 @@ class D6Q3_Executor_Bicameral(D6Q3_Executor):
 
         return base_result
 
-
 class D6Q4_Executor_Bicameral(D6Q4_Executor):
     """D6-Q4 con sistema bicameral"""
 
@@ -8755,7 +8722,6 @@ class D6Q4_Executor_Bicameral(D6Q4_Executor):
         base_result['bicameral'] = True
 
         return base_result
-
 
 # Derek Beach se aplica donde se necesite
 class ProcessTracingMixin:

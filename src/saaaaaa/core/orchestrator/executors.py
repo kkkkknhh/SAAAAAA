@@ -59,7 +59,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ExecutionMetrics:
     """Metrics for monitoring executor performance"""
@@ -122,15 +121,12 @@ class ExecutionMetrics:
             'retry_attempts': self.retry_attempts,
         }
 
-
 # Global metrics instance
 _global_metrics = ExecutionMetrics()
-
 
 def get_execution_metrics() -> ExecutionMetrics:
     """Get global execution metrics"""
     return _global_metrics
-
 
 @contextmanager
 def execution_timer(operation_name: str):
@@ -141,7 +137,6 @@ def execution_timer(operation_name: str):
     finally:
         elapsed = time.time() - start_time
         logger.debug(f"{operation_name} completed in {elapsed:.3f}s")
-
 
 # ============================================================================
 # QUANTUM-INSPIRED OPTIMIZATION
@@ -177,7 +172,6 @@ class QuantumState:
         for _ in range(iterations):
             self.apply_diffusion()
         return self.measure()
-
 
 class QuantumExecutionOptimizer:
     """Quantum-inspired optimizer for execution path selection
@@ -236,7 +230,6 @@ class QuantumExecutionOptimizer:
         """Update execution history with performance metrics"""
         self.execution_history.append((method_idx, performance))
 
-
 # ============================================================================
 # NEUROMORPHIC COMPUTING PATTERNS
 # ============================================================================
@@ -268,7 +261,6 @@ class SpikingNeuron:
         if len(self.spike_history) < window:
             return 0.0
         return sum(self.spike_history[-window:]) / window
-
 
 class NeuromorphicFlowController:
     """Neuromorphic controller for dynamic data flow"""
@@ -309,7 +301,6 @@ class NeuromorphicFlowController:
             pre_rate = self.neurons[i].get_firing_rate()
             post_rate = self.neurons[i + 1].get_firing_rate()
             self.apply_stdp(i, i + 1, pre_rate > 0.5, post_rate > 0.5)
-
 
 # ============================================================================
 # CAUSAL INFERENCE FRAMEWORK
@@ -416,7 +407,6 @@ class CausalGraph:
 
         return order if len(order) == self.num_variables else list(range(self.num_variables))
 
-
 # ============================================================================
 # INFORMATION-THEORETIC FLOW OPTIMIZATION
 # ============================================================================
@@ -520,7 +510,6 @@ class InformationFlowOptimizer:
 
         return optimized
 
-
 # ============================================================================
 # META-LEARNING EXECUTION STRATEGY
 # ============================================================================
@@ -575,7 +564,6 @@ class MetaLearningStrategy:
         ]
 
         return strategies[strategy_idx % len(strategies)]
-
 
 # ============================================================================
 # ATTENTION MECHANISM
@@ -632,7 +620,6 @@ class AttentionMechanism:
 
         return sorted(method_scores, key=lambda x: x[1], reverse=True)
 
-
 # ============================================================================
 # TOPOLOGICAL DATA ANALYSIS
 # ============================================================================
@@ -683,14 +670,12 @@ class PersistentHomology:
             "total_persistence": sum(lifetimes)
         }
 
-
 # ============================================================================
 # CATEGORY THEORY ABSTRACTIONS
 # ============================================================================
 
 T = TypeVar('T')
 U = TypeVar('U')
-
 
 class Functor(Generic[T, U], ABC):
     """Functor abstraction for composable transformations"""
@@ -699,7 +684,6 @@ class Functor(Generic[T, U], ABC):
     def fmap(self, f: Callable[[T], U]) -> 'Functor[T, U]':
         """Map function over functor"""
         pass
-
 
 class ExecutionMonad(Functor):
     """Monad for composable execution pipelines"""
@@ -739,7 +723,6 @@ class ExecutionMonad(Functor):
         """Extract value from monad"""
         return self.value
 
-
 class CategoryTheoryExecutor:
     """Executor using category theory abstractions"""
 
@@ -772,7 +755,6 @@ class CategoryTheoryExecutor:
                 monad = monad.bind(lambda x: ExecutionMonad.unit(self.morphisms[morphism_name](x)))
 
         return monad
-
 
 # ============================================================================
 # PROBABILISTIC PROGRAMMING
@@ -829,7 +811,6 @@ class ProbabilisticExecutor:
         upper = np.percentile(samples, (1 + alpha) / 2 * 100)
 
         return (float(lower), float(upper))
-
 
 # ============================================================================
 # ADVANCED EXECUTOR BASE CLASS
@@ -1007,7 +988,6 @@ class AdvancedDataFlowExecutor(ABC):
         """Extract final results (to be implemented by subclasses)"""
         pass
 
-
 # ============================================================================
 # ALL 30 EXECUTORS COMPLETE IMPLEMENTATION
 # ============================================================================
@@ -1042,7 +1022,6 @@ class D1Q1_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q2_Executor(AdvancedDataFlowExecutor):
     """D1-Q2: Normalización y Fuentes"""
 
@@ -1066,7 +1045,6 @@ class D1Q2_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D1Q3_Executor(AdvancedDataFlowExecutor):
     """D1-Q3: Asignación de Recursos"""
@@ -1102,7 +1080,6 @@ class D1Q3_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q4_Executor(AdvancedDataFlowExecutor):
     """D1-Q4: Capacidad Institucional"""
 
@@ -1131,7 +1108,6 @@ class D1Q4_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D1Q5_Executor(AdvancedDataFlowExecutor):
     """D1-Q5: Restricciones Temporales"""
 
@@ -1157,7 +1133,6 @@ class D1Q5_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q1_Executor(AdvancedDataFlowExecutor):
     """D2-Q1: Formato Tabular y Trazabilidad"""
@@ -1190,7 +1165,6 @@ class D2Q1_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q2_Executor(AdvancedDataFlowExecutor):
     """D2-Q2: Causalidad de Actividades"""
@@ -1227,7 +1201,6 @@ class D2Q2_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D2Q3_Executor(AdvancedDataFlowExecutor):
     """D2-Q3: Responsables de Actividades"""
 
@@ -1254,7 +1227,6 @@ class D2Q3_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q4_Executor(AdvancedDataFlowExecutor):
     """D2-Q4: Cuantificación de Actividades"""
@@ -1285,7 +1257,6 @@ class D2Q4_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D2Q5_Executor(AdvancedDataFlowExecutor):
     """D2-Q5: Eslabón Causal Diagnóstico-Actividades"""
@@ -1318,7 +1289,6 @@ class D2Q5_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D3Q1_Executor(AdvancedDataFlowExecutor):
     """D3-Q1: Indicadores de Producto"""
 
@@ -1348,7 +1318,6 @@ class D3Q1_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q2_Executor(AdvancedDataFlowExecutor):
     """D3-Q2: Cuantificación de Productos"""
@@ -1381,7 +1350,6 @@ class D3Q2_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D3Q3_Executor(AdvancedDataFlowExecutor):
     """D3-Q3: Responsables de Productos"""
 
@@ -1408,7 +1376,6 @@ class D3Q3_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q4_Executor(AdvancedDataFlowExecutor):
     """D3-Q4: Plazos de Productos"""
@@ -1438,7 +1405,6 @@ class D3Q4_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D3Q5_Executor(AdvancedDataFlowExecutor):
     """D3-Q5: Eslabón Causal Producto-Resultado"""
@@ -1486,7 +1452,6 @@ class D3Q5_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q1_Executor(AdvancedDataFlowExecutor):
     """D4-Q1: Indicadores de Resultado"""
 
@@ -1516,7 +1481,6 @@ class D4Q1_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D4Q2_Executor(AdvancedDataFlowExecutor):
     """D4-Q2: Cadena Causal y Supuestos"""
@@ -1554,7 +1518,6 @@ class D4Q2_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q3_Executor(AdvancedDataFlowExecutor):
     """D4-Q3: Justificación de Ambición"""
 
@@ -1587,7 +1550,6 @@ class D4Q3_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D4Q4_Executor(AdvancedDataFlowExecutor):
     """D4-Q4: Población Objetivo"""
 
@@ -1614,7 +1576,6 @@ class D4Q4_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D4Q5_Executor(AdvancedDataFlowExecutor):
     """D4-Q5: Alineación con Objetivos Superiores"""
@@ -1643,7 +1604,6 @@ class D4Q5_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q1_Executor(AdvancedDataFlowExecutor):
     """D5-Q1: Indicadores de Impacto"""
 
@@ -1671,7 +1631,6 @@ class D5Q1_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D5Q2_Executor(AdvancedDataFlowExecutor):
     """D5-Q2: Eslabón Causal Resultado-Impacto"""
@@ -1710,7 +1669,6 @@ class D5Q2_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q3_Executor(AdvancedDataFlowExecutor):
     """D5-Q3: Evidencia de Causalidad"""
 
@@ -1741,7 +1699,6 @@ class D5Q3_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q4_Executor(AdvancedDataFlowExecutor):
     """D5-Q4: Plazos de Impacto"""
 
@@ -1768,7 +1725,6 @@ class D5Q4_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D5Q5_Executor(AdvancedDataFlowExecutor):
     """D5-Q5: Sostenibilidad Financiera"""
 
@@ -1794,7 +1750,6 @@ class D5Q5_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q1_Executor(AdvancedDataFlowExecutor):
     """D6-Q1: Integridad de Teoría de Cambio"""
@@ -1840,7 +1795,6 @@ class D6Q1_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q2_Executor(AdvancedDataFlowExecutor):
     """D6-Q2: Proporcionalidad y Continuidad (Anti-Milagro)"""
@@ -1892,7 +1846,6 @@ class D6Q2_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D6Q3_Executor(AdvancedDataFlowExecutor):
     """D6-Q3: Inconsistencias (Sistema Bicameral - Ruta 1)"""
 
@@ -1926,7 +1879,6 @@ class D6Q3_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 class D6Q4_Executor(AdvancedDataFlowExecutor):
     """D6-Q4: Adaptación (Sistema Bicameral - Ruta 2)"""
@@ -1977,7 +1929,6 @@ class D6Q4_Executor(AdvancedDataFlowExecutor):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
 
-
 class D6Q5_Executor(AdvancedDataFlowExecutor):
     """D6-Q5: Contextualización y Enfoque Diferencial"""
 
@@ -2013,7 +1964,6 @@ class D6Q5_Executor(AdvancedDataFlowExecutor):
     def _extract(self, results):
         vals = [v for v in results.values() if v is not None]
         return vals[:4] if vals else []
-
 
 # ============================================================================
 # ORCHESTRATOR
@@ -2115,10 +2065,8 @@ class FrontierExecutorOrchestrator:
         # Map indices to question IDs
         return [question_ids[i] for i in indices if i < len(question_ids)]
 
-
 # Backwards compatibility alias
 DataFlowExecutor = AdvancedDataFlowExecutor
-
 
 # Export all executor classes and orchestrator
 __all__ = [

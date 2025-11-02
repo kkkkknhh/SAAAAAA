@@ -8,7 +8,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-
 def extract_imports(file_path: Path) -> set[str]:
     """Extract import statements from a Python file."""
     imports = set()
@@ -27,7 +26,6 @@ def extract_imports(file_path: Path) -> set[str]:
         print(f"Warning: Could not parse {file_path}: {e}", file=sys.stderr)
 
     return imports
-
 
 def build_dependency_graph(root_path: Path, package_name: str) -> dict[str, set[str]]:
     """Build a dependency graph for the package."""
@@ -60,7 +58,6 @@ def build_dependency_graph(root_path: Path, package_name: str) -> dict[str, set[
                     graph[module].add(sub_pkg)
 
     return graph
-
 
 def find_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
     """Find cycles in the dependency graph using DFS."""
@@ -95,7 +92,6 @@ def find_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
             dfs(node)
 
     return cycles
-
 
 def main() -> None:
     """Main entry point."""
@@ -135,7 +131,6 @@ def main() -> None:
     else:
         print("\n✅ No circular dependencies found")
         sys.exit(0)
-
 
 if __name__ == '__main__':
     main()

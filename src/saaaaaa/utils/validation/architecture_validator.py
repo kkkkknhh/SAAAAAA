@@ -38,7 +38,6 @@ ALIAS_MAP: dict[str, object] = {
 # Root directory of the repository (two levels above this file).
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
-
 @dataclass(frozen=True)
 class ArchitectureValidationResult:
     """Container with the outcome of the architecture validation process."""
@@ -70,13 +69,11 @@ class ArchitectureValidationResult:
             "global_methods": list(self.global_methods),
         }
 
-
 def load_architecture_spec(path: Path) -> dict[str, object]:
     """Load the JSON architecture specification from ``path``."""
 
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
 
 def _extract_method_from_entry(entry: object) -> str | None:
     """Return the method string encoded in ``entry`` if present."""
@@ -98,14 +95,12 @@ def _extract_method_from_entry(entry: object) -> str | None:
 
     return None
 
-
 def _extract_methods_from_string(value: str) -> Iterable[str]:
     """Extract additional method references embedded in textual descriptions."""
 
     for candidate in re.findall(r"[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*", value):
         if METHOD_PATTERN.match(candidate):
             yield candidate
-
 
 def extract_architecture_methods(spec: Mapping[str, object]) -> tuple[dict[str, dict[str, list[str]]], list[str]]:
     """Extract method sequences per dimension and global method references."""
@@ -187,7 +182,6 @@ def extract_architecture_methods(spec: Mapping[str, object]) -> tuple[dict[str, 
 
     return per_dimension, global_methods
 
-
 def load_method_inventory(path: Path) -> tuple[set[str], set[str]]:
     """Load available class methods and module functions from the inventory."""
 
@@ -216,7 +210,6 @@ def load_method_inventory(path: Path) -> tuple[set[str], set[str]]:
                         available_methods.add(f"{node.name}.{item.name}")
 
     return available_methods, functions
-
 
 def _resolve_method_reference(
     reference: str,
@@ -251,7 +244,6 @@ def _resolve_method_reference(
     if reference in available_functions:
         return reference
     return None
-
 
 def validate_architecture(spec_path: Path, inventory_path: Path) -> ArchitectureValidationResult:
     """Validate that every method described in the architecture exists."""
@@ -298,14 +290,12 @@ def validate_architecture(spec_path: Path, inventory_path: Path) -> Architecture
         global_methods=tuple(global_methods),
     )
 
-
 def write_validation_report(result: ArchitectureValidationResult, output_path: Path) -> None:
     """Write the validation report to ``output_path`` in JSON format."""
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
         json.dump(result.to_dict(), handle, indent=2, ensure_ascii=False)
-
 
 def main() -> None:
     """Entry point for CLI usage."""
@@ -325,7 +315,6 @@ def main() -> None:
         )
     else:
         print(f"Architecture validation successful. Report saved to {report_path}.")
-
 
 # Note: Main entry point removed to maintain I/O boundary separation.
 # For usage, call main() function from a script or see examples/ directory.

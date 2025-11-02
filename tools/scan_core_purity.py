@@ -8,10 +8,8 @@ import re
 ROOT = pathlib.Path("core")
 BAD_CALLS = re.compile(r"\b(open|json\.load|json\.dump|requests\.|pandas\.read_)", re.I)
 
-
 class _PurityViolation(SystemExit):
     """Custom exit used to signal violations without stack traces."""
-
 
 def _check(path: pathlib.Path) -> None:
     code = path.read_text(encoding="utf-8")
@@ -34,12 +32,10 @@ def _check(path: pathlib.Path) -> None:
     if BAD_CALLS.search(code):
         raise _PurityViolation(f"{path}: forbidden I/O pattern")
 
-
 def main() -> None:
     for file_path in sorted(ROOT.rglob("*.py")):
         _check(file_path)
     print("Core purity: OK")
-
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation only
     try:

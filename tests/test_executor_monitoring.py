@@ -21,7 +21,6 @@ from saaaaaa.core.orchestrator.executors import (
     QuantumExecutionOptimizer,
 )
 
-
 class TestExecutionMetrics:
     """Test ExecutionMetrics dataclass and methods"""
 
@@ -113,7 +112,6 @@ class TestExecutionMetrics:
         assert summary['quantum_optimizations'] == 1
         assert summary['avg_quantum_convergence_time'] == 0.05
 
-
 class TestQuantumExecutionOptimizerInstrumentation:
     """Test quantum optimizer instrumentation"""
 
@@ -133,7 +131,6 @@ class TestQuantumExecutionOptimizerInstrumentation:
         assert metrics.quantum_optimizations >= 1
         assert len(metrics.quantum_convergence_times) >= 1
         assert all(t >= 0 for t in metrics.quantum_convergence_times)
-
 
 class TestMetaLearningStrategyInstrumentation:
     """Test meta-learning strategy instrumentation"""
@@ -155,7 +152,6 @@ class TestMetaLearningStrategyInstrumentation:
         total_selections = sum(metrics.meta_learner_strategy_selections.values())
         assert total_selections == 10
 
-
 class TestInformationFlowOptimizerInstrumentation:
     """Test information flow optimizer instrumentation"""
 
@@ -176,7 +172,6 @@ class TestInformationFlowOptimizerInstrumentation:
         metrics = executors._global_metrics
         if bottlenecks:
             assert metrics.information_bottlenecks_detected >= 1
-
 
 class TestExecutorLogging:
     """Test executor logging functionality"""
@@ -225,7 +220,6 @@ class TestExecutorLogging:
         # Check that batch execution logging was called
         assert mock_logger.info.called
 
-
 class TestRetryLogic:
     """Test retry logic in executor"""
 
@@ -265,7 +259,6 @@ class TestRetryLogic:
         # We should have at least 1 retry (could be more due to multiple methods)
         assert metrics.retry_attempts >= 1
 
-
 class TestMetricsInResultMetadata:
     """Test that metrics are included in execution results"""
 
@@ -301,7 +294,6 @@ class TestMetricsInResultMetadata:
         except Exception:
             # Test may fail due to mocking, but we've tested what we can
             pass
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

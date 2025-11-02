@@ -7,7 +7,6 @@ Verifies all components of the Bayesian Multi-Level Analysis System
 import sys
 from pathlib import Path
 
-
 def verify_implementation():
     """Verify complete implementation"""
     print("=" * 80)

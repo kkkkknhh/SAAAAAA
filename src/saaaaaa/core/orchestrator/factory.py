@@ -42,9 +42,7 @@ from .core import MethodExecutor
 
 logger = logging.getLogger(__name__)
 
-
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
-
 
 @dataclass(frozen=True)
 class ProcessorBundle:
@@ -63,7 +61,6 @@ class ProcessorBundle:
     method_executor: MethodExecutor
     questionnaire: Mapping[str, Any]
     factory: "CoreModuleFactory"
-
 
 # ============================================================================
 # FILE I/O OPERATIONS
@@ -100,7 +97,6 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
 
     return payload
 
-
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
 
@@ -117,7 +113,6 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
 
     with open(path, encoding='utf-8') as f:
         return json.load(f)
-
 
 def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
@@ -136,7 +131,6 @@ def load_method_map(path: Path | None = None) -> dict[str, Any]:
     with open(path, encoding='utf-8') as f:
         return json.load(f)
 
-
 def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
 
@@ -153,7 +147,6 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
 
     with open(path, encoding='utf-8') as f:
         return json.load(f)
-
 
 def load_document(file_path: Path) -> DocumentData:
     """Load a document and construct DocumentData contract.
@@ -187,7 +180,6 @@ def load_document(file_path: Path) -> DocumentData:
         }
     )
 
-
 def save_results(results: dict[str, Any], output_path: Path) -> None:
     """Save analysis results to file.
 
@@ -202,7 +194,6 @@ def save_results(results: dict[str, Any], output_path: Path) -> None:
 
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
-
 
 # ============================================================================
 # CONTRACT CONSTRUCTORS
@@ -226,7 +217,6 @@ def construct_semantic_analyzer_input(
         segments=kwargs.get('segments', document['sentences']),
         ontology_params=kwargs.get('ontology_params', {}),
     )
-
 
 def construct_cdaf_input(
     document: DocumentData,
@@ -253,7 +243,6 @@ def construct_cdaf_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_pdet_input(
     document: DocumentData,
     **kwargs: Any
@@ -273,7 +262,6 @@ def construct_pdet_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_teoria_cambio_input(
     document: DocumentData,
     **kwargs: Any
@@ -292,7 +280,6 @@ def construct_teoria_cambio_input(
         strategic_goals=kwargs.get('strategic_goals', []),
         config=kwargs.get('config', {}),
     )
-
 
 def construct_contradiction_detector_input(
     document: DocumentData,
@@ -316,7 +303,6 @@ def construct_contradiction_detector_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_embedding_policy_input(
     document: DocumentData,
     **kwargs: Any
@@ -336,7 +322,6 @@ def construct_embedding_policy_input(
         model_config=kwargs.get('model_config', {}),
     )
 
-
 def construct_semantic_chunking_input(
     document: DocumentData,
     **kwargs: Any
@@ -355,7 +340,6 @@ def construct_semantic_chunking_input(
         preserve_structure=kwargs.get('preserve_structure', True),
         config=kwargs.get('config', {}),
     )
-
 
 def construct_policy_processor_input(
     document: DocumentData,
@@ -377,7 +361,6 @@ def construct_policy_processor_input(
         tables=document['tables'],
         config=kwargs.get('config', {}),
     )
-
 
 # ============================================================================
 # FACTORY FUNCTIONS
@@ -456,7 +439,6 @@ class CoreModuleFactory:
     construct_semantic_chunking_input = construct_semantic_chunking_input
     construct_policy_processor_input = construct_policy_processor_input
 
-
 def build_processor(
     *,
     questionnaire_path: Path | None = None,
@@ -499,7 +481,6 @@ def build_processor(
         factory=core_factory,
     )
 
-
 # ============================================================================
 # MIGRATION HELPERS
 # ============================================================================
@@ -519,7 +500,6 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
         f"lines {line_numbers}"
     )
 
-
 # TODO: Migrate I/O operations from core modules
 # Track progress:
 # - Analyzer_one.py: 72 I/O operations to migrate
@@ -527,7 +507,6 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # - financiero_viabilidad_tablas.py: Multiple operations to migrate
 # - teoria_cambio.py: Some operations to migrate
 # Others are clean
-
 
 __all__ = [
     'CoreModuleFactory',

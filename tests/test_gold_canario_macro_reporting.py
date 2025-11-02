@@ -13,7 +13,7 @@ Tests for all 5 macro-level analysis prompts:
 
 import pytest
 
-from macro_prompts import (
+from saaaaaa.processing.macro_prompts import (
     BayesianPortfolio,
     BayesianPortfolioComposer,
     ContradictionReport,
@@ -47,7 +47,6 @@ class TestCoverageGapStressorBasics:
         )
         assert stressor.critical_dimensions == ["D1", "D2"]
         assert stressor.coverage_threshold == 0.80
-
 
 class TestCoverageIndexCalculation:
     """Test coverage index calculation"""
@@ -105,7 +104,6 @@ class TestCoverageIndexCalculation:
 
         assert result.coverage_index == 0.0
 
-
 class TestCriticalGapDetection:
     """Test critical gap detection"""
 
@@ -146,7 +144,6 @@ class TestCriticalGapDetection:
         assert "D3" in result.critical_dimensions_below_threshold
         assert "D6" in result.critical_dimensions_below_threshold
 
-
 class TestConfidenceDegradation:
     """Test confidence degradation logic"""
 
@@ -186,7 +183,6 @@ class TestConfidenceDegradation:
         # Should have significant degradation
         assert result.degraded_confidence < 0.8
 
-
 class TestPredictiveUplift:
     """Test predictive uplift simulation"""
 
@@ -214,7 +210,6 @@ class TestPredictiveUplift:
         assert "C2" in result.predictive_uplift
         assert all(v > 0 for v in result.predictive_uplift.values())
 
-
 # ============================================================================
 # TEST CONTRADICTION SCANNER
 # ============================================================================
@@ -236,7 +231,6 @@ class TestContradictionScannerBasics:
         )
         assert scanner.k == 5
         assert scanner.theta == 0.8
-
 
 class TestContradictionDetection:
     """Test contradiction detection"""
@@ -292,7 +286,6 @@ class TestContradictionDetection:
         # Should detect contradictions
         assert len(result.contradictions) >= 0
 
-
 class TestSuggestedActions:
     """Test suggested action generation"""
 
@@ -321,7 +314,6 @@ class TestSuggestedActions:
         # Should suggest actions if contradictions detected
         assert isinstance(result.suggested_actions, list)
 
-
 # ============================================================================
 # TEST BAYESIAN PORTFOLIO COMPOSER
 # ============================================================================
@@ -333,7 +325,6 @@ class TestBayesianPortfolioComposerBasics:
         """Test initialization"""
         composer = BayesianPortfolioComposer()
         assert composer.default_variance == 0.05
-
 
 class TestPriorCalculation:
     """Test global prior calculation"""
@@ -373,7 +364,6 @@ class TestPriorCalculation:
         # Weighted mean: (0.6*1 + 0.9*2) / 3 = 2.4 / 3 = 0.8
         assert result.prior_global == 0.8
 
-
 class TestPenaltyApplication:
     """Test penalty application"""
 
@@ -407,7 +397,6 @@ class TestPenaltyApplication:
         assert result.posterior_global < result.prior_global
         assert result.penalties_applied["coverage"] == 0.1
         assert result.penalties_applied["dispersion"] == 0.05
-
 
 class TestVarianceCalculation:
     """Test global variance calculation"""
@@ -448,7 +437,6 @@ class TestVarianceCalculation:
 
         assert result.var_global > 0.05
 
-
 class TestConfidenceInterval:
     """Test confidence interval calculation"""
 
@@ -466,7 +454,6 @@ class TestConfidenceInterval:
         assert 0.0 <= upper <= 1.0
         assert lower <= result.posterior_global <= upper
 
-
 # ============================================================================
 # TEST ROADMAP OPTIMIZER
 # ============================================================================
@@ -478,7 +465,6 @@ class TestRoadmapOptimizerBasics:
         """Test initialization"""
         optimizer = RoadmapOptimizer()
         assert optimizer is not None
-
 
 class TestGapPrioritization:
     """Test gap prioritization by impact/effort"""
@@ -507,7 +493,6 @@ class TestGapPrioritization:
 
         # Should have phases assigned
         assert len(roadmap.phases) == 3
-
 
 class TestPhaseAssignment:
     """Test phase assignment with dependencies"""
@@ -544,7 +529,6 @@ class TestPhaseAssignment:
 
         # Should assign in dependency order
         assert len(roadmap.phases) == 3
-
 
 class TestCriticalPath:
     """Test critical path identification"""
@@ -583,7 +567,6 @@ class TestCriticalPath:
         # Critical path should include high-impact chain
         assert len(roadmap.critical_path) > 0
 
-
 class TestResourceEstimation:
     """Test resource requirement estimation"""
 
@@ -600,7 +583,6 @@ class TestResourceEstimation:
         assert "0-3m" in roadmap.resource_requirements
         assert "total_effort_months" in roadmap.resource_requirements["0-3m"]
         assert "recommended_team_size" in roadmap.resource_requirements["0-3m"]
-
 
 # ============================================================================
 # TEST PEER NORMALIZER
@@ -623,7 +605,6 @@ class TestPeerNormalizerBasics:
         )
         assert normalizer.k == 5
         assert normalizer.outlier_z == 3.0
-
 
 class TestZScoreCalculation:
     """Test z-score calculation"""
@@ -660,7 +641,6 @@ class TestZScoreCalculation:
         # z = (0.40 - 0.50) / 0.05 = -2.0
         assert result.z_scores["P1"] == -2.0
 
-
 class TestOutlierDetection:
     """Test outlier detection"""
 
@@ -695,7 +675,6 @@ class TestOutlierDetection:
 
         # z = (0.52 - 0.50) / 0.10 = 0.2, which is < 2.0
         assert len(result.outlier_areas) == 0
-
 
 class TestConfidenceAdjustment:
     """Test confidence adjustment"""
@@ -737,7 +716,6 @@ class TestConfidenceAdjustment:
 
         # Many low performers should reduce confidence
         assert result.adjusted_confidence < 1.0
-
 
 class TestPeerPosition:
     """Test peer position determination"""
@@ -792,7 +770,6 @@ class TestPeerPosition:
         result = normalizer.normalize(convergence, peer_distributions, 1.0)
 
         assert result.peer_position == "average"
-
 
 # ============================================================================
 # INTEGRATION TESTS
@@ -850,7 +827,6 @@ class TestMacroIntegration:
         assert isinstance(portfolio_result, BayesianPortfolio)
         assert isinstance(roadmap_result, ImplementationRoadmap)
         assert isinstance(peer_result, PeerNormalization)
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

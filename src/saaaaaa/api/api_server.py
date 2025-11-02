@@ -77,7 +77,6 @@ class APIConfig:
     DATA_DIRECTORY = os.getenv('ATROZ_DATA_DIR', 'output')
     CACHE_DIRECTORY = os.getenv('ATROZ_CACHE_DIR', 'cache')
 
-
 # ============================================================================
 # FLASK APP INITIALIZATION
 # ============================================================================
@@ -98,7 +97,6 @@ cache_timestamps = {}
 # Initialize rate limiter
 request_counts = {}
 
-
 # ============================================================================
 # MIDDLEWARE & DECORATORS
 # ============================================================================
@@ -112,7 +110,6 @@ def generate_jwt_token(client_id: str) -> str:
     }
     return jwt.encode(payload, APIConfig.JWT_SECRET, algorithm=APIConfig.JWT_ALGORITHM)
 
-
 def verify_jwt_token(token: str) -> dict | None:
     """Verify JWT token"""
     try:
@@ -122,7 +119,6 @@ def verify_jwt_token(token: str) -> dict | None:
         return None
     except jwt.InvalidTokenError:
         return None
-
 
 def require_auth(f):
     """Decorator for JWT authentication"""
@@ -143,7 +139,6 @@ def require_auth(f):
         return f(*args, **kwargs)
 
     return decorated_function
-
 
 def rate_limit(f):
     """Decorator for rate limiting"""
@@ -180,7 +175,6 @@ def rate_limit(f):
 
     return decorated_function
 
-
 def cached(ttl: int = APIConfig.CACHE_TTL):
     """Decorator for caching responses"""
     def decorator(f):
@@ -214,7 +208,6 @@ def cached(ttl: int = APIConfig.CACHE_TTL):
 
         return decorated_function
     return decorator
-
 
 # ============================================================================
 # MOCK DATA SERVICE (Replace with real orchestrator integration)
@@ -417,7 +410,6 @@ class DataService:
             }
         ]
 
-
 # Initialize data service
 data_service = DataService()
 
@@ -428,7 +420,6 @@ try:
     logger.info("Recommendation engine initialized successfully")
 except Exception as e:
     logger.warning(f"Failed to initialize recommendation engine: {e}")
-
 
 # ============================================================================
 # API ENDPOINTS
@@ -442,7 +433,6 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0'
     })
-
 
 @app.route('/api/v1/auth/token', methods=['POST'])
 @rate_limit
@@ -464,7 +454,6 @@ def get_auth_token():
         'token_type': 'Bearer',
         'expires_in': APIConfig.JWT_EXPIRATION_HOURS * 3600
     })
-
 
 @app.route('/api/v1/pdet/regions', methods=['GET'])
 @rate_limit
@@ -489,7 +478,6 @@ def get_pdet_regions():
     except Exception as e:
         logger.error(f"Failed to get PDET regions: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/v1/pdet/regions/<region_id>', methods=['GET'])
 @rate_limit
@@ -519,7 +507,6 @@ def get_region_detail(region_id: str):
     except Exception as e:
         logger.error(f"Failed to get region detail: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/v1/municipalities/<municipality_id>', methods=['GET'])
 @rate_limit
@@ -560,7 +547,6 @@ def get_municipality_data(municipality_id: str):
         logger.error(f"Failed to get municipality data: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/v1/evidence/stream', methods=['GET'])
 @rate_limit
 @cached(ttl=60)
@@ -584,7 +570,6 @@ def get_evidence_stream():
     except Exception as e:
         logger.error(f"Failed to get evidence stream: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/v1/export/dashboard', methods=['POST'])
 @rate_limit
@@ -638,7 +623,6 @@ def export_dashboard_data():
         logger.error(f"Failed to export dashboard data: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 # ============================================================================
 # WEBSOCKET HANDLERS FOR REAL-TIME UPDATES
 # ============================================================================
@@ -649,12 +633,10 @@ def handle_connect() -> None:
     logger.info(f"Client connected: {request.sid}")
     emit('connection_response', {'status': 'connected'})
 
-
 @socketio.on('disconnect')
 def handle_disconnect() -> None:
     """Handle WebSocket disconnection"""
     logger.info(f"Client disconnected: {request.sid}")
-
 
 @socketio.on('subscribe_region')
 def handle_subscribe_region(data) -> None:
@@ -665,7 +647,6 @@ def handle_subscribe_region(data) -> None:
     # Send initial data
     region = data_service.get_region_detail(region_id)
     emit('region_update', region)
-
 
 # ============================================================================
 # ERROR HANDLERS
@@ -679,7 +660,6 @@ def handle_http_exception(e):
         'status_code': e.code
     }), e.code
 
-
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle general exceptions"""
@@ -688,7 +668,6 @@ def handle_exception(e):
         'error': 'Internal server error',
         'message': str(e)
     }), 500
-
 
 # ============================================================================
 # RECOMMENDATION ENDPOINTS
@@ -736,7 +715,6 @@ def generate_micro_recommendations():
         logger.error(f"Failed to generate MICRO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/v1/recommendations/meso', methods=['POST'])
 @rate_limit
 def generate_meso_recommendations():
@@ -777,7 +755,6 @@ def generate_meso_recommendations():
     except Exception as e:
         logger.error(f"Failed to generate MESO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/v1/recommendations/macro', methods=['POST'])
 @rate_limit
@@ -821,7 +798,6 @@ def generate_macro_recommendations():
     except Exception as e:
         logger.error(f"Failed to generate MACRO recommendations: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/v1/recommendations/all', methods=['POST'])
 @rate_limit
@@ -882,7 +858,6 @@ def generate_all_recommendations():
         logger.error(f"Failed to generate all recommendations: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/v1/recommendations/rules/info', methods=['GET'])
 @rate_limit
 @cached(ttl=600)
@@ -917,7 +892,6 @@ def get_rules_info():
         logger.error(f"Failed to get rules info: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/v1/recommendations/reload', methods=['POST'])
 @require_auth
 def reload_rules():
@@ -944,7 +918,6 @@ def reload_rules():
         logger.error(f"Failed to reload rules: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -966,7 +939,6 @@ def main() -> None:
         port=int(os.getenv('ATROZ_API_PORT', '5000')),
         debug=os.getenv('ATROZ_DEBUG', 'false').lower() == 'true'
     )
-
 
 if __name__ == '__main__':
     main()

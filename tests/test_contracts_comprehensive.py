@@ -18,14 +18,9 @@ Modules tested:
 - seed_factory: Deterministic seed generation
 """
 
-import sys
 from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-
 
 # ============================================================================
 # SCORING MODULE CONTRACTS
@@ -36,7 +31,7 @@ class TestScoringContracts:
 
     def test_scoring_precondition_evidence_dict(self):
         """Scoring requires evidence to be a dictionary."""
-        from scoring.scoring import ModalityConfig, ScoringModality, score_type_a
+        from saaaaaa.scoring.scoring import ModalityConfig, ScoringModality, score_type_a
 
         config = ModalityConfig(
             modality=ScoringModality.TYPE_A,
@@ -57,7 +52,7 @@ class TestScoringContracts:
 
     def test_scoring_postcondition_score_range(self):
         """Scoring postcondition: score must be within declared range."""
-        from scoring.scoring import ModalityConfig, ScoringModality, score_type_a
+        from saaaaaa.scoring.scoring import ModalityConfig, ScoringModality, score_type_a
 
         config = ModalityConfig(
             modality=ScoringModality.TYPE_A,
@@ -80,7 +75,7 @@ class TestScoringContracts:
 
     def test_scoring_invariant_determinism(self):
         """Scoring invariant: same input produces same output."""
-        from scoring.scoring import ModalityConfig, ScoringModality, score_type_a
+        from saaaaaa.scoring.scoring import ModalityConfig, ScoringModality, score_type_a
 
         config = ModalityConfig(
             modality=ScoringModality.TYPE_A,
@@ -97,7 +92,6 @@ class TestScoringContracts:
         assert score1 == score2, "Same input must produce same score"
         assert metadata1 == metadata2, "Same input must produce same metadata"
 
-
 # ============================================================================
 # AGGREGATION MODULE CONTRACTS
 # ============================================================================
@@ -107,7 +101,7 @@ class TestAggregationContracts:
 
     def test_dimension_aggregator_precondition_monolith(self):
         """DimensionAggregator requires valid monolith structure."""
-        from aggregation import DimensionAggregator
+        from saaaaaa.core.aggregation import DimensionAggregator
 
         # Valid monolith (minimal structure)
         valid_monolith = {
@@ -133,7 +127,7 @@ class TestAggregationContracts:
 
     def test_dimension_aggregator_postcondition_score_range(self):
         """Dimension aggregation postcondition: score in [0, 3]."""
-        from aggregation import DimensionAggregator, ScoredResult
+        from saaaaaa.core.aggregation import DimensionAggregator, ScoredResult
 
         monolith = {
             "questions": [],
@@ -176,7 +170,7 @@ class TestAggregationContracts:
 
     def test_aggregation_invariant_weights_sum_to_one(self):
         """Aggregation invariant: weights must sum to 1.0."""
-        from aggregation import DimensionAggregator
+        from saaaaaa.core.aggregation import DimensionAggregator
 
         monolith = {
             "questions": [],
@@ -204,7 +198,6 @@ class TestAggregationContracts:
         valid, msg = aggregator.validate_weights(weights)
         assert not valid, "Invalid weights accepted"
 
-
 # ============================================================================
 # CONCURRENCY MODULE CONTRACTS
 # ============================================================================
@@ -214,7 +207,7 @@ class TestConcurrencyContracts:
 
     def test_worker_pool_precondition_max_workers(self):
         """WorkerPool requires max_workers >= 1."""
-        from concurrency.concurrency import WorkerPool, WorkerPoolConfig
+        from saaaaaa.concurrency.concurrency import WorkerPool, WorkerPoolConfig
 
         # Valid precondition
         config = WorkerPoolConfig(max_workers=4, max_retries=3, backoff_factor=2.0)
@@ -227,7 +220,7 @@ class TestConcurrencyContracts:
 
     def test_worker_pool_postcondition_result_type(self):
         """WorkerPool postcondition: submit returns TaskResult."""
-        from concurrency.concurrency import TaskResult, WorkerPool, WorkerPoolConfig
+        from saaaaaa.concurrency.concurrency import TaskResult, WorkerPool, WorkerPoolConfig
 
         config = WorkerPoolConfig(max_workers=2, max_retries=1, backoff_factor=1.0)
 
@@ -243,7 +236,7 @@ class TestConcurrencyContracts:
         """WorkerPool invariant: deterministic execution with same seed."""
         import random
 
-        from concurrency.concurrency import WorkerPool, WorkerPoolConfig
+        from saaaaaa.concurrency.concurrency import WorkerPool, WorkerPoolConfig
 
         config = WorkerPoolConfig(
             max_workers=2,
@@ -274,7 +267,6 @@ class TestConcurrencyContracts:
         # Note: This may not work if random() is called elsewhere
         # assert value1 == value2, "Deterministic seed should produce same results"
 
-
 # ============================================================================
 # SEED FACTORY CONTRACTS
 # ============================================================================
@@ -284,7 +276,7 @@ class TestSeedFactoryContracts:
 
     def test_seed_factory_precondition_correlation_id(self):
         """SeedFactory requires non-empty correlation_id."""
-        from seed_factory import SeedFactory
+        from saaaaaa.core.seed_factory import SeedFactory
 
         factory = SeedFactory()
 
@@ -300,7 +292,7 @@ class TestSeedFactoryContracts:
 
     def test_seed_factory_postcondition_range(self):
         """SeedFactory postcondition: seed is 32-bit unsigned integer."""
-        from seed_factory import SeedFactory
+        from saaaaaa.core.seed_factory import SeedFactory
 
         factory = SeedFactory()
 
@@ -311,7 +303,7 @@ class TestSeedFactoryContracts:
 
     def test_seed_factory_invariant_determinism(self):
         """SeedFactory invariant: same input produces same seed."""
-        from seed_factory import SeedFactory
+        from saaaaaa.core.seed_factory import SeedFactory
 
         factory = SeedFactory()
 
@@ -337,7 +329,6 @@ class TestSeedFactoryContracts:
             context={"question": "P1-D1-Q002", "area": "P1"}
         )
         assert seed3 != seed5, "Different context must produce different seed"
-
 
 # ============================================================================
 # RECOMMENDATION ENGINE CONTRACTS
@@ -365,7 +356,6 @@ class TestRecommendationEngineContracts:
         # etc.
         pass
 
-
 # ============================================================================
 # INTER-MODULE CONTRACT TESTS
 # ============================================================================
@@ -375,7 +365,7 @@ class TestInterModuleContracts:
 
     def test_scoring_to_aggregation_contract(self):
         """Test that scoring output matches aggregation input contract."""
-        from scoring.scoring import ScoredResult
+        from saaaaaa.scoring.scoring import ScoredResult
 
         # Create ScoredResult (scoring output)
         scored = ScoredResult(
@@ -402,7 +392,6 @@ class TestInterModuleContracts:
         assert isinstance(scored.score, (int, float))
         assert isinstance(scored.quality_level, str)
         assert isinstance(scored.evidence, dict)
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

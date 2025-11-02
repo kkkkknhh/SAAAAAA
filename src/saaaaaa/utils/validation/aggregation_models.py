@@ -8,7 +8,6 @@ ensuring zero-tolerance for invalid values at ingestion time.
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-
 class AggregationWeights(BaseModel):
     """
     Validation model for aggregation weights.
@@ -52,7 +51,6 @@ class AggregationWeights(BaseModel):
             )
         return self
 
-
 class DimensionAggregationConfig(BaseModel):
     """Configuration for dimension-level aggregation."""
 
@@ -63,7 +61,6 @@ class DimensionAggregationConfig(BaseModel):
     weights: AggregationWeights | None = None
     expected_question_count: int = Field(default=5, ge=1, le=10)
 
-
 class AreaAggregationConfig(BaseModel):
     """Configuration for area-level aggregation."""
 
@@ -72,7 +69,6 @@ class AreaAggregationConfig(BaseModel):
     area_id: str = Field(..., pattern=r'^PA\d{2}$')
     expected_dimension_count: int = Field(default=6, ge=1, le=10)
     weights: AggregationWeights | None = None
-
 
 class ClusterAggregationConfig(BaseModel):
     """Configuration for cluster-level aggregation."""
@@ -92,7 +88,6 @@ class ClusterAggregationConfig(BaseModel):
                 raise ValueError(f"Invalid policy area ID: {pa_id}. Expected format: PA##")
         return v
 
-
 class MacroAggregationConfig(BaseModel):
     """Configuration for macro-level aggregation."""
 
@@ -110,7 +105,6 @@ class MacroAggregationConfig(BaseModel):
                 raise ValueError(f"Invalid cluster ID: {cl_id}. Expected format: CL##")
         return v
 
-
 def validate_weights(weights: list[float], tolerance: float = 1e-6) -> AggregationWeights:
     """
     Convenience function to validate a list of weights.
@@ -126,7 +120,6 @@ def validate_weights(weights: list[float], tolerance: float = 1e-6) -> Aggregati
         ValueError: If validation fails
     """
     return AggregationWeights(weights=weights, tolerance=tolerance)
-
 
 def validate_dimension_config(
     dimension_id: str,

@@ -31,7 +31,6 @@ from saaaaaa.infrastructure.logging import (
     StandardLogAdapter,
 )
 
-
 class TestLocalFileAdapter:
     """Test real file system adapter."""
 
@@ -82,7 +81,6 @@ class TestLocalFileAdapter:
         adapter.mkdir(dir_path, parents=True, exist_ok=True)
         assert adapter.exists(dir_path)
 
-
 class TestJsonAdapter:
     """Test JSON serialization adapter."""
 
@@ -104,7 +102,6 @@ class TestJsonAdapter:
         adapter = JsonAdapter()
         text = adapter.dumps({"key": "value"}, indent=2)
         assert "\n" in text  # Indented JSON has newlines
-
 
 class TestInMemoryFileAdapter:
     """Test in-memory file adapter for testing."""
@@ -159,7 +156,6 @@ class TestInMemoryFileAdapter:
         adapter.mkdir("dir/nested", parents=True, exist_ok=True)
         assert adapter.exists("dir/nested")
 
-
 class TestSystemEnvAdapter:
     """Test real environment adapter."""
 
@@ -198,7 +194,6 @@ class TestSystemEnvAdapter:
         # Cleanup
         if "TEST_BOOL" in os.environ:
             del os.environ["TEST_BOOL"]
-
 
 class TestInMemoryEnvAdapter:
     """Test in-memory environment adapter for testing."""
@@ -250,7 +245,6 @@ class TestInMemoryEnvAdapter:
         assert adapter.get("VAR1") is None
         assert adapter.get("VAR2") is None
 
-
 class TestSystemClockAdapter:
     """Test real clock adapter."""
 
@@ -271,7 +265,6 @@ class TestSystemClockAdapter:
         # Should be close to current UTC time
         assert isinstance(utc_now, datetime)
         assert utc_now.tzinfo is not None
-
 
 class TestFrozenClockAdapter:
     """Test frozen clock adapter for testing."""
@@ -306,7 +299,6 @@ class TestFrozenClockAdapter:
         adapter.advance(days=1)
         assert adapter.now() == datetime(2024, 1, 2, 13, 0, 0)
 
-
 class TestStandardLogAdapter:
     """Test standard logging adapter."""
 
@@ -324,7 +316,6 @@ class TestStandardLogAdapter:
         assert True
         assert True
         assert True
-
 
 class TestInMemoryLogAdapter:
     """Test in-memory logging adapter for testing."""

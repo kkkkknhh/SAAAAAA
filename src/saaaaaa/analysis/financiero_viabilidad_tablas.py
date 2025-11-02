@@ -61,7 +61,6 @@ from transformers import pipeline
 # ============================================================================
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # CONFIGURACIÓN ESPECÍFICA PARA COLOMBIA Y PDET
 # ============================================================================
@@ -159,7 +158,6 @@ class ColombianMunicipalContext:
         'gestión': ['eficacia', 'eficiencia', 'economía', 'costo_beneficio']
     }
 
-
 # ============================================================================
 # ESTRUCTURAS DE DATOS
 # ============================================================================
@@ -174,7 +172,6 @@ class CausalNode:
     temporal_lag: int = 0
     evidence_strength: float = 0.0
 
-
 @dataclass
 class CausalEdge:
     """Arista causal entre nodos"""
@@ -186,7 +183,6 @@ class CausalEdge:
     evidence_quotes: list[str] = field(default_factory=list)
     probability: float = 0.0
 
-
 @dataclass
 class CausalDAG:
     """Grafo Acíclico Dirigido completo"""
@@ -194,7 +190,6 @@ class CausalDAG:
     edges: list[CausalEdge]
     adjacency_matrix: np.ndarray
     graph: nx.DiGraph
-
 
 @dataclass
 class CausalEffect:
@@ -210,7 +205,6 @@ class CausalEffect:
     mediating_paths: list[list[str]] = field(default_factory=list)
     confounders_adjusted: list[str] = field(default_factory=list)
 
-
 @dataclass
 class CounterfactualScenario:
     """Escenario contrafactual"""
@@ -218,7 +212,6 @@ class CounterfactualScenario:
     predicted_outcomes: dict[str, tuple[float, float, float]]
     probability_improvement: dict[str, float]
     narrative: str
-
 
 @dataclass
 class ExtractedTable:
@@ -229,7 +222,6 @@ class ExtractedTable:
     confidence_score: float
     is_fragmented: bool = False
     continuation_of: int | None = None
-
 
 @dataclass
 class FinancialIndicator:
@@ -243,7 +235,6 @@ class FinancialIndicator:
     confidence_interval: tuple[float, float]
     risk_level: float
 
-
 @dataclass
 class ResponsibleEntity:
     name: str
@@ -253,7 +244,6 @@ class ResponsibleEntity:
     associated_programs: list[str]
     associated_indicators: list[str]
     budget_allocated: Decimal | None
-
 
 @dataclass
 class QualityScore:
@@ -266,7 +256,6 @@ class QualityScore:
     causal_coherence: float
     confidence_interval: tuple[float, float]
     evidence: dict[str, Any]
-
 
 # ============================================================================
 # MOTOR PRINCIPAL
@@ -1539,7 +1528,6 @@ class PDETMunicipalPlanAnalyzer:
 
         return narrative
 
-
     # ========================================================================
     # ANÁLISIS DE SENSIBILIDAD (Cinelli et al., 2022)
     # ========================================================================
@@ -1612,7 +1600,6 @@ class PDETMunicipalPlanAnalyzer:
             return "Efecto sensible - Alta vulnerabilidad a confounding"
         else:
             return "Efecto frágil - Resultados no confiables sin ajustes adicionales"
-
 
     # ========================================================================
     # SCORING INTEGRAL DE CALIDAD
@@ -1831,7 +1818,6 @@ class PDETMunicipalPlanAnalyzer:
         ci_lower, ci_upper = np.percentile(bootstrap_scores, [2.5, 97.5])
 
         return (float(ci_lower), float(ci_upper))
-
 
     # ========================================================================
     # EXPORTACIÓN Y VISUALIZACIÓN
@@ -2365,7 +2351,6 @@ class PDETMunicipalPlanAnalyzer:
 
         return recommendations
 
-
 # ============================================================================
 # UTILIDADES Y HELPERS
 # ============================================================================
@@ -2373,7 +2358,6 @@ class PDETMunicipalPlanAnalyzer:
 class PDETAnalysisException(Exception):
     """Excepción personalizada para errores de análisis"""
     pass
-
 
 def validate_pdf_path(pdf_path: str) -> Path:
     """Valida que el path del PDF exista y sea válido"""
@@ -2391,7 +2375,6 @@ def validate_pdf_path(pdf_path: str) -> Path:
 
     return path
 
-
 def setup_logging(log_level: str = 'INFO') -> None:
     """Configura logging para el análisis"""
 
@@ -2405,7 +2388,6 @@ def setup_logging(log_level: str = 'INFO') -> None:
             logging.FileHandler('pdet_analysis.log', encoding='utf-8')
         ]
     )
-
 
 # ============================================================================
 # EJEMPLO DE USO

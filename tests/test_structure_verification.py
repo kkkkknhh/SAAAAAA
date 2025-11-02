@@ -13,10 +13,6 @@ import sys
 from pathlib import Path
 
 # Add repo root to path
-repo_root = Path(__file__).parent.parent
-sys.path.insert(0, str(repo_root))
-sys.path.insert(0, str(repo_root / "src"))
-
 
 def check_init_files():
     """Verify all Python packages have __init__.py files."""
@@ -50,7 +46,6 @@ def check_init_files():
     else:
         print("\n✓ All packages have __init__.py")
         return True
-
 
 def check_major_imports():
     """Test importing from all major modules."""
@@ -100,7 +95,6 @@ def check_major_imports():
         print("\n✓ All major imports successful")
         return True
 
-
 def check_package_structure():
     """Verify the package structure is correct."""
     print("\n" + "=" * 70)
@@ -133,7 +127,6 @@ def check_package_structure():
         print("\n⚠️  Some directories are missing")
     
     return all_ok
-
 
 def check_compatibility_wrappers():
     """Verify compatibility wrappers exist and work."""
@@ -190,7 +183,6 @@ def check_compatibility_wrappers():
     
     return all_ok
 
-
 def main():
     """Run all verification checks."""
     print("SAAAAAA REPOSITORY STRUCTURE VERIFICATION")
@@ -229,7 +221,6 @@ def main():
     else:
         print("❌ SOME CHECKS FAILED - See details above")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

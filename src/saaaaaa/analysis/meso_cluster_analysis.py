@@ -28,10 +28,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
-
 def _to_float_sequence(values: Iterable[float]) -> list[float]:
     return [float(v) for v in values]
-
 
 def _safe_mean(values: Iterable[float]) -> float:
     seq = _to_float_sequence(values)
@@ -39,13 +37,11 @@ def _safe_mean(values: Iterable[float]) -> float:
         return 0.0
     return float(fmean(seq))
 
-
 def _safe_std(values: Iterable[float]) -> float:
     seq = _to_float_sequence(values)
     if len(seq) <= 1:
         return 0.0
     return float(pstdev(seq))
-
 
 def _percentile(values: Sequence[float], percent: float) -> float:
     seq = sorted(_to_float_sequence(values))
@@ -60,7 +56,6 @@ def _percentile(values: Sequence[float], percent: float) -> float:
     upper_index = min(lower_index + 1, len(seq) - 1)
     weight = k - lower_index
     return seq[lower_index] + weight * (seq[upper_index] - seq[lower_index])
-
 
 def _gini(values: Iterable[float]) -> float:
     """Compute the Gini coefficient for a sequence of non-negative values."""
@@ -85,12 +80,10 @@ def _gini(values: Iterable[float]) -> float:
     gini = (2 * weighted_sum) / (n * total) - (n + 1) / n
     return float(gini)
 
-
 def _tukey_bounds(p25: float, p75: float) -> tuple[float, float]:
     lower_quartile, upper_quartile = sorted((float(p25), float(p75)))
     iqr = upper_quartile - lower_quartile
     return (lower_quartile - 1.5 * iqr, upper_quartile + 1.5 * iqr)
-
 
 def analyze_policy_dispersion(
     policy_area_scores: Mapping[str, float],
@@ -202,7 +195,6 @@ def analyze_policy_dispersion(
 
     return json_payload, narrative
 
-
 @dataclass
 class MetricViolation:
     metric_id: str
@@ -220,7 +212,6 @@ class MetricViolation:
             "out_of_range": self.out_of_range,
         }
 
-
 def _convert_unit(
     value: float,
     from_unit: str,
@@ -234,7 +225,6 @@ def _convert_unit(
     if factor is None:
         raise ValueError("Units are not convertible with provided crosswalk")
     return value * factor, to_unit
-
 
 def reconcile_cross_metrics(
     aggregated_metrics: Iterable[Mapping[str, object]],
@@ -318,7 +308,6 @@ def reconcile_cross_metrics(
         "reconciled_confidence": reconciled_confidence,
     }
 
-
 def compose_cluster_posterior(
     micro_posteriors: Iterable[float],
     weighting_trace: Iterable[float] | None = None,
@@ -387,7 +376,6 @@ def compose_cluster_posterior(
     ]
 
     return json_payload, "\n".join(explanation_lines)
-
 
 def calibrate_against_peers(
     policy_area_scores: Mapping[str, float],

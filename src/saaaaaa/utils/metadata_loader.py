@@ -18,14 +18,11 @@ except ImportError:
     JSONSCHEMA_AVAILABLE = False
     logging.warning("jsonschema not available - schema validation disabled")
 
-
 logger = logging.getLogger(__name__)
-
 
 class MetadataError(Exception):
     """Base exception for metadata errors"""
     pass
-
 
 class MetadataVersionError(MetadataError):
     """Version mismatch error"""
@@ -36,7 +33,6 @@ class MetadataVersionError(MetadataError):
         super().__init__(
             f"Version mismatch in {file_path}: expected {expected}, got {actual}"
         )
-
 
 class MetadataIntegrityError(MetadataError):
     """Checksum/integrity violation error"""
@@ -49,7 +45,6 @@ class MetadataIntegrityError(MetadataError):
             msg += f": expected checksum {expected_checksum}, got {actual_checksum}"
         super().__init__(msg)
 
-
 class MetadataSchemaError(MetadataError):
     """Schema validation error"""
     def __init__(self, file_path: str, validation_errors: list) -> None:
@@ -59,7 +54,6 @@ class MetadataSchemaError(MetadataError):
         super().__init__(
             f"Schema validation failed for {file_path}:\n{error_msgs}"
         )
-
 
 class MetadataMissingKeyError(MetadataError):
     """Required key missing in metadata"""
@@ -71,7 +65,6 @@ class MetadataMissingKeyError(MetadataError):
         if context:
             msg += f" ({context})"
         super().__init__(msg)
-
 
 class MetadataLoader:
     """
@@ -256,7 +249,6 @@ class MetadataLoader:
 
         logger.error(json.dumps(log_entry, indent=2))
 
-
 def load_cuestionario(
     path: Path | None = None,
     required_version: str = "2.0.0"
@@ -281,7 +273,6 @@ def load_cuestionario(
         required_version=required_version
     )
 
-
 def load_execution_mapping(
     path: Path | None = None,
     required_version: str = "2.0.0"
@@ -305,7 +296,6 @@ def load_execution_mapping(
         schema_ref="execution_mapping.schema.json",
         required_version=required_version
     )
-
 
 def load_rubric_scoring(
     path: Path | None = None,

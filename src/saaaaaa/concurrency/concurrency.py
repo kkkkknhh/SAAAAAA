@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class TaskStatus(Enum):
     """Task execution status."""
     PENDING = "pending"
@@ -50,11 +49,9 @@ class TaskStatus(Enum):
     CANCELLED = "cancelled"
     RETRYING = "retrying"
 
-
 class TaskExecutionError(Exception):
     """Exception raised when task execution fails."""
     pass
-
 
 @dataclass
 class WorkerPoolConfig:
@@ -74,7 +71,6 @@ class WorkerPoolConfig:
     backoff_base_seconds: float = 1.0
     backoff_max_seconds: float = 60.0
     enable_instrumentation: bool = True
-
 
 @dataclass
 class TaskMetrics:
@@ -101,7 +97,6 @@ class TaskMetrics:
     worker_id: str | None = None
     error_message: str | None = None
 
-
 @dataclass
 class TaskResult:
     """Result of a task execution.
@@ -120,7 +115,6 @@ class TaskResult:
     result: Any = None
     error: Exception | None = None
     metrics: TaskMetrics | None = None
-
 
 class WorkerPool:
     """

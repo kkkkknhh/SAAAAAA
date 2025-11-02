@@ -10,10 +10,9 @@ This test validates that:
 
 import pytest
 
-
 def test_import_orchestrator_core():
     """Test that orchestrator.core can be imported."""
-    from orchestrator import core
+    from saaaaaa.core.orchestrator import core
     assert hasattr(core, 'Orchestrator')
     assert hasattr(core, 'MethodExecutor')
     assert hasattr(core, 'PreprocessedDocument')
@@ -26,10 +25,9 @@ def test_import_orchestrator_core():
     assert hasattr(core, 'MicroQuestionRun')
     assert hasattr(core, 'ScoredMicroQuestion')
 
-
 def test_import_orchestrator_executors():
     """Test that orchestrator.executors can be imported."""
-    from orchestrator import executors
+    from saaaaaa.core.orchestrator import executors
     assert hasattr(executors, 'DataFlowExecutor')
     assert hasattr(executors, 'D1Q1_Executor')
     assert hasattr(executors, 'D6Q5_Executor')
@@ -39,10 +37,9 @@ def test_import_orchestrator_executors():
             executor_name = f'D{dim}Q{q}_Executor'
             assert hasattr(executors, executor_name), f"Missing {executor_name}"
 
-
 def test_import_orchestrator_package():
     """Test that orchestrator package exports work."""
-    import orchestrator
+    import saaaaaa.core.orchestrator
     assert hasattr(orchestrator, 'Orchestrator')
     assert hasattr(orchestrator, 'MethodExecutor')
     assert hasattr(orchestrator, 'PreprocessedDocument')
@@ -50,7 +47,6 @@ def test_import_orchestrator_package():
     assert hasattr(orchestrator, 'get_questionnaire_payload')
     assert hasattr(orchestrator, 'EvidenceRegistry')
     assert hasattr(orchestrator, 'JSONContractLoader')
-
 
 def test_no_import_cycles():
     """Test that importing the package doesn't create cycles."""
@@ -62,23 +58,21 @@ def test_no_import_cycles():
         del sys.modules[mod]
 
     # Import fresh
-    import orchestrator
-    from orchestrator import core, executors
+    import saaaaaa.core.orchestrator
+    from saaaaaa.core.orchestrator import core, executors
 
     # Should complete without errors
     assert orchestrator is not None
     assert core is not None
     assert executors is not None
 
-
 def test_provider_boundary_guard():
     """Test that provider boundary guard restricts access."""
-    from orchestrator import get_questionnaire_payload
+    from saaaaaa.core.orchestrator import get_questionnaire_payload
 
     # This should raise RuntimeError when called from tests (outside orchestrator package)
     with pytest.raises(RuntimeError, match="Questionnaire provider access restricted"):
         get_questionnaire_payload()
-
 
 def test_provider_boundary_guard_allows_orchestrator():
     """Test that provider allows access from orchestrator package."""
@@ -93,7 +87,7 @@ def test_provider_boundary_guard_allows_orchestrator():
 
     # Define a function in that module
     code = """
-from orchestrator import get_questionnaire_payload
+from saaaaaa.core.orchestrator import get_questionnaire_payload
 
 def internal_access():
     try:
@@ -120,13 +114,12 @@ def internal_access():
         # Cleanup
         del sys.modules['orchestrator.test_internal']
 
-
 def test_orchestrator_instantiation():
     """Test that Orchestrator can be instantiated."""
     # Skip if required dependencies are missing (dereck_beach.py sys.exit(1))
     pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
 
-    from orchestrator import Orchestrator
+    from saaaaaa.core.orchestrator import Orchestrator
 
     # Should be able to create instance (might fail on file access, that's OK)
     try:
@@ -139,13 +132,12 @@ def test_orchestrator_instantiation():
         # Expected if catalog or monolith files don't exist or paths resolve to None
         pytest.skip("Orchestrator files not available")
 
-
 def test_orchestrator_health_check():
     """Test that health_check method works."""
     # Skip if required dependencies are missing
     pytest.importorskip("fitz", reason="PyMuPDF required for full orchestrator functionality")
 
-    from orchestrator import Orchestrator
+    from saaaaaa.core.orchestrator import Orchestrator
 
     try:
         orch = Orchestrator()
@@ -158,10 +150,9 @@ def test_orchestrator_health_check():
         # Expected if catalog or monolith files don't exist or paths resolve to None
         pytest.skip("Orchestrator files not available")
 
-
 def test_abort_signal():
     """Test abort signal functionality."""
-    from orchestrator import AbortSignal
+    from saaaaaa.core.orchestrator import AbortSignal
 
     signal = AbortSignal()
     assert not signal.is_aborted()
@@ -173,10 +164,9 @@ def test_abort_signal():
     signal.reset()
     assert not signal.is_aborted()
 
-
 def test_preprocessed_document():
     """Test PreprocessedDocument dataclass."""
-    from orchestrator import PreprocessedDocument
+    from saaaaaa.core.orchestrator import PreprocessedDocument
 
     doc = PreprocessedDocument(
         document_id="test_doc",
@@ -190,10 +180,9 @@ def test_preprocessed_document():
     assert doc.raw_text == "Test content"
     assert doc.metadata["source"] == "test"
 
-
 def test_evidence_dataclass():
     """Test Evidence dataclass."""
-    from orchestrator import Evidence
+    from saaaaaa.core.orchestrator import Evidence
 
     evidence = Evidence(
         modality="TYPE_A",
@@ -205,10 +194,9 @@ def test_evidence_dataclass():
     assert len(evidence.elements) == 2
     assert evidence.raw_results["key"] == "value"
 
-
 def test_resource_limits():
     """Test ResourceLimits class."""
-    from orchestrator import ResourceLimits
+    from saaaaaa.core.orchestrator import ResourceLimits
 
     limits = ResourceLimits(
         max_memory_mb=1024.0,
@@ -222,10 +210,9 @@ def test_resource_limits():
     usage = limits.get_resource_usage()
     assert isinstance(usage, dict)
 
-
 def test_method_executor():
     """Test MethodExecutor instantiation."""
-    from orchestrator import MethodExecutor
+    from saaaaaa.core.orchestrator import MethodExecutor
 
     # MethodExecutor may fail if dependencies are missing
     try:
@@ -235,7 +222,6 @@ def test_method_executor():
     except (ModuleNotFoundError, SystemExit, ImportError):
         # Expected if dependencies like 'fitz' are missing
         pytest.skip("MethodExecutor dependencies not available")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
