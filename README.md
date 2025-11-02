@@ -344,3 +344,31 @@ See [`docs/INTEGRATION_STATUS.md`](docs/INTEGRATION_STATUS.md) for detailed prog
 **This is strategic orchestration of 584 analytical methods to achieve doctoral-level policy evaluation. Every method placement is intentional, every combination is optimized, every synthesis is rigorous.**
 
 **Checkmate.**
+
+---
+
+## 📦 Import System (Updated November 2025)
+
+SAAAAAA supports **two equivalent import styles** - choose whichever you prefer:
+
+### Option 1: Direct Package Imports (After `pip install -e .`)
+```python
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.analysis.scoring.scoring import apply_scoring
+```
+
+### Option 2: Root-Level Compatibility Imports (From repo root)
+```python
+from orchestrator import Orchestrator
+from scoring.scoring import apply_scoring
+```
+
+Both styles work identically and reference the same code. Root-level files are thin compatibility wrappers.
+
+**Quick verification**:
+```bash
+python tests/test_import_consistency.py
+```
+
+See **[OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** for complete import documentation.
+

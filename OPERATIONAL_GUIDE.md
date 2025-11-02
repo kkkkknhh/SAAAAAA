@@ -2179,3 +2179,52 @@ For additional support:
 - Check logs in `logs/` directory
 
 **The system is now ready for doctoral-level policy analysis. Checkmate.**
+
+---
+
+## 📦 UPDATED Import Guide (November 2025)
+
+### Dual-Import System Explained
+
+SAAAAAA now supports **TWO equivalent import styles**. Both work correctly and reference the same code:
+
+**Option A: Direct Package Imports** (Recommended after `pip install -e .`)
+```python
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.analysis.scoring.scoring import apply_scoring
+from saaaaaa.utils.contracts import validate_contract
+```
+
+**Option B: Root-Level Compatibility Imports** (Works from repo root)
+```python
+from orchestrator import Orchestrator
+from scoring.scoring import apply_scoring
+from contracts import validate_contract
+```
+
+**Both are equivalent** - root-level modules are thin wrappers that auto-configure paths and re-export from `saaaaaa.*`
+
+### Quick Import Test
+
+Verify your imports work:
+```bash
+# Test both styles
+python -c "from saaaaaa.core.orchestrator import Orchestrator; print('✓ Works')"
+python -c "from orchestrator import Orchestrator; print('✓ Works')"
+
+# Run comprehensive test
+python tests/test_import_consistency.py
+```
+
+### Setup for saaaaaa.* Imports
+
+```bash
+pip install -e .  # Required for saaaaaa.* imports
+```
+
+### Setup for Root-Level Imports
+
+```bash
+cd /path/to/SAAAAAA  # Just be in repository root
+```
+

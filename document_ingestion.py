@@ -8,15 +8,15 @@ if str(_root / "src") not in sys.path:
     sys.path.insert(0, str(_root / "src"))
 
 from saaaaaa.processing.document_ingestion import (  # noqa: F401, E402
-    DocumentIndexes,
-    PreprocessedDocument,
+    DocumentLoader,
+    PreprocessingEngine,
     RawDocument,
-    StructuredText,
+    TextExtractor,
 )
 
 __all__ = [
-    "DocumentIndexes",
-    "PreprocessedDocument",
+    "DocumentLoader",
+    "PreprocessingEngine",
     "RawDocument",
-    "StructuredText",
+    "TextExtractor",
 ]
