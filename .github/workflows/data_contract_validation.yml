@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pydantic jsonschema
+          pip install -e .
       
       - name: Verify aggregation weights
         run: |
@@ -58,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pydantic jsonschema
+          pip install -e .
       
       - name: Validate schema (if monolith exists)
         run: |
@@ -92,7 +92,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pydantic jsonschema
+          pip install pytest pytest-cov
+          pip install -e .
       
       - name: Run aggregation validation tests
         run: |
@@ -118,7 +119,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pydantic jsonschema
+          pip install pytest pytest-cov
+          pip install -e .
       
       - name: Run recommendation engine tests
         run: |
