@@ -7,7 +7,7 @@ import re
 import sys
 import ast
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 
 def check_kwargs_in_public_apis(files: List[str]) -> int:

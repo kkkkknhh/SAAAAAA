@@ -6,7 +6,7 @@ import sys
 import json
 import yaml
 from pathlib import Path
-from jsonschema import validate, ValidationError, Draft7Validator
+from jsonschema import Draft7Validator
 
 
 def load_yaml(file_path: str) -> dict:
