@@ -35,14 +35,16 @@ ATROZ_JWT_SECRET=dev-jwt-secret-change-in-production
 if [ ! -f ".env" ]; then
     print_info "Creating .env file with generated secrets..."
     
-    # Check if openssl is available
+    # Check if openssl is available (preferred)
     if command -v openssl &> /dev/null; then
+        # Generate 64 hex characters (32 bytes of entropy)
         API_SECRET=$(openssl rand -hex 32)
         JWT_SECRET=$(openssl rand -hex 32)
     else
-        # Fallback to /dev/urandom
-        API_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 64)
-        JWT_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 64)
+        # Fallback to /dev/urandom if openssl unavailable
+        # Generate 64 hex characters (32 bytes of entropy)
+        API_SECRET=$(head -c 32 /dev/urandom | xxd -p -c 32)
+        JWT_SECRET=$(head -c 32 /dev/urandom | xxd -p -c 32)
     fi
     
     cat > .env << EOF
@@ -126,7 +128,13 @@ uses: actions/upload-artifact@v4
 
 **Script to fix all:**
 ```bash
-find .github/workflows -name "*.yml" -exec sed -i 's/@v3/@v4/g' {} \;
+# Update specific GitHub Actions to v4 (be precise to avoid unintended changes)
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/checkout@v3/actions\/checkout@v4/g' {} \;
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/upload-artifact@v3/actions\/upload-artifact@v4/g' {} \;
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/download-artifact@v3/actions\/download-artifact@v4/g' {} \;
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/setup-python@v3/actions\/setup-python@v5/g' {} \;
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/setup-python@v4/actions\/setup-python@v5/g' {} \;
+find .github/workflows -name "*.yml" -exec sed -i 's/actions\/cache@v2/actions\/cache@v3/g' {} \;
 ```
 
 ---
