@@ -67,7 +67,7 @@ jobs:
           --output d2_validation_report.json \
           --summary
     
-      - name: Upload validation report
+    - name: Upload validation report
       if: always()
       uses: actions/upload-artifact@v4
       with:
