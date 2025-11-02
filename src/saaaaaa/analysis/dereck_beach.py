@@ -457,9 +457,11 @@ class ConfigLoader:
 
     def _load_config(self) -> None:
         """Load YAML configuration file"""
+        # Delegate to factory for I/O operation
+        from .factory import load_yaml
+        
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
-                self.config = yaml.safe_load(f)
+            self.config = load_yaml(self.config_path)
             self.logger.info(f"Configuración cargada desde {self.config_path}")
         except FileNotFoundError:
             self.logger.warning(f"Archivo de configuración no encontrado: {self.config_path}")
@@ -732,15 +734,17 @@ class ConfigLoader:
             history_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Load existing history if available
+            # Delegate to factory for I/O operation
+            from .factory import load_json, save_json
+            
             history_records = []
             if history_path.exists():
                 try:
-                    with open(history_path, 'r', encoding='utf-8') as f:
-                        existing_data = json.load(f)
-                        if isinstance(existing_data, list):
-                            history_records = existing_data
-                        elif isinstance(existing_data, dict) and 'history' in existing_data:
-                            history_records = existing_data['history']
+                    existing_data = load_json(history_path)
+                    if isinstance(existing_data, list):
+                        history_records = existing_data
+                    elif isinstance(existing_data, dict) and 'history' in existing_data:
+                        history_records = existing_data['history']
                 except json.JSONDecodeError:
                     self.logger.warning("Existing history file corrupted, starting fresh")
 
@@ -771,8 +775,7 @@ class ConfigLoader:
                 'history': history_records
             }
 
-            with open(history_path, 'w', encoding='utf-8') as f:
-                json.dump(history_data, f, indent=2)
+            save_json(history_data, history_path)
 
             self.logger.info(f"Historial de priors guardado en {history_path} (iteración {len(history_records)})")
         except Exception as e:
@@ -787,18 +790,20 @@ class ConfigLoader:
         if not self.validated_config or not self.validated_config.self_reflection.prior_history_path:
             return
 
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+        
         try:
             history_path = Path(self.validated_config.self_reflection.prior_history_path)
             if history_path.exists():
-                with open(history_path, 'r', encoding='utf-8') as f:
-                    history_data = json.load(f)
-                    if isinstance(history_data, dict) and 'history' in history_data:
-                        # Extract uncertainty from each record
-                        for record in history_data['history']:
-                            if 'uncertainty_reduction_percent' in record:
-                                self._uncertainty_history.append(
-                                    record['uncertainty_reduction_percent']
-                                )
+                history_data = load_json(history_path)
+                if isinstance(history_data, dict) and 'history' in history_data:
+                    # Extract uncertainty from each record
+                    for record in history_data['history']:
+                        if 'uncertainty_reduction_percent' in record:
+                            self._uncertainty_history.append(
+                                record['uncertainty_reduction_percent']
+                            )
                 self.logger.info(f"Loaded {len(self._uncertainty_history)} uncertainty measurements")
         except Exception as e:
             self.logger.warning(f"Could not load uncertainty history: {e}")
@@ -870,7 +875,10 @@ class PDFProcessor:
                     exceptions=(IOError, OSError, RuntimeError)
                 )
                 def load_with_retry():
-                    doc = fitz.open(str(pdf_path))
+                    # Delegate to factory for I/O operation
+                    from .factory import open_pdf_with_fitz
+                    
+                    doc = open_pdf_with_fitz(pdf_path)
                     self.logger.info(f"PDF cargado: {pdf_path.name} ({len(doc)} páginas)")
                     return doc
 
@@ -882,8 +890,11 @@ class PDFProcessor:
                 return False
         else:
             # Fallback without retry
+            # Delegate to factory for I/O operation
+            from .factory import open_pdf_with_fitz
+            
             try:
-                self.document = fitz.open(str(pdf_path))
+                self.document = open_pdf_with_fitz(pdf_path)
                 self.metadata = self.document.metadata
                 self.logger.info(f"PDF cargado: {pdf_path.name} ({len(self.document)} páginas)")
                 return True
@@ -3812,12 +3823,14 @@ class ReportingEngine:
             dot.add_edge(dot_edge)
 
         # Save files
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+        
         dot_path = self.output_dir / f"{policy_code}_causal_diagram.dot"
         png_path = self.output_dir / f"{policy_code}_causal_diagram.png"
 
         try:
-            with open(dot_path, 'w', encoding='utf-8') as f:
-                f.write(dot.to_string())
+            write_text_file(dot.to_string(), dot_path)
             self.logger.info(f"Diagrama DOT guardado en: {dot_path}")
 
             # Try to render PNG
@@ -3881,9 +3894,11 @@ class ReportingEngine:
         content.append("- **Meta de Resultado:** Cambio intermedio observable\n")
         content.append("- **Meta de Producto:** Entrega tangible del programa\n")
 
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+        
         try:
-            with open(md_path, 'w', encoding='utf-8') as f:
-                f.write(''.join(content))
+            write_text_file(''.join(content), md_path)
             self.logger.info(f"Matriz de responsabilidades guardada en: {md_path}")
         except Exception as e:
             self.logger.error(f"Error guardando matriz de responsabilidades: {e}")
@@ -3971,9 +3986,11 @@ class ReportingEngine:
             )
         }
 
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+        
         try:
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(report, f, indent=2, ensure_ascii=False)
+            save_json(report, json_path)
             self.logger.info(f"Reporte de confianza guardado en: {json_path}")
         except Exception as e:
             self.logger.error(f"Error guardando reporte de confianza: {e}")
@@ -4029,9 +4046,11 @@ class ReportingEngine:
             }
         }
 
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+        
         try:
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(model_data, f, indent=2, ensure_ascii=False)
+            save_json(model_data, json_path)
             self.logger.info(f"Modelo causal JSON guardado en: {json_path}")
         except Exception as e:
             self.logger.error(f"Error guardando modelo causal: {e}")
@@ -4061,6 +4080,9 @@ class CDAFFramework:
             retry_enabled = False
 
         # Load spaCy model with retry logic
+        # Delegate to factory for I/O operation
+        from .factory import load_spacy_model
+        
         if retry_enabled and self.retry_handler:
             @self.retry_handler.with_retry(
                 DependencyType.SPACY_MODEL,
@@ -4069,12 +4091,12 @@ class CDAFFramework:
             )
             def load_spacy_with_retry():
                 try:
-                    nlp = spacy.load("es_core_news_lg")
+                    nlp = load_spacy_model("es_core_news_lg")
                     self.logger.info("Modelo spaCy cargado: es_core_news_lg")
                     return nlp
                 except OSError:
                     self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
-                    nlp = spacy.load("es_core_news_sm")
+                    nlp = load_spacy_model("es_core_news_sm")
                     return nlp
 
             try:
@@ -4086,12 +4108,12 @@ class CDAFFramework:
         else:
             # Fallback to original logic without retry
             try:
-                self.nlp = spacy.load("es_core_news_lg")
+                self.nlp = load_spacy_model("es_core_news_lg")
                 self.logger.info("Modelo spaCy cargado: es_core_news_lg")
             except OSError:
                 self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
                 try:
-                    self.nlp = spacy.load("es_core_news_sm")
+                    self.nlp = load_spacy_model("es_core_news_sm")
                 except OSError:
                     self.logger.error("No se encontró ningún modelo de spaCy en español. "
                                       "Ejecute: python -m spacy download es_core_news_lg")
@@ -4499,9 +4521,11 @@ class CDAFFramework:
         lines.append("=" * 100)
 
         # Write report
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+        
         try:
-            with open(report_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(lines))
+            write_text_file('\n'.join(lines), report_path)
             self.logger.info(f"Reporte de cumplimiento DNP guardado en: {report_path}")
         except Exception as e:
             self.logger.error(f"Error guardando reporte DNP: {e}")

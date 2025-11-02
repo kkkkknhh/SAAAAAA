@@ -329,5 +329,5 @@ def main() -> None:
         print(f"Architecture validation successful. Report saved to {report_path}.")
 
 
-if __name__ == "__main__":
-    main()
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For usage, call main() function from a script or see examples/ directory.

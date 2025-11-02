@@ -296,8 +296,11 @@ class PDETMunicipalPlanAnalyzer:
             device=self.device
         )
 
+        # Delegate to factory for I/O operation
+        from .factory import load_spacy_model
+        
         try:
-            self.nlp = spacy.load("es_dep_news_trf")
+            self.nlp = load_spacy_model("es_dep_news_trf")
         except OSError:
             raise RuntimeError(
                 "Modelo SpaCy 'es_dep_news_trf' no instalado. "
@@ -2144,16 +2147,17 @@ class PDETMunicipalPlanAnalyzer:
             self.export_causal_network(causal_dag, str(dag_path))
 
             # Exportar reporte
+            # Delegate to factory for I/O operation
+            from .factory import write_text_file, save_json
+            
             report = self.generate_executive_report(results)
             report_path = output_path / "executive_report.md"
-            report_path.write_text(report, encoding='utf-8')
+            write_text_file(report, report_path)
             print(f"✅ Reporte ejecutivo guardado en: {report_path}")
 
             # Exportar JSON
-            import json
             json_path = output_path / "analysis_results.json"
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(results, f, ensure_ascii=False, indent=2, default=str)
+            save_json(results, json_path)
             print(f"✅ Resultados JSON guardados en: {json_path}")
 
         elapsed = (datetime.now() - start_time).total_seconds()
@@ -2168,20 +2172,25 @@ class PDETMunicipalPlanAnalyzer:
         text_parts = []
 
         # Método 1: PyMuPDF (rápido y eficiente)
+        # Delegate to factory for I/O operation
+        from .factory import open_pdf_with_fitz, open_pdf_with_pdfplumber
+        
         try:
-            with fitz.open(pdf_path) as doc:
-                for page in doc:
-                    text_parts.append(page.get_text())
+            doc = open_pdf_with_fitz(pdf_path)
+            for page in doc:
+                text_parts.append(page.get_text())
+            doc.close()
         except Exception as e:
             print(f" ⚠️ PyMuPDF falló: {str(e)[:50]}")
 
         # Método 2: pdfplumber (mejor para tablas complejas)
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for page in pdf.pages[:100]:  # Límite de 100 páginas
-                    text = page.extract_text()
-                    if text:
-                        text_parts.append(text)
+            pdf = open_pdf_with_pdfplumber(pdf_path)
+            for page in pdf.pages[:100]:  # Límite de 100 páginas
+                text = page.extract_text()
+                if text:
+                    text_parts.append(text)
+            pdf.close()
         except Exception as e:
             print(f" ⚠️ pdfplumber falló: {str(e)[:50]}")
 
