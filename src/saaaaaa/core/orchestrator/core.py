@@ -1645,19 +1645,85 @@ class Orchestrator:
         
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[str, Any]:
+    def _evaluate_macro(self, cluster_scores: List[ClusterScore], config: Dict[str, Any]) -> MacroScore:
+        """Evaluate macro level using MacroAggregator.
+        
+        Args:
+            cluster_scores: List of ClusterScore objects from FASE 6
+            config: Configuration dict containing monolith
+            
+        Returns:
+            MacroScore object with full validation and diagnostics
+        """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
         start = time.perf_counter()
-
-        valid_scores = [entry.get("score") for entry in cluster_scores if entry.get("score") is not None]
-        macro_score = sum(valid_scores) / len(valid_scores) if valid_scores else None
-
+        
+        # Get monolith from config
+        monolith = config.get("monolith")
+        if not monolith:
+            logger.error("No monolith in config for macro evaluation")
+            return MacroScore(
+                score=0.0,
+                quality_level="INSUFICIENTE",
+                cross_cutting_coherence=0.0,
+                systemic_gaps=[],
+                strategic_alignment=0.0,
+                cluster_scores=[],
+                validation_passed=False,
+                validation_details={"error": "No monolith", "type": "config"}
+            )
+        
+        # Initialize macro aggregator
+        aggregator = MacroAggregator(monolith, abort_on_insufficient=False)
+        
+        # Extract area_scores and dimension_scores from cluster_scores
+        area_scores: List[AreaScore] = []
+        dimension_scores: List[DimensionScore] = []
+        
+        for cluster in cluster_scores:
+            area_scores.extend(cluster.area_scores)
+            for area in cluster.area_scores:
+                dimension_scores.extend(area.dimension_scores)
+        
+        # Remove duplicates (in case areas appear in multiple clusters)
+        seen_areas = set()
+        unique_areas = []
+        for area in area_scores:
+            if area.area_id not in seen_areas:
+                seen_areas.add(area.area_id)
+                unique_areas.append(area)
+        
+        seen_dims = set()
+        unique_dims = []
+        for dim in dimension_scores:
+            key = (dim.dimension_id, dim.area_id)
+            if key not in seen_dims:
+                seen_dims.add(key)
+                unique_dims.append(dim)
+        
+        # Evaluate macro
+        try:
+            macro_score = aggregator.evaluate_macro(
+                cluster_scores=cluster_scores,
+                area_scores=unique_areas,
+                dimension_scores=unique_dims
+            )
+        except Exception as e:
+            logger.error(f"Failed to evaluate macro: {e}")
+            macro_score = MacroScore(
+                score=0.0,
+                quality_level="INSUFICIENTE",
+                cross_cutting_coherence=0.0,
+                systemic_gaps=[],
+                strategic_alignment=0.0,
+                cluster_scores=cluster_scores,
+                validation_passed=False,
+                validation_details={"error": str(e), "type": "exception"}
+            )
+        
         instrumentation.increment(latency=time.perf_counter() - start)
-        return {
-            "macro_score": macro_score,
-            "cluster_scores": cluster_scores,
-        }
+        return macro_score
 
     async def _generate_recommendations(
             self,
