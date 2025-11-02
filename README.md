@@ -12,7 +12,9 @@
 
 **📖 [OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Your complete implementation guide with all necessary commands!**
 
-This comprehensive guide includes:
+**📋 [QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - **Essential commands at a glance**
+
+The operational guide includes:
 - ✅ **Step-by-step installation** and system activation
 - ✅ **Development plan analysis** walkthrough with full commands
 - ✅ **Complete pipeline execution** instructions
@@ -294,10 +296,18 @@ See [`docs/INTEGRATION_STATUS.md`](docs/INTEGRATION_STATUS.md) for detailed prog
 
 ## 📖 FURTHER READING
 
+### **Getting Started**
+- **[OPERATIONAL_GUIDE.md](OPERATIONAL_GUIDE.md)** - **Complete operational guide with all commands (START HERE!)**
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - **Essential commands reference card**
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start for developers
+
+### **Architecture & Strategy**
 - **Repository Structure:** [`docs/REPOSITORY_STRUCTURE.md`](docs/REPOSITORY_STRUCTURE.md) - Detailed package organization
 - **Strategic Overview:** [`docs/CHESS_TACTICAL_SUMMARY.md`](docs/CHESS_TACTICAL_SUMMARY.md) - Visual patterns and checkmate conditions
 - **Detailed Strategy:** [`docs/STRATEGIC_METHOD_ORCHESTRATION.md`](docs/STRATEGIC_METHOD_ORCHESTRATION.md) - Complete method chains
 - **Method Mappings:** [`question_component_map.json`](question_component_map.json) - Machine-readable execution chains
+
+### **System Inventory**
 - **Complete Inventory:** [`config/inventory.json`](config/inventory.json) - All 67 classes, 584 methods
 - **Canonical Truth:** [`data/questionnaire_monolith.json`](data/questionnaire_monolith.json) - The 300 questions
 
