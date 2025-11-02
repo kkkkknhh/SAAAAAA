@@ -19,6 +19,7 @@ score_type_c = _impl.score_type_c
 score_type_d = _impl.score_type_d
 score_type_e = _impl.score_type_e
 score_type_f = _impl.score_type_f
+SCORING_FUNCTIONS = _impl.SCORING_FUNCTIONS
 
 __all__ = [
     "ScoringModality",
@@ -37,4 +38,5 @@ __all__ = [
     "score_type_d",
     "score_type_e",
     "score_type_f",
+    "SCORING_FUNCTIONS",
 ]
