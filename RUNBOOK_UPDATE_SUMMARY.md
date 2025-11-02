@@ -471,10 +471,14 @@ from saaaaaa.analysis.financiero_viabilidad_tablas import PDETMunicipalPlanAnaly
 from saaaaaa.processing.document_ingestion import DocumentIngestionEngine
 ```
 
-**Legacy Structure (Backward Compatible)**:
+**Legacy Structure (DEPRECATED - DO NOT USE)**:
 ```python
-from orchestrator.core import Orchestrator  # Still works via shims
+# DEPRECATED: This import is maintained for backward compatibility only
+# Use saaaaaa.core.orchestrator instead
+from orchestrator.core import Orchestrator  # DEPRECATED
 ```
+
+**⚠️ Important**: The legacy `orchestrator` module is deprecated. All new code should use `saaaaaa.core.orchestrator` instead.
 
 ---
 
