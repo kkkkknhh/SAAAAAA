@@ -1875,12 +1875,22 @@ class FrontierExecutorOrchestrator:
 
     def _optimize_execution_order(self, question_ids: List[str]) -> List[str]:
         """Optimize execution order using causal inference"""
-        data = np.random.randn(len(question_ids), len(question_ids))
-        self.global_causal_graph.learn_structure(data)
-
-        indices = self.global_causal_graph.get_execution_order()
-
-        return [question_ids[i % len(question_ids)] for i in indices]
+        if len(question_ids) <= 1:
+            return question_ids
+        
+        # Create a temporary causal graph for the actual number of questions
+        n_questions = len(question_ids)
+        temp_graph = CausalGraph(num_variables=n_questions)
+        
+        # Generate synthetic data for structure learning
+        data = np.random.randn(max(100, n_questions * 10), n_questions)
+        temp_graph.learn_structure(data, alpha=0.05)
+        
+        # Get optimal execution order
+        indices = temp_graph.get_execution_order()
+        
+        # Map indices to question IDs
+        return [question_ids[i] for i in indices if i < len(question_ids)]
 
 
 # Backwards compatibility alias
