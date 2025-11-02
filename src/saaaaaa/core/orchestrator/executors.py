@@ -1881,3 +1881,43 @@ class FrontierExecutorOrchestrator:
         indices = self.global_causal_graph.get_execution_order()
 
         return [question_ids[i % len(question_ids)] for i in indices]
+
+
+# Export all executor classes and orchestrator
+__all__ = [
+    # Executor classes for all 30 questions
+    'D1Q1_Executor',
+    'D1Q2_Executor',
+    'D1Q3_Executor',
+    'D1Q4_Executor',
+    'D1Q5_Executor',
+    'D2Q1_Executor',
+    'D2Q2_Executor',
+    'D2Q3_Executor',
+    'D2Q4_Executor',
+    'D2Q5_Executor',
+    'D3Q1_Executor',
+    'D3Q2_Executor',
+    'D3Q3_Executor',
+    'D3Q4_Executor',
+    'D3Q5_Executor',
+    'D4Q1_Executor',
+    'D4Q2_Executor',
+    'D4Q3_Executor',
+    'D4Q4_Executor',
+    'D4Q5_Executor',
+    'D5Q1_Executor',
+    'D5Q2_Executor',
+    'D5Q3_Executor',
+    'D5Q4_Executor',
+    'D5Q5_Executor',
+    'D6Q1_Executor',
+    'D6Q2_Executor',
+    'D6Q3_Executor',
+    'D6Q4_Executor',
+    'D6Q5_Executor',
+    # Main orchestrator
+    'FrontierExecutorOrchestrator',
+    # Base class
+    'AdvancedDataFlowExecutor',
+]
