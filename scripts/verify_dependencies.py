@@ -12,6 +12,7 @@ This script validates the fixes described in the import resolution problem state
 """
 
 import sys
+from importlib import import_module
 from pathlib import Path
 
 # Add src to path
@@ -77,7 +78,7 @@ def check_core_dependencies():
     missing = []
     for package, description in required_packages.items():
         try:
-            __import__(package)
+            import_module(package)
             print(f"✓ {package}: {description}")
         except ImportError:
             print(f"✗ {package}: {description} - NOT INSTALLED")
@@ -102,7 +103,7 @@ def check_pdf_dependencies():
     missing = []
     for module_name, (package_name, description) in pdf_packages.items():
         try:
-            __import__(module_name)
+            import_module(module_name)
             print(f"✓ {package_name}: {description}")
         except ImportError:
             print(f"✗ {package_name}: {description} - NOT INSTALLED")
@@ -127,7 +128,7 @@ def check_nlp_dependencies():
     missing = []
     for package, description in nlp_packages.items():
         try:
-            __import__(package)
+            import_module(package)
             print(f"✓ {package}: {description}")
         except ImportError:
             print(f"✗ {package}: {description} - NOT INSTALLED")

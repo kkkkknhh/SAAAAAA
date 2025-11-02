@@ -2,7 +2,7 @@
 # Quick setup script for SAAAAAA project
 # Installs all dependencies and SpaCy models
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined variables, and pipeline failures
 
 echo "======================================================================"
 echo "SAAAAAA Project Setup"
