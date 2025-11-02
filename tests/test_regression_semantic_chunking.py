@@ -3,24 +3,17 @@
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
 MODULE_PATH = SRC_ROOT / "saaaaaa" / "processing" / "semantic_chunking_policy.py"
-
 
 def _load_source() -> str:
     if not MODULE_PATH.exists():
         pytest.skip("semantic_chunking_policy.py not found")
     return MODULE_PATH.read_text(encoding="utf-8")
-
 
 def test_semantic_chunking_syntax() -> None:
     """The module must stay syntactically valid."""
@@ -35,7 +28,6 @@ def test_semantic_chunking_syntax() -> None:
             f"Syntax error in semantic_chunking_policy.py at line {e.lineno}: {e.msg}\n"
             f"This suggests the duplicate lines bug (555-562) may have been reintroduced."
         )
-
 
 def test_no_duplicate_return_statements():
     """Test that there are no duplicate return statements in _extract_key_excerpts.
@@ -74,7 +66,6 @@ def test_no_duplicate_return_statements():
             break
     else:
         pytest.skip("_extract_key_excerpts method not found")
-
 
 def test_extract_key_excerpts_method_structure():
     """Test the structure of _extract_key_excerpts to catch similar bugs."""
@@ -122,7 +113,6 @@ def test_extract_key_excerpts_method_structure():
         f"Expected exactly 1. This may indicate duplicate list comprehension."
     )
 
-
 def test_no_main_block():
     """Test that semantic_chunking_policy.py has no __main__ block."""
     source = _load_source()
@@ -134,7 +124,6 @@ def test_no_main_block():
     assert "if __name__ == '__main__'" not in source, (
         "semantic_chunking_policy.py should not have a __main__ block"
     )
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

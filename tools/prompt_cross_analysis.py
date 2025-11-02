@@ -19,20 +19,17 @@ if TYPE_CHECKING:
 
 DATA_PATH = Path("data/prompt_cross_registry.json")
 
-
 def _load_data() -> dict[str, object]:
     """Load the consolidated prompt-cross dataset."""
 
     with DATA_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
-
 def _contribution(weight: float, normalized_time: float, depth: int) -> float:
     """Compute contribution score for a single registry entry."""
 
     safe_depth = max(depth, 1)
     return weight * normalized_time / safe_depth
-
 
 def consolidate_evidence(records: Iterable[dict[str, object]]) -> dict[str, object]:
     """Deduplicate registry records and compute contribution metrics.
@@ -151,7 +148,6 @@ def consolidate_evidence(records: Iterable[dict[str, object]]) -> dict[str, obje
         "top_contributors": top_contributors,
     }
 
-
 def build_method_coverage(entries: Iterable[dict[str, object]]) -> tuple[dict[str, object], str]:
     """Generate method coverage matrix and heatmap recommendations."""
 
@@ -231,14 +227,12 @@ def build_method_coverage(entries: Iterable[dict[str, object]]) -> tuple[dict[st
         ascii_table,
     )
 
-
 SEVERITY_WEIGHTS = {
     "critical": 4,
     "high": 3,
     "medium": 2,
     "low": 1,
 }
-
 
 def analyze_contract_failures(
     entries: Iterable[dict[str, object]], inputs: dict[str, int]
@@ -296,14 +290,12 @@ def analyze_contract_failures(
 
     return {"funnel": level_stats, "top_methods": top_methods}, narrative
 
-
 @dataclass
 class PathStatus:
     path_id: str
     complete: bool
     missing_dimensions: list[str]
     issues: list[str]
-
 
 def evaluate_causal_paths(data: dict[str, object]) -> dict[str, object]:
     """Verify causal path continuity across dimensions."""
@@ -383,7 +375,6 @@ def evaluate_causal_paths(data: dict[str, object]) -> dict[str, object]:
         "repair_actions": sorted(set(repair_actions)),
     }
 
-
 def run() -> None:
     """Execute all Prompt Cross analyses and print results."""
 
@@ -410,7 +401,6 @@ def run() -> None:
     causal = evaluate_causal_paths(data)
     print("\n=== Prompt Cross – Causal Path Integrity ===")
     print(json.dumps(causal, indent=2))
-
 
 if __name__ == "__main__":
     run()

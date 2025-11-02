@@ -9,12 +9,10 @@ if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
     from core.contracts import IndustrialInput
     from policy_processor import IndustrialPolicyProcessor
 
-
 def _load_questionnaire(path: Path) -> Any:
     """Load questionnaire data from *path* with UTF-8 encoding."""
     text = path.read_text(encoding="utf-8")
     return json.loads(text)
-
 
 def build_processor(
     path: str | Path = "questionnaire_monolith.json",

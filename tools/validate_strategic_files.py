@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 def read_strategic_files(config_path: str = "config/strategic_files.txt") -> list[str]:
     """Read strategic files from configuration."""
     files = []
@@ -18,7 +17,6 @@ def read_strategic_files(config_path: str = "config/strategic_files.txt") -> lis
             if line and not line.startswith('#'):
                 files.append(line)
     return files
-
 
 def validate_python_syntax(files: list[str]) -> int:
     """Validate Python syntax for all strategic files."""
@@ -46,7 +44,6 @@ def validate_python_syntax(files: list[str]) -> int:
         print("\n✓ All strategic files have valid Python syntax")
         return 0
 
-
 def check_provenance(files: list[str], provenance_file: str = "provenance.csv") -> int:
     """Check that all strategic files are tracked in provenance.csv."""
     print(f"\n=== Verifying provenance tracking in {provenance_file} ===")
@@ -73,7 +70,6 @@ def check_provenance(files: list[str], provenance_file: str = "provenance.csv") 
         for file_path in missing_files:
             print(f"  - {file_path}")
         return 1
-
 
 def main() -> None:
     """Main entry point."""
@@ -109,7 +105,6 @@ def main() -> None:
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()

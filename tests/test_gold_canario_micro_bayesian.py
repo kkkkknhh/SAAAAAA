@@ -14,12 +14,11 @@ Tests for BayesianPosteriorExplainer including:
 
 import pytest
 
-from micro_prompts import (
+from saaaaaa.processing.micro_prompts import (
     BayesianPosteriorExplainer,
     PosteriorJustification,
     Signal,
 )
-
 
 class TestBayesianPosteriorExplainerBasics:
     """Test basic functionality of BayesianPosteriorExplainer"""
@@ -49,7 +48,6 @@ class TestBayesianPosteriorExplainerBasics:
         assert result.posterior == 0.5
         assert len(result.signals_ranked) == 0
         assert not result.anti_miracle_cap_applied
-
 
 class TestSignalRanking:
     """Test signal ranking by marginal impact"""
@@ -157,7 +155,6 @@ class TestSignalRanking:
         assert result.signals_ranked[0]['delta_posterior'] == -0.3
         assert result.signals_ranked[1]['delta_posterior'] == 0.2
 
-
 class TestDiscardedSignals:
     """Test identification of discarded signals"""
 
@@ -258,7 +255,6 @@ class TestDiscardedSignals:
         assert len(result.signals_ranked) == 1
         assert result.signals_ranked[0]['evidence_id'] == "E1"
 
-
 class TestTypeJustification:
     """Test test type justification generation"""
 
@@ -350,7 +346,6 @@ class TestTypeJustification:
 
         reason = result.signals_ranked[0]['reason']
         assert "Straw-in-Wind" in reason or "Weak" in reason or "marginal" in reason.lower()
-
 
 class TestAntiMiracleCap:
     """Test anti-miracle cap application"""
@@ -446,7 +441,6 @@ class TestAntiMiracleCap:
         assert result.anti_miracle_cap_applied
         assert result.cap_delta == 0.03
         assert result.posterior == 0.90
-
 
 class TestRobustnessNarrative:
     """Test robustness narrative generation"""
@@ -632,7 +626,6 @@ class TestRobustnessNarrative:
         assert "Primary driver" in narrative
         assert "Smoking-Gun" in narrative
 
-
 class TestJSONExport:
     """Test JSON export functionality"""
 
@@ -666,7 +659,6 @@ class TestJSONExport:
         assert 'cap_delta' in json_output
         assert 'robustness_narrative' in json_output
         assert 'timestamp' in json_output
-
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions"""
@@ -746,7 +738,6 @@ class TestEdgeCases:
 
         assert len(result.signals_ranked) == 2
         assert result.posterior == 0.5
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

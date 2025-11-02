@@ -21,7 +21,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # FILE I/O OPERATIONS
 # ============================================================================
@@ -51,7 +50,6 @@ def load_json(file_path: str | Path) -> dict[str, Any]:
     logger.info(f"Loaded JSON from {file_path}")
     return data
 
-
 def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
@@ -68,7 +66,6 @@ def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> N
         json.dump(data, f, ensure_ascii=False, indent=indent)
 
     logger.info(f"Saved JSON to {file_path}")
-
 
 def read_text_file(file_path: str | Path, encodings: list = None) -> str:
     """
@@ -109,7 +106,6 @@ def read_text_file(file_path: str | Path, encodings: list = None) -> str:
         f"Could not decode {file_path} with any of: {encodings}. Last error: {last_error}"
     )
 
-
 def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
@@ -125,7 +121,6 @@ def write_text_file(content: str, file_path: str | Path) -> None:
         f.write(content)
 
     logger.info(f"Written {len(content)} characters to {file_path}")
-
 
 def calculate_file_hash(file_path: str | Path) -> str:
     """
@@ -145,7 +140,6 @@ def calculate_file_hash(file_path: str | Path) -> str:
             sha256_hash.update(byte_block)
 
     return sha256_hash.hexdigest()
-
 
 # ============================================================================
 # PDF OPERATIONS
@@ -190,7 +184,6 @@ def extract_pdf_text_all_pages(file_path: str | Path) -> str:
     logger.info(f"Extracted {len(result)} characters from {file_path}")
     return result
 
-
 def extract_pdf_text_single_page(file_path: str | Path, page_num: int, total_pages: int = None) -> str:
     """
     Extract text from a single page of a PDF.
@@ -225,7 +218,6 @@ def extract_pdf_text_single_page(file_path: str | Path, page_num: int, total_pag
 
         text = pdf.pages[page_num - 1].extract_text() or ""
         return text
-
 
 def get_pdf_page_count(file_path: str | Path) -> int:
     """

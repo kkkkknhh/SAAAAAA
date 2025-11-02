@@ -66,7 +66,6 @@ try:
 except ImportError:  # pragma: no cover - jsonschema es opcional
     Draft7Validator = None
 
-
 # --- Configuración de Logging ---
 def configure_logging() -> None:
     """Configura un sistema de logging de alto rendimiento para la salida estándar."""
@@ -76,7 +75,6 @@ def configure_logging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
         stream=sys.stdout,
     )
-
 
 configure_logging()
 LOGGER = logging.getLogger(__name__)
@@ -88,7 +86,6 @@ STATUS_PASSED = "✅ PASÓ"
 # ============================================================================
 # 2. ENUMS Y ESTRUCTURAS DE DATOS (DATACLASSES)
 # ============================================================================
-
 
 class CategoriaCausal(Enum):
     """
@@ -102,7 +99,6 @@ class CategoriaCausal(Enum):
     RESULTADOS = 4
     CAUSALIDAD = 5
 
-
 class GraphType(Enum):
     """Tipología de grafos para la aplicación de análisis especializados."""
 
@@ -110,7 +106,6 @@ class GraphType(Enum):
     BAYESIAN_NETWORK = auto()
     STRUCTURAL_MODEL = auto()
     THEORY_OF_CHANGE = auto()
-
 
 @dataclass
 class ValidacionResultado:
@@ -122,7 +117,6 @@ class ValidacionResultado:
     categorias_faltantes: list[CategoriaCausal] = field(default_factory=list)
     sugerencias: list[str] = field(default_factory=list)
 
-
 @dataclass
 class ValidationMetric:
     """Define una métrica de validación con umbrales y ponderación."""
@@ -133,7 +127,6 @@ class ValidationMetric:
     threshold: float
     status: str
     weight: float = 1.0
-
 
 @dataclass
 class AdvancedGraphNode:
@@ -237,7 +230,6 @@ class AdvancedGraphNode:
             "role": self.role,
         }
 
-
 @dataclass
 class MonteCarloAdvancedResult:
     """
@@ -267,11 +259,9 @@ class MonteCarloAdvancedResult:
     graph_statistics: dict[str, Any]
     test_parameters: dict[str, Any]
 
-
 # ============================================================================
 # 3. MOTOR AXIOMÁTICO DE TEORÍA DE CAMBIO
 # ============================================================================
-
 
 class TeoriaCambio:
     """
@@ -420,11 +410,9 @@ class TeoriaCambio:
         """
         return self._generar_sugerencias_internas(validacion)
 
-
 # ============================================================================
 # 4. VALIDADOR ESTOCÁSTICO AVANZADO DE DAGs
 # ============================================================================
-
 
 def _create_advanced_seed(plan_name: str, salt: str = "") -> int:
     """
@@ -455,7 +443,6 @@ def _create_advanced_seed(plan_name: str, salt: str = "") -> int:
     )
 
     return seed
-
 
 class AdvancedDAGValidator:
     """
@@ -830,11 +817,9 @@ class AdvancedDAGValidator:
             {},
         )
 
-
 # ============================================================================
 # 5. ORQUESTADOR DE CERTIFICACIÓN INDUSTRIAL
 # ============================================================================
-
 
 class IndustrialGradeValidator:
     """
@@ -989,11 +974,9 @@ class IndustrialGradeValidator:
         )
         return metric
 
-
 # ============================================================================
 # 6. LÓGICA DE LA CLI Y CONSTRUCTORES DE GRAFOS DE DEMOSTRACIÓN
 # ============================================================================
-
 
 def create_policy_theory_of_change_graph() -> AdvancedDAGValidator:
     """
@@ -1028,7 +1011,6 @@ def create_policy_theory_of_change_graph() -> AdvancedDAGValidator:
 
     LOGGER.info("Grafo de demostración para la política 'P1' construido.")
     return validator
-
 
 def main() -> None:
     """Punto de entrada principal para la interfaz de línea de comandos (CLI)."""
@@ -1099,7 +1081,6 @@ def main() -> None:
             "  - Nodos validados contra schema: %d", len(serialized_nodes)
         )
         LOGGER.info("=" * 80)
-
 
 # ============================================================================
 # 7. PUNTO DE ENTRADA

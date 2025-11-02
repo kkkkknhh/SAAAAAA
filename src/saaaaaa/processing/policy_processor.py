@@ -124,7 +124,6 @@ from saaaaaa.analysis.financiero_viabilidad_tablas import PDETAnalysisException,
 # not at module import time to avoid side effects
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # CAUSAL DIMENSION TAXONOMY (DECALOGO Framework)
 # ============================================================================
@@ -138,7 +137,6 @@ class CausalDimension(Enum):
     D4_RESULTADOS = "d4_resultados"
     D5_IMPACTOS = "d5_impactos"
     D6_CAUSALIDAD = "d6_causalidad"
-
 
 # ============================================================================
 # ENHANCED PATTERN LIBRARY WITH SEMANTIC HIERARCHIES
@@ -287,7 +285,6 @@ CAUSAL_PATTERN_TAXONOMY: dict[CausalDimension, dict[str, list[str]]] = {
     },
 }
 
-
 # ============================================================================
 # CONFIGURATION ARCHITECTURE
 # ============================================================================
@@ -383,7 +380,6 @@ class ProcessorConfig:
                     f"critical_dimension_overrides[{dimension}] must be in [0, 1]"
                 )
 
-
 # ============================================================================
 # MATHEMATICAL SCORING ENGINE
 # ============================================================================
@@ -467,7 +463,6 @@ class BayesianEvidenceScorer:
 
         return entropy / max_entropy if max_entropy > 0 else 0.0
 
-
 # ============================================================================
 # ADVANCED TEXT PROCESSOR
 # ============================================================================
@@ -542,7 +537,6 @@ class PolicyTextProcessor:
         """Cache and compile regex patterns for performance."""
         return re.compile(pattern_str, re.IGNORECASE | re.UNICODE)
 
-
 # ============================================================================
 # CORE INDUSTRIAL PROCESSOR
 # ============================================================================
@@ -567,7 +561,6 @@ class EvidenceBundle:
             "evidence_samples": self.matches[:3],
             "context_preview": self.context_windows[:2],
         }
-
 
 class IndustrialPolicyProcessor:
     """
@@ -1195,7 +1188,6 @@ class IndustrialPolicyProcessor:
         save_json(results, output_path)
         logger.info(f"Results exported to {output_path}")
 
-
 # ============================================================================
 # ENHANCED SANITIZER WITH STRUCTURE PRESERVATION
 # ============================================================================
@@ -1291,7 +1283,6 @@ class AdvancedTextSanitizer:
             restored = restored.replace(end_mark, "")
         return restored
 
-
 # ============================================================================
 # INTEGRATED FILE HANDLING WITH RESILIENCE
 # ============================================================================
@@ -1333,7 +1324,6 @@ class ResilientFileHandler:
         from .factory import write_text_file
 
         write_text_file(content, file_path)
-
 
 # ============================================================================
 # UNIFIED ORCHESTRATOR
@@ -1439,7 +1429,6 @@ class PolicyAnalysisPipeline:
         sanitized_text = self.sanitizer.sanitize(raw_text)
         return self.processor.process(sanitized_text)
 
-
 # ============================================================================
 # FACTORY FUNCTIONS FOR BACKWARD COMPATIBILITY
 # ============================================================================
@@ -1469,7 +1458,6 @@ def create_policy_processor(
         **kwargs,
     )
     return PolicyAnalysisPipeline(config=config)
-
 
 # ============================================================================
 # COMMAND-LINE INTERFACE

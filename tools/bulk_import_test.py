@@ -6,15 +6,12 @@ import importlib
 import sys
 from pathlib import Path
 
-
 def main() -> None:
     """Test importing all modules in the package."""
     errors = []
     success = []
 
     # Add src to path
-    sys.path.insert(0, 'src')
-
     # Find all Python modules
     src_path = Path('src/saaaaaa')
     if not src_path.exists():
@@ -51,7 +48,6 @@ def main() -> None:
     else:
         print('✅ All modules imported successfully')
         sys.exit(0)
-
 
 if __name__ == '__main__':
     main()

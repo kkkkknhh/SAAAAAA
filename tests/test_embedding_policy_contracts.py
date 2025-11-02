@@ -11,7 +11,6 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-
 def _ensure_sentence_transformer_stub() -> None:
     """Provide a lightweight stub so embedding_policy imports without heavy deps."""
 
@@ -28,11 +27,9 @@ def _ensure_sentence_transformer_stub() -> None:
     stub.CrossEncoder = _Stub
     sys.modules["sentence_transformers"] = stub
 
-
 _ensure_sentence_transformer_stub()
 
-from embedding_policy import PolicyAnalysisEmbedder  # noqa: E402  - imported after stub
-
+from saaaaaa.processing.embedding_policy import PolicyAnalysisEmbedder  # noqa: E402  - imported after stub
 
 @pytest.fixture()
 def embedder_stub() -> PolicyAnalysisEmbedder:
@@ -42,11 +39,9 @@ def embedder_stub() -> PolicyAnalysisEmbedder:
     instance._logger = logging.getLogger("test.PolicyAnalysisEmbedder")
     return instance
 
-
 @pytest.fixture()
 def pdq_filter() -> dict[str, str]:
     return {"policy": "P1", "dimension": "D1"}
-
 
 def test_filter_by_pdq_contract_shape(embedder_stub: PolicyAnalysisEmbedder, pdq_filter: dict[str, str]) -> None:
     """Given documented inputs, the output remains a list of semantic chunks."""
@@ -68,7 +63,6 @@ def test_filter_by_pdq_contract_shape(embedder_stub: PolicyAnalysisEmbedder, pdq
     assert isinstance(result, list)
     assert result == [chunk]
 
-
 def test_filter_by_pdq_missing_context_logs_error(
     embedder_stub: PolicyAnalysisEmbedder, pdq_filter: dict[str, str], caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -84,7 +78,6 @@ def test_filter_by_pdq_missing_context_logs_error(
         "ERR_CONTRACT_MISMATCH[fn=_filter_by_pdq, key='pdq_context', needed=True, got=None, index=0]"
         in caplog.text
     )
-
 
 @st.composite
 def chunk_strategy(draw: st.DrawFn) -> Any:
@@ -136,7 +129,6 @@ def chunk_strategy(draw: st.DrawFn) -> Any:
         )
     )
     return chunk
-
 
 @settings(
     max_examples=25,

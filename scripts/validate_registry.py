@@ -5,13 +5,9 @@ Registry Validation and Audit Script
 This script demonstrates the usage of the canonical registry foundation,
 including validation and audit report generation.
 """
-import sys
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
 from orchestrator.canonical_registry import (
     CANONICAL_METHODS,
     RegistryValidationError,
@@ -20,13 +16,11 @@ from orchestrator.canonical_registry import (
     validate_method_registry,
 )
 
-
 def print_header(text: str):
     """Print a formatted header."""
     print(f"\n{'=' * 60}")
     print(f"  {text}")
     print(f"{'=' * 60}\n")
-
 
 def main():
     """Run registry validation and generate audit report."""
@@ -106,7 +100,6 @@ def main():
     print("  1. Install missing dependencies (numpy, networkx, sklearn)")
     print("  2. Fix module import errors")
     print("  3. Improve method resolution rate")
-
 
 if __name__ == "__main__":
     main()

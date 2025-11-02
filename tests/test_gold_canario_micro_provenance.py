@@ -17,14 +17,13 @@ import time
 
 import pytest
 
-from micro_prompts import (
+from saaaaaa.processing.micro_prompts import (
     AuditResult,
     ProvenanceAuditor,
     ProvenanceDAG,
     ProvenanceNode,
     QMCMRecord,
 )
-
 
 class TestProvenanceAuditorBasicFunctionality:
     """Test basic functionality of ProvenanceAuditor"""
@@ -54,7 +53,6 @@ class TestProvenanceAuditorBasicFunctionality:
         assert result.severity == 'LOW'
         assert len(result.missing_qmcm) == 0
         assert len(result.orphan_nodes) == 0
-
 
 class TestQMCMCorrespondence:
     """Test QMCM correspondence validation"""
@@ -147,7 +145,6 @@ class TestQMCMCorrespondence:
 
         assert "node1" in result.missing_qmcm
 
-
 class TestOrphanNodeDetection:
     """Test orphan node detection"""
 
@@ -217,7 +214,6 @@ class TestOrphanNodeDetection:
         result = auditor.audit(None, {}, dag)
 
         assert "orphan_output" in result.orphan_nodes
-
 
 class TestLatencyAnomalies:
     """Test latency anomaly detection"""
@@ -305,7 +301,6 @@ class TestLatencyAnomalies:
 
         assert len(result.latency_anomalies) == 2
 
-
 class TestSchemaCompliance:
     """Test schema compliance verification"""
 
@@ -384,7 +379,6 @@ class TestSchemaCompliance:
         assert mismatch['node_id'] == "node1"
         assert mismatch['method'] == "module.method1"
 
-
 class TestContributionWeights:
     """Test contribution weight calculation"""
 
@@ -440,7 +434,6 @@ class TestContributionWeights:
         # method1 should have combined weight of 0.5 + 0.2 = 0.7
         assert result.contribution_weights["module.method1"] == 0.7
         assert result.contribution_weights["module.method2"] == 0.3
-
 
 class TestSeverityAssessment:
     """Test severity assessment logic"""
@@ -520,7 +513,6 @@ class TestSeverityAssessment:
 
         assert result.severity == 'CRITICAL'
 
-
 class TestNarrativeGeneration:
     """Test narrative generation"""
 
@@ -572,7 +564,6 @@ class TestNarrativeGeneration:
 
         assert "CRITICAL" in result.narrative
         assert "remediation" in result.narrative.lower() or "governance" in result.narrative.lower()
-
 
 class TestProvenanceDAGHelpers:
     """Test ProvenanceDAG helper methods"""
@@ -633,7 +624,6 @@ class TestProvenanceDAGHelpers:
         assert "orphan_output" in orphans
         assert "input1" not in orphans
 
-
 class TestJSONExport:
     """Test JSON export functionality"""
 
@@ -654,7 +644,6 @@ class TestJSONExport:
         assert 'severity' in json_output
         assert 'narrative' in json_output
         assert 'timestamp' in json_output
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

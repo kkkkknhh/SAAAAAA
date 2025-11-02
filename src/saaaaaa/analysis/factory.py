@@ -36,7 +36,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # JSON I/O OPERATIONS
 # ============================================================================
@@ -66,7 +65,6 @@ def load_json(file_path: str | Path) -> dict[str, Any]:
     logger.info(f"Loaded JSON from {file_path}")
     return data
 
-
 def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> None:
     """
     Save data to JSON file with formatted output.
@@ -83,7 +81,6 @@ def save_json(data: dict[str, Any], file_path: str | Path, indent: int = 2) -> N
         json.dump(data, f, ensure_ascii=False, indent=indent)
 
     logger.info(f"Saved JSON to {file_path}")
-
 
 # ============================================================================
 # YAML I/O OPERATIONS
@@ -117,7 +114,6 @@ def load_yaml(file_path: str | Path) -> dict[str, Any]:
     logger.info(f"Loaded YAML from {file_path}")
     return data
 
-
 # ============================================================================
 # TEXT FILE I/O OPERATIONS
 # ============================================================================
@@ -146,7 +142,6 @@ def read_text_file(file_path: str | Path) -> str:
     logger.debug(f"Read {len(content)} characters from {file_path}")
     return content
 
-
 def write_text_file(content: str, file_path: str | Path) -> None:
     """
     Write text content to file with UTF-8 encoding.
@@ -162,7 +157,6 @@ def write_text_file(content: str, file_path: str | Path) -> None:
         f.write(content)
 
     logger.info(f"Written {len(content)} characters to {file_path}")
-
 
 # ============================================================================
 # CSV I/O OPERATIONS
@@ -189,7 +183,6 @@ def write_csv(rows: list[list[Any]], file_path: str | Path, headers: list[str] =
         writer.writerows(rows)
 
     logger.info(f"Written {len(rows)} rows to CSV {file_path}")
-
 
 # ============================================================================
 # PDF OPERATIONS
@@ -219,7 +212,6 @@ def open_pdf_with_fitz(file_path: str | Path):
 
     return fitz.open(file_path)
 
-
 def open_pdf_with_pdfplumber(file_path: str | Path):
     """
     Open a PDF file using pdfplumber.
@@ -243,7 +235,6 @@ def open_pdf_with_pdfplumber(file_path: str | Path):
         raise FileNotFoundError(f"PDF file not found: {file_path}")
 
     return pdfplumber.open(file_path)
-
 
 # ============================================================================
 # SPACY MODEL LOADING

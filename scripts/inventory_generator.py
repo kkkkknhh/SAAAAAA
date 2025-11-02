@@ -13,7 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
 @dataclass
 class FunctionInfo:
     """Function/method metadata"""
@@ -29,7 +28,6 @@ class FunctionInfo:
     cyclomatic_complexity: int
     dependencies: list[str]
 
-
 @dataclass
 class ClassInfo:
     """Class metadata"""
@@ -42,7 +40,6 @@ class ClassInfo:
     base_classes: list[str]
     dependencies: list[str]
 
-
 @dataclass
 class FileInfo:
     """File-level metadata"""
@@ -54,7 +51,6 @@ class FileInfo:
     git_commit: str | None
     git_author: str | None
     lines_of_code: int
-
 
 class InventoryGenerator:
     """Generate complete codebase inventory"""
@@ -362,7 +358,6 @@ class InventoryGenerator:
 
         print(f"✓ README saved to {readme_path}")
 
-
 def main():
     """Main entry point"""
     root_dir = Path(__file__).parent
@@ -385,7 +380,6 @@ def main():
     print("  - inventory.json")
     print("  - provenance.csv")
     print("  - README.inventory.md")
-
 
 if __name__ == '__main__':
     main()

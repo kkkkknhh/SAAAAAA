@@ -16,21 +16,17 @@ Exit codes:
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from validation.schema_validator import MonolithSchemaValidator, SchemaInitializationError
 
 # Try to import orchestrator, but make it optional
 try:
-    from orchestrator import get_questionnaire_provider
+    from saaaaaa.core.orchestrator import get_questionnaire_provider
     HAS_ORCHESTRATOR = True
 except ImportError:
     HAS_ORCHESTRATOR = False
-
 
 def load_monolith(monolith_path: str = None):
     """
@@ -53,7 +49,6 @@ def load_monolith(monolith_path: str = None):
             )
         provider = get_questionnaire_provider()
         return provider.load()
-
 
 def main():
     """Main entry point."""
@@ -183,7 +178,6 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
-
 
 if __name__ == '__main__':
     sys.exit(main())

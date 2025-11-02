@@ -18,12 +18,10 @@ except ImportError:
     print("Error: jsonschema not installed. Install with: pip install jsonschema", file=sys.stderr)
     sys.exit(1)
 
-
 def load_schema(schema_path: str) -> dict:
     """Load JSON schema from file."""
     with open(schema_path) as f:
         return json.load(f)
-
 
 def validate_log_entry(entry: dict, schema: dict, line_num: int) -> tuple[bool, str]:
     """
@@ -39,7 +37,6 @@ def validate_log_entry(entry: dict, schema: dict, line_num: int) -> tuple[bool, 
         return False, f"Line {line_num}: {e.message}"
     except jsonschema.SchemaError as e:
         return False, f"Line {line_num}: Schema error: {e.message}"
-
 
 def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) -> int:
     """
@@ -116,7 +113,6 @@ def validate_log_file(log_path: str, schema_path: str, verbose: bool = False) ->
     print("\n✓ All log entries are valid!")
     return 0
 
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Validate error logs against contract error log schema"
@@ -141,7 +137,6 @@ def main() -> None:
 
     exit_code = validate_log_file(args.log_file, args.schema, args.verbose)
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

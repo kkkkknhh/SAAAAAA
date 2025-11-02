@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from orchestrator import get_questionnaire_provider
+from saaaaaa.core.orchestrator import get_questionnaire_provider
 
 QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
 
@@ -34,7 +34,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 class AbortError(Exception):
     """Fatal error requiring immediate abort."""
     def __init__(self, code: str, message: str, phase: str):
@@ -43,7 +42,6 @@ class AbortError(Exception):
         self.phase = phase
         super().__init__(f"[{code}] {phase}: {message}")
 
-
 @dataclass
 class PhaseContext:
     """Context for a construction phase."""
@@ -51,7 +49,6 @@ class PhaseContext:
     preconditions: list[str]
     invariants: list[str]
     postconditions: list[str]
-
 
 class MonolithForge:
     """
@@ -97,8 +94,6 @@ class MonolithForge:
         logger.info(f"=== {phase} START ===")
 
         # Get repository root dynamically
-        repo_root = Path(__file__).parent.absolute()
-
         # Whitelist of allowed files (relative to repo root)
         allowed_files = {
             'questionnaire.json': repo_root / 'questionnaire.json',
@@ -1026,7 +1021,6 @@ class MonolithForge:
             logger.error(f"Construction FAILED at {e.phase}")
             return False
 
-
 def main():
     """Main entry point."""
     import argparse
@@ -1045,7 +1039,6 @@ def main():
     success = forge.build(args.output)
 
     sys.exit(0 if success else 1)
-
 
 if __name__ == '__main__':
     main()

@@ -52,7 +52,6 @@ from schemas.preprocessed_document import (
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
-
 def _to_frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
     if not data:
         return _EMPTY_MAPPING
@@ -60,13 +59,11 @@ def _to_frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
         return data
     return MappingProxyType(dict(data))
 
-
 def _coerce_optional_int(value: Any) -> int | None:
     try:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
-
 
 def _build_sentence_metadata_entries(
     entries: Sequence[Any],
@@ -103,7 +100,6 @@ def _build_sentence_metadata_entries(
         result = [SentenceMetadata(index=index) for index, _ in enumerate(sentences)]
 
     return tuple(result)
-
 
 def _coerce_table_annotations(tables: Sequence[Any]) -> tuple[TableAnnotation, ...]:
     annotations: list[TableAnnotation] = []
@@ -152,7 +148,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # DATACLASSES - ESTRUCTURAS DE DATOS INMUTABLES
 # ============================================================================
@@ -170,7 +165,6 @@ class RawDocument:
     file_hash: str
     metadata: Mapping[str, Any] = _EMPTY_MAPPING
     is_valid: bool = True
-
 
 # ============================================================================
 # CLASE 1: DocumentLoader
@@ -335,7 +329,6 @@ class DocumentLoader:
         from .factory import calculate_file_hash
         return calculate_file_hash(file_path)
 
-
 # ============================================================================
 # CLASE 2: TextExtractor
 # ============================================================================
@@ -482,7 +475,6 @@ class TextExtractor:
             sections=structured_sections,
             page_boundaries=structured_page_boundaries,
         )
-
 
 # ============================================================================
 # CLASE 3: PreprocessingEngine
@@ -738,7 +730,6 @@ class PreprocessingEngine:
             entity_index=entity_index_frozen,
         )
 
-
 # ============================================================================
 # FUNCIÓN DE CONVENIENCIA
 # ============================================================================
@@ -766,7 +757,6 @@ def ingest_document(*, pdf_path: str) -> PreprocessedDocument:
     preprocessed_doc = engine.preprocess_document(raw_doc)
 
     return preprocessed_doc
-
 
 # ============================================================================
 # EJEMPLO DE USO

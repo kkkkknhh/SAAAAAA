@@ -18,7 +18,6 @@ except ImportError:  # pragma: no cover - optional dependency
     np = None  # type: ignore
     NUMPY_AVAILABLE = False
 
-
 class SeedFactory:
     """Factory that derives stable seeds from canonical metadata."""
 
@@ -46,7 +45,6 @@ class SeedFactory:
         random.seed(seed)
         if NUMPY_AVAILABLE and np is not None:
             np.random.seed(seed)
-
 
 @dataclass
 class DeterministicContext:

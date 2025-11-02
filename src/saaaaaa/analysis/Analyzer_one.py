@@ -73,7 +73,6 @@ class ValueChainLink:
     conversion_rates: dict[str, float]
     capacity_constraints: dict[str, float]
 
-
 class MunicipalOntology:
     """Core ontology for municipal development domains."""
 
@@ -127,7 +126,6 @@ class MunicipalOntology:
             "sustainability": ["environmental_protection", "climate_adaptation"],
             "innovation": ["digital_transformation", "process_innovation"]
         }
-
 
 # ---------------------------------------------------------------------------
 # 2. SEMANTIC ANALYSIS ENGINE
@@ -358,7 +356,6 @@ class SemanticAnalyzer:
         max_expected_concepts = 20
         return min(1.0, len(unique_concepts) / max_expected_concepts)
 
-
 # ---------------------------------------------------------------------------
 # 3. PERFORMANCE ANALYZER
 # ---------------------------------------------------------------------------
@@ -533,7 +530,6 @@ class PerformanceAnalyzer:
                 })
 
         return recommendations
-
 
 # ---------------------------------------------------------------------------
 # 4. TEXT MINING ENGINE
@@ -715,7 +711,6 @@ class TextMiningEngine:
             })
 
         return interventions
-
 
 # ---------------------------------------------------------------------------
 # 5. COMPREHENSIVE ANALYZER
@@ -963,7 +958,6 @@ def example_usage():
         except (FileNotFoundError, OSError):
             pass
 
-
 @dataclass
 class CanonicalQuestionContract:
     """Canonical contract linking questionnaire, policy area and evidence."""
@@ -984,7 +978,6 @@ class CanonicalQuestionContract:
     canonical_question_id: str = ""
     contract_hash: str = ""
 
-
 @dataclass
 class EvidenceSegment:
     """Single segment of text matched against a question contract."""
@@ -993,7 +986,6 @@ class EvidenceSegment:
     segment_text: str
     segment_hash: str
     matched_patterns: list[str]
-
 
 class CanonicalQuestionSegmenter:
     """Deterministic segmenter anchored to canonical questionnaire schemas."""
@@ -1187,7 +1179,6 @@ class CanonicalQuestionSegmenter:
                 "segment_hash_chain": segment_hash_chain,
             },
         }
-
 
 class DocumentProcessor:
     """Utility class for document processing."""
@@ -1500,7 +1491,6 @@ class DocumentProcessor:
                 return dimension_code
         return dimension_code
 
-
 class ResultsExporter:
     """Export analysis results to different formats."""
 
@@ -1655,13 +1645,9 @@ class ResultsExporter:
         except Exception as e:
             logger.error(f"Error exporting summary report: {e}")
 
-
 # ---------------------------------------------------------------------------
 # 7. MAIN EXECUTION
 # ---------------------------------------------------------------------------
-
-
-
 
 # ---------------------------------------------------------------------------
 # 8. ADDITIONAL UTILITIES FOR PRODUCTION USE
@@ -1720,7 +1706,6 @@ class ConfigurationManager:
             save_json(self.config, self.config_path)
         except Exception as e:
             logger.error(f"Error saving config: {e}")
-
 
 class BatchProcessor:
     """Process multiple documents in batch."""
@@ -1821,7 +1806,6 @@ class BatchProcessor:
 
         except Exception as e:
             logger.error(f"Error creating batch summary: {e}")
-
 
 # Simple CLI interface
 def main() -> None:

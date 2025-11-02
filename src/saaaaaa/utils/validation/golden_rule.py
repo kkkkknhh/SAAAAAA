@@ -8,10 +8,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-
 class GoldenRuleViolation(Exception):
     """Raised when a Golden Rule assertion is violated."""
-
 
 class GoldenRuleValidator:
     """Enforces the Golden Rules across orchestrated execution phases."""

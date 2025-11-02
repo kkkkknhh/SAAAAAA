@@ -15,7 +15,6 @@ from validation.schema_validator import (
     validate_monolith_schema,
 )
 
-
 class TestMonolithSchemaValidator:
     """Test MonolithSchemaValidator."""
 
@@ -285,7 +284,6 @@ class TestMonolithSchemaValidator:
         assert not report.validation_passed
         assert any("CL99" in e and "Q301" in e for e in report.errors)
 
-
 class TestValidateMonolithSchemaHelper:
     """Test the validate_monolith_schema helper function."""
 
@@ -309,7 +307,6 @@ class TestValidateMonolithSchemaHelper:
         report = validate_monolith_schema(invalid_monolith, strict=False)
         assert not report.validation_passed
         assert isinstance(report, MonolithIntegrityReport)
-
 
 class TestIntegrityReportGeneration:
     """Test integrity report generation."""

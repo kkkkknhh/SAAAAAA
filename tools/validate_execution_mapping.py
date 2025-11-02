@@ -9,18 +9,15 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft7Validator
 
-
 def load_yaml(file_path: str) -> dict:
     """Load YAML configuration file."""
     with open(file_path) as f:
         return yaml.safe_load(f)
 
-
 def load_schema(schema_path: str) -> dict:
     """Load JSON schema file."""
     with open(schema_path) as f:
         return json.load(f)
-
 
 def validate_config(config: dict, schema: dict) -> tuple[bool, list[str]]:
     """
@@ -38,7 +35,6 @@ def validate_config(config: dict, schema: dict) -> tuple[bool, list[str]]:
         errors.append(f"{path}: {error.message}")
 
     return len(errors) == 0, errors
-
 
 def check_module_references(config: dict) -> tuple[bool, list[str]]:
     """
@@ -61,7 +57,6 @@ def check_module_references(config: dict) -> tuple[bool, list[str]]:
 
     return len(errors) == 0, errors
 
-
 def check_scoring_module_references(config: dict) -> tuple[bool, list[str]]:
     """
     Validate that modules referenced in scoring modalities exist.
@@ -78,7 +73,6 @@ def check_scoring_module_references(config: dict) -> tuple[bool, list[str]]:
                 )
 
     return len(errors) == 0, errors
-
 
 def main() -> None:
     """Main validation entry point."""
@@ -162,7 +156,6 @@ def main() -> None:
     else:
         print("❌ Validation failed - fix errors above")
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()

@@ -43,7 +43,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # ENUMERATIONS AND TYPE DEFINITIONS
 # ============================================================================
@@ -55,14 +54,12 @@ class ValidatorType(Enum):
     PERIOD = auto()
     ENTITY = auto()
 
-
 class ProbativeTestType(Enum):
     """Taxonomy of probative tests for Bayesian updating"""
     STRAW_IN_WIND = "straw_in_wind"  # Weak confirmation
     HOOP_TEST = "hoop_test"  # Necessary but not sufficient
     SMOKING_GUN = "smoking_gun"  # Sufficient but not necessary
     DOUBLY_DECISIVE = "doubly_decisive"  # Both necessary and sufficient
-
 
 class PenaltyCategory(Enum):
     """Categories of penalties applied to scores"""
@@ -71,7 +68,6 @@ class PenaltyCategory(Enum):
     COVERAGE_GAP = "coverage_gap"
     CONTRADICTION = "contradiction"
     PEER_DEVIATION = "peer_deviation"
-
 
 # ============================================================================
 # MICRO LEVEL: RECONCILIATION LAYER
@@ -88,7 +84,6 @@ class ValidationRule:
     expected_entity: str | None = None
     penalty_factor: float = 0.1  # Penalty multiplier for violations
 
-
 @dataclass
 class ValidationResult:
     """Result of a validation check"""
@@ -98,7 +93,6 @@ class ValidationResult:
     expected_value: Any
     violation_severity: float  # 0.0 (no violation) to 1.0 (severe)
     penalty_applied: float
-
 
 class ReconciliationValidator:
     """
@@ -221,7 +215,6 @@ class ReconciliationValidator:
         """Calculate total penalty from validation results"""
         return sum(r.penalty_applied for r in validation_results)
 
-
 # ============================================================================
 # MICRO LEVEL: BAYESIAN UPDATER
 # ============================================================================
@@ -254,7 +247,6 @@ class ProbativeTest:
         else:
             return 1.0
 
-
 @dataclass
 class BayesianUpdate:
     """Result of Bayesian updating"""
@@ -264,7 +256,6 @@ class BayesianUpdate:
     likelihood_ratio: float
     posterior: float
     evidence_weight: float
-
 
 class BayesianUpdater:
     """
@@ -373,7 +364,6 @@ class BayesianUpdater:
         write_csv(rows, output_path, headers=headers)
         self.logger.info(f"Exported {len(self.updates)} Bayesian updates to {output_path}")
 
-
 # ============================================================================
 # MICRO LEVEL: INTEGRATION
 # ============================================================================
@@ -389,7 +379,6 @@ class MicroLevelAnalysis:
     final_posterior: float
     adjusted_score: float
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 # ============================================================================
 # MESO LEVEL: DISPERSION ENGINE
@@ -481,7 +470,6 @@ class DispersionEngine:
 
         return total_penalty, metrics
 
-
 # ============================================================================
 # MESO LEVEL: PEER CALIBRATION
 # ============================================================================
@@ -494,7 +482,6 @@ class PeerContext:
     scores: dict[str, float]  # dimension -> score
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class PeerComparison:
     """Result of peer comparison"""
@@ -505,7 +492,6 @@ class PeerComparison:
     percentile: float
     deviation_penalty: float
     narrative: str
-
 
 class PeerCalibrator:
     """
@@ -612,7 +598,6 @@ class PeerCalibrator:
 
         return narrative
 
-
 # ============================================================================
 # MESO LEVEL: BAYESIAN ROLL-UP
 # ============================================================================
@@ -631,7 +616,6 @@ class MesoLevelAnalysis:
     final_posterior: float
     adjusted_score: float
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 class BayesianRollUp:
     """
@@ -717,7 +701,6 @@ class BayesianRollUp:
             f"Exported {len(meso_analyses)} meso analyses to {output_path}"
         )
 
-
 # ============================================================================
 # MACRO LEVEL: CONTRADICTION SCANNER
 # ============================================================================
@@ -732,7 +715,6 @@ class ContradictionDetection:
     discrepancy: float
     severity: float  # 0.0-1.0
     description: str
-
 
 class ContradictionScanner:
     """
@@ -820,7 +802,6 @@ class ContradictionScanner:
 
         return penalty
 
-
 # ============================================================================
 # MACRO LEVEL: BAYESIAN PORTFOLIO COMPOSER
 # ============================================================================
@@ -840,7 +821,6 @@ class MacroLevelAnalysis:
     cluster_scores: dict[str, float]
     recommendations: list[str]
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 class BayesianPortfolioComposer:
     """
@@ -1045,7 +1025,6 @@ class BayesianPortfolioComposer:
 
         write_csv(rows, output_path, headers=headers)
         self.logger.info(f"Exported macro analysis to {output_path}")
-
 
 # ============================================================================
 # ORCHESTRATOR: COMPLETE MULTI-LEVEL PIPELINE
@@ -1281,7 +1260,6 @@ class MultiLevelBayesianOrchestrator:
         self.logger.info(f"  Final macro score: {macro_analysis.adjusted_score:.4f}")
 
         return macro_analysis
-
 
 # ============================================================================
 # MAIN ENTRY POINT

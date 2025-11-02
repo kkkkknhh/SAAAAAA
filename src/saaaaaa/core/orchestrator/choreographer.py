@@ -29,14 +29,12 @@ from typing import Any
 
 from .core import MethodExecutor, PreprocessedDocument
 
-
 class MethodPriority(Enum):
     """Priority levels for orchestration methods."""
 
     CRITICO = 3
     IMPORTANTE = 2
     COMPLEMENTARIO = 1
-
 
 @dataclass
 class MethodResult:
@@ -49,7 +47,6 @@ class MethodResult:
     retries_used: int = 0
     error: Any | None = None
 
-
 @dataclass
 class NodeResult:
     """Aggregated result for a DAG node."""
@@ -59,7 +56,6 @@ class NodeResult:
     method_results: list[MethodResult] = field(default_factory=list)
     execution_time_ms: float = 0.0
     error: Any | None = None
-
 
 @dataclass
 class QuestionResult:
@@ -71,7 +67,6 @@ class QuestionResult:
     raw_results: dict[str, Any]
     execution_time_ms: float = 0.0
     error: Any | None = None
-
 
 @dataclass
 class DAGNode:
@@ -86,7 +81,6 @@ class DAGNode:
     timeout_ms: int = 30_000
     max_retries: int = 2
 
-
 @dataclass
 class ExecutionPlan:
     """Deterministic orchestration plan for a single question."""
@@ -94,7 +88,6 @@ class ExecutionPlan:
     nodes: list[DAGNode]
     parallel_groups: list[list[str]]
     execution_order: list[str]
-
 
 class FlowController:
     """Utilities for constructing deterministic execution plans."""
@@ -152,7 +145,6 @@ class FlowController:
                 branches.append(branch)
         return branches
 
-
 class ChoreographerDispatcher:
     """Minimal dispatcher placeholder for backwards compatibility."""
 
@@ -160,7 +152,6 @@ class ChoreographerDispatcher:
         """Return a stub ``NodeResult`` indicating the node was skipped."""
 
         return NodeResult(node_id=node.node_id, success=True, method_results=[])
-
 
 class Choreographer:
     """Facade exposing micro-question orchestration helpers."""
@@ -229,7 +220,6 @@ class Choreographer:
             "method_count": sum(len(pkg["m"]) for pkg in method_packages),
         }
         return base_slot, question_data, method_packages, flow_spec
-
 
 __all__ = [
     "Choreographer",

@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 # DEPRECATION HELPERS
 # ============================================================================
 
-
 def _deprecation_warning(
     old_name: str,
     new_name: str,
@@ -46,11 +45,9 @@ def _deprecation_warning(
 
     warnings.warn(msg, DeprecationWarning, stacklevel=3)
 
-
 # ============================================================================
 # DOCUMENT ADAPTERS
 # ============================================================================
-
 
 def adapt_document_metadata_to_v1(
     raw_dict: Mapping[str, Any],
@@ -92,7 +89,6 @@ def adapt_document_metadata_to_v1(
 
     return metadata
 
-
 def adapt_text_to_document(
     text: str | TextDocument,
     *,
@@ -127,11 +123,9 @@ def adapt_text_to_document(
         metadata=metadata or {},
     )
 
-
 # ============================================================================
 # ANALYSIS ADAPTERS
 # ============================================================================
-
 
 def adapt_analysis_input_kwargs(
     kwargs: dict[str, Any],
@@ -183,7 +177,6 @@ def adapt_analysis_input_kwargs(
 
     return result
 
-
 def adapt_analysis_output_to_dict(
     output: AnalysisOutputV1,
 ) -> dict[str, Any]:
@@ -201,11 +194,9 @@ def adapt_analysis_output_to_dict(
     """
     return dict(output)
 
-
 # ============================================================================
 # PARAMETER NAME MIGRATION ADAPTERS
 # ============================================================================
-
 
 def handle_renamed_param(
     kwargs: dict[str, Any],
@@ -230,7 +221,6 @@ def handle_renamed_param(
         _deprecation_warning(old_name, new_name, removal_version)
         kwargs[new_name] = kwargs[old_name]
 
-
 def migrate_pdf_path_param(kwargs: dict[str, Any]) -> None:
     """
     Migrate 'pdf_path' to keyword-only 'pdf_path' with Path type.
@@ -247,7 +237,6 @@ def migrate_pdf_path_param(kwargs: dict[str, Any]) -> None:
                 f"ERR_CONTRACT_MISMATCH: pdf_path must be str or Path, "
                 f"got {type(value).__name__}"
             )
-
 
 def migrate_tables_param(kwargs: dict[str, Any]) -> None:
     """
@@ -274,11 +263,9 @@ def migrate_tables_param(kwargs: dict[str, Any]) -> None:
                 for i, table in enumerate(tables)
             }
 
-
 # ============================================================================
 # METADATA MIGRATION ADAPTERS
 # ============================================================================
-
 
 def handle_metadata_to_tables_migration(kwargs: dict[str, Any]) -> None:
     """
@@ -294,11 +281,9 @@ def handle_metadata_to_tables_migration(kwargs: dict[str, Any]) -> None:
         removal_version="v2.0.0",
     )
 
-
 # ============================================================================
 # TEXT ATTRIBUTE ADAPTERS
 # ============================================================================
-
 
 def ensure_text_attribute(obj: Any) -> str:
     """
@@ -327,11 +312,9 @@ def ensure_text_attribute(obj: Any) -> str:
         f"got {type(obj).__name__}"
     )
 
-
 # ============================================================================
 # COLLECTION ADAPTERS
 # ============================================================================
-
 
 def adapt_to_sequence(
     value: Any,
@@ -380,7 +363,6 @@ def adapt_to_sequence(
             f"ERR_CONTRACT_MISMATCH: param='{parameter}', "
             f"expected=Sequence, got={type(value).__name__} (not iterable)"
         ) from e
-
 
 def adapt_for_set_membership(value: Any, *, parameter: str) -> Any:
     """
@@ -435,11 +417,9 @@ def adapt_for_set_membership(value: Any, *, parameter: str) -> Any:
         f"cannot make {type(value).__name__} hashable"
     )
 
-
 # ============================================================================
 # VALIDATION SUMMARY
 # ============================================================================
-
 
 def validate_adapted_kwargs(
     kwargs: dict[str, Any],

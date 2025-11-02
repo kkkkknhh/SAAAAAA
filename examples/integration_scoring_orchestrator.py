@@ -5,14 +5,22 @@ Integration example: Using scoring module with orchestrator pattern.
 Shows how the scoring module integrates with the existing orchestrator architecture.
 """
 
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
 
-from scoring.scoring import apply_scoring
-
+from saaaaaa.scoring.scoring import apply_scoring
 
 def simulate_question_processing():
     """
@@ -150,7 +158,6 @@ def simulate_question_processing():
 
     return results
 
-
 def demonstrate_reproducibility():
     """Demonstrate that scoring is reproducible."""
     print("\n" + "=" * 70)
@@ -193,12 +200,10 @@ def demonstrate_reproducibility():
 
     print("=" * 70)
 
-
 def main():
     """Run integration examples."""
     simulate_question_processing()
     demonstrate_reproducibility()
-
 
 if __name__ == "__main__":
     main()

@@ -182,7 +182,6 @@ RECOMMENDATION_RULES = [
     },
 ]
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--questionnaire", type=Path, default=ROOT / "questionnaire.json")
@@ -197,12 +196,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     return parser.parse_args()
 
-
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
-
-
 
 def canonical_hash(payload: Mapping[str, Any]) -> str:
     serialisable = json.loads(json.dumps(payload, ensure_ascii=False))
@@ -211,7 +207,6 @@ def canonical_hash(payload: Mapping[str, Any]) -> str:
     canonical = json.dumps(serialisable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-
 def dump_json(path: Path, payload: Mapping[str, Any]) -> None:
     payload = copy.deepcopy(payload)
     payload["content_hash"] = canonical_hash(payload)
@@ -219,21 +214,17 @@ def dump_json(path: Path, payload: Mapping[str, Any]) -> None:
         json.dump(payload, fh, ensure_ascii=False, indent=2, sort_keys=True)
         fh.write("\n")
 
-
 def map_policy_area(legacy_id: str) -> str:
     index = LEGACY_POLICY_AREAS.index(legacy_id)
     return POLICY_AREA_IDS[index]
-
 
 def map_dimension(legacy_id: str) -> str:
     index = LEGACY_DIMENSIONS.index(legacy_id)
     return DIMENSION_IDS[index]
 
-
 def decimal_normalised(value: float, digits: int = 6) -> float:
     quant = Decimal(value).quantize(Decimal(10) ** -digits, rounding=ROUND_HALF_UP)
     return float(quant)
-
 
 def build_i18n(label_es: str, label_en: str | None = None) -> dict[str, Any]:
     if label_en is None:
@@ -245,7 +236,6 @@ def build_i18n(label_es: str, label_en: str | None = None) -> dict[str, Any]:
             "label_en": label_en,
         },
     }
-
 
 def migrate_questionnaire(
     questionnaire: dict[str, Any],
@@ -406,7 +396,6 @@ def migrate_questionnaire(
 
     return migrated, legacy_to_new_qid, pa_mapping, cluster_by_pa
 
-
 def weight_vector_from_mapping(mapping: Mapping[str, Any], pa_mapping: Mapping[str, str]) -> dict[str, dict[str, float]]:
     weights_by_pa: dict[str, dict[str, float]] = {}
     for legacy_dim, payload in mapping.items():
@@ -417,13 +406,11 @@ def weight_vector_from_mapping(mapping: Mapping[str, Any], pa_mapping: Mapping[s
             weights_by_pa.setdefault(pa_id, {})[dim_id] = decimal_normalised(details.get("weight", 0.0))
     return {pa_id: normalise_weights(dim_weights) for pa_id, dim_weights in weights_by_pa.items()}
 
-
 def normalise_weights(weights: Mapping[str, float]) -> dict[str, float]:
     total = sum(weights.values())
     if not total:
         return dict.fromkeys(weights, 0.0)
     return {k: decimal_normalised(v / total) for k, v in weights.items()}
-
 
 def migrate_rubric(
     rubric: dict[str, Any],
@@ -568,7 +555,6 @@ def migrate_rubric(
 
     return rubric_payload
 
-
 def update_metadata_checksums(questionnaire_path: Path, rubric_path: Path, execution_mapping_path: Path, output_path: Path) -> dict[str, str]:
     questionnaire_payload = load_json(questionnaire_path)
     rubric_payload = load_json(rubric_path)
@@ -590,7 +576,6 @@ def update_metadata_checksums(questionnaire_path: Path, rubric_path: Path, execu
         json.dump(checksums, fh, ensure_ascii=False, indent=2, sort_keys=True)
         fh.write("\n")
     return checksums
-
 
 def main() -> None:
     args = parse_args()
@@ -646,7 +631,6 @@ def main() -> None:
             "rubric_matrix_sample": migrated_rubric["rubric_matrix"]["PA01"]["DIM01"],
         }
         json.dump(preview, fp=sys.stdout, ensure_ascii=False, indent=2)
-
 
 if __name__ == "__main__":
     main()

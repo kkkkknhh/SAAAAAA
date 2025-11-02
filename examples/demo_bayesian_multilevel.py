@@ -8,13 +8,22 @@ This script demonstrates the complete multi-level Bayesian analysis pipeline:
 - MACRO: Contradiction scanning + Portfolio composition
 """
 
-import sys
 from pathlib import Path
 
 # Add parent to path if needed
-sys.path.insert(0, str(Path(__file__).parent))
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
 
-from bayesian_multilevel_system import (
+from saaaaaa.analysis.bayesian_multilevel_system import (
     MultiLevelBayesianOrchestrator,
     PeerContext,
     ProbativeTest,
@@ -22,7 +31,6 @@ from bayesian_multilevel_system import (
     ValidationRule,
     ValidatorType,
 )
-
 
 def main():
     print("=" * 80)
@@ -365,7 +373,6 @@ def main():
     print("  ✓ Generated comprehensive portfolio composition")
     print("  ✓ Exported posterior tables to CSV")
     print()
-
 
 if __name__ == "__main__":
     main()

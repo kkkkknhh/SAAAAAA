@@ -9,7 +9,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 class LocalFileAdapter:
     """Real file system adapter using pathlib.
 
@@ -43,7 +42,6 @@ class LocalFileAdapter:
         """Create a directory."""
         Path(path).mkdir(parents=parents, exist_ok=exist_ok)
 
-
 class JsonAdapter:
     """JSON serialization adapter.
 
@@ -62,7 +60,6 @@ class JsonAdapter:
         if indent is not None:
             return json.dumps(obj, indent=indent, ensure_ascii=False, default=str)
         return json.dumps(obj, ensure_ascii=False, default=str)
-
 
 class InMemoryFileAdapter:
     """In-memory file adapter for testing.
@@ -116,7 +113,6 @@ class InMemoryFileAdapter:
             for i in range(1, len(parts) + 1):
                 parent = str(Path(*parts[:i]))
                 self._dirs.add(parent)
-
 
 __all__ = [
     'LocalFileAdapter',

@@ -3,7 +3,6 @@ import inspect
 from threading import RLock
 from typing import Any, Dict, Optional
 
-
 class _QuestionnaireProvider:
     """Centralized access to the questionnaire monolith payload.
 

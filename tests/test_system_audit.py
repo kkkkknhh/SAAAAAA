@@ -15,7 +15,6 @@ API_SERVER_PATHS = [
     'saaaaaa/api/api_server.py',
 ]
 
-
 class TestCompilation:
     """Test that all Python files compile successfully."""
 
@@ -72,7 +71,6 @@ class TestCompilation:
                 pass
 
         assert len(issues) == 0, "Found suspicious duplicates:\n" + "\n".join(issues)
-
 
 class TestImports:
     """Test import statements and module structure."""
@@ -132,7 +130,6 @@ class TestImports:
 
         assert len(errors) == 0, "Found import errors:\n" + "\n".join(errors)
 
-
 class TestRoutes:
     """Test API routes and endpoints."""
 
@@ -160,7 +157,6 @@ class TestRoutes:
         # Check for route definitions
         assert 'api/' in content, "No API routes found in api_server.py"
         assert 'health' in content or 'status' in content, "No health check endpoint found"
-
 
 class TestPaths:
     """Test file paths and references."""
@@ -213,7 +209,6 @@ class TestPaths:
         assert 'summary' in data
         assert 'compilation_status' in data
         assert data['compilation_status'] == 'PASS'
-
 
 class TestSystemIntegrity:
     """Test overall system integrity."""

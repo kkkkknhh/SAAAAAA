@@ -8,7 +8,6 @@ Validates the high-level wiring and integration across all strategic files.
 import sys
 from pathlib import Path
 
-
 def validate_strategic_wiring() -> bool:
     """
     Validate strategic wiring across all files.
@@ -58,7 +57,6 @@ def validate_strategic_wiring() -> bool:
     else:
         print(f"✅ Validation PASSED: All {len(strategic_files)} strategic files present")
         return True
-
 
 if __name__ == "__main__":
     result = validate_strategic_wiring()

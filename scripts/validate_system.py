@@ -21,7 +21,6 @@ import re
 import sys
 from pathlib import Path
 
-
 # Colors for terminal output
 class Colors:
     GREEN = '\033[92m'

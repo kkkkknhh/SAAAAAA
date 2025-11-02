@@ -51,10 +51,8 @@ MODALITY_TEMPLATES = {
     },
 }
 
-
 POLICY_AREAS = ["PA01", "PA02", "PA03", "PA04", "PA05", "PA06", "PA07", "PA08", "PA09", "PA10"]
 DIMENSIONS = ["DIM01", "DIM02", "DIM03", "DIM04", "DIM05", "DIM06"]
-
 
 def generate_evidence(modality: str) -> dict[str, Any]:
     """Generate synthetic evidence for a modality."""
@@ -79,7 +77,6 @@ def generate_evidence(modality: str) -> dict[str, Any]:
         evidence["plausibility"] = random.uniform(*template["plausibility_range"])
 
     return evidence
-
 
 def generate_request(
     modalities: list[str],
@@ -112,7 +109,6 @@ def generate_request(
         }
     }
 
-
 def generate_traffic(
     volume: int,
     modalities: list[str],
@@ -143,7 +139,6 @@ def generate_traffic(
                 f.write(json.dumps(request) + '\n')
 
     return requests
-
 
 def print_statistics(requests: list[dict[str, Any]]) -> None:
     """Print statistics about generated traffic."""
@@ -196,7 +191,6 @@ def print_statistics(requests: list[dict[str, Any]]) -> None:
 
     print("\nTotal requests generated: " + str(len(requests)))
     print("=" * 60 + "\n")
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -263,7 +257,6 @@ def main() -> int:
         print(f"✓ Output written to {args.output}")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

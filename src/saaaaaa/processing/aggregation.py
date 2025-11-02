@@ -28,7 +28,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ScoredResult:
     """Scored result for a micro question."""
@@ -41,7 +40,6 @@ class ScoredResult:
     evidence: dict[str, Any]
     raw_results: dict[str, Any]
 
-
 @dataclass
 class DimensionScore:
     """Aggregated score for a dimension."""
@@ -53,7 +51,6 @@ class DimensionScore:
     validation_passed: bool = True
     validation_details: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class AreaScore:
     """Aggregated score for a policy area."""
@@ -64,7 +61,6 @@ class AreaScore:
     dimension_scores: list[DimensionScore]
     validation_passed: bool = True
     validation_details: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class ClusterScore:
@@ -78,7 +74,6 @@ class ClusterScore:
     validation_passed: bool = True
     validation_details: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class MacroScore:
     """Holistic macro evaluation score."""
@@ -91,36 +86,29 @@ class MacroScore:
     validation_passed: bool = True
     validation_details: dict[str, Any] = field(default_factory=dict)
 
-
 class AggregationError(Exception):
     """Base exception for aggregation errors."""
     pass
-
 
 class ValidationError(AggregationError):
     """Raised when validation fails."""
     pass
 
-
 class WeightValidationError(ValidationError):
     """Raised when weight validation fails."""
     pass
-
 
 class ThresholdValidationError(ValidationError):
     """Raised when threshold validation fails."""
     pass
 
-
 class HermeticityValidationError(ValidationError):
     """Raised when hermeticity validation fails."""
     pass
 
-
 class CoverageError(AggregationError):
     """Raised when coverage requirements are not met."""
     pass
-
 
 class DimensionAggregator:
     """
@@ -427,7 +415,6 @@ class DimensionAggregator:
             validation_details=validation_details
         )
 
-
 class AreaPolicyAggregator:
     """
     Aggregates dimension scores into policy area scores.
@@ -706,7 +693,6 @@ class AreaPolicyAggregator:
             validation_passed=True,
             validation_details=validation_details
         )
-
 
 class ClusterAggregator:
     """
@@ -1017,7 +1003,6 @@ class ClusterAggregator:
             validation_passed=True,
             validation_details=validation_details
         )
-
 
 class MacroAggregator:
     """

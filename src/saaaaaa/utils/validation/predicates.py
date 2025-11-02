@@ -14,7 +14,6 @@ Python: 3.10+
 from dataclasses import dataclass
 from typing import Any
 
-
 @dataclass
 class ValidationResult:
     """Result of a validation check."""
@@ -22,7 +21,6 @@ class ValidationResult:
     severity: str  # ERROR, WARNING, INFO
     message: str
     context: dict[str, Any]
-
 
 class ValidationPredicates:
     """

@@ -7,7 +7,6 @@ import ast
 import re
 import sys
 
-
 def check_kwargs_in_public_apis(files: list[str]) -> int:
     """Check for **kwargs in public APIs."""
     print("=== Checking for **kwargs in public APIs ===")
@@ -37,7 +36,6 @@ def check_kwargs_in_public_apis(files: list[str]) -> int:
     else:
         print('✓ No **kwargs found in core public APIs')
         return 0
-
 
 def check_contract_test_coverage() -> int:
     """Check contract test coverage."""
@@ -98,7 +96,6 @@ def check_contract_test_coverage() -> int:
 
     return 0
 
-
 def check_typing_any_usage(files: list[str]) -> int:
     """Check for typing.Any usage."""
     print("=== Checking for typing.Any usage (should be minimal) ===")
@@ -123,7 +120,6 @@ def check_typing_any_usage(files: list[str]) -> int:
 
     return 0
 
-
 def check_frozen_dataclasses(files: list[str]) -> int:
     """Check for frozen dataclasses."""
     print("=== Checking for frozen dataclasses ===")
@@ -140,7 +136,6 @@ def check_frozen_dataclasses(files: list[str]) -> int:
             pass
 
     return 0
-
 
 def main() -> None:
     """Main entry point."""
@@ -182,7 +177,6 @@ def main() -> None:
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()

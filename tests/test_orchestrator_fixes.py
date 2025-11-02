@@ -10,7 +10,6 @@ Tests the 5 specific issues addressed:
 """
 
 import inspect
-import sys
 from pathlib import Path
 
 try:
@@ -41,15 +40,12 @@ except ImportError:
     pytest = MockPytest()
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from aggregation import (
+from saaaaaa.core.aggregation import (
     AreaPolicyAggregator,
     DimensionAggregator,
     DimensionScore,
     WeightValidationError,
 )
-
 
 def simulate_default_route(method, provided_kwargs):
     """
@@ -87,7 +83,6 @@ def simulate_default_route(method, provided_kwargs):
             accepted_kwargs[name] = normalized[name]
 
     return (), accepted_kwargs
-
 
 class TestArgRouterAliasing:
     """Test Issue 1: Alias-mismatched kwargs in MethodExecutor"""
@@ -155,7 +150,6 @@ class TestArgRouterAliasing:
 
         print("✓ test_default_route_filters_extra_kwargs passed")
 
-
 class TestCatalogInitialization:
     """Test Issue 2: Missing constructor dependencies in catalog singletons"""
 
@@ -163,14 +157,12 @@ class TestCatalogInitialization:
         """Test that MethodExecutor creates instances with required dependencies."""
         print("SKIPPED: test_method_executor_instances_with_dependencies - requires full module import")
 
-
 class TestExceptionHandling:
     """Test Issue 4: Exception laundering in MethodExecutor"""
 
     def test_method_executor_raises_exceptions(self):
         """Test that MethodExecutor re-raises exceptions instead of returning None."""
         print("SKIPPED: test_method_executor_raises_exceptions - requires full module import")
-
 
 class TestWeightedAverageValidation:
     """Test Issue 3: Weighted-average length validation"""
@@ -234,7 +226,6 @@ class TestWeightedAverageValidation:
         # Should not raise an error and should compute correctly
         assert result > 0.0
         print("✓ test_weight_length_match_succeeds passed")
-
 
 class TestDimensionNormalization:
     """Test Issue 5: Dimension normalization score clamping"""
@@ -316,7 +307,6 @@ class TestDimensionNormalization:
         assert normalized[0] == 0.5
 
         print("✓ test_normalize_scores_defaults_to_3 passed")
-
 
 if __name__ == "__main__":
     # Run tests manually

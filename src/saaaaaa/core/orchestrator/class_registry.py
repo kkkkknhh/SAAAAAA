@@ -7,10 +7,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-
 class ClassRegistryError(RuntimeError):
     """Raised when one or more classes cannot be loaded."""
-
 
 # Map of orchestrator-facing class names to their import paths.
 _CLASS_PATHS: Mapping[str, str] = {
@@ -39,7 +37,6 @@ _CLASS_PATHS: Mapping[str, str] = {
     "AdvancedDAGValidator": "saaaaaa.analysis.teoria_cambio.AdvancedDAGValidator",
 }
 
-
 def build_class_registry() -> dict[str, type[object]]:
     """Return a mapping of class names to loaded types, validating availability."""
     resolved: dict[str, type[object]] = {}
@@ -67,7 +64,6 @@ def build_class_registry() -> dict[str, type[object]]:
         formatted = ", ".join(f"{name}: {reason}" for name, reason in missing.items())
         raise ClassRegistryError(f"Failed to load orchestrator classes: {formatted}")
     return resolved
-
 
 def get_class_paths() -> Mapping[str, str]:
     """Expose the raw class path mapping for diagnostics."""

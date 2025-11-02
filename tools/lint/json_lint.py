@@ -16,10 +16,8 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     jsonschema = None
 
-
 class DuplicateKeyError(ValueError):
     """Raised when duplicate keys are encountered."""
-
 
 def _no_duplicate_object_pairs(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
     obj: dict[str, Any] = {}
@@ -29,11 +27,9 @@ def _no_duplicate_object_pairs(pairs: Iterable[tuple[str, Any]]) -> dict[str, An
         obj[key] = value
     return obj
 
-
 def load_json_strict(path: Path) -> object:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle, object_pairs_hook=_no_duplicate_object_pairs)
-
 
 def find_empty_strings(payload: object, path: str = "") -> Iterable[str]:
     if isinstance(payload, str):
@@ -48,7 +44,6 @@ def find_empty_strings(payload: object, path: str = "") -> Iterable[str]:
             next_path = f"{path}[{index}]"
             yield from find_empty_strings(value, next_path)
 
-
 def find_out_of_range_numbers(payload: object, path: str = "") -> Iterable[str]:
     if isinstance(payload, (int, float)):
         key_lower = path.lower()
@@ -62,7 +57,6 @@ def find_out_of_range_numbers(payload: object, path: str = "") -> Iterable[str]:
         for index, value in enumerate(payload):
             next_path = f"{path}[{index}]"
             yield from find_out_of_range_numbers(value, next_path)
-
 
 def lint_file(path: Path, schema: Path | None) -> int:
     try:
@@ -104,7 +98,6 @@ def lint_file(path: Path, schema: Path | None) -> int:
         print(f"✅ {path.name}: lint passed")
     return 1 if issues else 0
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", type=Path, help="JSON files to lint")
@@ -116,7 +109,6 @@ def main() -> int:
         schema_path = args.schema if args.schema and len(args.paths) == 1 else None
         exit_code |= lint_file(json_path, schema_path)
     return exit_code
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

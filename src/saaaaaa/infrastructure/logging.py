@@ -8,7 +8,6 @@ For testing, use InMemoryLogAdapter instead.
 import logging
 from typing import Any
 
-
 class StandardLogAdapter:
     """Standard logging adapter using Python's logging module.
 
@@ -48,7 +47,6 @@ class StandardLogAdapter:
         else:
             self._logger.error(message)
 
-
 class InMemoryLogAdapter:
     """In-memory logging adapter for testing.
 
@@ -87,7 +85,6 @@ class InMemoryLogAdapter:
     def get_messages_by_level(self, level: str) -> list[dict[str, Any]]:
         """Get all messages of a specific level (for testing)."""
         return [msg for msg in self.messages if msg["level"] == level]
-
 
 __all__ = [
     'StandardLogAdapter',

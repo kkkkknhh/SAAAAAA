@@ -17,7 +17,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-
 def count_methods_in_class(filepath: Path, class_name: str) -> tuple[list[str], dict[str, int]]:
     """Count public and private methods in a class and return method names"""
     if not filepath.exists():
@@ -46,7 +45,6 @@ def count_methods_in_class(filepath: Path, class_name: str) -> tuple[list[str], 
 
     return method_names, method_counts
 
-
 def validate_schema_exists(module_dir: Path) -> tuple[bool, list[str]]:
     """Validate that schema files exist for a module"""
     if not module_dir.exists():
@@ -54,7 +52,6 @@ def validate_schema_exists(module_dir: Path) -> tuple[bool, list[str]]:
 
     schema_files = list(module_dir.glob("*.schema.json"))
     return len(schema_files) > 0, [f.name for f in schema_files]
-
 
 def count_file_methods(filepath: Path) -> tuple[int, int]:
     """Count all public and total methods in a file"""
@@ -77,7 +74,6 @@ def count_file_methods(filepath: Path) -> tuple[int, int]:
         except Exception as e:
             print(f"Error parsing {filepath}: {e}")
             return 0, 0
-
 
 def count_all_methods() -> dict[str, any]:
     """Count all methods across all modules and producers"""
@@ -190,7 +186,6 @@ def count_all_methods() -> dict[str, any]:
 
     return results
 
-
 def main() -> int:
     """Main entry point"""
     print("\n" + "=" * 80)
@@ -251,7 +246,6 @@ def main() -> int:
     print("=" * 80 + "\n")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

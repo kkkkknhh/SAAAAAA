@@ -6,16 +6,12 @@ from saaaaaa.utils.contracts.
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 # Add src to path for development environments
 _SRC_PATH = Path(__file__).resolve().parent.parent / "src"
 if _SRC_PATH.exists():  # pragma: no cover - executed at import time
     src_str = str(_SRC_PATH)
-    if src_str not in sys.path:
-        sys.path.insert(0, src_str)
-
 # Direct imports from the source modules
 from saaaaaa.utils.contracts import (  # noqa: F401, E402
     MISSING,

@@ -14,7 +14,19 @@ from pathlib import Path
 from typing import Any
 
 # Import Bayesian multi-level components
-from bayesian_multilevel_system import (
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
+from saaaaaa.analysis.bayesian_multilevel_system import (
     BayesianPortfolioComposer,
     # Roll-up and composition
     MultiLevelBayesianOrchestrator,
@@ -31,7 +43,6 @@ from bayesian_multilevel_system import (
 # from report_assembly import ReportAssembler, MicroLevelAnswer, MesoLevelCluster, MacroLevelConvergence
 
 logger = logging.getLogger(__name__)
-
 
 class EnhancedReportAssembler:
     """
@@ -198,7 +209,7 @@ class EnhancedReportAssembler:
         composer = BayesianPortfolioComposer()
 
         # Convert dicts to MesoLevelAnalysis objects for processing
-        from bayesian_multilevel_system import MesoLevelAnalysis
+        from saaaaaa.analysis.bayesian_multilevel_system import MesoLevelAnalysis
         meso_objects = [
             MesoLevelAnalysis(
                 cluster_id=m['cluster_id'],
@@ -235,7 +246,6 @@ class EnhancedReportAssembler:
             'cluster_scores': macro.cluster_scores,
             'recommendations': macro.recommendations
         }
-
 
 # ============================================================================
 # INTEGRATION EXAMPLE: Extending ReportAssembler
@@ -349,7 +359,6 @@ def example_integration_workflow():
     print("  ✓ Peer calibration with narrative generation")
     print("  ✓ Macro portfolio composition with penalties")
     print()
-
 
 # ============================================================================
 # INTEGRATION PATTERNS
@@ -471,7 +480,6 @@ class IntegrationPatterns:
             # ... continue with existing code ...
         '''
         return code
-
 
 # ============================================================================
 # MAIN ENTRY POINT

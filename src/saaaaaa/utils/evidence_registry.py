@@ -16,11 +16,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-
 def _canonical_json(payload: dict[str, Any]) -> str:
     """Return a canonical JSON representation with sorted keys."""
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
 
 @dataclass(frozen=True)
 class EvidenceRecord:
@@ -66,7 +64,6 @@ class EvidenceRecord:
             previous_hash=previous_hash,
             entry_hash=digest,
         )
-
 
 class EvidenceRegistry:
     """Append-only registry that persists evidence records to disk."""
@@ -175,13 +172,11 @@ class EvidenceRegistry:
                 )
             previous_hash = record.entry_hash
 
-
 def _serialize_record(record: EvidenceRecord) -> dict[str, Any]:
     payload = asdict(record)
     payload["evidence"] = list(record.evidence)
     payload["metadata"] = dict(record.metadata)
     return payload
-
 
 __all__ = [
     "EvidenceRecord",

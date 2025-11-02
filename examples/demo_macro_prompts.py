@@ -10,7 +10,19 @@ and through the unified orchestrator.
 
 import json
 
-from macro_prompts import (
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
+
+from saaaaaa.processing.macro_prompts import (
     BayesianPortfolioComposer,
     ContradictionScanner,
     CoverageGapStressor,
@@ -18,7 +30,6 @@ from macro_prompts import (
     PeerNormalizer,
     RoadmapOptimizer,
 )
-
 
 def demo_coverage_gap_stressor():
     """Demo: Coverage & Structural Gap Stressor"""
@@ -55,7 +66,6 @@ def demo_coverage_gap_stressor():
     for key, value in list(result.predictive_uplift.items())[:3]:
         print(f"  - {key}: {value:.3f}")
     print()
-
 
 def demo_contradiction_scanner():
     """Demo: Inter-Level Contradiction Scan"""
@@ -108,7 +118,6 @@ def demo_contradiction_scanner():
         print(f"    - Reason: {action.get('reason')}")
     print()
 
-
 def demo_bayesian_portfolio():
     """Demo: Bayesian Portfolio Composer"""
     print("=" * 60)
@@ -145,7 +154,6 @@ def demo_bayesian_portfolio():
     for penalty_name, penalty_value in result.penalties_applied.items():
         print(f"  - {penalty_name}: {penalty_value:.3f}")
     print()
-
 
 def demo_roadmap_optimizer():
     """Demo: Roadmap Optimizer"""
@@ -212,7 +220,6 @@ def demo_roadmap_optimizer():
         print(f"    - Total Effort: {resources['total_effort_months']:.1f} person-months")
     print()
 
-
 def demo_peer_normalizer():
     """Demo: Peer Normalization & Confidence Scaling"""
     print("=" * 60)
@@ -250,7 +257,6 @@ def demo_peer_normalizer():
         status = "🔺" if z_score > 1.0 else "🔻" if z_score < -1.0 else "✓"
         print(f"  {status} {area}: {z_score:+.2f}")
     print()
-
 
 def demo_orchestrator():
     """Demo: Unified Orchestrator (all 5 prompts)"""
@@ -333,7 +339,6 @@ def demo_orchestrator():
     print("\n  JSON Export (sample - coverage_analysis):")
     print(json.dumps(results['coverage_analysis'], indent=2)[:500] + "...")
     print()
-
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)

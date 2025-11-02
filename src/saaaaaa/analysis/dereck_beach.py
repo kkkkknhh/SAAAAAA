@@ -90,7 +90,6 @@ RigorStatus = Literal["fuerte", "débil", "sin_evaluar"]
 TestType = Literal["hoop_test", "smoking_gun", "doubly_decisive", "straw_in_wind"]
 DynamicsType = Literal["suma", "decreciente", "constante", "indefinido"]
 
-
 # ============================================================================
 # BEACH THEORETICAL PRIMITIVES - Added to existing code
 # ============================================================================
@@ -191,7 +190,6 @@ class BeachEvidentialTest:
                 posterior = max(0.05, prior / min(bayes_factor, 2.0))
                 return posterior, "STRAW_IN_WIND: Weak disconfirmation"
 
-
 # ============================================================================
 # Custom Exceptions - Structured Error Semantics
 # ============================================================================
@@ -227,26 +225,21 @@ class CDAFException(Exception):
             'recoverable': self.recoverable
         }
 
-
 class CDAFValidationError(CDAFException):
     """Configuration or data validation error"""
     pass
-
 
 class CDAFProcessingError(CDAFException):
     """Error during document processing"""
     pass
 
-
 class CDAFBayesianError(CDAFException):
     """Error during Bayesian inference"""
     pass
 
-
 class CDAFConfigError(CDAFException):
     """Configuration loading or validation error"""
     pass
-
 
 # ============================================================================
 # Pydantic Configuration Models - Schema Validation at Load Time
@@ -281,7 +274,6 @@ class BayesianThresholdsConfig(BaseModel):
         description="Laplace smoothing parameter"
     )
 
-
 class MechanismTypeConfig(BaseModel):
     """Mechanism type prior probabilities"""
     administrativo: float = Field(default=0.30, ge=0.0, le=1.0)
@@ -298,7 +290,6 @@ class MechanismTypeConfig(BaseModel):
             if abs(total - 1.0) > 0.01:
                 raise ValueError(f"Mechanism type priors must sum to 1.0, got {total}")
         return v
-
 
 class PerformanceConfig(BaseModel):
     """Performance and optimization settings"""
@@ -319,7 +310,6 @@ class PerformanceConfig(BaseModel):
         default=True,
         description="Cache spaCy embeddings for reuse"
     )
-
 
 class SelfReflectionConfig(BaseModel):
     """Self-reflective learning configuration"""
@@ -342,7 +332,6 @@ class SelfReflectionConfig(BaseModel):
         ge=1,
         description="Minimum documents before applying learned priors"
     )
-
 
 class CDAFConfigSchema(BaseModel):
     """Complete CDAF configuration schema with validation"""
@@ -378,14 +367,12 @@ class CDAFConfigSchema(BaseModel):
     class Config:
         extra = 'allow'  # Allow additional fields for extensibility
 
-
 class GoalClassification(NamedTuple):
     """Classification structure for goals"""
     type: NodeType
     dynamics: DynamicsType
     test_type: TestType
     confidence: float
-
 
 class EntityActivity(NamedTuple):
     """
@@ -402,7 +389,6 @@ class EntityActivity(NamedTuple):
     verb_lemma: str
     confidence: float
 
-
 class CausalLink(TypedDict):
     """Structure for causal links in the graph"""
     source: str
@@ -415,14 +401,12 @@ class CausalLink(TypedDict):
     kl_divergence: float | None
     converged: bool | None
 
-
 class AuditResult(TypedDict):
     """Audit result structure"""
     passed: bool
     warnings: list[str]
     errors: list[str]
     recommendations: list[str]
-
 
 @dataclass
 class MetaNode:
@@ -444,7 +428,6 @@ class MetaNode:
     causal_justification: list[str] = field(default_factory=list)
     audit_flags: list[str] = field(default_factory=list)
     confidence_score: float = 0.0
-
 
 class ConfigLoader:
     """External configuration management with Pydantic schema validation"""
@@ -855,7 +838,6 @@ class ConfigLoader:
 
         return result
 
-
 class PDFProcessor:
     """Advanced PDF processing and extraction"""
 
@@ -974,7 +956,6 @@ class PDFProcessor:
 
         self.logger.info(f"Secciones identificadas: {len(sections)}")
         return sections
-
 
 class CausalExtractor:
     """Extract and structure causal chains from text"""
@@ -1742,7 +1723,6 @@ class CausalExtractor:
 
         return justifications
 
-
 class MechanismPartExtractor:
     """Extract Entity-Activity pairs for mechanism parts"""
 
@@ -1893,7 +1873,6 @@ class MechanismPartExtractor:
 
         # Activity should be a reasonable verb
         return not len(activity) < 3
-
 
 class FinancialAuditor:
     """Financial traceability and auditing"""
@@ -2264,7 +2243,6 @@ class FinancialAuditor:
                 best_match = entry
 
         return best_match
-
 
 class OperationalizationAuditor:
     """Audit operationalization quality"""
@@ -2904,7 +2882,6 @@ class OperationalizationAuditor:
                 results['budget_optional'].append(node_id)
 
         return results
-
 
 class BayesianMechanismInference:
     """
@@ -3549,7 +3526,6 @@ class BayesianMechanismInference:
             return 'mixto'
         return max_types[0]
 
-
 class CausalInferenceSetup:
     """Prepare model for causal inference"""
 
@@ -3745,7 +3721,6 @@ class CausalInferenceSetup:
             'indefinido': 'por definir|sin especificar|indefinido'
         }
         return patterns.get(dynamics_type, '')
-
 
 class ReportingEngine:
     """Generate visualizations and reports"""
@@ -4057,7 +4032,6 @@ class ReportingEngine:
             self.logger.error(f"Error guardando modelo causal: {e}")
 
         return json_path
-
 
 class CDAFFramework:
     """Main orchestrator for the CDAF pipeline"""
@@ -4717,7 +4691,6 @@ class CDAFFramework:
         except Exception as e:
             self.logger.error(f"Error saving extraction report: {e}")
 
-
 # ============================================================================
 # AGUJA I: PRIOR ADAPTATIVO (EVIDENCIA → BAYES)
 # ============================================================================
@@ -4743,7 +4716,6 @@ class BayesFactorTable:
     def get_version(cls) -> str:
         """Version de tabla BF para trazabilidad"""
         return "Beach2019_v1.0"
-
 
 class AdaptivePriorCalculator:
     """
@@ -5152,7 +5124,6 @@ class AdaptivePriorCalculator:
             'all_criteria_met': brier_ok and ace_ok and coverage_ok and monotonicity_ok,
             'quality_grade': 'EXCELLENT' if (brier_ok and ace_ok and coverage_ok and monotonicity_ok) else 'NEEDS_IMPROVEMENT'
         }
-
 
 # ============================================================================
 # AGUJA II: MODELO GENERATIVO JERÁRQUICO
@@ -5681,7 +5652,6 @@ class HierarchicalGenerativeModel:
 
         return delta_waic
 
-
 # ============================================================================
 # AGUJA III: AUDITOR CONTRAFACTUAL BAYESIANO
 # ============================================================================
@@ -6209,7 +6179,6 @@ class BayesianCounterfactualAuditor:
             'recommendation': recommendation
         }
 
-
 def main() -> int:
     """CLI entry point"""
     parser = argparse.ArgumentParser(
@@ -6289,11 +6258,9 @@ Configuración:
 
     return 0 if success else 1
 
-
 # ============================================================================
 # PRODUCER CLASS - Registry Exposure
 # ============================================================================
-
 
 class DerekBeachProducer:
     """

@@ -30,15 +30,11 @@ all strategic self-contained files mentioned in the requirements:
 Purpose: AUDIT, ENSURE, FORCE, GUARANTEE, and SUSTAIN high-level wiring
 """
 
-import sys
 import unittest
 from pathlib import Path
 
 # Add parent directory and src to path
 root_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(root_dir))
-sys.path.insert(0, str(root_dir / "src"))
-
 
 class TestStrategicWiring(unittest.TestCase):
     """Test suite for strategic file wiring validation."""
@@ -118,7 +114,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_validation_engine_imports(self):
         """Verify validation_engine.py imports correctly."""
         try:
-            import validation_engine
+            import saaaaaa.validation.validation_engine
             self.assertTrue(hasattr(validation_engine, 'ValidationEngine'))
             self.assertTrue(hasattr(validation_engine, 'ValidationReport'))
         except ImportError as e:
@@ -127,7 +123,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_seed_factory_imports(self):
         """Verify seed_factory.py imports correctly."""
         try:
-            import seed_factory
+            import saaaaaa.core.seed_factory
             self.assertTrue(hasattr(seed_factory, 'SeedFactory'))
             self.assertTrue(hasattr(seed_factory, 'DeterministicContext'))
             self.assertTrue(hasattr(seed_factory, 'create_deterministic_seed'))
@@ -137,7 +133,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_qmcm_hooks_imports(self):
         """Verify qmcm_hooks.py imports correctly."""
         try:
-            import qmcm_hooks
+            import saaaaaa.core.qmcm_hooks
             self.assertTrue(hasattr(qmcm_hooks, 'QMCMRecorder'))
             self.assertTrue(hasattr(qmcm_hooks, 'get_global_recorder'))
             self.assertTrue(hasattr(qmcm_hooks, 'qmcm_record'))
@@ -147,7 +143,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_evidence_registry_imports(self):
         """Verify evidence_registry.py imports correctly."""
         try:
-            import evidence_registry
+            import saaaaaa.core.evidence_registry
             self.assertTrue(hasattr(evidence_registry, 'EvidenceRegistry'))
             self.assertTrue(hasattr(evidence_registry, 'EvidenceRecord'))
         except ImportError as e:
@@ -156,7 +152,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_json_contract_loader_imports(self):
         """Verify json_contract_loader.py imports correctly."""
         try:
-            import json_contract_loader
+            import saaaaaa.core.json_contract_loader
             self.assertTrue(hasattr(json_contract_loader, 'JSONContractLoader'))
             self.assertTrue(hasattr(json_contract_loader, 'ContractDocument'))
             self.assertTrue(hasattr(json_contract_loader, 'ContractLoadReport'))
@@ -184,7 +180,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_meso_cluster_analysis_imports(self):
         """Verify meso_cluster_analysis.py imports correctly."""
         try:
-            import meso_cluster_analysis
+            import saaaaaa.analysis.meso_cluster_analysis
             self.assertTrue(hasattr(meso_cluster_analysis, 'analyze_policy_dispersion'))
             self.assertTrue(hasattr(meso_cluster_analysis, 'reconcile_cross_metrics'))
             self.assertTrue(hasattr(meso_cluster_analysis, 'compose_cluster_posterior'))
@@ -194,7 +190,7 @@ class TestStrategicWiring(unittest.TestCase):
 
     def test_seed_factory_determinism(self):
         """Verify seed_factory produces deterministic seeds."""
-        from seed_factory import create_deterministic_seed
+        from saaaaaa.core.seed_factory import create_deterministic_seed
 
         # Same inputs should produce same seed
         seed1 = create_deterministic_seed("test-001", question_id="Q1", policy_area="P1")
@@ -210,7 +206,7 @@ class TestStrategicWiring(unittest.TestCase):
         """Verify evidence_registry maintains immutability."""
         import tempfile
 
-        from evidence_registry import EvidenceRegistry
+        from saaaaaa.core.evidence_registry import EvidenceRegistry
 
         # Use temporary directory for storage
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -238,7 +234,7 @@ class TestStrategicWiring(unittest.TestCase):
 
     def test_validation_engine_preconditions(self):
         """Verify validation_engine properly validates preconditions."""
-        from validation_engine import ValidationEngine
+        from saaaaaa.validation.validation_engine import ValidationEngine
 
         engine = ValidationEngine()
 
@@ -289,7 +285,7 @@ class TestStrategicWiring(unittest.TestCase):
 
     def test_qmcm_recorder_functionality(self):
         """Verify QMCM recorder tracks method calls."""
-        from qmcm_hooks import QMCMRecorder
+        from saaaaaa.core.qmcm_hooks import QMCMRecorder
 
         recorder = QMCMRecorder()
         recorder.clear_recording()
@@ -315,7 +311,7 @@ class TestStrategicWiring(unittest.TestCase):
         import json
         import tempfile
 
-        from json_contract_loader import JSONContractLoader
+        from saaaaaa.core.json_contract_loader import JSONContractLoader
 
         loader = JSONContractLoader()
 
@@ -338,14 +334,13 @@ class TestStrategicWiring(unittest.TestCase):
         finally:
             Path(temp_path).unlink()
 
-
 class TestStrategicFileInteraction(unittest.TestCase):
     """Test suite for interaction between strategic files."""
 
     def test_validation_engine_uses_predicates(self):
         """Verify validation_engine properly integrates with predicates."""
         from validation.predicates import ValidationPredicates
-        from validation_engine import ValidationEngine
+        from saaaaaa.validation.validation_engine import ValidationEngine
 
         engine = ValidationEngine()
 
@@ -356,7 +351,7 @@ class TestStrategicFileInteraction(unittest.TestCase):
         """Verify seed_factory context manager maintains state."""
         import random
 
-        from seed_factory import DeterministicContext
+        from saaaaaa.core.seed_factory import DeterministicContext
 
         # Save original state
         random.random()
@@ -371,7 +366,6 @@ class TestStrategicFileInteraction(unittest.TestCase):
 
         # Values should be different (state restored)
         self.assertNotEqual(value_in_context, value_after_context)
-
 
 if __name__ == '__main__':
     unittest.main()

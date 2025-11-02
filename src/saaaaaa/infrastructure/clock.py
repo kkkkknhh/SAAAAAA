@@ -7,7 +7,6 @@ For testing, use FrozenClockAdapter instead.
 
 from datetime import datetime, timezone
 
-
 class SystemClockAdapter:
     """Real clock adapter using datetime.now().
 
@@ -24,7 +23,6 @@ class SystemClockAdapter:
     def utcnow(self) -> datetime:
         """Get current UTC datetime."""
         return datetime.now(timezone.utc)
-
 
 class FrozenClockAdapter:
     """Frozen clock adapter for testing.
@@ -64,7 +62,6 @@ class FrozenClockAdapter:
         """
         from datetime import timedelta
         self._frozen_time += timedelta(**kwargs)
-
 
 __all__ = [
     'SystemClockAdapter',

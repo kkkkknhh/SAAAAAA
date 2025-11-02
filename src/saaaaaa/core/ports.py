@@ -15,7 +15,6 @@ Version: 1.0.0
 from datetime import datetime
 from typing import Any, Protocol
 
-
 class FilePort(Protocol):
     """Port for file system operations.
 
@@ -103,7 +102,6 @@ class FilePort(Protocol):
         """
         ...
 
-
 class JsonPort(Protocol):
     """Port for JSON serialization/deserialization.
 
@@ -138,7 +136,6 @@ class JsonPort(Protocol):
             TypeError: If object is not serializable
         """
         ...
-
 
 class EnvPort(Protocol):
     """Port for environment variable access.
@@ -184,7 +181,6 @@ class EnvPort(Protocol):
         """
         ...
 
-
 class ClockPort(Protocol):
     """Port for time operations.
 
@@ -208,7 +204,6 @@ class ClockPort(Protocol):
         """
         ...
 
-
 class LogPort(Protocol):
     """Port for logging operations.
 
@@ -230,7 +225,6 @@ class LogPort(Protocol):
     def error(self, message: str, **kwargs: Any) -> None:
         """Log error message."""
         ...
-
 
 __all__ = [
     'FilePort',

@@ -19,10 +19,8 @@ logger = logging.getLogger(__name__)
 
 MISSING: object = object()
 
-
 class ArgRouterError(RuntimeError):
     """Base exception for routing and validation issues."""
-
 
 class ArgumentValidationError(ArgRouterError):
     """Raised when the provided payload does not match the method signature."""
@@ -54,7 +52,6 @@ class ArgumentValidationError(ArgRouterError):
         )
         super().__init__(message)
 
-
 @dataclass(frozen=True)
 class _ParameterSpec:
     name: str
@@ -65,7 +62,6 @@ class _ParameterSpec:
     @property
     def required(self) -> bool:
         return self.default is MISSING
-
 
 @dataclass(frozen=True)
 class MethodSpec:
@@ -89,7 +85,6 @@ class MethodSpec:
     def accepted_arguments(self) -> tuple[str, ...]:
         accepted = tuple(spec.name for spec in (*self.positional, *self.keyword_only))
         return accepted
-
 
 class ArgRouter:
     """Resolve method call payloads based on inspected signatures."""
@@ -327,7 +322,6 @@ class ArgRouter:
         if origin is Union:
             return " | ".join(ArgRouter._describe_annotation(arg) for arg in args)
         return str(annotation)
-
 
 class PayloadDriftMonitor:
     """Sampling validator for ingress/egress payloads."""

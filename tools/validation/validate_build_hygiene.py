@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 def check_python_version_pin() -> bool:
     """Check that Python version is pinned to 3.11.x."""
     print("✓ Checking Python version pin...")
@@ -36,7 +35,6 @@ def check_python_version_pin() -> bool:
 
     print("  ✓ Python version properly pinned to 3.11.x")
     return True
-
 
 def check_pinned_dependencies() -> bool:
     """Check that all dependencies are pinned to exact versions."""
@@ -78,7 +76,6 @@ def check_pinned_dependencies() -> bool:
     print("  ✓ constraints.txt exists")
     return True
 
-
 def check_directory_structure() -> bool:
     """Check that required directories exist with __init__.py files."""
     print("✓ Checking directory structure...")
@@ -118,7 +115,6 @@ def check_directory_structure() -> bool:
     print("  ✓ All required directories exist with __init__.py files")
     return True
 
-
 def check_pythonpath_config() -> bool:
     """Check that setup.py exists for proper PYTHONPATH configuration."""
     print("✓ Checking PYTHONPATH configuration...")
@@ -135,7 +131,6 @@ def check_pythonpath_config() -> bool:
 
     print("  ✓ setup.py exists for editable installation")
     return True
-
 
 def check_centralized_config() -> bool:
     """Check that centralized configuration exists."""
@@ -161,7 +156,6 @@ def check_centralized_config() -> bool:
     print("  ✓ Centralized config exists (orchestrator/settings.py, .env.example)")
     print("  ✓ .env properly excluded in .gitignore")
     return True
-
 
 def main() -> int:
     """Run all validation checks."""
@@ -198,7 +192,6 @@ def main() -> int:
         print(f"✗ {failed} check(s) failed")
         print("=" * 60)
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

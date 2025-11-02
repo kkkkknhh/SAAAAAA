@@ -28,7 +28,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ValidationReport:
     """Complete validation report with all checks."""
@@ -59,7 +58,6 @@ class ValidationReport:
         """Generate summary string."""
         return (f"Validation Summary: {self.passed}/{self.total_checks} passed, "
                 f"{self.failed} errors, {self.warnings} warnings")
-
 
 class ValidationEngine:
     """

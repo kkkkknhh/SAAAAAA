@@ -11,10 +11,8 @@ from pathlib import Path
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import scoring.scoring as scoring_module
-from scoring.scoring import (
+import saaaaaa.scoring.scoring as scoring_module
+from saaaaaa.scoring.scoring import (
     EvidenceStructureError,
     ModalityValidationError,
     QualityLevel,
@@ -32,7 +30,6 @@ from scoring.scoring import (
     score_type_e,
     score_type_f,
 )
-
 
 def test_scored_result_hash():
     """Test that evidence hash is computed correctly."""
@@ -54,7 +51,6 @@ def test_scored_result_hash():
     assert len(hash1) == 64, "Hash should be 64 characters"
 
     print("✓ test_scored_result_hash passed")
-
 
 def test_modality_validation_type_a():
     """Test TYPE_A evidence validation."""
@@ -86,7 +82,6 @@ def test_modality_validation_type_a():
         assert "list" in str(e).lower()
         print("✓ TYPE_A invalid elements type detected")
 
-
 def test_scoring_type_a():
     """Test TYPE_A scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_A)
@@ -113,7 +108,6 @@ def test_scoring_type_a():
     assert score == 0.0, f"Expected 0.0, got {score}"
     print(f"✓ TYPE_A zero score: {score}")
 
-
 def test_scoring_type_b():
     """Test TYPE_B scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_B)
@@ -130,7 +124,6 @@ def test_scoring_type_b():
     expected = 2.0 * 0.75  # 1.5
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_B partial score: {score}")
-
 
 def test_scoring_type_c():
     """Test TYPE_C scoring."""
@@ -149,7 +142,6 @@ def test_scoring_type_c():
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_C partial score: {score}")
 
-
 def test_scoring_type_d():
     """Test TYPE_D scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_D)
@@ -166,7 +158,6 @@ def test_scoring_type_d():
     expected = (2/3) * 3.0  # 2.0
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_D partial score: {score}")
-
 
 def test_scoring_type_e():
     """Test TYPE_E scoring."""
@@ -191,7 +182,6 @@ def test_scoring_type_e():
     assert score == 0.0, f"Expected 0.0, got {score}"
     print(f"✓ TYPE_E zero score (no elements): {score}")
 
-
 def test_scoring_type_f():
     """Test TYPE_F scoring."""
     config = ScoringValidator.get_config(ScoringModality.TYPE_F)
@@ -208,7 +198,6 @@ def test_scoring_type_f():
     expected = 3.0 * 0.7  # 2.1
     assert abs(score - expected) < 0.01, f"Expected {expected}, got {score}"
     print(f"✓ TYPE_F partial score: {score}")
-
 
 def test_quality_level_determination():
     """Test quality level determination."""
@@ -233,13 +222,11 @@ def test_quality_level_determination():
     assert level == QualityLevel.INSUFICIENTE
     print(f"✓ Quality level 0.40 -> {level.value}")
 
-
 def test_quality_level_clamps_score():
     """Scores outside [0, 1] should be clamped when determining quality."""
 
     assert determine_quality_level(1.5) == QualityLevel.EXCELENTE
     assert determine_quality_level(-0.2) == QualityLevel.INSUFICIENTE
-
 
 def test_quality_level_custom_thresholds():
     """Custom thresholds should be validated and applied."""
@@ -247,7 +234,6 @@ def test_quality_level_custom_thresholds():
     thresholds = {"EXCELENTE": 0.9, "BUENO": 0.75, "ACEPTABLE": 0.6}
     level = determine_quality_level(0.88, thresholds)
     assert level == QualityLevel.BUENO
-
 
 def test_quality_level_invalid_thresholds():
     """Invalid custom thresholds should raise an error."""
@@ -260,7 +246,6 @@ def test_quality_level_invalid_thresholds():
 
     with pytest.raises(ValueError):
         determine_quality_level(0.8, {"EXCELENTE": 0.9, "BUENO": 0.7})
-
 
 def test_apply_scoring_type_a():
     """Test full scoring workflow for TYPE_A."""
@@ -290,7 +275,6 @@ def test_apply_scoring_type_a():
 
     print(f"✓ Full scoring workflow TYPE_A: score={result.score:.2f}, quality={result.quality_level}")
 
-
 def test_type_a_not_truncated():
     """TYPE_A scores should reach the new 3.0 ceiling without truncation."""
     evidence = {"elements": [1, 2, 3, 4], "confidence": 1.0}
@@ -306,7 +290,6 @@ def test_type_a_not_truncated():
 
     assert result.score == pytest.approx(3.0)
     assert result.normalized_score == pytest.approx(1.0)
-
 
 def test_apply_scoring_invalid_modality():
     """Test that invalid modality raises error."""
@@ -326,7 +309,6 @@ def test_apply_scoring_invalid_modality():
         assert "TYPE_Z" in str(e)
         print("✓ Invalid modality detected")
 
-
 def test_apply_scoring_missing_evidence():
     """Test that missing evidence raises error."""
     evidence = {"elements": [1, 2, 3]}  # Missing confidence
@@ -344,7 +326,6 @@ def test_apply_scoring_missing_evidence():
     except EvidenceStructureError as e:
         assert "confidence" in str(e).lower()
         print("✓ Missing evidence detected")
-
 
 def test_reproducibility():
     """Test that same evidence produces same result."""
@@ -379,7 +360,6 @@ def test_reproducibility():
 
     print("✓ Scoring is reproducible")
 
-
 def test_all_modalities():
     """Test that all modalities can be scored."""
     test_cases = [
@@ -401,7 +381,6 @@ def test_all_modalities():
             modality=modality,
         )
         print(f"✓ {modality}: score={result.score:.2f}, quality={result.quality_level}")
-
 
 def test_apply_scoring_rejects_invalid_score_range():
     """Scoring should fail fast when modality score ranges are degenerate."""
@@ -428,7 +407,6 @@ def test_apply_scoring_rejects_invalid_score_range():
             )
     finally:
         mp.undo()
-
 
 def test_apply_scoring_clamps_out_of_range_score():
     """Scores returned outside the configured range are clamped."""
@@ -461,7 +439,6 @@ def test_apply_scoring_clamps_out_of_range_score():
     finally:
         mp.undo()
 
-
 def test_apply_rounding_modes():
     """Rounding helper should respect all supported modes."""
 
@@ -474,7 +451,6 @@ def test_apply_rounding_modes():
 
     with pytest.raises(ValueError):
         apply_rounding(1.23, mode="half_up", precision=-1)
-
 
 def run_all_tests():
     """Run all tests."""
@@ -515,12 +491,10 @@ def run_all_tests():
 
     return failed == 0
 
-
 if __name__ == "__main__":
     import sys
     success = run_all_tests()
     sys.exit(0 if success else 1)
-
 
 def test_dimension_aggregation_preserves_precision():
     """Golden regression: no score truncation between scoring and aggregation."""

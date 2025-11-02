@@ -4,12 +4,9 @@ Integration test to verify orchestrator can load and use enhanced recommendation
 """
 
 import logging
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
 logging.basicConfig(level=logging.INFO)
 
 def test_orchestrator_integration():
@@ -19,7 +16,7 @@ def test_orchestrator_integration():
     print("=" * 80)
 
     # Import after setting up path
-    from recommendation_engine import RecommendationEngine
+    from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 
     print("\n1. Testing enhanced rules loading (as orchestrator does)...")
 

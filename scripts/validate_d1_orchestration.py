@@ -22,8 +22,6 @@ from pathlib import Path
 from typing import Any
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 try:
     from orchestrator.canonical_registry import (
         CANONICAL_METHODS,
@@ -43,7 +41,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def validate_d1_method_specifications() -> dict[str, Any]:
     """Validate that D1 method specifications match issue requirements.
@@ -94,7 +91,6 @@ def validate_d1_method_specifications() -> dict[str, Any]:
 
     return results
 
-
 def validate_method_availability(orchestrator: D1QuestionOrchestrator) -> dict[str, Any]:
     """Validate that all required methods are available in the registry.
 
@@ -142,7 +138,6 @@ def validate_method_availability(orchestrator: D1QuestionOrchestrator) -> dict[s
     results["missing_methods"] = list(results["missing_methods"])
 
     return results
-
 
 def validate_doctrine_compliance() -> dict[str, Any]:
     """Validate compliance with SIN_CARRETA doctrine principles.
@@ -200,7 +195,6 @@ def validate_doctrine_compliance() -> dict[str, Any]:
 
     return results
 
-
 def generate_validation_report(
     spec_validation: dict[str, Any],
     availability_validation: dict[str, Any],
@@ -237,7 +231,6 @@ def generate_validation_report(
             "all_principles_satisfied": all(v for v in doctrine_validation["principles"].values()),
         },
     }
-
 
 def main():
     """Main validation entry point."""
@@ -319,7 +312,6 @@ def main():
         logger.info("✓ ALL VALIDATIONS PASSED")
         logger.info("=" * 80)
         sys.exit(0)
-
 
 if __name__ == "__main__":
     main()

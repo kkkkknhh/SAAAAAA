@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 PKG_PREFIXES: Sequence[str] = ("core.", "executors.", "orchestrator.")
 
-
 def _iter_modules(prefix: str, errors: list[tuple[str, BaseException, str]]) -> Iterator[str]:
     module_name = prefix[:-1]
     try:
@@ -23,14 +22,12 @@ def _iter_modules(prefix: str, errors: list[tuple[str, BaseException, str]]) -> 
         for _, name, _ in pkgutil.walk_packages(module.__path__, prefix=prefix):
             yield name
 
-
 def collect_modules(prefixes: Iterable[str], errors: list[tuple[str, BaseException, str]]) -> list[str]:
     modules = set()
     for prefix in prefixes:
         for name in _iter_modules(prefix, errors):
             modules.add(name)
     return sorted(modules)
-
 
 def main() -> None:
     errors: list[tuple[str, BaseException, str]] = []
@@ -46,7 +43,6 @@ def main() -> None:
             print(f"[{idx}] {name}: {error}\n{tb}")
         raise SystemExit(1)
     print("All modules imported cleanly.")
-
 
 if __name__ == "__main__":  # pragma: no cover
     main()
