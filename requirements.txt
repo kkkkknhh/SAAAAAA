@@ -47,6 +47,15 @@ econml==0.15.0
 # PDF Processing
 pdfplumber==0.10.3
 PyPDF2==3.0.1
+PyMuPDF==1.23.8
+tabula-py==2.9.0
+camelot-py==0.11.0
+
+# NLP Additional Dependencies
+sentencepiece==0.1.99
+tiktoken==0.5.2
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.23.0
 
 # Data Validation
 jsonschema==4.20.0
