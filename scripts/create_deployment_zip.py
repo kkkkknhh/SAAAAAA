@@ -12,6 +12,12 @@ from typing import Set, List
 # Base directory
 BASE_DIR = Path(__file__).parent.parent
 
+# Essential documentation files to include (all others excluded)
+ESSENTIAL_DOCS = {
+    'README.md',
+    'QUICKSTART.md',
+}
+
 # Files and directories to exclude
 EXCLUDE_PATTERNS = {
     # Deprecated files
@@ -138,23 +144,29 @@ def should_include(path: Path, base: Path) -> bool:
     
     # Exclude markdown files except essential ones
     if path_str.endswith('.md'):
-        if path_str in ['README.md', 'QUICKSTART.md']:
+        if path_str in ESSENTIAL_DOCS:
             return True
         return False
     
     # Check exclude patterns
     for pattern in EXCLUDE_PATTERNS:
         if pattern.endswith('/'):
-            # Directory pattern
-            if path_str.startswith(pattern.rstrip('/')):
+            # Directory pattern - match at start of path components
+            pattern_name = pattern.rstrip('/')
+            if path_str.startswith(pattern_name + '/') or path_str == pattern_name:
                 return False
         elif pattern.startswith('*.'):
             # Extension pattern
             if path_str.endswith(pattern[1:]):
                 return False
+        elif '/' in pattern:
+            # Path pattern - exact match
+            if path_str == pattern or path_str.startswith(pattern + '/'):
+                return False
         else:
-            # Exact match or substring
-            if pattern in path_str:
+            # Filename pattern - match exact filename component
+            parts = Path(path_str).parts
+            if pattern in parts:
                 return False
     
     # Check include patterns
@@ -224,8 +236,17 @@ def create_deployment_zip(output_path: Path) -> None:
     
     print("\n🚫 Excluded deprecated/development files:")
     print(f"   - Total excluded: {len(excluded_files)}")
-    deprecated_count = sum(1 for f in excluded_files if 'MONOLITH' in f or '.md' in f)
-    print(f"   - Deprecated/docs: {deprecated_count}")
+    
+    # Count different types of excluded files
+    deprecated_count = sum(1 for f in excluded_files if 'MONOLITH' in f)
+    doc_count = sum(1 for f in excluded_files if f.endswith('.md'))
+    test_count = sum(1 for f in excluded_files if f.startswith('tests/'))
+    example_count = sum(1 for f in excluded_files if f.startswith('examples/'))
+    
+    print(f"   - Deprecated files: {deprecated_count}")
+    print(f"   - Documentation: {doc_count}")
+    print(f"   - Tests: {test_count}")
+    print(f"   - Examples: {example_count}")
     
     # Save manifest
     manifest_path = output_path.with_suffix('.txt')
