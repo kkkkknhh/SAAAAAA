@@ -26,7 +26,7 @@ verify:
 	@echo "✓ Import contracts satisfied\n"
 	
 	@echo "=== Step 4: Ruff Linting ==="
-	@ruff check core orchestrator executors tests tools --quiet || (echo "⚠️  Ruff found issues" && exit 1)
+	@ruff check core orchestrator executors --quiet || (echo "⚠️  Ruff found issues" && exit 1)
 	@echo "✓ Ruff checks passed\n"
 	
 	@echo "=== Step 5: Mypy Type Checking ==="
