@@ -10,7 +10,11 @@ if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
     from policy_processor import IndustrialPolicyProcessor
 
 def _load_questionnaire(path: Path) -> dict[str, Any]:
-    """Load questionnaire data from *path* with UTF-8 encoding."""
+    """Load questionnaire data from *path* with UTF-8 encoding.
+
+    Note: Returns dict[str, Any] because questionnaire structure is dynamic.
+    A more specific TypedDict could be defined if the structure stabilizes.
+    """
     text = path.read_text(encoding="utf-8")
     return json.loads(text)  # type: ignore[no-any-return]
 

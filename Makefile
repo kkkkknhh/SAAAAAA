@@ -30,14 +30,21 @@ verify:
 	@echo "✓ Ruff checks passed\n"
 	
 	@echo "=== Step 5: Mypy Type Checking ==="
-	@mypy core orchestrator executors --config-file pyproject.toml --no-error-summary 2>&1 | grep -E "(error|warning)" || echo "✓ Mypy checks passed\n"
+	@mypy core orchestrator executors --config-file pyproject.toml --no-error-summary 2>&1 | tee /tmp/mypy_output.txt | grep -E "(error|warning)" && echo "⚠️  Mypy found issues (install full package for complete check)" || echo "✓ Mypy checks passed\n"
 	
 	@echo "=== Step 6: Grep Boundary Checks ==="
 	@python tools/grep_boundary_checks.py || (echo "❌ Boundary violations detected" && exit 1)
 	@echo "✓ Boundary checks passed\n"
 	
 	@echo "=== Step 7: Pycycle (Circular Dependency Detection) ==="
-	@pycycle --here 2>&1 | grep -E "(cycles found|worries)" | grep -q "No worries" && echo "✓ No circular dependencies\n" || (echo "❌ Circular dependencies detected" && exit 1)
+	@pycycle --here > /tmp/pycycle_output.txt 2>&1 || true; \
+	if grep -q "No worries" /tmp/pycycle_output.txt; then \
+		echo "✓ No circular dependencies\n"; \
+	else \
+		echo "❌ Circular dependencies detected"; \
+		cat /tmp/pycycle_output.txt; \
+		exit 1; \
+	fi
 	
 	@echo "=== Step 8: Bulk Import Test ==="
 	@python tools/import_all.py || (echo "❌ Import test failed" && exit 1)

@@ -48,8 +48,14 @@ def main() -> None:
         try:
             importlib.import_module(module_name)
         except ModuleNotFoundError as exc:  # pragma: no cover - dependency issues
-            # Separate dependency errors from actual import issues
-            if "No module named" in str(exc) and not any(p in str(exc) for p in ["core", "orchestrator", "executors"]):
+            # Separate dependency errors from architecture issues
+            # Check if the missing module is an external dependency (has exc.name attribute)
+            missing_name = getattr(exc, "name", str(exc).split("'")[1] if "'" in str(exc) else "")
+            # If it's not one of our packages, it's a dependency error
+            is_external = missing_name and not any(
+                missing_name.startswith(p) for p in ["core", "orchestrator", "executors"]
+            )
+            if is_external:
                 dependency_errors.append((module_name, exc, traceback.format_exc()))
             else:
                 errors.append((module_name, exc, traceback.format_exc()))

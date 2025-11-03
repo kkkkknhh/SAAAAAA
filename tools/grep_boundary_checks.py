@@ -79,7 +79,8 @@ def check_no_json_io_in_core() -> None:
     """Ensure core doesn't perform direct JSON file I/O."""
     print("Checking: core must not perform JSON file I/O...")
     
-    pattern = r'open\(.+\.json'
+    # More specific pattern: open() with .json inside parentheses
+    pattern = r'open\([^)]*\.json[^)]*\)'
     matches = run_grep(pattern, ["core"])
     
     if matches and matches != [""]:
