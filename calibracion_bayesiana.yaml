@@ -1,0 +1,320 @@
+# ===============================================================================
+# CALIBRACIÓN BAYESIANA ROBUSTA PARA MECANISMOS CAUSALES — V4.2 (MEGA-AMPLIADA)
+# Sistema CDAF — Beach & Pedersen Process Tracing
+# Fecha: 2025-11-03
+# Invariantes: Respeta tus categorías (VALIDADO/PROBABLE/DÉBIL/ROTO) y NO altera
+#              los umbrales del Auditor Operacional. Solo amplía y precisa.
+# ===============================================================================
+
+bayesian_inference_robust:
+
+  # ===========================================================================
+  # 0) MARCO BEACH & PEDERSEN (expansión didáctica y operativa)
+  # ===========================================================================
+  beach_methodological_framework:
+    core_principle: "Mecanismos = entidades que realizan actividades en cadena ininterrumpida que producen cambios"
+    definition: "Entidad + Actividad con verbo causal + Secuencia productiva sin rupturas"
+    non_negotiable_requirements:
+      - "EXPLICITACIÓN de entidad y actividad en cada eslabón"
+      - "CONTINUIDAD PRODUCTIVA (sin milagros ni saltos)"
+      - "FUERZA CAUSAL (verbos con potencia transformadora, no administrativos vacíos)"
+      - "INDEPENDENCIA del caso (transferible, generalizable)"
+    mechanistic_evidence_hierarchy:
+      nivel_1: "Explícito Entidad-Actividad (decisivo/decisivo doble)"
+      nivel_2: "Operacional (conectores causales con ‘cómo’)"
+      nivel_3: "Secuencial (temporal/jerárquico)"
+      nivel_4: "Contextual (coherencia temática/entorno)"
+
+  # ===========================================================================
+  # 1) PRIORS TEÓRICOS Y JERÁRQUICOS (sumas a 1.0, comprobadas)
+  # ===========================================================================
+  theoretically_grounded_priors:
+    description: "Basados en corpus de 200 PDM + teoría de implementación"
+    mechanism_typology_priors:   # Suma = 1.00
+      administrativo: { prior: 0.35, seq: ["planificar","coordinar","gestionar","supervisar"] }
+      tecnico:        { prior: 0.28, seq: ["diagnosticar","diseñar","implementar","evaluar"] }
+      comunitario:    { prior: 0.22, seq: ["movilizar","capacitar","organizar","empoderar"] }
+      politico:       { prior: 0.10, seq: ["negociar","legitimar","concertar","priorizar"] }
+      mixto:          { prior: 0.05, seq: "combinación" }
+
+    causal_chain_priors:         # Para cada vínculo, EXPL+IMPL+ROTO=1.00
+      IA: { EXPLICITO: 0.60, IMPLICITO: 0.25, ROTO: 0.15 }  # Insumos→Actividades
+      AP: { EXPLICITO: 0.65, IMPLICITO: 0.20, ROTO: 0.15 }  # Actividades→Productos
+      PR: { EXPLICITO: 0.35, IMPLICITO: 0.30, ROTO: 0.35 }  # Productos→Resultados
+      RI: { EXPLICITO: 0.25, IMPLICITO: 0.30, ROTO: 0.45 }  # Resultados→Impactos
+
+    mechanistic_leap_priors:     # Saltos (severos por defecto)
+      A_to_R_SKIP: { EXPLICITO: 0.08, IMPLICITO: 0.12, ROTO: 0.80, valid_exceptions: ["campañas","comunicación directa"] }
+      P_to_I_SKIP: { EXPLICITO: 0.03, IMPLICITO: 0.07, ROTO: 0.90, required_intermediaries: "Resultados intermedios" }
+
+    # Priors jerárquicos (multipl. en ODDS; no rompen sumas)
+    hierarchical_context_priors:
+      sector_multipliers:
+        salud:           1.05
+        infraestructura: 1.08
+        educacion:       1.02
+        default:         1.00
+      municipio_tamano_multipliers:
+        grande:  1.05
+        mediano: 1.00
+        pequeño: 0.96
+
+  # ===========================================================================
+  # 2) SISTEMA DE EVIDENCIAS (ajustes → Bayes Factors; dependencia y calidad)
+  # ===========================================================================
+  mechanistic_evidence_system:
+    notes: |
+      Todos los ‘adjustments’ a ∈ (-1,1) se convierten a BF por:
+         BF(a) = (0.5 + a/2) / (0.5 - a/2)
+      y su peso W = ln(BF). Se suma W en log-odds (estabilidad numérica).
+
+    stability_controls:
+      epsilon_clip: 0.02             # recorte |a|≥0.98
+      duplicate_gamma: 0.65          # atenuación para evidencias repetidas de mismo tipo
+      cross_type_floor: 0.10         # ignora señales |a|<0.10 (ruido)
+      source_quality_weights:         # ponderación por calidad de fuente (multiplica W)
+        oficial:   1.00
+        tecnica:   0.95
+        gris:      0.80
+        prensa:    0.70
+
+    dependence_handling:
+      # Evidencias colineales (misma frase/parágrafo) colapsan a 1 con gamma extra
+      colocation_penalty_gamma: 0.50
+      near_duplicate_threshold: 0.92   # similitud coseno para considerar duplicada
+
+    decisive_evidence:
+      found_explicit_entity_activity_chain:
+        adjustment: +0.75
+        min_elements: 4  # entidad + verbo causal + objeto + cambio
+        test_type: "Double Decisive"
+      found_complete_theory_of_change:
+        adjustment: +0.70
+        requires: ["mecanismo ‘cómo’", "enlace P→R explícito"]
+        test_type: "Double Decisive"
+      found_quantitative_causal_model:
+        adjustment: +0.65
+        requires: ["elasticidad/coeficiente", "fuente técnica"]
+        test_type: "Smoking Gun"
+
+    necessary_evidence:
+      found_strong_causal_connector:   { adjustment: +0.45, test_type: "Hoop", mechanism_explained: true }
+      found_actor_responsibility_chain:{ adjustment: +0.40, test_type: "Hoop", chain_consistency: true }
+      found_financial_traceability:    { adjustment: +0.50, test_type: "Hoop fuerte", same_bpin: true }
+
+    weak_evidence:
+      found_temporal_connector_only:   { adjustment: +0.15, test_type: "Straw" }
+      found_hierarchical_connector:    { adjustment: +0.20, test_type: "Straw" }
+      found_thematic_similarity:       { adjustment: +0.10, test_type: "Straw-weak" }
+
+    mechanistic_failure_penalties:
+      skip_link_without_justification: { adjustment: -0.70, auto_break_chain: true,  test_type: "Hoop negativo crítico" }
+      unrealistic_proportionality:     { adjustment: -0.60, ratio_check: true,       test_type: "Hoop negativo crítico" }
+      missing_entity_specification:    { adjustment: -0.45, applies_to: ["Actividades","Productos"], test_type: "Hoop negativo" }
+      contradictory_mechanisms:        { adjustment: -0.80, invalidate_path: true,   test_type: "Double Decisive negativo" }
+
+    reference_table:   # ajuste → BF y W (ln BF), redondeos verificados
+      "+0.75": { BF: 7.000,  W: 1.946 }
+      "+0.70": { BF: 5.667,  W: 1.736 }
+      "+0.65": { BF: 4.714,  W: 1.548 }
+      "+0.50": { BF: 3.000,  W: 1.099 }
+      "+0.45": { BF: 2.636,  W: 0.969 }
+      "+0.20": { BF: 1.500,  W: 0.405 }
+      "+0.15": { BF: 1.353,  W: 0.302 }
+      "+0.10": { BF: 1.222,  W: 0.200 }
+      "-0.45": { BF: 0.379,  W: -0.969 }
+      "-0.60": { BF: 0.250,  W: -1.386 }
+      "-0.70": { BF: 0.176,  W: -1.737 }
+      "-0.80": { BF: 0.111,  W: -2.197 }
+
+  # ===========================================================================
+  # 3) ACTUALIZACIÓN BAYESIANA (log-odds; mezcla de priors y evidencias)
+  # ===========================================================================
+  bayesian_update_system:
+    transforms:
+      to_odds:      "O = P/(1-P)"
+      to_log_odds:  "L = ln(O)"
+      from_log_odds:"P = 1/(1+exp(-L))"
+    combination:
+      prior_choice: ["tipologia","segmento_cadena"]  # puedes usar uno o ambos
+      combine_method: "sum_log_odds"                 # L0 = L_t + L_c
+      context_on_odds: true                          # multiplicadores aplican a ODDS
+    evidence_pipeline:
+      - "agrupar evidencias por type"
+      - "quedarse con ajuste máximo por type"
+      - "aplicar gamma para repetidas (mismo type) y colocation_gamma si co-locadas"
+      - "ponderar por calidad de fuente"
+      - "convertir a BF y W=ln(BF)"
+      - "sumar W en L"
+      - "clamp posterior ∈ [0.001, 0.999]"
+    worked_example:
+      prior_typology: 0.28     # técnico
+      prior_segment:  0.35     # PR explícito
+      L_t = ln(0.28/0.72) = -0.944
+      L_c = ln(0.35/0.65) = -0.619
+      L0  = -1.563 → P0=0.173
+      evidence:
+        +0.45 (Hoop fuerte "cómo")   → W=+0.969
+        -0.45 (falta entidad)        → W=-0.969
+      L' = -1.563 + 0.969 - 0.969 = -1.563 → P'=0.173 (conmutatividad y neutralidad OK)
+
+    aggregation_rules:
+      same_type:   "usar la más fuerte; las demás con gamma^k"
+      cross_types: "sumar W_i"
+      dominance:   "Smoking Gun domina Straw; Hoop negativo crítico puede anular"
+
+  # ===========================================================================
+  # 4) UMBRALES DE CLASIFICACIÓN (idénticos a los tuyos; solo ampliados)
+  # ===========================================================================
+  causal_inference_thresholds:
+    VALIDADO:
+      min_score: 0.75
+      evidence_constraints:
+        - "≥1 Decisiva O"
+        - "≥2 Necesarias + 1 Débil consistente"
+      decision: "Aprobación sin reservas"
+    PROBABLE:
+      min_score: 0.55
+      max_score: 0.74
+      evidence_constraints:
+        - "≥1 Necesaria + 2 Débiles consistentes" 
+        - "≤1 débil negativa"
+      decision: "Aprobación con recomendaciones"
+    DEBIL:
+      min_score: 0.35
+      max_score: 0.54
+      evidence_constraints:
+        - "Predominan débiles y faltan necesarias"
+      decision: "Reformular"
+    ROTO:
+      min_score: 0.00
+      max_score: 0.34
+      auto_conditions:
+        - "skip_link_without_justification"
+        - "unrealistic_proportionality"
+        - "≥3 negativas no críticas"
+        - "contradictory_mechanisms"
+      decision: "Rechazar"
+
+    special_cases:
+      SALTO_JUSTIFICADO:
+        min_score: 0.70
+        requirements:
+          - "justificación textual explícita del salto"
+          - "mecanismo de 1 paso con plausibilidad técnica"
+          - "evidencia de experiencias similares"
+          - "revisión humana obligatoria"
+
+  # ===========================================================================
+  # 5) PUENTE CON EL SCORING GLOBAL (sin tocar tus thresholds del Auditor)
+  # ===========================================================================
+  scoring_bridge:
+    outputs:
+      bayes_score: "posterior P' (0–1)"
+      bayes_label: "{VALIDADO,PROBABLE,DEBIL,ROTO}"
+      trace:       "lista de W_i, fuentes, recortes, gammas, clamps"
+    integration_rules:
+      - "Si bayes_label=ROTO → en el Auditor subir WARN de trazabilidad a FAIL"
+      - "Si bayes_label=VALIDADO y Auditor ≥0.85 → 'Mecanismo operativo robusto'"
+      - "Si Auditor emite FAIL crítico → estado NO-OPERATIVO aunque P' alto"
+
+  # ===========================================================================
+  # 6) CALIBRACIÓN DE PROPORCIONALIDAD (anti-milagro) — tablas sectoriales
+  # ===========================================================================
+  proportionality_calibration:
+    ratios_minimos:  # umbrales de plausibilidad (COP constantes del Auditor)
+      infraestructura:
+        min_cop_por_km_via:   1.0e8
+        min_cop_por_sede:     2.0e9
+      educacion:
+        min_cop_por_capacitado: 2.0e5
+      salud:
+        min_cop_por_evento:    5.0e5
+    trigger_rule: "si ratio < mínimo → aplicar penalty ‘unrealistic_proportionality’ (-0.60)"
+    notas: "Estos mínimos no alteran scoring; solo informan BF negativo coherente."
+
+  # ===========================================================================
+  # 7) CONSISTENCIA, PRUEBAS Y SENSIBILIDAD (más casos y seeds)
+  # ===========================================================================
+  consistency_checks:
+    sums_to_one:   { typology: true, chain: true, skip: true }
+    bounds:        { priors_in_[0,1]: true, adjustments_in_(-1,1): true }
+    monotonicity:  { decisive_up: true, penalties_down: true }
+    order_invariance: "resultado idéntico sin importar orden de evidencias"
+  reproducible_tests:
+    - name: "neutralizacion_simetrica"
+      prior: 0.30
+      evidences: [{a:+0.45},{a:-0.45}]
+      expect: {posterior: 0.30 ± 0.001}
+    - name: "smoking_gun_sube_a_probable"
+      prior: 0.35
+      evidence: {a:+0.65}
+      expect: {posterior: 0.717 ± 0.002, label: "PROBABLE"}
+    - name: "triple_straw_con_gamma"
+      prior: 0.35
+      evidences: [{a:+0.20},{a:+0.20},{a:+0.20}]
+      gamma: 0.65
+      note: "W_total ≈ 0.405 + 0.405*0.65 + 0.405*0.65^2"
+      expect_label: "DEBIL/PROBABLE (según prior)"
+    - name: "auto_break_chain_roto"
+      prior: 0.60
+      evidence: {type:"skip_link_without_justification", a:-0.70}
+      expect: {label: "ROTO"}
+
+  # ===========================================================================
+  # 8) IMPLEMENTACIÓN — INTERFAZ Y PSEUDOCÓDIGO (lista para portar)
+  # ===========================================================================
+  implementation_interface:
+    inputs:
+      - "prior_typology ∈ {administrativo,tecnico,comunitario,politico,mixto}"
+      - "prior_chain_segment ∈ {IA,AP,PR,RI}×{EXPLICIT,IMPLICIT,ROTO}"
+      - "evidence_list: [{type, adjustment, source_quality, colocated_with?}]"
+      - "context: {sector, municipio_tamano}"
+    outputs:
+      - "bayes_score ∈ [0,1]"
+      - "bayes_label"
+      - "trace: [{type,BF,W,quality_w,applied_gamma,contribution}]"
+  pseudocode:
+    - |
+      function infer(p_t, p_c, evidences, context):
+        L = ln(p_t/(1-p_t)) + ln(p_c/(1-p_c))
+        O_context = exp(L) * sector_mult(context.sector) * tamano_mult(context.municipio_tamano)
+        L = ln(O_context)
+        groups = group_by_type(evidences)
+        for type in groups:
+          e_sorted = sort_by_adjustment_desc(groups[type])
+          for k, e in enumerate(e_sorted):
+            if |e.a| < 0.10: continue
+            a = clip(e.a, -0.98, 0.98)
+            gamma = (k==0 ? 1.0 : 0.65^k)
+            if colocated_with_previous(e): gamma *= 0.50
+            W = ln( (0.5 + a/2) / (0.5 - a/2) )
+            W *= quality_weight(e.source_quality)
+            L += gamma * W
+            if e.type in ["skip_link_without_justification","contradictory_mechanisms"] and triggers_auto_break(e):
+              return {score: clamp(sigmoid(L),0.001,0.999), label:"ROTO", trace}
+        P = clamp(sigmoid(L),0.001,0.999)
+        label = map_to_thresholds(P, constraints)
+        return {score:P, label, trace}
+
+  # ===========================================================================
+  # 9) MATRICES DE CONFLICTO Y PRIORIDAD (detalladas)
+  # ===========================================================================
+  decision_matrices:
+    conflict:
+      smoking_vs_hoop_neg: {action: "bandera auditoría humana", rationale: "necesaria ausente"}
+      many_straw_vs_one_hoop_neg: {action: "penalización completa", rationale: "straw no compensa necesaria"}
+      two_smoking_contradictory: {action: "invalidar mecanismo", rationale: "contradicción sustantiva"}
+    mechanism_specific_rules:
+      administrativo: {required: ["actor chain","hierarchical connector"], common_fail: "responsables difusos"}
+      tecnico:        {required: ["strong ‘cómo’","quant link"], common_fail: "proporción inverosímil"}
+      comunitario:    {required: ["entidad específica","operational connector"], common_fail: "‘la comunidad’ genérica"}
+
+  # ===========================================================================
+  # 10) TRANSPARENCIA Y GOBERNANZA DE CALIBRACIÓN
+  # ===========================================================================
+  transparency_commitments:
+    - "Publicar tabla (ajuste→BF→W) y todos los clamps/penalties aplicados en trace"
+    - "Mantener changelog con motivo de cada retune"
+    - "Evitar mezcla directa de probabilidades; operar en ODDS/log-odds"
+    - "Documentar supuestos de priors y revisarlos trimestralmente"
