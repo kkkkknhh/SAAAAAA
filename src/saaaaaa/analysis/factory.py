@@ -11,8 +11,9 @@ All file I/O for the analysis package should be handled through this factory.
 import csv
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 try:
     import yaml
@@ -35,6 +36,13 @@ except ImportError:
     spacy = None
 
 logger = logging.getLogger(__name__)
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_CALIBRATION_SEARCH_PATHS: tuple[Path, ...] = (
+    _PROJECT_ROOT / "config" / "calibraciones",
+    _PROJECT_ROOT / "config",
+    _PROJECT_ROOT,
+)
 
 # ============================================================================
 # JSON I/O OPERATIONS
@@ -113,6 +121,74 @@ def load_yaml(file_path: str | Path) -> dict[str, Any]:
 
     logger.info(f"Loaded YAML from {file_path}")
     return data
+
+def _is_calibration_file(path: Path) -> bool:
+    stem = path.stem.lower()
+    return any(keyword in stem for keyword in ("calibr", "calib", "calibracion"))
+
+@lru_cache(maxsize=1)
+def list_calibration_files() -> dict[str, Path]:
+    """Return mapping of calibration name -> file path detected in search paths."""
+    files: dict[str, Path] = {}
+    for base in _CALIBRATION_SEARCH_PATHS:
+        if not base.exists():
+            continue
+        for pattern in ("*.yaml", "*.yml"):
+            for candidate in base.glob(pattern):
+                if not candidate.is_file():
+                    continue
+                if not _is_calibration_file(candidate):
+                    continue
+                key = candidate.stem
+                # Prefer higher-priority paths (earlier entries in search list)
+                files.setdefault(key, candidate)
+    return files
+
+def load_calibration(name: str) -> dict[str, Any]:
+    """Load a single calibration YAML by name (stem or filename)."""
+    candidates = list_calibration_files()
+    normalized = name
+    normalized = normalized.removesuffix('.yaml').removesuffix('.yml')
+
+    path = candidates.get(normalized)
+    if path is None:
+        # Fall back to direct path resolution if caller supplied relative path
+        direct = Path(name)
+        if direct.suffix in {'.yaml', '.yml'} and direct.exists():
+            path = direct
+        else:
+            raise FileNotFoundError(f"Calibration '{name}' not found in {', '.join(str(p) for p in _CALIBRATION_SEARCH_PATHS)}")
+
+    return load_yaml(path)
+
+def load_all_calibrations(include_metadata: bool = True) -> dict[str, dict[str, Any]]:
+    """Load all detected calibration YAML files.
+
+    Args:
+        include_metadata: When True, attach helper metadata (path, targets) to each calibration entry.
+
+    Returns:
+        Dictionary keyed by file stem with parsed YAML contents.
+    """
+    calibrations: dict[str, dict[str, Any]] = {}
+    for name, path in list_calibration_files().items():
+        try:
+            payload = load_yaml(path)
+        except Exception as exc:  # pragma: no cover - defensive I/O
+            logger.warning("Failed to load calibration %s: %s", path, exc)
+            continue
+
+        if include_metadata:
+            payload = dict(payload)
+            payload.setdefault("__meta", {})
+            payload["__meta"].update({
+                "path": str(path),
+                "file_name": path.name,
+                "targets": payload.get("targets"),
+            })
+        calibrations[name] = payload
+
+    return calibrations
 
 # ============================================================================
 # TEXT FILE I/O OPERATIONS
