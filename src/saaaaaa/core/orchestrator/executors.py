@@ -55,6 +55,16 @@ from typing import Any, Generic, TypeVar
 
 import numpy as np
 
+try:  # Optional imports for advanced context propagation
+    import networkx as nx
+except Exception:  # pragma: no cover - optional dependency at runtime
+    nx = None  # type: ignore[assignment]
+
+try:  # Teoría de Cambio categorical enrichment
+    from saaaaaa.analysis.teoria_cambio import CategoriaCausal  # type: ignore
+except Exception:  # pragma: no cover - avoid hard failure if module unavailable
+    CategoriaCausal = None  # type: ignore[assignment]
+
 # ============================================================================
 # LOGGING AND METRICS SETUP
 # ============================================================================
@@ -1019,11 +1029,14 @@ class AdvancedDataFlowExecutor(ABC):
             'text': raw_text,
             'sentences': sentences,
             'tables': tables,
+            'segments': list(sentences),
             'matches': [],
             'positions': [],
             'confidence': 0.0,
             'pattern_specificity': 0.8,
             'text_length': len(raw_text),
+            'grafo': None,
+            'current_edge': None,
         }
 
         policy_processor = self.executor.instances.get('IndustrialPolicyProcessor')
@@ -1050,6 +1063,8 @@ class AdvancedDataFlowExecutor(ABC):
 
         signature = inspect.signature(method)
         prepared: dict[str, Any] = {}
+
+        self._ingest_payload_for_context(current_data)
 
         for name, param in signature.parameters.items():
             if name == 'self':
@@ -1115,6 +1130,12 @@ class AdvancedDataFlowExecutor(ABC):
         if name in {'positions', 'match_positions'}:
             return ctx.get('positions', [])
 
+        if name == 'segments':
+            segments = ctx.get('segments')
+            if segments is None:
+                segments = ctx.get('sentences', [])
+            return segments
+
         if name == 'match_position':
             positions = ctx.get('positions') or []
             if positions:
@@ -1143,6 +1164,27 @@ class AdvancedDataFlowExecutor(ABC):
 
         if name == 'confidence':
             return ctx.get('confidence', 0.0)
+
+        if name in {'grafo', 'graph', 'causal_graph'}:
+            grafo = ctx.get('grafo')
+            if grafo is None and hasattr(instance, 'grafo'):
+                grafo = getattr(instance, 'grafo')
+            if grafo is None and hasattr(instance, 'construir_grafo_causal'):
+                try:
+                    grafo = instance.construir_grafo_causal()  # type: ignore[attr-defined]
+                    if self._is_graph_like(grafo):
+                        ctx['grafo'] = grafo
+                except Exception:  # pragma: no cover - defensive
+                    pass
+            return grafo
+
+        if name in {'origen', 'source', 'source_node'}:
+            origin = self._resolve_edge_component(ctx, current_data, index=0)
+            return origin
+
+        if name in {'destino', 'target', 'target_node'}:
+            destination = self._resolve_edge_component(ctx, current_data, index=1)
+            return destination
 
         if name in {'dimension', 'policy_dimension'}:
             dimension = ctx.get('dimension')
@@ -1213,6 +1255,8 @@ class AdvancedDataFlowExecutor(ABC):
             return ctx.get('pattern_specificity', 0.8)
         if name in {'total_corpus_size', 'text_length', 'corpus_size'}:
             return max(1, ctx.get('text_length') or 1)
+        if name == 'segments':
+            return ctx.get('segments', ctx.get('sentences', []))
         if name == 'compiled_patterns':
             patterns = self._extract_all_patterns(instance)
             ctx['compiled_patterns'] = patterns
@@ -1294,6 +1338,8 @@ class AdvancedDataFlowExecutor(ABC):
         if isinstance(result, (int, float)) and class_name == 'BayesianEvidenceScorer' and method_name == 'compute_evidence_score':
             ctx['confidence'] = float(result)
 
+        self._ingest_payload_for_context(result)
+
         # Update text length if sentences change
         if ctx.get('sentences') and not ctx.get('text_length'):
             ctx['text_length'] = sum(len(s) for s in ctx['sentences'])
@@ -1331,6 +1377,143 @@ class AdvancedDataFlowExecutor(ABC):
             dimension = 'd1_insumos'
 
         return dimension, category, compiled_patterns
+
+    # ------------------------------------------------------------------
+    # Context enrichment utilities
+    # ------------------------------------------------------------------
+
+    def _ingest_payload_for_context(self, payload: Any) -> None:
+        if payload is None:
+            return
+
+        ctx = self._argument_context
+
+        grafo = self._extract_graph(payload)
+        if grafo is not None and self._is_graph_like(grafo):
+            ctx['grafo'] = grafo
+
+        edge = self._extract_edge(payload)
+        if edge is not None:
+            ctx['current_edge'] = edge
+
+        segments = self._extract_segments(payload)
+        if segments is not None:
+            ctx['segments'] = segments
+            if not ctx.get('text_length') and isinstance(segments, list):
+                text_lengths = [len(self._segment_to_text(seg)) for seg in segments]
+                if any(text_lengths):
+                    ctx['text_length'] = sum(text_lengths)
+
+    def _resolve_edge_component(
+        self,
+        ctx: dict[str, Any],
+        current_data: Any,
+        *,
+        index: int,
+    ) -> Any:
+        edge = ctx.get('current_edge')
+        if isinstance(edge, tuple) and len(edge) > index:
+            return edge[index]
+
+        candidate = self._extract_edge(current_data)
+        if candidate is not None and len(candidate) > index:
+            ctx['current_edge'] = candidate
+            return candidate[index]
+
+        return None
+
+    def _extract_edge(self, payload: Any) -> tuple[Any, Any] | None:
+        if payload is None:
+            return None
+
+        origin = None
+        destination = None
+
+        if isinstance(payload, dict):
+            origin = (
+                payload.get('origen')
+                or payload.get('source')
+                or payload.get('source_node')
+            )
+            destination = (
+                payload.get('destino')
+                or payload.get('target')
+                or payload.get('target_node')
+            )
+            if 'edge' in payload and isinstance(payload['edge'], (tuple, list)):
+                edge = payload['edge']
+                if len(edge) >= 2:
+                    origin = origin or edge[0]
+                    destination = destination or edge[1]
+
+        elif isinstance(payload, (list, tuple)) and len(payload) >= 2:
+            origin = payload[0]
+            destination = payload[1]
+
+        if origin is None or destination is None:
+            return None
+
+        return (
+            self._coerce_categoria_causal(origin),
+            self._coerce_categoria_causal(destination),
+        )
+
+    def _extract_segments(self, payload: Any) -> list[Any] | None:
+        if payload is None:
+            return None
+
+        if isinstance(payload, dict):
+            for key in ('segments', 'segmentos', 'segment_list'):
+                value = payload.get(key)
+                if isinstance(value, list) and value:
+                    return value
+        elif isinstance(payload, list) and payload:
+            sample = payload[0]
+            if isinstance(sample, (str, dict)):
+                return payload
+
+        return None
+
+    def _extract_graph(self, payload: Any) -> Any:
+        if self._is_graph_like(payload):
+            return payload
+
+        if isinstance(payload, dict):
+            for value in payload.values():
+                if self._is_graph_like(value):
+                    return value
+
+        return None
+
+    @staticmethod
+    def _is_graph_like(obj: Any) -> bool:
+        if obj is None:
+            return False
+        if nx is not None and isinstance(obj, nx.DiGraph):
+            return True
+        return hasattr(obj, 'nodes') and hasattr(obj, 'edges')
+
+    def _segment_to_text(self, segment: Any) -> str:
+        if isinstance(segment, str):
+            return segment
+        if isinstance(segment, dict):
+            for key in ('text', 'segment', 'content'):
+                value = segment.get(key)
+                if isinstance(value, str):
+                    return value
+        return ''
+
+    @staticmethod
+    def _coerce_categoria_causal(value: Any) -> Any:
+        if CategoriaCausal is None or value is None:
+            return value
+        if isinstance(value, CategoriaCausal):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized in CategoriaCausal.__members__:
+                return CategoriaCausal[normalized]
+        return value
 
 # ============================================================================
 # ALL 30 EXECUTORS COMPLETE IMPLEMENTATION
