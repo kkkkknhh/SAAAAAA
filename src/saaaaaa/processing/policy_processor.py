@@ -566,8 +566,9 @@ class PolicyTextProcessor:
     coherence-preserving normalization for policy document analysis.
     """
 
-    def __init__(self, config: ProcessorConfig) -> None:
+    def __init__(self, config: ProcessorConfig, *, calibration: dict[str, Any] | None = None) -> None:
         self.config = config
+        self.calibration = calibration or {}
         self._compiled_patterns: dict[str, re.Pattern] = {}
         self._sentence_boundaries = re.compile(
             r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])|(?<=\n\n)"

@@ -67,7 +67,7 @@ def main():
             method_map = None
 
         # Load schema (optional)
-        schema_path = Path("schemas/questionnaire.schema.json")
+        schema_path = Path("schemas/questionnaire_monolith.schema.json")
         if schema_path.exists():
             schema = load_schema(schema_path)
             print("  ✓ Loaded schema")

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import logging
 import os
 import statistics
@@ -616,17 +617,17 @@ class MethodExecutor:
                 elif class_name == "PolicyTextProcessor":
                     try:
                         from policy_processor import ProcessorConfig
-                        init_kwargs: dict[str, Any] = {}
                         calibration_payload = self.calibrations.get(class_name)
-                        if calibration_payload is not None:
-                            init_kwargs["calibration"] = calibration_payload
-                        self.instances[class_name] = cls(ProcessorConfig(), **init_kwargs)
+                        if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                            self.instances[class_name] = cls(ProcessorConfig(), calibration=calibration_payload)
+                        else:
+                            self.instances[class_name] = cls(ProcessorConfig())
                     except ImportError:
                         logger.warning("Cannot instantiate PolicyTextProcessor: ProcessorConfig unavailable")
                 else:
                     # Standard instantiation
                     calibration_payload = self.calibrations.get(class_name)
-                    if calibration_payload is not None:
+                    if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
                         self.instances[class_name] = cls(calibration=calibration_payload)
                     else:
                         self.instances[class_name] = cls()
@@ -654,6 +655,14 @@ class MethodExecutor:
                 mapped.setdefault(str(target), payload)
 
         return mapped
+
+    @staticmethod
+    def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:
+        try:
+            signature = inspect.signature(callable_obj)
+        except (TypeError, ValueError):  # pragma: no cover - builtins / C extensions
+            return False
+        return parameter_name in signature.parameters
 
     def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
         """Execute a method from the catalog.

@@ -1,0 +1,560 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://saaaaaa.policy.analysis/schemas/questionnaire_monolith.schema.json",
+  "title": "QuestionnaireMonolith",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "schema_version",
+    "generated_at",
+    "blocks"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^v\\d+\\.\\d+$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "canonical_notation": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "monolith_hash",
+        "ruleset_hash",
+        "question_count"
+      ],
+      "properties": {
+        "monolith_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ruleset_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "question_count": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total"
+          ],
+          "properties": {
+            "micro": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "meso": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "macro": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "telemetry_schema": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "logs": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "format": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "aggregation"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "aggregation": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "level": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "tracing": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "propagation": {
+                  "type": "string"
+                },
+                "span_structure": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "blocks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "micro_questions",
+        "meso_questions",
+        "macro_question",
+        "scoring",
+        "semantic_layers"
+      ],
+      "properties": {
+        "micro_questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question_id",
+              "question_global",
+              "base_slot",
+              "policy_area_id",
+              "dimension_id",
+              "cluster_id",
+              "scoring_modality",
+              "text",
+              "patterns",
+              "method_sets",
+              "expected_elements",
+              "validations"
+            ],
+            "properties": {
+              "question_id": {
+                "type": "string",
+                "pattern": "^Q[0-9]{3}$"
+              },
+              "question_global": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "base_slot": {
+                "type": "string",
+                "pattern": "^[A-Z]\d-?Q\d$"
+              },
+              "policy_area_id": {
+                "type": "string",
+                "pattern": "^PA(0[1-9]|10)$"
+              },
+              "dimension_id": {
+                "type": "string",
+                "pattern": "^DIM0[1-6]$"
+              },
+              "cluster_id": {
+                "type": "string",
+                "pattern": "^CL0[1-4]$"
+              },
+              "scoring_modality": {
+                "type": "string",
+                "pattern": "^TYPE_[A-F]$"
+              },
+              "scoring_definition_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 10
+              },
+              "expected_elements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "minimum": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "pattern"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "match_type": {
+                      "type": "string"
+                    },
+                    "flags": {
+                      "type": "string"
+                    },
+                    "confidence_weight": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              },
+              "method_sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "class",
+                    "function"
+                  ],
+                  "properties": {
+                    "class": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "function": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "module_enum": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "method_type": {
+                      "type": "string"
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "failure_contract": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "abort_if": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "emit_code": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "validations": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "patterns": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "minimum_required": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "minimum_years": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "specificity": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "meso_questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question_id",
+              "question_global",
+              "text",
+              "scoring_modality",
+              "patterns"
+            ],
+            "properties": {
+              "question_id": {
+                "type": "string"
+              },
+              "question_global": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "aggregation_method": {
+                "type": "string"
+              },
+              "scoring_modality": {
+                "type": "string",
+                "pattern": "^TYPE_[A-F]$"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 10
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "cluster_id": {
+                "type": "string",
+                "pattern": "^CL0[1-4]$"
+              },
+              "policy_areas": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^PA(0[1-9]|10)$"
+                }
+              }
+            }
+          }
+        },
+        "macro_question": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "question_id",
+            "question_global",
+            "text",
+            "scoring_modality",
+            "patterns"
+          ],
+          "properties": {
+            "question_id": {
+              "type": "string"
+            },
+            "question_global": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scoring_modality": {
+              "type": "string",
+              "pattern": "^TYPE_[A-F]$"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 10
+            },
+            "patterns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "aggregation_method": {
+              "type": "string"
+            },
+            "clusters": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^CL0[1-4]$"
+              }
+            }
+          }
+        },
+        "scoring": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "micro_levels",
+            "modalities",
+            "modality_definitions"
+          ],
+          "properties": {
+            "micro_levels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "level",
+                  "min_score"
+                ],
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "min_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "color": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "modalities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^TYPE_[A-F]$"
+              }
+            },
+            "modality_definitions": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^TYPE_[A-F]$"
+              },
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "aggregation": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "threshold": {
+                    "type": "number"
+                  },
+                  "failure_code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "semantic_layers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "disambiguation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "confidence_threshold": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "entity_linker": {
+                  "type": "string"
+                }
+              }
+            },
+            "embedding_strategy": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "model": {
+                  "type": "string"
+                },
+                "dimension": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "niveles_abstraccion": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
