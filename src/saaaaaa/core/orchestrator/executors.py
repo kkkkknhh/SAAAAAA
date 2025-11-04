@@ -43,7 +43,6 @@ Memory Requirements:
 
 import logging
 import math
-import re
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -51,6 +50,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
+import inspect
 from typing import Any, Generic, TypeVar
 
 import numpy as np
@@ -125,6 +125,7 @@ class ExecutionMetrics:
 
 # Global metrics instance
 _global_metrics = ExecutionMetrics()
+_ARG_UNSET: object = object()
 
 def get_execution_metrics() -> ExecutionMetrics:
     """Get global execution metrics"""
@@ -836,6 +837,7 @@ class AdvancedDataFlowExecutor(ABC):
 
         self.execution_metrics: dict[str, list[float]] = defaultdict(list)
         self.method_dependencies: dict[str, set] = {}
+        self._argument_context: dict[str, Any] = {}
 
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
@@ -862,6 +864,8 @@ class AdvancedDataFlowExecutor(ABC):
 
         total_entropy = 0.0
 
+        self._reset_argument_context(doc)
+
         for idx, (class_name, method_name) in enumerate(method_sequence):
             method_key = f"{class_name}.{method_name}"
 
@@ -877,13 +881,17 @@ class AdvancedDataFlowExecutor(ABC):
 
             for attempt in range(max_retries):
                 try:
+                    prepared_kwargs = self._prepare_arguments(
+                        class_name,
+                        method_name,
+                        doc,
+                        current_data,
+                    )
+
                     result = self.executor.execute(
                         class_name,
                         method_name,
-                        data=current_data,
-                        text=doc.raw_text,
-                        sentences=doc.sentences,
-                        tables=doc.tables
+                        **prepared_kwargs,
                     )
 
                     results[method_key] = result
@@ -902,6 +910,13 @@ class AdvancedDataFlowExecutor(ABC):
 
                     if result is not None:
                         current_data = result
+
+                    self._update_argument_context(
+                        method_key,
+                        result,
+                        class_name,
+                        method_name,
+                    )
 
                     break  # Success, exit retry loop
 
@@ -989,6 +1004,333 @@ class AdvancedDataFlowExecutor(ABC):
     def _extract(self, results: dict) -> list:
         """Extract final results (to be implemented by subclasses)"""
         pass
+
+    # ------------------------------------------------------------------
+    # Argument mapping helpers
+    # ------------------------------------------------------------------
+
+    def _reset_argument_context(self, doc: Any) -> None:
+        raw_text = getattr(doc, 'raw_text', '') or ''
+        sentences = list(getattr(doc, 'sentences', []) or [])
+        tables = list(getattr(doc, 'tables', []) or [])
+
+        self._argument_context = {
+            'doc': doc,
+            'text': raw_text,
+            'sentences': sentences,
+            'tables': tables,
+            'matches': [],
+            'positions': [],
+            'confidence': 0.0,
+            'pattern_specificity': 0.8,
+            'text_length': len(raw_text),
+        }
+
+        policy_processor = self.executor.instances.get('IndustrialPolicyProcessor')
+        if policy_processor is not None:
+            dimension, category, _ = self._derive_dimension_category(policy_processor)
+            self._argument_context.setdefault('dimension', dimension)
+            self._argument_context.setdefault('category', category)
+
+    def _prepare_arguments(
+        self,
+        class_name: str,
+        method_name: str,
+        doc: Any,
+        current_data: Any,
+    ) -> dict[str, Any]:
+        instance = self.executor.instances.get(class_name)
+        if instance is None:
+            return {}
+
+        try:
+            method = getattr(instance, method_name)
+        except AttributeError:
+            return {}
+
+        signature = inspect.signature(method)
+        prepared: dict[str, Any] = {}
+
+        for name, param in signature.parameters.items():
+            if name == 'self':
+                continue
+
+            value = self._resolve_argument(
+                name,
+                class_name,
+                method_name,
+                doc,
+                current_data,
+                instance,
+            )
+
+            if value is _ARG_UNSET:
+                if param.default is inspect._empty:
+                    # Provide safe fallbacks for required params
+                    value = self._fallback_for(
+                        name,
+                        class_name,
+                        method_name,
+                        instance,
+                    )
+                else:
+                    continue
+
+            prepared[name] = value
+
+        return prepared
+
+    def _resolve_argument(
+        self,
+        name: str,
+        class_name: str,
+        method_name: str,
+        doc: Any,
+        current_data: Any,
+        instance: Any,
+    ) -> Any:
+        ctx = self._argument_context
+
+        if name in {'data', 'payload', 'input_data'}:
+            return current_data
+
+        if name in {'doc', 'document', 'preprocessed_document'}:
+            return doc
+
+        if name in {'text', 'raw_text', 'document_text'}:
+            return ctx.get('text')
+
+        if name in {'sentences', 'relevant_sentences', 'sentence_list'}:
+            return ctx.get('sentences')
+
+        if name in {'tables', 'table_data', 'raw_tables'}:
+            return ctx.get('tables')
+
+        if name in {'metadata', 'document_metadata'}:
+            return getattr(doc, 'metadata', {})
+
+        if name in {'matches', 'match_list'}:
+            return ctx.get('matches', [])
+
+        if name in {'positions', 'match_positions'}:
+            return ctx.get('positions', [])
+
+        if name == 'match_position':
+            positions = ctx.get('positions') or []
+            if positions:
+                return positions[0]
+            matches = ctx.get('matches') or []
+            if matches:
+                index = ctx.get('text', '').find(matches[0])
+                if index >= 0:
+                    return index
+            return 0
+
+        if name == 'window_size':
+            config = getattr(instance, 'config', None)
+            return getattr(config, 'context_window_chars', 400)
+
+        if name in {'pattern_specificity', 'specificity'}:
+            matches = ctx.get('matches') or []
+            return self._compute_pattern_specificity(matches)
+
+        if name in {'total_corpus_size', 'text_length', 'corpus_size'}:
+            length = ctx.get('text_length')
+            if not length:
+                sentences = ctx.get('sentences') or []
+                length = sum(len(s) for s in sentences)
+            return max(1, length)
+
+        if name == 'confidence':
+            return ctx.get('confidence', 0.0)
+
+        if name in {'dimension', 'policy_dimension'}:
+            dimension = ctx.get('dimension')
+            if dimension is None:
+                dimension, category, _ = self._derive_dimension_category(instance)
+                ctx['dimension'] = dimension
+                ctx.setdefault('category', category)
+            return ctx.get('dimension')
+
+        if name in {'category', 'policy_category'}:
+            category = ctx.get('category')
+            if category is None:
+                dimension, category, _ = self._derive_dimension_category(instance)
+                ctx.setdefault('dimension', dimension)
+                ctx['category'] = category
+            return ctx.get('category')
+
+        if name == 'compiled_patterns':
+            patterns = ctx.get('compiled_patterns')
+            if patterns is None:
+                patterns = self._extract_all_patterns(instance)
+                ctx['compiled_patterns'] = patterns
+            return patterns
+
+        if name in {'pattern_registry', 'patterns'}:
+            return getattr(instance, '_pattern_registry', {})
+
+        if name in {'values', 'value_array'}:
+            matches = ctx.get('matches') or []
+            if matches:
+                return np.array([len(m) for m in matches], dtype=float)
+            return np.array([0.0], dtype=float)
+
+        if name in {'positions_with_scores'}:
+            matches = ctx.get('matches') or []
+            positions = ctx.get('positions') or []
+            return list(zip(positions, matches))
+
+        if name in {'pattern_matches', 'match_metadata'}:
+            return {
+                'matches': ctx.get('matches', []),
+                'positions': ctx.get('positions', []),
+                'confidence': ctx.get('confidence', 0.0),
+            }
+
+        if name in {'doc_id', 'document_id'}:
+            metadata = getattr(doc, 'metadata', {}) or {}
+            return metadata.get('document_id') or getattr(doc, 'document_id', 'document_1')
+
+        return _ARG_UNSET
+
+    def _fallback_for(
+        self,
+        name: str,
+        class_name: str,
+        method_name: str,
+        instance: Any,
+    ) -> Any:
+        ctx = self._argument_context
+
+        if name in {'matches', 'match_list'}:
+            return []
+        if name in {'positions', 'match_positions'}:
+            return []
+        if name == 'confidence':
+            return 0.0
+        if name == 'pattern_specificity':
+            return ctx.get('pattern_specificity', 0.8)
+        if name in {'total_corpus_size', 'text_length', 'corpus_size'}:
+            return max(1, ctx.get('text_length') or 1)
+        if name == 'compiled_patterns':
+            patterns = self._extract_all_patterns(instance)
+            ctx['compiled_patterns'] = patterns
+            return patterns
+        if name == 'relevant_sentences':
+            return ctx.get('sentences', [])
+        if name == 'window_size':
+            config = getattr(instance, 'config', None)
+            return getattr(config, 'context_window_chars', 400)
+        if name == 'match_position':
+            return 0
+        if name in {'dimension', 'policy_dimension'}:
+            dimension, category, _ = self._derive_dimension_category(instance)
+            ctx.setdefault('category', category)
+            ctx['dimension'] = dimension
+            return dimension
+        if name in {'category', 'policy_category'}:
+            dimension, category, _ = self._derive_dimension_category(instance)
+            ctx.setdefault('dimension', dimension)
+            ctx['category'] = category
+            return category
+        if name in {'values', 'value_array'}:
+            return np.array([0.0], dtype=float)
+
+        # Default fallback: provide doc text for string params if applicable
+        if name in {'text', 'raw_text', 'document_text'}:
+            return ctx.get('text', '')
+        if name in {'sentences', 'sentence_list'}:
+            return ctx.get('sentences', [])
+        if name in {'tables', 'table_data'}:
+            return ctx.get('tables', [])
+
+        logger.debug(
+            "No explicit argument mapping for required parameter '%s' on %s.%s; defaulting to None",
+            name,
+            class_name,
+            method_name,
+        )
+        return None
+
+    def _update_argument_context(
+        self,
+        method_key: str,
+        result: Any,
+        class_name: str,
+        method_name: str,
+    ) -> None:
+        ctx = self._argument_context
+
+        if isinstance(result, tuple) and len(result) == 2:
+            possible_matches, possible_positions = result
+            if isinstance(possible_matches, list):
+                ctx['matches'] = possible_matches
+                ctx['pattern_specificity'] = self._compute_pattern_specificity(possible_matches)
+            if isinstance(possible_positions, list):
+                ctx['positions'] = possible_positions
+
+        if isinstance(result, list) and all(isinstance(item, str) for item in result):
+            ctx['sentences'] = result
+
+        if isinstance(result, dict):
+            if 'matches' in result and isinstance(result['matches'], list):
+                ctx['matches'] = result['matches']
+                ctx['pattern_specificity'] = self._compute_pattern_specificity(result['matches'])
+            if 'match_positions' in result and isinstance(result['match_positions'], list):
+                ctx['positions'] = result['match_positions']
+            if 'positions' in result and isinstance(result['positions'], list):
+                ctx['positions'] = result['positions']
+            if 'confidence' in result:
+                try:
+                    ctx['confidence'] = float(result['confidence'])
+                except (TypeError, ValueError):
+                    pass
+            if 'dimension' in result:
+                ctx['dimension'] = result['dimension']
+            if 'category' in result:
+                ctx['category'] = result['category']
+
+        if isinstance(result, (int, float)) and class_name == 'BayesianEvidenceScorer' and method_name == 'compute_evidence_score':
+            ctx['confidence'] = float(result)
+
+        # Update text length if sentences change
+        if ctx.get('sentences') and not ctx.get('text_length'):
+            ctx['text_length'] = sum(len(s) for s in ctx['sentences'])
+
+    @staticmethod
+    def _compute_pattern_specificity(matches: list[str]) -> float:
+        if not matches:
+            return 0.8
+        uniqueness = len(set(matches))
+        return min(0.95, max(0.2, uniqueness / max(1, len(matches))))
+
+    @staticmethod
+    def _extract_all_patterns(instance: Any) -> list[Any]:
+        pattern_registry = getattr(instance, '_pattern_registry', {}) or {}
+        compiled_patterns: list[Any] = []
+        for categories in pattern_registry.values():
+            compiled_patterns.extend(chain.from_iterable(categories.values()))
+        return compiled_patterns
+
+    @staticmethod
+    def _derive_dimension_category(instance: Any) -> tuple[Any, str, list[Any]]:
+        pattern_registry = getattr(instance, '_pattern_registry', {}) or {}
+        dimension = getattr(instance, 'default_dimension', None)
+        category = 'general'
+        compiled_patterns: list[Any] = []
+
+        if pattern_registry:
+            dimension = next(iter(pattern_registry.keys()), dimension)
+            categories = pattern_registry.get(dimension, {}) if dimension in pattern_registry else {}
+            if categories:
+                category = next(iter(categories.keys()), category)
+                compiled_patterns = list(categories.get(category, []))
+
+        if dimension is None:
+            dimension = 'd1_insumos'
+
+        return dimension, category, compiled_patterns
 
 # ============================================================================
 # ALL 30 EXECUTORS COMPLETE IMPLEMENTATION
