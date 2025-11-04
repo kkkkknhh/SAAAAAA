@@ -977,6 +977,7 @@ class AdvancedDataFlowExecutor(ABC):
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results,
+            'confidence': float(self._argument_context.get('confidence', 0.0) or 0.0),
             'meta': {
                 'strategy': strategy_idx,
                 'avg_entropy': avg_entropy,
