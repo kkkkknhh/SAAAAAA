@@ -1,7 +1,7 @@
 # JSON Schemas for Producer Artifacts
-**Updated:** 2025-10-27  
+**Updated:** 2025-11-05  
 **Validation Level:** Draft-07 (strict)  
-**Schema Files Present:** 32
+**Schema Files Present:** 33
 
 This directory hosts the canonical JSON Schemas consumed by the policy analysis
 pipeline. Every schema listed here is curated to support deterministic
@@ -48,6 +48,7 @@ schemas/
 │   └── evidence_bundle.schema.json
 ├── question_segmentation.schema.json
 ├── questionnaire.schema.json
+├── questionnaire_monolith.schema.json
 ├── report_assembly/
 │   ├── macro_convergence.schema.json
 │   ├── meso_cluster.schema.json
@@ -64,6 +65,42 @@ schemas/
 ```
 
 > **Note:** All expected schema packages for producer modules are now present and validated.
+
+---
+
+## 🎯 Core System Schemas
+
+### questionnaire_monolith.schema.json
+
+**Purpose**: Validates the canonical `questionnaire_monolith.json` - the single source of truth for all 305 questions.
+
+**What it validates**:
+- Structure of 305 questions (300 micro + 4 meso + 1 macro)
+- Integrity constraints (question counts, SHA256 hash verification)
+- Referential integrity between sections (policy areas, dimensions, clusters)
+- ID format patterns with strict regex validation
+- Scoring modalities and definitions (6 types: TYPE_A through TYPE_F)
+- Observability telemetry configuration (logs, metrics, tracing)
+- Base slot distribution (30 slots × 10 questions each)
+- Method sets for extraction and validation
+- Pattern definitions for automated extraction
+- Expected elements and validation checks
+
+**Validation command**:
+```bash
+python3 scripts/validate_questionnaire_monolith_schema.py
+```
+
+**Documentation**: [QUESTIONNAIRE_MONOLITH_SCHEMA.md](../../docs/QUESTIONNAIRE_MONOLITH_SCHEMA.md)
+
+**Key Features**:
+- ✅ 5-level validation (schema, base slots, uniqueness, hermeticity, referential integrity)
+- ✅ Enforces canonical cluster definitions (CL01-CL04 with correct policy areas)
+- ✅ Validates 30 unique base slots (D1-Q1 through D6-Q5)
+- ✅ Ensures proper dimension structure (DIM01-DIM06)
+- ✅ Comprehensive inline documentation for all 60+ schema definitions
+
+**Status**: ✅ Complete, tested, and validated against production data
 
 ---
 
