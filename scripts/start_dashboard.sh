@@ -89,11 +89,16 @@ echo ""
 echo -e "${YELLOW}Checking dependencies...${NC}"
 
 MISSING_DEPS=""
-for pkg in flask flask_cors flask_socketio jwt; do
+for pkg in flask flask_cors flask_socketio; do
     if ! python3 -c "import $pkg" 2>/dev/null; then
         MISSING_DEPS="$MISSING_DEPS $pkg"
     fi
 done
+
+# Check for jwt (pyjwt package)
+if ! python3 -c "import jwt" 2>/dev/null; then
+    MISSING_DEPS="$MISSING_DEPS pyjwt"
+fi
 
 if [ -n "$MISSING_DEPS" ]; then
     echo -e "${YELLOW}⚠${NC}  Missing dependencies:$MISSING_DEPS"

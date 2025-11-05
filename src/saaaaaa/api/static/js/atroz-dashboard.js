@@ -312,10 +312,10 @@
                     transition: all 0.2s;
                 `;
                 
-                cell.addEventListener('mouseenter', () => {
+                cell.addEventListener('mouseenter', (e) => {
                     cell.style.transform = 'scale(1.5)';
                     cell.style.zIndex = '10';
-                    showTooltip({clientX: event.clientX, clientY: event.clientY}, `Pregunta ${i}: ${Math.round(score * 100)}%`);
+                    showTooltip({clientX: e.clientX, clientY: e.clientY}, `Pregunta ${i}: ${Math.round(score * 100)}%`);
                 });
                 
                 cell.addEventListener('mouseleave', () => {
