@@ -668,9 +668,9 @@ class IndustrialPolicyProcessor:
     def __init__(
         self,
         config: ProcessorConfig | None = None,
+        *,
         questionnaire_data: dict[str, Any] | None = None,
         questionnaire_path: Path | None = None,
-        *,
         ontology: MunicipalOntology | None = None,
         semantic_analyzer: SemanticAnalyzer | None = None,
         performance_analyzer: PerformanceAnalyzer | None = None,

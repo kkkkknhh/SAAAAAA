@@ -11,33 +11,34 @@ class TestQuestionnaireInjection:
         """Test that PolicyProcessor __init__ accepts questionnaire_data parameter."""
         import inspect
         
-        # Mock the imports that might fail
-        sys.modules['camelot'] = MagicMock()
-        sys.modules['nltk'] = MagicMock()
-        sys.modules['tensorflow'] = MagicMock()
-        sys.modules['transformers'] = MagicMock()
-        
-        try:
-            from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
-            
-            # Get the signature of __init__
-            sig = inspect.signature(IndustrialPolicyProcessor.__init__)
-            params = list(sig.parameters.keys())
-            
-            # Verify questionnaire_data is a parameter
-            assert 'questionnaire_data' in params, \
-                "PolicyProcessor must accept questionnaire_data parameter for dependency injection"
-            
-            # Verify it comes before questionnaire_path (preferred over file path)
-            questionnaire_data_idx = params.index('questionnaire_data')
-            questionnaire_path_idx = params.index('questionnaire_path') if 'questionnaire_path' in params else -1
-            
-            if questionnaire_path_idx >= 0:
-                assert questionnaire_data_idx < questionnaire_path_idx, \
-                    "questionnaire_data should come before questionnaire_path (preferred method)"
-                    
-        except ImportError as e:
-            pytest.skip(f"Cannot import PolicyProcessor: {e}")
+        # Mock the imports that might fail before importing PolicyProcessor
+        with patch.dict(sys.modules, {
+            'camelot': MagicMock(),
+            'nltk': MagicMock(),
+            'tensorflow': MagicMock(),
+            'transformers': MagicMock(),
+        }):
+            try:
+                from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
+            except ImportError as e:
+                pytest.skip(f"Cannot import PolicyProcessor: {e}")
+                return
+
+                # Get the signature of __init__
+                sig = inspect.signature(IndustrialPolicyProcessor.__init__)
+                params = list(sig.parameters.keys())
+                
+                # Verify questionnaire_data is a parameter
+                assert 'questionnaire_data' in params, \
+                    "PolicyProcessor must accept questionnaire_data parameter for dependency injection"
+                
+                # Verify it comes before questionnaire_path (preferred over file path)
+                questionnaire_data_idx = params.index('questionnaire_data')
+                questionnaire_path_idx = params.index('questionnaire_path') if 'questionnaire_path' in params else -1
+                
+                if questionnaire_path_idx >= 0:
+                    assert questionnaire_data_idx < questionnaire_path_idx, \
+                        "questionnaire_data should come before questionnaire_path (preferred method)"
 
     def test_factory_has_create_policy_processor_method(self):
         """Test that CoreModuleFactory has create_policy_processor method."""
@@ -182,21 +183,22 @@ class TestBackwardCompatibility:
         """Test that old code using questionnaire_path still works (deprecated)."""
         import inspect
         
-        sys.modules['camelot'] = MagicMock()
-        sys.modules['nltk'] = MagicMock()
-        
-        try:
-            from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
-            
-            sig = inspect.signature(IndustrialPolicyProcessor.__init__)
-            params = list(sig.parameters.keys())
-            
-            # Verify questionnaire_path is still available for backward compatibility
-            assert 'questionnaire_path' in params, \
-                "questionnaire_path should still be available for backward compatibility"
+        with patch.dict(sys.modules, {
+            'camelot': MagicMock(),
+            'nltk': MagicMock(),
+        }):
+            try:
+                from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
                 
-        except ImportError:
-            pytest.skip("Cannot import PolicyProcessor")
+                sig = inspect.signature(IndustrialPolicyProcessor.__init__)
+                params = list(sig.parameters.keys())
+                
+                # Verify questionnaire_path is still available for backward compatibility
+                assert 'questionnaire_path' in params, \
+                    "questionnaire_path should still be available for backward compatibility"
+                    
+            except ImportError:
+                pytest.skip("Cannot import PolicyProcessor")
 
     def test_method_executor_works_without_questionnaire_data(self):
         """Test that MethodExecutor can be created without questionnaire_data (deprecated)."""

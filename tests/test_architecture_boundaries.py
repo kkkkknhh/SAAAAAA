@@ -30,6 +30,7 @@ class TestArchitectureBoundaries:
         """Test that CoreModuleFactory creates PolicyProcessor with questionnaire."""
         from saaaaaa.core.orchestrator.factory import CoreModuleFactory
         from pathlib import Path
+        from unittest.mock import patch
         
         mock_questionnaire = {
             "questions": [
@@ -37,15 +38,15 @@ class TestArchitectureBoundaries:
             ]
         }
         
-        # Mock the questionnaire loading
+        # Create factory and mock get_questionnaire to return mock data
         factory = CoreModuleFactory()
-        factory.questionnaire_cache = mock_questionnaire
         
-        # Create processor via factory (CORRECT WAY)
-        processor = factory.create_policy_processor()
-        
-        # Verify processor has questionnaire data injected
-        assert processor.questionnaire_data == mock_questionnaire
+        with patch.object(factory, 'get_questionnaire', return_value=mock_questionnaire):
+            # Create processor via factory (CORRECT WAY)
+            processor = factory.create_policy_processor()
+            
+            # Verify processor has questionnaire data injected
+            assert processor.questionnaire_data == mock_questionnaire
 
     def test_method_executor_accepts_questionnaire(self):
         """Test that MethodExecutor accepts questionnaire via dependency injection."""
