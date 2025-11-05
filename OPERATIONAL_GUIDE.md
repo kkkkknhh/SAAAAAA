@@ -279,7 +279,7 @@ from saaaaaa.utils.validation.schema_validator import SchemaValidator
 **📁 Orchestrator Directory Structure**:
 The orchestration functionality is distributed across modular files in `src/saaaaaa/core/orchestrator/`:
 - **`core.py`** - Main `Orchestrator` class and core orchestration logic
-- **`executors.py`** - All executor classes (D1Q1_Executor through D6Q5_Executor)
+- **`executors.py`** - All executor classes implementing the execution logic
 - **`evidence_registry.py`** - Evidence management and tracking
 - **`arg_router.py`** - Argument routing and normalization
 - **`contract_loader.py`** - Contract loading and validation
@@ -287,19 +287,16 @@ The orchestration functionality is distributed across modular files in `src/saaa
 - **`factory.py`** - Factory functions for building components
 - **`class_registry.py`** - Class registry for dynamic instantiation
 
-**Legacy Structure (DEPRECATED - DO NOT USE)**:
+**Executors**:
+The `executors.py` module contains all execution logic for running the analysis pipeline. Import executors as needed:
 ```python
-# DEPRECATED: These imports are maintained for backward compatibility only
-# Use the new modular structure above instead
-from orchestrator.core import Orchestrator  # DEPRECATED
-from concurrency import TaskExecutor  # DEPRECATED
-from saaaaaa.core.ORCHESTRATOR_MONILITH import Orchestrator  # DEPRECATED - DO NOT USE
+from saaaaaa.core.orchestrator.executors import MethodExecutor
+from saaaaaa.core.orchestrator import Orchestrator
 ```
 
 **⚠️ Important**: 
-- The legacy `orchestrator` module is deprecated. Use `saaaaaa.core.orchestrator` instead.
-- **`ORCHESTRATOR_MONILITH.py` has been deprecated** and replaced by modular files. See the directory structure above.
-- All new code should use the modular orchestrator package structure.
+- All orchestration components are in the modular `saaaaaa.core.orchestrator` package
+- Always use absolute imports from the installed package
 
 #### Resolving Import Conflicts
 

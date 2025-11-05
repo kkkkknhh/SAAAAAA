@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
 
-from concurrency import WorkerPool, WorkerPoolConfig
+from saaaaaa.concurrency.concurrency import WorkerPool, WorkerPoolConfig
 from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
 
 logging.basicConfig(

@@ -90,7 +90,7 @@ make install           # Using Makefile (recommended)
 bash scripts/setup.sh  # Using setup script
 
 # 2. Run analysis
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+python3 -m saaaaaa.core.orchestrator \
   --input data/input_plans/your_plan.pdf \
   --output-dir data/results \
   --mode full --parallel
@@ -188,7 +188,7 @@ python scripts/verify_dependencies.py
 
 ```bash
 # Analyze a development plan (after setup)
-python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH \
+python3 -m saaaaaa.core.orchestrator \
   --input data/input_plans/your_plan.pdf \
   --output-dir data/results \
   --mode full --parallel
