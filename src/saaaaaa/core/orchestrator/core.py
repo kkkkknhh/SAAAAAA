@@ -71,6 +71,13 @@ class PreprocessedDocument:
         cls, document: Any, *, document_id: str | None = None
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        # Reject class types - only accept instances
+        if isinstance(document, type):
+            raise TypeError(
+                f"Expected document instance, got class type {document!r}. "
+                "Pass an instance of the document, not the class itself."
+            )
+
         if isinstance(document, cls):
             return document
 
@@ -996,6 +1003,22 @@ class Orchestrator:
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
 
+    def request_abort(self, reason: str) -> None:
+        """Request orchestration to abort with a specific reason."""
+        self.abort_signal.abort(reason)
+        logger.warning(f"Abort requested: {reason}")
+
+    def reset_abort(self) -> None:
+        """Reset the abort signal to allow new orchestration runs."""
+        self.abort_signal.reset()
+        logger.debug("Abort signal reset")
+
+    def _ensure_not_aborted(self) -> None:
+        """Check if orchestration has been aborted and raise exception if so."""
+        if self.abort_signal.is_aborted():
+            reason = self.abort_signal.get_reason() or "Unknown reason"
+            raise AbortRequested(f"Orchestration aborted: {reason}")
+
     def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
         cpu_headroom = max(0.0, self.resource_limits.max_cpu_percent - usage.get("cpu_percent", 0.0))
@@ -1836,10 +1859,21 @@ class Orchestrator:
             if macro_score is not None and macro_score_normalized is None:
                 macro_score_normalized = macro_score
 
+            # Extract numeric value from macro_score_normalized (may be dict/object)
+            macro_score_numeric = None
+            if macro_score_normalized is not None:
+                if isinstance(macro_score_normalized, dict):
+                    macro_score_numeric = macro_score_normalized.get('score', 0)
+                elif hasattr(macro_score_normalized, 'score'):
+                    macro_score_numeric = getattr(macro_score_normalized, 'score', 0)
+                else:
+                    # Already a numeric value
+                    macro_score_numeric = macro_score_normalized
+
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
-            if macro_score_normalized is not None:
-                scaled_score = macro_score_normalized * 100
+            if macro_score_numeric is not None:
+                scaled_score = macro_score_numeric * 100
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -1885,7 +1919,7 @@ class Orchestrator:
                 'variance_alert': variance_alert,
                 'priority_micro_gaps': priority_micro_gaps,
                 'macro_score_percentage': (
-                    macro_score_normalized * 100 if macro_score_normalized is not None else None
+                    macro_score_numeric * 100 if macro_score_numeric is not None else None
                 )
             }
 
