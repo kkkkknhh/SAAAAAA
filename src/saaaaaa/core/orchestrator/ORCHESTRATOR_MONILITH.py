@@ -889,13 +889,33 @@ class ArgRouter:
 
 class MethodExecutor:
     """Ejecuta métodos del catálogo"""
-    def __init__(self) -> None:
+    def __init__(self, questionnaire_data: dict[str, Any] | None = None) -> None:
+        """Initialize MethodExecutor with optional questionnaire data.
+        
+        Args:
+            questionnaire_data: Pre-loaded questionnaire data to inject into processors.
+                               If None, processors will load it themselves (DEPRECATED).
+        """
         if MODULES_OK:
             # Create shared ontology instance for all analyzers
             ontology = MunicipalOntology()
 
+            # Create IndustrialPolicyProcessor with injected questionnaire (CORRECT WAY)
+            if questionnaire_data is not None:
+                # ✅ CORRECT: Inject questionnaire data from orchestrator
+                policy_processor = IndustrialPolicyProcessor(
+                    questionnaire_data=questionnaire_data
+                )
+                logger.info("MethodExecutor initialized with injected questionnaire")
+            else:
+                # ⚠️ DEPRECATED: Fall back to old behavior for backward compatibility
+                logger.warning(
+                    "MethodExecutor initialized without questionnaire - processor will load it itself (DEPRECATED)"
+                )
+                policy_processor = IndustrialPolicyProcessor()
+
             self.instances = {
-                'IndustrialPolicyProcessor': IndustrialPolicyProcessor(),
+                'IndustrialPolicyProcessor': policy_processor,
                 'PolicyTextProcessor': PolicyTextProcessor(ProcessorConfig()),
                 'BayesianEvidenceScorer': BayesianEvidenceScorer(),
                 'PolicyContradictionDetector': PolicyContradictionDetector(),
@@ -9650,7 +9670,13 @@ class Orchestrator:
         with open(self.catalog_path) as f:
             self.catalog = json.load(f)
 
-        self.executor = MethodExecutor()
+        # Load questionnaire data ONCE at orchestrator level
+        with open(self.monolith_path, encoding='utf-8') as f:
+            questionnaire_data = json.load(f)
+            logger.info(f"Orchestrator loaded questionnaire from {self.monolith_path}")
+
+        # Pass questionnaire to MethodExecutor (dependency injection)
+        self.executor = MethodExecutor(questionnaire_data=questionnaire_data)
         self.executors = {
             "D1-Q1": D1Q1_Executor,
             "D1-Q2": D1Q2_Executor,

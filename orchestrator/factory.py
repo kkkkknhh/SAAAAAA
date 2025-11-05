@@ -18,14 +18,18 @@ def build_processor(
     path: str | Path = "questionnaire_monolith.json",
     locale: str = "es",
 ) -> IndustrialPolicyProcessor:
-    """Build an :class:`IndustrialPolicyProcessor` initialised with questionnaire data."""
+    """Build an :class:`IndustrialPolicyProcessor` initialised with questionnaire data.
+    
+    ✅ CORRECT: This function loads questionnaire ONCE and injects it into the processor.
+    """
     questionnaire_path = Path(path)
     data = _load_questionnaire(questionnaire_path)
     questions = data.get("industrial", [])
     industrial_input: IndustrialInput = {"questions": list(questions), "locale": locale}
     from policy_processor import IndustrialPolicyProcessor
 
-    processor = IndustrialPolicyProcessor()
+    # ✅ Create processor with injected questionnaire data
+    processor = IndustrialPolicyProcessor(questionnaire_data=data)
     if hasattr(processor, "bootstrap_from_contract"):
         processor.bootstrap_from_contract(industrial_input)  # type: ignore[attr-defined]
     return processor
