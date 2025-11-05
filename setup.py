@@ -9,7 +9,7 @@ Installation:
     pip install -e .
 
 Usage:
-    python3 -m saaaaaa.core.ORCHESTRATOR_MONILITH --input plan.pdf --mode full
+    python3 -m saaaaaa.core.orchestrator --input plan.pdf --mode full
 
 For more information, see README.md and OPERATIONAL_GUIDE.md
 """
@@ -70,7 +70,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "saaaaaa=saaaaaa.core.orchestrator.ORCHESTRATOR_MONILITH:main",
+            "saaaaaa=saaaaaa.core.orchestrator:main",
             "saaaaaa-api=saaaaaa.api.api_server:main",
         ],
     },

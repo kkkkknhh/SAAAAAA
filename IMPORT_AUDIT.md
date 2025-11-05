@@ -572,7 +572,7 @@ These files should be migrated or removed:
 
 ```python
 # Good - Absolute import from installed package
-from saaaaaa.core.orchestrator import ORCHESTRATOR_MONILITH
+from saaaaaa.core.orchestrator import Orchestrator
 from saaaaaa.processing.document_ingestion import ingest_document
 
 # Bad - Relative import
