@@ -159,6 +159,19 @@ class SignalPack(BaseModel):
         )
         return blake3.blake3(content_json.encode("utf-8")).hexdigest()
     
+    @staticmethod
+    def _parse_iso_timestamp(timestamp_str: str) -> datetime:
+        """
+        Parse ISO timestamp with Z suffix to datetime.
+        
+        Args:
+            timestamp_str: ISO 8601 timestamp string
+            
+        Returns:
+            Parsed datetime object
+        """
+        return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+    
     def is_valid(self, now: datetime | None = None) -> bool:
         """
         Check if signal pack is currently valid.
@@ -172,12 +185,12 @@ class SignalPack(BaseModel):
         if now is None:
             now = datetime.now(timezone.utc)
         
-        valid_from_dt = datetime.fromisoformat(self.valid_from.replace("Z", "+00:00"))
+        valid_from_dt = self._parse_iso_timestamp(self.valid_from)
         if now < valid_from_dt:
             return False
         
         if self.valid_to:
-            valid_to_dt = datetime.fromisoformat(self.valid_to.replace("Z", "+00:00"))
+            valid_to_dt = self._parse_iso_timestamp(self.valid_to)
             if now > valid_to_dt:
                 return False
         
@@ -409,8 +422,18 @@ class SignalClient:
     - Structured logging
     - Graceful degradation
     
-    Note: This is a stub implementation. In production, this would use
-    an actual HTTP client (httpx, requests) to fetch from FastAPI endpoints.
+    Production Status:
+    ------------------
+    ⚠️  STUB IMPLEMENTATION - HTTP calls not yet implemented.
+    
+    To complete for production:
+    1. Add httpx dependency (or use requests)
+    2. Implement actual HTTP GET in fetch_signal_pack()
+    3. Add authentication/authorization headers
+    4. Add TLS/SSL configuration
+    5. Add comprehensive error handling for network errors
+    
+    See TODO comments in fetch_signal_pack() method.
     """
     
     def __init__(
