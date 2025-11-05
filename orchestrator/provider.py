@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from saaaaaa.core.orchestrator.contract_loader import QuestionnaireProvider
 
 from saaaaaa.core.orchestrator import get_questionnaire_provider as _core_get_provider
 
@@ -39,12 +42,12 @@ def _enforce_boundary() -> None:
                 orchestrator_intermediate = True
         frame = frame.f_back
 
-def get_questionnaire_provider():
+def get_questionnaire_provider() -> QuestionnaireProvider:
     """Return the shared questionnaire provider if boundary checks pass."""
     _enforce_boundary()
     return _core_get_provider()
 
-def get_questionnaire_payload(*, force_reload: bool = False):
+def get_questionnaire_payload(*, force_reload: bool = False) -> Any:  # noqa: ANN401
     """Retrieve questionnaire payload while honouring boundary restrictions."""
     provider = get_questionnaire_provider()
     return provider.load(force_reload=force_reload)

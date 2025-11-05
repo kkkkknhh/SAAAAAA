@@ -14,10 +14,11 @@ compatibility layer.
 """
 from __future__ import annotations
 
+import contextlib
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add src to path for development environments
 _SRC_PATH = Path(__file__).resolve().parent.parent / "src"
@@ -78,7 +79,7 @@ except ImportError:
 
     from .provider import get_questionnaire_payload, get_questionnaire_provider
 
-from .factory import build_processor
+from .factory import build_processor  # noqa: E402
 
 # Import submodules for backwards compatibility (lazy loading to avoid dependency issues)
 core = import_module("saaaaaa.core.orchestrator.core")
@@ -126,13 +127,11 @@ _SUBMODULE_ALIASES: dict[str, str] = {
 
 for alias, target in _SUBMODULE_ALIASES.items():
     if alias not in sys.modules:
-        try:
-            sys.modules[alias] = import_module(target)
-        except ImportError:
+        with contextlib.suppress(ImportError):
             # Skip modules that have missing dependencies
-            pass
+            sys.modules[alias] = import_module(target)
 
-def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
+def __getattr__(name: str) -> Any:  # noqa: ANN401  # pragma: no cover - delegation helper
     """Delegate unknown attributes to the core module or lazily load executors."""
     global _executors
 
