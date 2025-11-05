@@ -9636,7 +9636,7 @@ class Orchestrator:
             catalog_path: str = "rules/METODOS/metodos_completos_nivel3.json",
             monolith_path: str = "questionnaire_monolith.json",
             method_map_path: str = "COMPLETE_METHOD_CLASS_MAP.json",
-            schema_path: str | None = "schemas/questionnaire.schema.json",
+            schema_path: str | None = "schemas/questionnaire_monolith.schema.json",
             resource_limits: ResourceLimits | None = None,
             resource_snapshot_interval: int = 10,
     ) -> None:

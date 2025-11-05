@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import logging
 import os
 import statistics
@@ -23,8 +24,9 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
+from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
     AreaPolicyAggregator,
@@ -579,13 +581,27 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    def __init__(self) -> None:
+    _DEFAULT_CALIBRATION_TARGETS: dict[str, list[str]] = {
+        "calibracion_bayesiana": ["BayesianEvidenceScorer"],
+    }
+
+    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
         # Build the class registry
         try:
             registry = build_class_registry()
         except (ClassRegistryError, ModuleNotFoundError, ImportError) as exc:
             logger.warning("Some modules unavailable - operating in limited mode: %s", exc)
             registry = {}
+
+        if calibrations is None:
+            try:
+                calibrations = load_all_calibrations()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Calibration loading failed: %s", exc)
+                calibrations = {}
+
+        self.raw_calibrations = calibrations
+        self.calibrations = self._map_calibrations_to_classes(calibrations)
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
@@ -609,17 +625,52 @@ class MethodExecutor:
                 elif class_name == "PolicyTextProcessor":
                     try:
                         from policy_processor import ProcessorConfig
-                        self.instances[class_name] = cls(ProcessorConfig())
+                        calibration_payload = self.calibrations.get(class_name)
+                        if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                            self.instances[class_name] = cls(ProcessorConfig(), calibration=calibration_payload)
+                        else:
+                            self.instances[class_name] = cls(ProcessorConfig())
                     except ImportError:
                         logger.warning("Cannot instantiate PolicyTextProcessor: ProcessorConfig unavailable")
                 else:
                     # Standard instantiation
-                    self.instances[class_name] = cls()
+                    calibration_payload = self.calibrations.get(class_name)
+                    if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                        self.instances[class_name] = cls(calibration=calibration_payload)
+                    else:
+                        self.instances[class_name] = cls()
             except Exception as exc:
                 logger.error("Failed to instantiate %s: %s", class_name, exc)
 
         # Create ArgRouter with the registry
         self._router = ArgRouter(registry)
+
+    def _map_calibrations_to_classes(self, calibrations: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        mapped: dict[str, dict[str, Any]] = {}
+
+        for name, payload in calibrations.items():
+            targets: Iterable[str] | None = None
+            if isinstance(payload, dict):
+                meta = payload.get("__meta") if isinstance(payload.get("__meta"), dict) else {}
+                raw_targets = payload.get("targets") or meta.get("targets")
+                if isinstance(raw_targets, (list, tuple, set)):
+                    targets = raw_targets
+
+            if not targets:
+                targets = self._DEFAULT_CALIBRATION_TARGETS.get(name, [])
+
+            for target in targets or []:
+                mapped.setdefault(str(target), payload)
+
+        return mapped
+
+    @staticmethod
+    def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:
+        try:
+            signature = inspect.signature(callable_obj)
+        except (TypeError, ValueError):  # pragma: no cover - builtins / C extensions
+            return False
+        return parameter_name in signature.parameters
 
     def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
         """Execute a method from the catalog.
@@ -777,6 +828,7 @@ class Orchestrator:
             self.catalog = None
 
         self.executor = MethodExecutor()
+        self.calibrations: dict[str, Any] = getattr(self.executor, "raw_calibrations", {})
 
         # Import executors from the executors module
         from . import executors
