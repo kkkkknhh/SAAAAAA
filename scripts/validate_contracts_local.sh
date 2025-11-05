@@ -63,7 +63,7 @@ fi
 
 # Check 3: Questionnaire linting
 if [ -f tools/lint/json_lint.py ] && [ -f questionnaire.json ]; then
-    run_check "Questionnaire lint" "python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire.schema.json"
+run_check "Questionnaire lint" "python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire_monolith.schema.json"
 else
     echo -e "${YELLOW}⚠ Skipping: questionnaire linting tools not found${NC}"
 fi
