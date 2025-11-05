@@ -1866,15 +1866,26 @@ class Orchestrator:
                 if isinstance(macro_score_normalized, dict):
                     macro_score_numeric = macro_score_normalized.get('score')
                 elif hasattr(macro_score_normalized, 'score'):
-                    macro_score_numeric = getattr(macro_score_normalized, 'score', None)
+                    try:
+                        macro_score_numeric = macro_score_normalized.score
+                    except (AttributeError, Exception) as e:
+                        logger.warning(f"Failed to extract score attribute: {e}")
+                        macro_score_numeric = None
                 else:
                     # Already a numeric value
                     macro_score_numeric = macro_score_normalized
+                
+                # Validate that extracted value is numeric
+                if macro_score_numeric is not None and not isinstance(macro_score_numeric, (int, float)):
+                    logger.warning(
+                        f"Expected numeric macro_score, got {type(macro_score_numeric).__name__}: {macro_score_numeric!r}"
+                    )
+                    macro_score_numeric = None
 
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
             if macro_score_numeric is not None:
-                scaled_score = macro_score_numeric * 100
+                scaled_score = float(macro_score_numeric) * 100
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -1920,7 +1931,7 @@ class Orchestrator:
                 'variance_alert': variance_alert,
                 'priority_micro_gaps': priority_micro_gaps,
                 'macro_score_percentage': (
-                    macro_score_numeric * 100 if macro_score_numeric is not None else None
+                    float(macro_score_numeric) * 100 if macro_score_numeric is not None else None
                 )
             }
 
