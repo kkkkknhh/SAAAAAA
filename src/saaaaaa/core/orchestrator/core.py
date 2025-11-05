@@ -71,6 +71,14 @@ class PreprocessedDocument:
         cls, document: Any, *, document_id: str | None = None
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        # Reject class types - only accept instances
+        if isinstance(document, type):
+            class_name = getattr(document, '__name__', str(document))
+            raise TypeError(
+                f"Expected document instance, got class type '{class_name}'. "
+                "Pass an instance of the document, not the class itself."
+            )
+
         if isinstance(document, cls):
             return document
 
@@ -712,6 +720,9 @@ class Orchestrator:
         10: ["report", "config"],
     }
 
+    # Score normalization constant
+    PERCENTAGE_SCALE: int = 100
+
     def __init__(
         self,
         catalog: dict[str, Any] | None = None,
@@ -995,6 +1006,22 @@ class Orchestrator:
 
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
+
+    def request_abort(self, reason: str) -> None:
+        """Request orchestration to abort with a specific reason."""
+        self.abort_signal.abort(reason)
+        logger.warning(f"Abort requested: {reason}")
+
+    def reset_abort(self) -> None:
+        """Reset the abort signal to allow new orchestration runs."""
+        self.abort_signal.reset()
+        logger.debug("Abort signal reset")
+
+    def _ensure_not_aborted(self) -> None:
+        """Check if orchestration has been aborted and raise exception if so."""
+        if self.abort_signal.is_aborted():
+            reason = self.abort_signal.get_reason() or "Unknown reason"
+            raise AbortRequested(f"Orchestration aborted: {reason}")
 
     def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
@@ -1819,7 +1846,7 @@ class Orchestrator:
                     weak_pa = weakest_area[0].get('area_id') if weakest_area else None
 
                     cluster_data[cluster_id] = {
-                        'score': normalized_cluster_score * 100,  # 0-100 scale
+                        'score': normalized_cluster_score * self.PERCENTAGE_SCALE,  # 0-100 scale
                         'variance': variance,
                         'weak_pa': weak_pa
                     }
@@ -1836,10 +1863,32 @@ class Orchestrator:
             if macro_score is not None and macro_score_normalized is None:
                 macro_score_normalized = macro_score
 
+            # Extract numeric value from macro_score_normalized (may be dict/object)
+            macro_score_numeric = None
+            if macro_score_normalized is not None:
+                if isinstance(macro_score_normalized, dict):
+                    macro_score_numeric = macro_score_normalized.get('score')
+                elif hasattr(macro_score_normalized, 'score'):
+                    try:
+                        macro_score_numeric = macro_score_normalized.score
+                    except (AttributeError, TypeError) as e:
+                        logger.warning(f"Failed to extract score attribute: {e}")
+                        macro_score_numeric = None
+                else:
+                    # Already a numeric value
+                    macro_score_numeric = macro_score_normalized
+                
+                # Validate that extracted value is numeric
+                if macro_score_numeric is not None and not isinstance(macro_score_numeric, (int, float)):
+                    logger.warning(
+                        f"Expected numeric macro_score, got {type(macro_score_numeric).__name__}: {macro_score_numeric!r}"
+                    )
+                    macro_score_numeric = None
+
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
-            if macro_score_normalized is not None:
-                scaled_score = macro_score_normalized * 100
+            if macro_score_numeric is not None:
+                scaled_score = float(macro_score_numeric) * self.PERCENTAGE_SCALE
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -1853,7 +1902,7 @@ class Orchestrator:
             for cluster in cluster_scores:
                 cluster_id = cluster.get('cluster_id')
                 cluster_score = cluster.get('score', 0)
-                if cluster_score is not None and cluster_score * 100 < 55:
+                if cluster_score is not None and cluster_score * self.PERCENTAGE_SCALE < 55:
                     clusters_below_target.append(cluster_id)
 
             # Calculate overall variance
@@ -1885,7 +1934,7 @@ class Orchestrator:
                 'variance_alert': variance_alert,
                 'priority_micro_gaps': priority_micro_gaps,
                 'macro_score_percentage': (
-                    macro_score_normalized * 100 if macro_score_normalized is not None else None
+                    float(macro_score_numeric) * self.PERCENTAGE_SCALE if macro_score_numeric is not None else None
                 )
             }
 
