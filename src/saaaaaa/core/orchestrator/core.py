@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import logging
 import os
 import statistics
@@ -23,8 +24,9 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
+from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
     AreaPolicyAggregator,
@@ -71,6 +73,14 @@ class PreprocessedDocument:
         cls, document: Any, *, document_id: str | None = None
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        # Reject class types - only accept instances
+        if isinstance(document, type):
+            class_name = getattr(document, '__name__', str(document))
+            raise TypeError(
+                f"Expected document instance, got class type '{class_name}'. "
+                "Pass an instance of the document, not the class itself."
+            )
+
         if isinstance(document, cls):
             return document
 
@@ -571,13 +581,27 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    def __init__(self) -> None:
+    _DEFAULT_CALIBRATION_TARGETS: dict[str, list[str]] = {
+        "calibracion_bayesiana": ["BayesianEvidenceScorer"],
+    }
+
+    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
         # Build the class registry
         try:
             registry = build_class_registry()
         except (ClassRegistryError, ModuleNotFoundError, ImportError) as exc:
             logger.warning("Some modules unavailable - operating in limited mode: %s", exc)
             registry = {}
+
+        if calibrations is None:
+            try:
+                calibrations = load_all_calibrations()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Calibration loading failed: %s", exc)
+                calibrations = {}
+
+        self.raw_calibrations = calibrations
+        self.calibrations = self._map_calibrations_to_classes(calibrations)
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
@@ -601,17 +625,52 @@ class MethodExecutor:
                 elif class_name == "PolicyTextProcessor":
                     try:
                         from policy_processor import ProcessorConfig
-                        self.instances[class_name] = cls(ProcessorConfig())
+                        calibration_payload = self.calibrations.get(class_name)
+                        if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                            self.instances[class_name] = cls(ProcessorConfig(), calibration=calibration_payload)
+                        else:
+                            self.instances[class_name] = cls(ProcessorConfig())
                     except ImportError:
                         logger.warning("Cannot instantiate PolicyTextProcessor: ProcessorConfig unavailable")
                 else:
                     # Standard instantiation
-                    self.instances[class_name] = cls()
+                    calibration_payload = self.calibrations.get(class_name)
+                    if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                        self.instances[class_name] = cls(calibration=calibration_payload)
+                    else:
+                        self.instances[class_name] = cls()
             except Exception as exc:
                 logger.error("Failed to instantiate %s: %s", class_name, exc)
 
         # Create ArgRouter with the registry
         self._router = ArgRouter(registry)
+
+    def _map_calibrations_to_classes(self, calibrations: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        mapped: dict[str, dict[str, Any]] = {}
+
+        for name, payload in calibrations.items():
+            targets: Iterable[str] | None = None
+            if isinstance(payload, dict):
+                meta = payload.get("__meta") if isinstance(payload.get("__meta"), dict) else {}
+                raw_targets = payload.get("targets") or meta.get("targets")
+                if isinstance(raw_targets, (list, tuple, set)):
+                    targets = raw_targets
+
+            if not targets:
+                targets = self._DEFAULT_CALIBRATION_TARGETS.get(name, [])
+
+            for target in targets or []:
+                mapped.setdefault(str(target), payload)
+
+        return mapped
+
+    @staticmethod
+    def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:
+        try:
+            signature = inspect.signature(callable_obj)
+        except (TypeError, ValueError):  # pragma: no cover - builtins / C extensions
+            return False
+        return parameter_name in signature.parameters
 
     def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
         """Execute a method from the catalog.
@@ -712,6 +771,9 @@ class Orchestrator:
         10: ["report", "config"],
     }
 
+    # Score normalization constant
+    PERCENTAGE_SCALE: int = 100
+
     def __init__(
         self,
         catalog: dict[str, Any] | None = None,
@@ -766,6 +828,7 @@ class Orchestrator:
             self.catalog = None
 
         self.executor = MethodExecutor()
+        self.calibrations: dict[str, Any] = getattr(self.executor, "raw_calibrations", {})
 
         # Import executors from the executors module
         from . import executors
@@ -995,6 +1058,22 @@ class Orchestrator:
 
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
+
+    def request_abort(self, reason: str) -> None:
+        """Request orchestration to abort with a specific reason."""
+        self.abort_signal.abort(reason)
+        logger.warning(f"Abort requested: {reason}")
+
+    def reset_abort(self) -> None:
+        """Reset the abort signal to allow new orchestration runs."""
+        self.abort_signal.reset()
+        logger.debug("Abort signal reset")
+
+    def _ensure_not_aborted(self) -> None:
+        """Check if orchestration has been aborted and raise exception if so."""
+        if self.abort_signal.is_aborted():
+            reason = self.abort_signal.get_reason() or "Unknown reason"
+            raise AbortRequested(f"Orchestration aborted: {reason}")
 
     def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
@@ -1819,7 +1898,7 @@ class Orchestrator:
                     weak_pa = weakest_area[0].get('area_id') if weakest_area else None
 
                     cluster_data[cluster_id] = {
-                        'score': normalized_cluster_score * 100,  # 0-100 scale
+                        'score': normalized_cluster_score * self.PERCENTAGE_SCALE,  # 0-100 scale
                         'variance': variance,
                         'weak_pa': weak_pa
                     }
@@ -1836,10 +1915,32 @@ class Orchestrator:
             if macro_score is not None and macro_score_normalized is None:
                 macro_score_normalized = macro_score
 
+            # Extract numeric value from macro_score_normalized (may be dict/object)
+            macro_score_numeric = None
+            if macro_score_normalized is not None:
+                if isinstance(macro_score_normalized, dict):
+                    macro_score_numeric = macro_score_normalized.get('score')
+                elif hasattr(macro_score_normalized, 'score'):
+                    try:
+                        macro_score_numeric = macro_score_normalized.score
+                    except (AttributeError, TypeError) as e:
+                        logger.warning(f"Failed to extract score attribute: {e}")
+                        macro_score_numeric = None
+                else:
+                    # Already a numeric value
+                    macro_score_numeric = macro_score_normalized
+                
+                # Validate that extracted value is numeric
+                if macro_score_numeric is not None and not isinstance(macro_score_numeric, (int, float)):
+                    logger.warning(
+                        f"Expected numeric macro_score, got {type(macro_score_numeric).__name__}: {macro_score_numeric!r}"
+                    )
+                    macro_score_numeric = None
+
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
-            if macro_score_normalized is not None:
-                scaled_score = macro_score_normalized * 100
+            if macro_score_numeric is not None:
+                scaled_score = float(macro_score_numeric) * self.PERCENTAGE_SCALE
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -1853,7 +1954,7 @@ class Orchestrator:
             for cluster in cluster_scores:
                 cluster_id = cluster.get('cluster_id')
                 cluster_score = cluster.get('score', 0)
-                if cluster_score is not None and cluster_score * 100 < 55:
+                if cluster_score is not None and cluster_score * self.PERCENTAGE_SCALE < 55:
                     clusters_below_target.append(cluster_id)
 
             # Calculate overall variance
@@ -1885,7 +1986,7 @@ class Orchestrator:
                 'variance_alert': variance_alert,
                 'priority_micro_gaps': priority_micro_gaps,
                 'macro_score_percentage': (
-                    macro_score_normalized * 100 if macro_score_normalized is not None else None
+                    float(macro_score_numeric) * self.PERCENTAGE_SCALE if macro_score_numeric is not None else None
                 )
             }
 
