@@ -73,8 +73,9 @@ class PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
         # Reject class types - only accept instances
         if isinstance(document, type):
+            class_name = getattr(document, '__name__', str(document))
             raise TypeError(
-                f"Expected document instance, got class type {document!r}. "
+                f"Expected document instance, got class type '{class_name}'. "
                 "Pass an instance of the document, not the class itself."
             )
 
@@ -1863,9 +1864,9 @@ class Orchestrator:
             macro_score_numeric = None
             if macro_score_normalized is not None:
                 if isinstance(macro_score_normalized, dict):
-                    macro_score_numeric = macro_score_normalized.get('score', 0)
+                    macro_score_numeric = macro_score_normalized.get('score')
                 elif hasattr(macro_score_normalized, 'score'):
-                    macro_score_numeric = getattr(macro_score_normalized, 'score', 0)
+                    macro_score_numeric = getattr(macro_score_normalized, 'score', None)
                 else:
                     # Already a numeric value
                     macro_score_numeric = macro_score_normalized
