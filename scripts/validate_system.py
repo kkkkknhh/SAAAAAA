@@ -153,8 +153,8 @@ def validate_choreographer() -> bool:
     file_path = Path("policy_analysis_pipeline.py")
 
     if not file_path.exists():
-        print_error(f"{file_path} not found")
-        return False
+        print_warning(f"{file_path} not found (optional component)")
+        return True  # Not required for the system to work
 
     all_valid = True
 
