@@ -18,9 +18,14 @@ from .models import (
     CanonPolicyPackage,
     Chunk,
     ChunkGraph,
+    ChunkResolution,
+    EdgeType,
+    GeoFacet,
     IngestionOutcome,
+    PolicyFacet,
     PolicyManifest,
     ProvenanceMap,
+    TimeFacet,
 )
 from .pipeline import CPPIngestionPipeline
 from .quality_gates import QualityGates
@@ -32,8 +37,13 @@ __all__ = [
     "CanonPolicyPackage",
     "Chunk",
     "ChunkGraph",
+    "ChunkResolution",
+    "EdgeType",
+    "GeoFacet",
     "IngestionOutcome",
+    "PolicyFacet",
     "PolicyManifest",
     "ProvenanceMap",
     "QualityGates",
+    "TimeFacet",
 ]

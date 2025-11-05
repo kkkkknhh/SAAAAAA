@@ -255,7 +255,7 @@ class IntegrityIndex:
     """
     Integrity verification index with Merkle root.
     """
-    blake3_root: str
+    blake3_root: str = ""
     tal_chain: List[str] = field(default_factory=list)
     chunk_hashes: Dict[str, str] = field(default_factory=dict)
 
