@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from saaaaaa.core.orchestrator import get_questionnaire_provider
-from orchestrator.coreographer import (
+from saaaaaa.core.orchestrator.choreographer import (
     Choreographer,
     DAGNode,
     ExecutionPlan,
@@ -162,7 +162,7 @@ class TestMethodExecutor(unittest.TestCase):
 
     def test_method_executor_init(self):
         """Test method executor initialization."""
-        from orchestrator.choreographer_dispatch import ChoreographerDispatcher
+        from saaaaaa.core.orchestrator.choreographer import ChoreographerDispatcher
 
         dispatcher = ChoreographerDispatcher()
         executor = MethodExecutor(dispatcher)
