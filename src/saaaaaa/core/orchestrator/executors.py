@@ -1071,12 +1071,6 @@ class AdvancedDataFlowExecutor(ABC):
             if name == 'self':
                 continue
 
-            if param.kind in (
-                inspect.Parameter.VAR_POSITIONAL,
-                inspect.Parameter.VAR_KEYWORD,
-            ):
-                continue
-
             value = self._resolve_argument(
                 name,
                 class_name,
@@ -1099,6 +1093,7 @@ class AdvancedDataFlowExecutor(ABC):
                     continue
 
             prepared[name] = value
+
         return prepared
 
     def _resolve_argument(
