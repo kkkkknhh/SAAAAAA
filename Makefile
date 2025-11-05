@@ -1,4 +1,4 @@
-.PHONY: install setup verify clean
+.PHONY: install setup verify clean validate-schema validate-monolith
 
 # Install dependencies and setup the package for development
 install: setup
@@ -57,6 +57,14 @@ verify:
 	@pytest -q -ra tests/ 2>&1 | tail -30 || echo "⚠️  Some tests failed"
 	
 	@echo "\n=== VERIFICATION COMPLETE ==="
+
+# Validate questionnaire monolith against JSON Schema
+validate-monolith:
+	@echo "Validating questionnaire monolith..."
+	@python3 scripts/validate_questionnaire_monolith_schema.py
+
+# Alias for validate-monolith
+validate-schema: validate-monolith
 
 # Clean build artifacts and cache files
 clean:

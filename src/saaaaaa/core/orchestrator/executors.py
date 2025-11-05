@@ -49,9 +49,21 @@ from collections import defaultdict
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import chain
+import inspect
 from typing import Any, Generic, TypeVar
 
 import numpy as np
+
+try:  # Optional imports for advanced context propagation
+    import networkx as nx
+except Exception:  # pragma: no cover - optional dependency at runtime
+    nx = None  # type: ignore[assignment]
+
+try:  # Teoría de Cambio categorical enrichment
+    from saaaaaa.analysis.teoria_cambio import CategoriaCausal  # type: ignore
+except Exception:  # pragma: no cover - avoid hard failure if module unavailable
+    CategoriaCausal = None  # type: ignore[assignment]
 
 # ============================================================================
 # LOGGING AND METRICS SETUP
@@ -123,6 +135,7 @@ class ExecutionMetrics:
 
 # Global metrics instance
 _global_metrics = ExecutionMetrics()
+_ARG_UNSET: object = object()
 
 def get_execution_metrics() -> ExecutionMetrics:
     """Get global execution metrics"""
@@ -834,6 +847,7 @@ class AdvancedDataFlowExecutor(ABC):
 
         self.execution_metrics: dict[str, list[float]] = defaultdict(list)
         self.method_dependencies: dict[str, set] = {}
+        self._argument_context: dict[str, Any] = {}
 
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
@@ -860,6 +874,8 @@ class AdvancedDataFlowExecutor(ABC):
 
         total_entropy = 0.0
 
+        self._reset_argument_context(doc)
+
         for idx, (class_name, method_name) in enumerate(method_sequence):
             method_key = f"{class_name}.{method_name}"
 
@@ -875,13 +891,17 @@ class AdvancedDataFlowExecutor(ABC):
 
             for attempt in range(max_retries):
                 try:
+                    prepared_kwargs = self._prepare_arguments(
+                        class_name,
+                        method_name,
+                        doc,
+                        current_data,
+                    )
+
                     result = self.executor.execute(
                         class_name,
                         method_name,
-                        data=current_data,
-                        text=doc.raw_text,
-                        sentences=doc.sentences,
-                        tables=doc.tables
+                        **prepared_kwargs,
                     )
 
                     results[method_key] = result
@@ -900,6 +920,13 @@ class AdvancedDataFlowExecutor(ABC):
 
                     if result is not None:
                         current_data = result
+
+                    self._update_argument_context(
+                        method_key,
+                        result,
+                        class_name,
+                        method_name,
+                    )
 
                     break  # Success, exit retry loop
 
@@ -950,6 +977,7 @@ class AdvancedDataFlowExecutor(ABC):
             'modality': 'TYPE_A',
             'elements': self._extract(results),
             'raw': results,
+            'confidence': float(self._argument_context.get('confidence', 0.0) or 0.0),
             'meta': {
                 'strategy': strategy_idx,
                 'avg_entropy': avg_entropy,
@@ -987,6 +1015,830 @@ class AdvancedDataFlowExecutor(ABC):
     def _extract(self, results: dict) -> list:
         """Extract final results (to be implemented by subclasses)"""
         pass
+
+    # ------------------------------------------------------------------
+    # Argument mapping helpers
+    # ------------------------------------------------------------------
+
+    # ============================================================================
+    # ENHANCED ARGUMENT RESOLUTION WITH GRAPH-AWARE INTELLIGENCE
+    # ============================================================================
+
+    def _reset_argument_context(self, doc: Any) -> None:
+        """Enhanced context initialization with graph-aware tracking"""
+        raw_text = getattr(doc, 'raw_text', '') or ''
+        sentences = list(getattr(doc, 'sentences', []) or [])
+        tables = list(getattr(doc, 'tables', []) or [])
+
+        self._argument_context = {
+            'doc': doc,
+            'text': raw_text,
+            'sentences': sentences,
+            'tables': tables,
+            'matches': [],
+            'positions': [],
+            'confidence': 0.0,
+            'pattern_specificity': 0.8,
+            'text_length': len(raw_text),
+            # Enhanced: Graph-aware context
+            'grafo': None,  # NetworkX DiGraph for causal analysis
+            'graph_nodes': [],  # Tracked nodes from causal extraction
+            'graph_edges': [],  # Tracked edges from causal extraction
+            'statements': [],  # Policy statements for graph construction
+            # Enhanced: Segmentation tracking
+            'segments': None,  # Text segments for analysis
+            'segment_metadata': {},  # Metadata about segmentation strategy
+        }
+
+        # Initialize policy processor context
+        policy_processor = self.executor.instances.get('IndustrialPolicyProcessor')
+        if policy_processor is not None:
+            dimension, category, _ = self._derive_dimension_category(policy_processor)
+            self._argument_context.setdefault('dimension', dimension)
+            self._argument_context.setdefault('category', category)
+
+    def _prepare_arguments(
+        self,
+        class_name: str,
+        method_name: str,
+        doc: Any,
+        current_data: Any,
+    ) -> dict[str, Any]:
+        instance = self.executor.instances.get(class_name)
+        if instance is None:
+            return {}
+
+        try:
+            method = getattr(instance, method_name)
+        except AttributeError:
+            return {}
+
+        signature = inspect.signature(method)
+        prepared: dict[str, Any] = {}
+
+        self._ingest_payload_for_context(current_data)
+
+        for name, param in signature.parameters.items():
+            if name == 'self':
+                continue
+
+            value = self._resolve_argument(
+                name,
+                class_name,
+                method_name,
+                doc,
+                current_data,
+                instance,
+            )
+
+            if value is _ARG_UNSET:
+                if param.default is inspect._empty:
+                    # Provide safe fallbacks for required params
+                    value = self._fallback_for(
+                        name,
+                        class_name,
+                        method_name,
+                        instance,
+                    )
+                else:
+                    continue
+
+            prepared[name] = value
+
+        return prepared
+
+    def _resolve_argument(
+        self,
+        name: str,
+        class_name: str,
+        method_name: str,
+        doc: Any,
+        current_data: Any,
+        instance: Any,
+    ) -> Any:
+        """Enhanced argument resolution with sophisticated graph and segment handling"""
+        ctx = self._argument_context
+
+        # ========================================================================
+        # STANDARD ARGUMENTS (existing implementation retained)
+        # ========================================================================
+        
+        if name in {'data', 'payload', 'input_data'}:
+            return current_data
+
+        if name in {'doc', 'document', 'preprocessed_document'}:
+            return doc
+
+        if name in {'text', 'raw_text', 'document_text'}:
+            return ctx.get('text')
+
+        if name in {'sentences', 'relevant_sentences', 'sentence_list'}:
+            return ctx.get('sentences')
+
+        if name in {'tables', 'table_data', 'raw_tables'}:
+            return ctx.get('tables')
+
+        if name in {'metadata', 'document_metadata'}:
+            return getattr(doc, 'metadata', {})
+
+        if name in {'matches', 'match_list'}:
+            return ctx.get('matches', [])
+
+        if name in {'positions', 'match_positions'}:
+            return ctx.get('positions', [])
+
+        # ========================================================================
+        # ENHANCED: SOPHISTICATED SEGMENTS RESOLUTION
+        # ========================================================================
+        
+        if name in {'segments', 'text_segments', 'segment_list'}:
+            segments = ctx.get('segments')
+            
+            if segments is not None:
+                return segments
+            
+            # Strategy 1: Use sentences if available (most common case)
+            sentences = ctx.get('sentences')
+            if sentences and isinstance(sentences, list):
+                ctx['segments'] = sentences
+                ctx['segment_metadata'] = {
+                    'strategy': 'sentence_based',
+                    'count': len(sentences),
+                    'source': 'context'
+                }
+                return sentences
+            
+            # Strategy 2: Intelligent text segmentation using semantic boundaries
+            text = ctx.get('text', '')
+            if text:
+                # Split on paragraph boundaries first
+                paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+                
+                if paragraphs:
+                    segments = paragraphs
+                else:
+                    # Fallback: sentence-like splitting on period boundaries
+                    segments = [s.strip() for s in text.split('.') if s.strip()]
+                
+                ctx['segments'] = segments
+                ctx['segment_metadata'] = {
+                    'strategy': 'semantic_split',
+                    'count': len(segments),
+                    'avg_length': sum(len(s) for s in segments) / max(len(segments), 1)
+                }
+                return segments
+            
+            # Strategy 3: Return empty list as safe fallback
+            ctx['segments'] = []
+            ctx['segment_metadata'] = {'strategy': 'empty_fallback'}
+            return []
+
+        # ========================================================================
+        # ENHANCED: GRAPH OBJECT RESOLUTION (DiGraph for causal analysis)
+        # ========================================================================
+        
+        if name in {'grafo', 'graph', 'causal_graph', 'dag'}:
+            # Strategy 1: Return cached graph from context
+            grafo = ctx.get('grafo')
+            if grafo is not None:
+                return grafo
+            
+            # Strategy 2: Check if instance has a graph attribute
+            if hasattr(instance, 'grafo'):
+                grafo = instance.grafo
+                ctx['grafo'] = grafo
+                return grafo
+            
+            if hasattr(instance, 'graph'):
+                grafo = instance.graph
+                ctx['grafo'] = grafo
+                return grafo
+            
+            # Strategy 3: Construct graph from statements if available
+            statements = ctx.get('statements')
+            if statements:
+                grafo = self._construct_causal_graph(statements, instance)
+                ctx['grafo'] = grafo
+                return grafo
+            
+            # Strategy 4: Return None (will be handled by fallback or method can skip)
+            return _ARG_UNSET
+
+        # ========================================================================
+        # ENHANCED: GRAPH NODE RESOLUTION (origen, destino for causal links)
+        # ========================================================================
+        
+        if name in {'origen', 'source', 'source_node', 'from_node'}:
+            # Strategy 1: Extract from current_data if it's a dict or tuple
+            if isinstance(current_data, dict):
+                if 'origen' in current_data:
+                    return current_data['origen']
+                if 'source' in current_data:
+                    return current_data['source']
+                if 'from' in current_data:
+                    return current_data['from']
+            
+            # Strategy 2: Extract from tuple (common pattern: (origen, destino))
+            if isinstance(current_data, tuple) and len(current_data) >= 2:
+                return current_data[0]
+            
+            # Strategy 3: Infer from graph context (first node in recent edges)
+            graph_edges = ctx.get('graph_edges', [])
+            if graph_edges and isinstance(graph_edges[-1], (tuple, list)):
+                return graph_edges[-1][0]
+            
+            # Strategy 4: Use first node from tracked nodes
+            graph_nodes = ctx.get('graph_nodes', [])
+            if graph_nodes:
+                return graph_nodes[0]
+            
+            # Strategy 5: Return None (method will need to handle)
+            return _ARG_UNSET
+        
+        if name in {'destino', 'target', 'target_node', 'to_node'}:
+            # Strategy 1: Extract from current_data if it's a dict or tuple
+            if isinstance(current_data, dict):
+                if 'destino' in current_data:
+                    return current_data['destino']
+                if 'target' in current_data:
+                    return current_data['target']
+                if 'to' in current_data:
+                    return current_data['to']
+            
+            # Strategy 2: Extract from tuple (common pattern: (origen, destino))
+            if isinstance(current_data, tuple) and len(current_data) >= 2:
+                return current_data[1]
+            
+            # Strategy 3: Infer from graph context (second node in recent edges)
+            graph_edges = ctx.get('graph_edges', [])
+            if graph_edges and isinstance(graph_edges[-1], (tuple, list)) and len(graph_edges[-1]) >= 2:
+                return graph_edges[-1][1]
+            
+            # Strategy 4: Use second node from tracked nodes
+            graph_nodes = ctx.get('graph_nodes', [])
+            if len(graph_nodes) >= 2:
+                return graph_nodes[1]
+            
+            # Strategy 5: Return None (method will need to handle)
+            return _ARG_UNSET
+
+        # ========================================================================
+        # ENHANCED: STATEMENTS RESOLUTION (for graph construction)
+        # ========================================================================
+        
+        if name in {'statements', 'policy_statements', 'causal_statements'}:
+            statements = ctx.get('statements')
+            
+            if statements:
+                return statements
+            
+            # Extract statements from current_data if it's a list
+            if isinstance(current_data, list):
+                ctx['statements'] = current_data
+                return current_data
+            
+            # Use sentences as statements if available
+            sentences = ctx.get('sentences')
+            if sentences:
+                ctx['statements'] = sentences
+                return sentences
+            
+            return []
+
+        # ========================================================================
+        # EXISTING SOPHISTICATED RESOLUTIONS (all retained)
+        # ========================================================================
+        
+        if name == 'match_position':
+            positions = ctx.get('positions') or []
+            if positions:
+                return positions[0]
+            matches = ctx.get('matches') or []
+            if matches:
+                index = ctx.get('text', '').find(matches[0])
+                if index >= 0:
+                    return index
+            return 0
+
+        if name == 'window_size':
+            config = getattr(instance, 'config', None)
+            return getattr(config, 'context_window_chars', 400)
+
+        if name in {'pattern_specificity', 'specificity'}:
+            matches = ctx.get('matches') or []
+            return self._compute_pattern_specificity(matches)
+
+        if name in {'total_corpus_size', 'text_length', 'corpus_size'}:
+            length = ctx.get('text_length')
+            if not length:
+                sentences = ctx.get('sentences') or []
+                length = sum(len(s) for s in sentences)
+            return max(1, length)
+
+        if name == 'confidence':
+            return ctx.get('confidence', 0.0)
+
+        if name in {'dimension', 'policy_dimension'}:
+            dimension = ctx.get('dimension')
+            if dimension is None:
+                dimension, category, _ = self._derive_dimension_category(instance)
+                ctx['dimension'] = dimension
+                ctx.setdefault('category', category)
+            return ctx.get('dimension')
+
+        if name in {'category', 'policy_category'}:
+            category = ctx.get('category')
+            if category is None:
+                dimension, category, _ = self._derive_dimension_category(instance)
+                ctx.setdefault('dimension', dimension)
+                ctx['category'] = category
+            return ctx.get('category')
+
+        if name == 'compiled_patterns':
+            patterns = ctx.get('compiled_patterns')
+            if patterns is None:
+                patterns = self._extract_all_patterns(instance)
+                ctx['compiled_patterns'] = patterns
+            return patterns
+
+        if name in {'pattern_registry', 'patterns'}:
+            return getattr(instance, '_pattern_registry', {})
+
+        if name in {'values', 'value_array'}:
+            matches = ctx.get('matches') or []
+            if matches:
+                return np.array([len(m) for m in matches], dtype=float)
+            return np.array([0.0], dtype=float)
+
+        if name in {'positions_with_scores'}:
+            matches = ctx.get('matches') or []
+            positions = ctx.get('positions') or []
+            return list(zip(positions, matches))
+
+        if name in {'pattern_matches', 'match_metadata'}:
+            return {
+                'matches': ctx.get('matches', []),
+                'positions': ctx.get('positions', []),
+                'confidence': ctx.get('confidence', 0.0),
+            }
+
+        if name in {'doc_id', 'document_id'}:
+            metadata = getattr(doc, 'metadata', {}) or {}
+            return metadata.get('document_id') or getattr(doc, 'document_id', 'document_1')
+
+        return _ARG_UNSET
+
+    def _fallback_for(
+        self,
+        name: str,
+        class_name: str,
+        method_name: str,
+        instance: Any,
+    ) -> Any:
+        """Enhanced fallback with sophisticated graph and segment handling"""
+        ctx = self._argument_context
+
+        # ========================================================================
+        # ENHANCED: GRAPH AND NODE FALLBACKS
+        # ========================================================================
+        
+        if name in {'grafo', 'graph', 'causal_graph', 'dag'}:
+            # Import NetworkX for graph creation
+            try:
+                import networkx as nx
+                # Create empty DiGraph as safe fallback
+                grafo = nx.DiGraph()
+                ctx['grafo'] = grafo
+                logger.debug(f"Created empty DiGraph fallback for {class_name}.{method_name}")
+                return grafo
+            except ImportError:
+                logger.warning("NetworkX not available, returning None for graph parameter")
+                return None
+        
+        if name in {'origen', 'source', 'source_node', 'from_node'}:
+            # Return a default node identifier
+            return "node_0"
+        
+        if name in {'destino', 'target', 'target_node', 'to_node'}:
+            # Return a default node identifier
+            return "node_1"
+        
+        if name in {'statements', 'policy_statements', 'causal_statements'}:
+            # Use sentences as statement fallback
+            return ctx.get('sentences', [])
+
+        # ========================================================================
+        # ENHANCED: SEGMENTS FALLBACK
+        # ========================================================================
+        
+        if name in {'segments', 'text_segments', 'segment_list'}:
+            # Multi-strategy fallback
+            sentences = ctx.get('sentences')
+            if sentences:
+                return sentences
+            
+            text = ctx.get('text', '')
+            if text:
+                # Intelligent paragraph segmentation
+                segments = [p.strip() for p in text.split('\n\n') if p.strip()]
+                if not segments:
+                    segments = [s.strip() + '.' for s in text.split('.') if s.strip()]
+                return segments
+            
+            return []
+
+        # ========================================================================
+        # EXISTING SOPHISTICATED FALLBACKS (all retained)
+        # ========================================================================
+        
+        if name in {'matches', 'match_list'}:
+            return []
+        
+        if name in {'positions', 'match_positions'}:
+            return []
+        
+        if name == 'confidence':
+            return 0.0
+        
+        if name == 'pattern_specificity':
+            return ctx.get('pattern_specificity', 0.8)
+        
+        if name in {'total_corpus_size', 'text_length', 'corpus_size'}:
+            return max(1, ctx.get('text_length') or 1)
+        
+        if name == 'compiled_patterns':
+            patterns = self._extract_all_patterns(instance)
+            ctx['compiled_patterns'] = patterns
+            return patterns
+        
+        if name == 'relevant_sentences':
+            return ctx.get('sentences', [])
+        
+        if name == 'window_size':
+            config = getattr(instance, 'config', None)
+            return getattr(config, 'context_window_chars', 400)
+        
+        if name == 'match_position':
+            return 0
+        
+        if name in {'dimension', 'policy_dimension'}:
+            dimension, category, _ = self._derive_dimension_category(instance)
+            ctx.setdefault('category', category)
+            ctx['dimension'] = dimension
+            return dimension
+        
+        if name in {'category', 'policy_category'}:
+            dimension, category, _ = self._derive_dimension_category(instance)
+            ctx.setdefault('dimension', dimension)
+            ctx['category'] = category
+            return category
+        
+        if name in {'values', 'value_array'}:
+            return np.array([0.0], dtype=float)
+
+        if name in {'text', 'raw_text', 'document_text'}:
+            return ctx.get('text', '')
+        
+        if name in {'sentences', 'sentence_list'}:
+            return ctx.get('sentences', [])
+        
+        if name in {'tables', 'table_data'}:
+            return ctx.get('tables', [])
+
+        logger.debug(
+            "No explicit argument mapping for required parameter '%s' on %s.%s; defaulting to None",
+            name,
+            class_name,
+            method_name,
+        )
+        return None
+
+    def _update_argument_context(
+        self,
+        method_key: str,
+        result: Any,
+        class_name: str,
+        method_name: str,
+    ) -> None:
+        """Enhanced context update with graph-aware tracking"""
+        ctx = self._argument_context
+
+        # ========================================================================
+        # ENHANCED: TRACK GRAPH OBJECTS FROM RESULTS
+        # ========================================================================
+        
+        # Track DiGraph objects from causal methods
+        if class_name == 'TeoriaCambio' and method_name == 'construir_grafo_causal':
+            try:
+                import networkx as nx
+                if isinstance(result, nx.DiGraph):
+                    ctx['grafo'] = result
+                    ctx['graph_nodes'] = list(result.nodes())
+                    ctx['graph_edges'] = list(result.edges())
+                    logger.debug(f"Cached DiGraph with {len(ctx['graph_nodes'])} nodes, {len(ctx['graph_edges'])} edges")
+            except ImportError:
+                pass
+        
+        # Track statements from extraction methods
+        if 'extract' in method_name.lower() and 'statement' in method_name.lower():
+            if isinstance(result, list):
+                ctx['statements'] = result
+        
+        # Track nodes and edges from causal extraction
+        if class_name == 'CausalExtractor':
+            if isinstance(result, dict):
+                if 'nodes' in result:
+                    ctx['graph_nodes'] = result['nodes']
+                if 'edges' in result:
+                    ctx['graph_edges'] = result['edges']
+                if 'statements' in result:
+                    ctx['statements'] = result['statements']
+
+        # ========================================================================
+        # ENHANCED: TRACK SEGMENTS FROM RESULTS
+        # ========================================================================
+        
+        # Track segments from segmentation methods
+        if 'segment' in method_name.lower():
+            if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                ctx['segments'] = result
+                ctx['segment_metadata'] = {
+                    'strategy': 'method_result',
+                    'method': method_key,
+                    'count': len(result)
+                }
+
+        # ========================================================================
+        # EXISTING SOPHISTICATED TRACKING (all retained)
+        # ========================================================================
+        
+        # Track matches and positions from pattern matching
+        if isinstance(result, tuple) and len(result) == 2:
+            possible_matches, possible_positions = result
+            if isinstance(possible_matches, list):
+                ctx['matches'] = possible_matches
+                ctx['pattern_specificity'] = self._compute_pattern_specificity(possible_matches)
+            if isinstance(possible_positions, list):
+                ctx['positions'] = possible_positions
+
+        # Track sentences from sentence segmentation
+        if isinstance(result, list) and all(isinstance(item, str) for item in result):
+            ctx['sentences'] = result
+
+        # Track various metrics from dict results
+        if isinstance(result, dict):
+            if 'matches' in result and isinstance(result['matches'], list):
+                ctx['matches'] = result['matches']
+                ctx['pattern_specificity'] = self._compute_pattern_specificity(result['matches'])
+            if 'match_positions' in result and isinstance(result['match_positions'], list):
+                ctx['positions'] = result['match_positions']
+            if 'positions' in result and isinstance(result['positions'], list):
+                ctx['positions'] = result['positions']
+            if 'confidence' in result:
+                try:
+                    ctx['confidence'] = float(result['confidence'])
+                except (TypeError, ValueError):
+                    pass
+            if 'dimension' in result:
+                ctx['dimension'] = result['dimension']
+            if 'category' in result:
+                ctx['category'] = result['category']
+
+        # Track confidence from evidence scoring
+        if isinstance(result, (int, float)) and class_name == 'BayesianEvidenceScorer' and method_name == 'compute_evidence_score':
+            ctx['confidence'] = float(result)
+
+        # Update text length if sentences change
+        if ctx.get('sentences') and not ctx.get('text_length'):
+            ctx['text_length'] = sum(len(s) for s in ctx['sentences'])
+
+    # ========================================================================
+    # ENHANCED: GRAPH CONSTRUCTION HELPER
+    # ========================================================================
+
+    def _construct_causal_graph(self, statements: list, instance: Any) -> Any:
+        """Construct causal graph from statements with sophisticated extraction"""
+        try:
+            import networkx as nx
+            grafo = nx.DiGraph()
+            
+            # Extract potential causal relationships from statements
+            causal_indicators = [
+                'porque', 'ya que', 'debido a', 'causa', 'resultado',
+                'therefore', 'because', 'due to', 'causes', 'results in',
+                'conduce a', 'genera', 'produce', 'implica'
+            ]
+            
+            nodes = []
+            edges = []
+            
+            for idx, statement in enumerate(statements):
+                if not isinstance(statement, str):
+                    continue
+                
+                statement_lower = statement.lower()
+                
+                # Check if statement contains causal indicators
+                has_causal = any(indicator in statement_lower for indicator in causal_indicators)
+                
+                if has_causal:
+                    # Simple node extraction: split on causal words
+                    for indicator in causal_indicators:
+                        if indicator in statement_lower:
+                            parts = statement_lower.split(indicator, 1)
+                            if len(parts) == 2:
+                                node_from = f"node_{len(nodes)}"
+                                node_to = f"node_{len(nodes) + 1}"
+                                nodes.extend([node_from, node_to])
+                                edges.append((node_from, node_to))
+                                break
+                else:
+                    # Add as isolated node
+                    node_id = f"node_{len(nodes)}"
+                    nodes.append(node_id)
+            
+            # Build graph
+            grafo.add_nodes_from(set(nodes))
+            grafo.add_edges_from(edges)
+            
+            logger.debug(f"Constructed causal graph with {len(grafo.nodes())} nodes, {len(grafo.edges())} edges")
+            
+            return grafo
+            
+        except ImportError:
+            logger.warning("NetworkX not available for graph construction")
+            return None
+
+    @staticmethod
+    def _compute_pattern_specificity(matches: list[str]) -> float:
+        if not matches:
+            return 0.8
+        uniqueness = len(set(matches))
+        return min(0.95, max(0.2, uniqueness / max(1, len(matches))))
+
+    @staticmethod
+    def _extract_all_patterns(instance: Any) -> list[Any]:
+        pattern_registry = getattr(instance, '_pattern_registry', {}) or {}
+        compiled_patterns: list[Any] = []
+        for categories in pattern_registry.values():
+            compiled_patterns.extend(chain.from_iterable(categories.values()))
+        return compiled_patterns
+
+    @staticmethod
+    def _derive_dimension_category(instance: Any) -> tuple[Any, str, list[Any]]:
+        pattern_registry = getattr(instance, '_pattern_registry', {}) or {}
+        dimension = getattr(instance, 'default_dimension', None)
+        category = 'general'
+        compiled_patterns: list[Any] = []
+
+        if pattern_registry:
+            dimension = next(iter(pattern_registry.keys()), dimension)
+            categories = pattern_registry.get(dimension, {}) if dimension in pattern_registry else {}
+            if categories:
+                category = next(iter(categories.keys()), category)
+                compiled_patterns = list(categories.get(category, []))
+
+        if dimension is None:
+            dimension = 'd1_insumos'
+
+        return dimension, category, compiled_patterns
+
+    # ------------------------------------------------------------------
+    # Context enrichment utilities
+    # ------------------------------------------------------------------
+
+    def _ingest_payload_for_context(self, payload: Any) -> None:
+        if payload is None:
+            return
+
+        ctx = self._argument_context
+
+        grafo = self._extract_graph(payload)
+        if grafo is not None and self._is_graph_like(grafo):
+            ctx['grafo'] = grafo
+
+        edge = self._extract_edge(payload)
+        if edge is not None:
+            ctx['current_edge'] = edge
+
+        segments = self._extract_segments(payload)
+        if segments is not None:
+            ctx['segments'] = segments
+            if not ctx.get('text_length') and isinstance(segments, list):
+                text_lengths = [len(self._segment_to_text(seg)) for seg in segments]
+                if any(text_lengths):
+                    ctx['text_length'] = sum(text_lengths)
+
+    def _resolve_edge_component(
+        self,
+        ctx: dict[str, Any],
+        current_data: Any,
+        *,
+        index: int,
+    ) -> Any:
+        edge = ctx.get('current_edge')
+        if isinstance(edge, tuple) and len(edge) > index:
+            return edge[index]
+
+        candidate = self._extract_edge(current_data)
+        if candidate is not None and len(candidate) > index:
+            ctx['current_edge'] = candidate
+            return candidate[index]
+
+        return None
+
+    def _extract_edge(self, payload: Any) -> tuple[Any, Any] | None:
+        if payload is None:
+            return None
+
+        origin = None
+        destination = None
+
+        if isinstance(payload, dict):
+            origin = (
+                payload.get('origen')
+                or payload.get('source')
+                or payload.get('source_node')
+            )
+            destination = (
+                payload.get('destino')
+                or payload.get('target')
+                or payload.get('target_node')
+            )
+            if 'edge' in payload and isinstance(payload['edge'], (tuple, list)):
+                edge = payload['edge']
+                if len(edge) >= 2:
+                    origin = origin or edge[0]
+                    destination = destination or edge[1]
+
+        elif isinstance(payload, (list, tuple)) and len(payload) >= 2:
+            origin = payload[0]
+            destination = payload[1]
+
+        if origin is None or destination is None:
+            return None
+
+        return (
+            self._coerce_categoria_causal(origin),
+            self._coerce_categoria_causal(destination),
+        )
+
+    def _extract_segments(self, payload: Any) -> list[Any] | None:
+        if payload is None:
+            return None
+
+        if isinstance(payload, dict):
+            for key in ('segments', 'segmentos', 'segment_list'):
+                value = payload.get(key)
+                if isinstance(value, list) and value:
+                    return value
+        elif isinstance(payload, list) and payload:
+            sample = payload[0]
+            if isinstance(sample, (str, dict)):
+                return payload
+
+        return None
+
+    def _extract_graph(self, payload: Any) -> Any:
+        if self._is_graph_like(payload):
+            return payload
+
+        if isinstance(payload, dict):
+            for value in payload.values():
+                if self._is_graph_like(value):
+                    return value
+
+        return None
+
+    @staticmethod
+    def _is_graph_like(obj: Any) -> bool:
+        if obj is None:
+            return False
+        if nx is not None and isinstance(obj, nx.DiGraph):
+            return True
+        return hasattr(obj, 'nodes') and hasattr(obj, 'edges')
+
+    def _segment_to_text(self, segment: Any) -> str:
+        if isinstance(segment, str):
+            return segment
+        if isinstance(segment, dict):
+            for key in ('text', 'segment', 'content'):
+                value = segment.get(key)
+                if isinstance(value, str):
+                    return value
+        return ''
+
+    @staticmethod
+    def _coerce_categoria_causal(value: Any) -> Any:
+        if CategoriaCausal is None or value is None:
+            return value
+        if isinstance(value, CategoriaCausal):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized in CategoriaCausal.__members__:
+                return CategoriaCausal[normalized]
+        return value
 
 # ============================================================================
 # ALL 30 EXECUTORS COMPLETE IMPLEMENTATION

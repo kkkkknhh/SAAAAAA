@@ -135,13 +135,13 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
 
     Args:
-        path: Path to schema file. Defaults to schemas/questionnaire.schema.json
+        path: Path to schema file. Defaults to schemas/questionnaire_monolith.schema.json
 
     Returns:
         Loaded schema data
     """
     if path is None:
-        path = Path("schemas/questionnaire.schema.json")
+        path = Path("schemas/questionnaire_monolith.schema.json")
 
     logger.info(f"Loading schema from {path}")
 
