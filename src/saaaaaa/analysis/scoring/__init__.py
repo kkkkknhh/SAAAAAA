@@ -6,7 +6,9 @@ and reproducible results.
 """
 
 from .scoring import (
+    Evidence,
     EvidenceStructureError,
+    MicroQuestionScorer,
     ModalityConfig,
     ModalityValidationError,
     QualityLevel,
@@ -19,13 +21,15 @@ from .scoring import (
 )
 
 __all__ = [
-    "ScoringModality",
-    "QualityLevel",
-    "ScoringError",
-    "ModalityValidationError",
+    "Evidence",
     "EvidenceStructureError",
-    "ScoredResult",
+    "MicroQuestionScorer",
     "ModalityConfig",
+    "ModalityValidationError",
+    "QualityLevel",
+    "ScoredResult",
+    "ScoringError",
+    "ScoringModality",
     "ScoringValidator",
     "apply_scoring",
     "determine_quality_level",

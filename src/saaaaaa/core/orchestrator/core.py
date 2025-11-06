@@ -1144,13 +1144,28 @@ class Orchestrator:
                     data = handler(*args)
                 else:
                     # Apply timeout for async phases with comprehensive error handling
-                    data = await execute_phase_with_timeout(
-                        phase_id=phase_id,
-                        phase_name=phase_label,
-                        coro=handler,
-                        *args,
-                        timeout_s=PHASE_TIMEOUT_DEFAULT,
+                    timeout = self._get_phase_timeout(phase_id)
+                    start_time = time.perf_counter()
+                    
+                    logger.info(
+                        "phase_execution_started",
+                        extra={"phase_id": phase_id, "phase_name": phase_label, "timeout_s": timeout}
                     )
+                    
+                    try:
+                        data = await asyncio.wait_for(handler(*args), timeout=timeout)
+                        elapsed = time.perf_counter() - start_time
+                        logger.info(
+                            "phase_execution_completed",
+                            extra={"phase_id": phase_id, "phase_name": phase_label, "elapsed_s": elapsed}
+                        )
+                    except asyncio.TimeoutError:
+                        elapsed = time.perf_counter() - start_time
+                        logger.error(
+                            "phase_execution_timeout",
+                            extra={"phase_id": phase_id, "phase_name": phase_label, "elapsed_s": elapsed}
+                        )
+                        raise PhaseTimeoutError(phase_id, phase_label, timeout)
                 success = True
             except PhaseTimeoutError as exc:
                 error = exc
@@ -1736,8 +1751,16 @@ class Orchestrator:
         instrumentation = self._phase_instrumentation[3]
         instrumentation.items_total = len(micro_results)
 
-        from scoring import Evidence as ScoringEvidence
-        from scoring import MicroQuestionScorer, ScoringModality
+        # Import from the flat scoring.py module file
+        import importlib.util
+        from pathlib import Path
+        scoring_file_path = Path(__file__).parent.parent.parent / "analysis" / "scoring.py"
+        spec = importlib.util.spec_from_file_location("scoring_flat", scoring_file_path)
+        scoring_flat = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scoring_flat)
+        ScoringEvidence = scoring_flat.Evidence
+        MicroQuestionScorer = scoring_flat.MicroQuestionScorer
+        ScoringModality = scoring_flat.ScoringModality
 
         scorer = MicroQuestionScorer()
         results: list[ScoredMicroQuestion] = []
@@ -1776,12 +1799,20 @@ class Orchestrator:
                         error=item.error or "missing_evidence",
                     )
 
+                # Handle evidence as either dict or dataclass
+                if isinstance(item.evidence, dict):
+                    elements_found = item.evidence.get("elements", [])
+                    raw_results = item.evidence.get("raw_results", {})
+                else:
+                    elements_found = getattr(item.evidence, "elements", [])
+                    raw_results = getattr(item.evidence, "raw_results", {})
+                
                 scoring_evidence = ScoringEvidence(
-                    elements_found=item.evidence.elements,
-                    confidence_scores=item.evidence.raw_results.get("confidence_scores", []),
-                    semantic_similarity=item.evidence.raw_results.get("semantic_similarity"),
-                    pattern_matches=item.evidence.raw_results.get("pattern_matches", {}),
-                    metadata=item.evidence.raw_results,
+                    elements_found=elements_found,
+                    confidence_scores=raw_results.get("confidence_scores", []),
+                    semantic_similarity=raw_results.get("semantic_similarity"),
+                    pattern_matches=raw_results.get("pattern_matches", {}),
+                    metadata=raw_results,
                 )
 
                 try:
@@ -1873,7 +1904,7 @@ class Orchestrator:
                     dimension=item.metadata.get("dimension_id", ""),
                     score=item.score,
                     quality_level=item.quality_level or "INSUFICIENTE",
-                    evidence=asdict(item.evidence) if item.evidence else {},
+                    evidence=asdict(item.evidence) if item.evidence and is_dataclass(item.evidence) else (item.evidence if isinstance(item.evidence, dict) else {}),
                     raw_results=item.scoring_details,
                 )
             )
