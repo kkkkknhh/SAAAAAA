@@ -268,6 +268,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --strict-markers --tb=short"
 markers = [
+    "asyncio: Asyncio tests",
     "contract: Contract tests for API boundaries",
     "property: Property-based tests with Hypothesis",
     "integration: Integration tests",
