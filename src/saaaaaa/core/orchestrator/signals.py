@@ -152,11 +152,14 @@ class SignalPack(BaseModel):
         Returns:
             Hex string of BLAKE3 hash
         """
-        content_json = self.model_dump_json(
+        # Use model_dump to get a dict, then sort keys manually
+        content_dict = self.model_dump(
             exclude={"source_fingerprint", "valid_from", "valid_to", "metadata"},
-            indent=None,
-            sort_keys=True,
         )
+        
+        # Sort keys for deterministic hashing
+        import json
+        content_json = json.dumps(content_dict, sort_keys=True, separators=(',', ':'))
         return blake3.blake3(content_json.encode("utf-8")).hexdigest()
     
     @staticmethod
