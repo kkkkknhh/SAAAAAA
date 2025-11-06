@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import json
 import logging
 import os
 import statistics
@@ -24,7 +25,7 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, TypedDict
 
 from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
@@ -47,6 +48,135 @@ if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
 
 logger = logging.getLogger(__name__)
+
+# Environment-configurable expectations for validation
+EXPECTED_QUESTION_COUNT = int(os.getenv("EXPECTED_QUESTION_COUNT", "305"))
+EXPECTED_METHOD_COUNT = int(os.getenv("EXPECTED_METHOD_COUNT", "416"))
+PHASE_TIMEOUT_DEFAULT = int(os.getenv("PHASE_TIMEOUT_SECONDS", "300"))
+
+
+class PhaseTimeoutError(RuntimeError):
+    """Raised when a phase exceeds its timeout."""
+    
+    def __init__(self, phase_id: int | str, phase_name: str, timeout_s: float):
+        self.phase_id = phase_id
+        self.phase_name = phase_name
+        self.timeout_s = timeout_s
+        super().__init__(
+            f"Phase {phase_id} ({phase_name}) timed out after {timeout_s}s"
+        )
+
+
+async def execute_phase_with_timeout(
+    phase_id: int | str,
+    phase_name: str,
+    handler: Any,
+    args: tuple[Any, ...],
+    timeout_s: float = 300,
+) -> Any:
+    """
+    Execute phase with timeout and comprehensive error handling.
+    
+    Logs:
+    - Start time
+    - Completion time
+    - Timeout events
+    - Cancellation events
+    
+    Args:
+        phase_id: Phase identifier
+        phase_name: Human-readable phase name
+        handler: Async callable to execute
+        args: Arguments to pass to handler
+        timeout_s: Timeout in seconds
+    
+    Returns:
+        Result from handler
+    
+    Raises:
+        PhaseTimeoutError: On timeout
+        asyncio.CancelledError: On external cancellation
+        Exception: Original exception from phase
+    """
+    start_time = time.perf_counter()
+    
+    logger.info(
+        "phase_execution_started",
+        extra={
+            "phase_id": phase_id,
+            "phase_name": phase_name,
+            "timeout_s": timeout_s,
+        }
+    )
+    
+    try:
+        result = await asyncio.wait_for(
+            handler(*args),
+            timeout=timeout_s
+        )
+        
+        elapsed = time.perf_counter() - start_time
+        logger.info(
+            "phase_execution_completed",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "time_remaining_s": timeout_s - elapsed,
+            }
+        )
+        
+        return result
+        
+    except asyncio.TimeoutError as te:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_timeout",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+            },
+            exc_info=False
+        )
+        raise PhaseTimeoutError(phase_id, phase_name, timeout_s) from te
+        
+    except asyncio.CancelledError:
+        elapsed = time.perf_counter() - start_time
+        logger.warning(
+            "phase_execution_cancelled",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+            }
+        )
+        raise
+        
+    except Exception as exc:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_failed",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "error_type": type(exc).__name__,
+                "error_details": str(exc),
+            },
+            exc_info=True
+        )
+        raise
+
+
+class MacroScoreDict(TypedDict):
+    """Typed container for macro score evaluation results."""
+    macro_score: MacroScore
+    macro_score_normalized: float
+    cluster_scores: list[ClusterScore]
+
 
 @dataclass
 class PreprocessedDocument:
@@ -983,7 +1113,14 @@ class Orchestrator:
                 if mode == "sync":
                     data = handler(*args)
                 else:
-                    data = await handler(*args)
+                    # Apply timeout for async phases with comprehensive error handling
+                    data = await execute_phase_with_timeout(
+                        phase_id=phase_id,
+                        phase_name=phase_label,
+                        handler=handler,
+                        args=tuple(args),
+                        timeout_s=PHASE_TIMEOUT_DEFAULT,
+                    )
                 success = True
             except AbortRequested as exc:
                 error = exc
@@ -1112,10 +1249,10 @@ class Orchestrator:
         # Use pre-loaded monolith data (I/O-free path)
         if self._monolith_data is not None:
             monolith = self._monolith_data
-            # For pre-loaded data, compute hash from object id
-            # This is a simple hash that doesn't require serialization
-            # For production use, pre-compute hash in factory and pass it as parameter
-            monolith_hash = hashlib.sha256(str(id(monolith)).encode('utf-8')).hexdigest()
+            # Stable, content-based hash for reproducibility
+            monolith_hash = hashlib.sha256(
+                json.dumps(monolith, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
         else:
             raise ValueError(
                 "No monolith data available. Use saaaaaa.core.orchestrator.factory to load "
@@ -1127,10 +1264,9 @@ class Orchestrator:
         macro_question: dict[str, Any] = monolith["blocks"].get("macro_question", {})
 
         question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
-        if question_total != 305:
-            message = f"Conteo de preguntas inesperado: {question_total}"
-            instrumentation.record_error("integrity", message, expected=305, found=question_total)
-            raise ValueError(message)
+        if question_total != EXPECTED_QUESTION_COUNT:
+            logger.warning("Question count mismatch: expected %s, got %s", EXPECTED_QUESTION_COUNT, question_total)
+            instrumentation.record_error("integrity", f"Conteo de preguntas inesperado: {question_total}", expected=EXPECTED_QUESTION_COUNT, found=question_total)
 
         structure_report = self._validate_contract_structure(monolith, instrumentation)
 
@@ -1140,11 +1276,12 @@ class Orchestrator:
             method_map = self._method_map_data
             summary = method_map.get("summary", {})
             total_methods = summary.get("total_methods")
-            if total_methods != 416:
+            if total_methods != EXPECTED_METHOD_COUNT:
+                logger.warning("Method count mismatch: expected %s, got %s", EXPECTED_METHOD_COUNT, total_methods)
                 instrumentation.record_error(
                     "catalog",
                     "Total de métodos inesperado",
-                    expected=416,
+                    expected=EXPECTED_METHOD_COUNT,
                     found=total_methods,
                 )
             method_summary = {
@@ -1803,14 +1940,15 @@ class Orchestrator:
 
         instrumentation.increment(latency=time.perf_counter() - start)
         # macro_score is already normalized to 0-1 range from averaging cluster scores
-        # Extract the score field from the MacroScore object
-        macro_score_normalized = macro_score.score if isinstance(macro_score, MacroScore) else macro_score
+        # Extract the score field from the MacroScore object with explicit float conversion
+        macro_score_normalized = float(macro_score.score) if isinstance(macro_score, MacroScore) else float(macro_score)
 
-        return {
+        result: MacroScoreDict = {
             "macro_score": macro_score,
             "macro_score_normalized": macro_score_normalized,
             "cluster_scores": cluster_scores,
         }
+        return result
 
     async def _generate_recommendations(
             self,
