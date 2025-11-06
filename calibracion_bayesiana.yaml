@@ -99,7 +99,7 @@ bayesian_inference_robust:
 
     necessary_evidence:
       found_strong_causal_connector:   { adjustment: +0.45, test_type: "Hoop", mechanism_explained: true }
-      found_actor_responsibility_chain:{ adjustment: +0.40, test_type: "Hoop", chain_consistency: true }
+      found_actor_responsibility_chain: { adjustment: +0.40, test_type: "Hoop", chain_consistency: true }
       found_financial_traceability:    { adjustment: +0.50, test_type: "Hoop fuerte", same_bpin: true }
 
     weak_evidence:
@@ -134,7 +134,7 @@ bayesian_inference_robust:
     transforms:
       to_odds:      "O = P/(1-P)"
       to_log_odds:  "L = ln(O)"
-      from_log_odds:"P = 1/(1+exp(-L))"
+      from_log_odds: "P = 1/(1+exp(-L))"
     combination:
       prior_choice: ["tipologia","segmento_cadena"]  # puedes usar uno o ambos
       combine_method: "sum_log_odds"                 # L0 = L_t + L_c
@@ -150,13 +150,13 @@ bayesian_inference_robust:
     worked_example:
       prior_typology: 0.28     # técnico
       prior_segment:  0.35     # PR explícito
-      L_t = ln(0.28/0.72) = -0.944
-      L_c = ln(0.35/0.65) = -0.619
-      L0  = -1.563 → P0=0.173
+      calculation_L_t: "ln(0.28/0.72) = -0.944"
+      calculation_L_c: "ln(0.35/0.65) = -0.619"
+      calculation_L0: "-1.563 → P0=0.173"
       evidence:
-        +0.45 (Hoop fuerte "cómo")   → W=+0.969
-        -0.45 (falta entidad)        → W=-0.969
-      L' = -1.563 + 0.969 - 0.969 = -1.563 → P'=0.173 (conmutatividad y neutralidad OK)
+        positive: "+0.45 (Hoop fuerte \"cómo\") → W=+0.969"
+        negative: "-0.45 (falta entidad) → W=-0.969"
+      calculation_final: "-1.563 + 0.969 - 0.969 = -1.563 → P'=0.173 (conmutatividad y neutralidad OK)"
 
     aggregation_rules:
       same_type:   "usar la más fuerte; las demás con gamma^k"
@@ -238,7 +238,9 @@ bayesian_inference_robust:
   # ===========================================================================
   consistency_checks:
     sums_to_one:   { typology: true, chain: true, skip: true }
-    bounds:        { priors_in_[0,1]: true, adjustments_in_(-1,1): true }
+    bounds:
+      "priors_in_[0,1]": true
+      "adjustments_in_(-1,1)": true
     monotonicity:  { decisive_up: true, penalties_down: true }
     order_invariance: "resultado idéntico sin importar orden de evidencias"
   reproducible_tests:

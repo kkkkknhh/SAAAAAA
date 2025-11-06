@@ -233,6 +233,20 @@ class CoreModuleFactory:
             Dict with resource counts and metadata
         """
         return self._provider.get_pattern_statistics()
+    
+    def load_catalog(self, path: Any = None) -> dict[str, Any]:
+        """
+        Load method catalog JSON file.
+        
+        Args:
+            path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+            
+        Returns:
+            Loaded catalog data
+        """
+        # Import here to avoid circular dependency
+        from saaaaaa.core.orchestrator.factory import load_catalog as _load_catalog
+        return _load_catalog(path)
 
 
 # ==========================
