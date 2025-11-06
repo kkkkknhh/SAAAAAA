@@ -19,6 +19,7 @@ Design Principles:
 
 from __future__ import annotations
 
+import json
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -158,7 +159,6 @@ class SignalPack(BaseModel):
         )
         
         # Sort keys for deterministic hashing
-        import json
         content_json = json.dumps(content_dict, sort_keys=True, separators=(',', ':'))
         return blake3.blake3(content_json.encode("utf-8")).hexdigest()
     
