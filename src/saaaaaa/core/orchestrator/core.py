@@ -67,110 +67,6 @@ class PhaseTimeoutError(RuntimeError):
         )
 
 
-async def execute_phase_with_timeout(
-    phase_id: int | str,
-    phase_name: str,
-    handler: Any,
-    args: tuple[Any, ...],
-    timeout_s: float = 300,
-) -> Any:
-    """
-    Execute phase with timeout and comprehensive error handling.
-    
-    Logs:
-    - Start time
-    - Completion time
-    - Timeout events
-    - Cancellation events
-    
-    Args:
-        phase_id: Phase identifier
-        phase_name: Human-readable phase name
-        handler: Async callable to execute
-        args: Arguments to pass to handler
-        timeout_s: Timeout in seconds
-    
-    Returns:
-        Result from handler
-    
-    Raises:
-        PhaseTimeoutError: On timeout
-        asyncio.CancelledError: On external cancellation
-        Exception: Original exception from phase
-    """
-    start_time = time.perf_counter()
-    
-    logger.info(
-        "phase_execution_started",
-        extra={
-            "phase_id": phase_id,
-            "phase_name": phase_name,
-            "timeout_s": timeout_s,
-        }
-    )
-    
-    try:
-        result = await asyncio.wait_for(
-            handler(*args),
-            timeout=timeout_s
-        )
-        
-        elapsed = time.perf_counter() - start_time
-        logger.info(
-            "phase_execution_completed",
-            extra={
-                "phase_id": phase_id,
-                "phase_name": phase_name,
-                "elapsed_s": elapsed,
-                "timeout_s": timeout_s,
-                "time_remaining_s": timeout_s - elapsed,
-            }
-        )
-        
-        return result
-        
-    except asyncio.TimeoutError as te:
-        elapsed = time.perf_counter() - start_time
-        logger.error(
-            "phase_execution_timeout",
-            extra={
-                "phase_id": phase_id,
-                "phase_name": phase_name,
-                "elapsed_s": elapsed,
-                "timeout_s": timeout_s,
-            },
-            exc_info=False
-        )
-        raise PhaseTimeoutError(phase_id, phase_name, timeout_s) from te
-        
-    except asyncio.CancelledError:
-        elapsed = time.perf_counter() - start_time
-        logger.warning(
-            "phase_execution_cancelled",
-            extra={
-                "phase_id": phase_id,
-                "phase_name": phase_name,
-                "elapsed_s": elapsed,
-            }
-        )
-        raise
-        
-    except Exception as exc:
-        elapsed = time.perf_counter() - start_time
-        logger.error(
-            "phase_execution_failed",
-            extra={
-                "phase_id": phase_id,
-                "phase_name": phase_name,
-                "elapsed_s": elapsed,
-                "error_type": type(exc).__name__,
-                "error_details": str(exc),
-            },
-            exc_info=True
-        )
-        raise
-
-
 class MacroScoreDict(TypedDict):
     """Typed container for macro score evaluation results."""
     macro_score: MacroScore
@@ -1133,13 +1029,28 @@ class Orchestrator:
                     data = handler(*args)
                 else:
                     # Apply timeout for async phases with comprehensive error handling
-                    data = await execute_phase_with_timeout(
-                        phase_id=phase_id,
-                        phase_name=phase_label,
-                        handler=handler,
-                        args=tuple(args),
-                        timeout_s=PHASE_TIMEOUT_DEFAULT,
+                    timeout = self._get_phase_timeout(phase_id)
+                    start_time = time.perf_counter()
+                    
+                    logger.info(
+                        "phase_execution_started",
+                        extra={"phase_id": phase_id, "phase_name": phase_label, "timeout_s": timeout}
                     )
+                    
+                    try:
+                        data = await asyncio.wait_for(handler(*args), timeout=timeout)
+                        elapsed = time.perf_counter() - start_time
+                        logger.info(
+                            "phase_execution_completed",
+                            extra={"phase_id": phase_id, "phase_name": phase_label, "elapsed_s": elapsed}
+                        )
+                    except asyncio.TimeoutError:
+                        elapsed = time.perf_counter() - start_time
+                        logger.error(
+                            "phase_execution_timeout",
+                            extra={"phase_id": phase_id, "phase_name": phase_label, "elapsed_s": elapsed}
+                        )
+                        raise PhaseTimeoutError(phase_id, phase_label, timeout)
                 success = True
             except PhaseTimeoutError as exc:
                 error = exc
@@ -1387,7 +1298,11 @@ class Orchestrator:
 
         # Use pre-loaded monolith data (I/O-free path)
         if self._monolith_data is not None:
-            monolith = self._monolith_data
+            # Convert MappingProxyType to dict if necessary
+            if hasattr(self._monolith_data, '__class__') and 'mappingproxy' in str(type(self._monolith_data)):
+                monolith = dict(self._monolith_data)
+            else:
+                monolith = self._monolith_data
             # Stable, content-based hash for reproducibility
             monolith_hash = hashlib.sha256(
                 json.dumps(monolith, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -1721,8 +1636,16 @@ class Orchestrator:
         instrumentation = self._phase_instrumentation[3]
         instrumentation.items_total = len(micro_results)
 
-        from scoring import Evidence as ScoringEvidence
-        from scoring import MicroQuestionScorer, ScoringModality
+        # Import from the flat scoring.py module file
+        import importlib.util
+        from pathlib import Path
+        scoring_file_path = Path(__file__).parent.parent.parent / "analysis" / "scoring.py"
+        spec = importlib.util.spec_from_file_location("scoring_flat", scoring_file_path)
+        scoring_flat = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scoring_flat)
+        ScoringEvidence = scoring_flat.Evidence
+        MicroQuestionScorer = scoring_flat.MicroQuestionScorer
+        ScoringModality = scoring_flat.ScoringModality
 
         scorer = MicroQuestionScorer()
         results: list[ScoredMicroQuestion] = []
@@ -1761,12 +1684,20 @@ class Orchestrator:
                         error=item.error or "missing_evidence",
                     )
 
+                # Handle evidence as either dict or dataclass
+                if isinstance(item.evidence, dict):
+                    elements_found = item.evidence.get("elements", [])
+                    raw_results = item.evidence.get("raw_results", {})
+                else:
+                    elements_found = getattr(item.evidence, "elements", [])
+                    raw_results = getattr(item.evidence, "raw_results", {})
+                
                 scoring_evidence = ScoringEvidence(
-                    elements_found=item.evidence.elements,
-                    confidence_scores=item.evidence.raw_results.get("confidence_scores", []),
-                    semantic_similarity=item.evidence.raw_results.get("semantic_similarity"),
-                    pattern_matches=item.evidence.raw_results.get("pattern_matches", {}),
-                    metadata=item.evidence.raw_results,
+                    elements_found=elements_found,
+                    confidence_scores=raw_results.get("confidence_scores", []),
+                    semantic_similarity=raw_results.get("semantic_similarity"),
+                    pattern_matches=raw_results.get("pattern_matches", {}),
+                    metadata=raw_results,
                 )
 
                 try:
@@ -1858,7 +1789,7 @@ class Orchestrator:
                     dimension=item.metadata.get("dimension_id", ""),
                     score=item.score,
                     quality_level=item.quality_level or "INSUFICIENTE",
-                    evidence=asdict(item.evidence) if item.evidence else {},
+                    evidence=asdict(item.evidence) if item.evidence and is_dataclass(item.evidence) else (item.evidence if isinstance(item.evidence, dict) else {}),
                     raw_results=item.scoring_details,
                 )
             )

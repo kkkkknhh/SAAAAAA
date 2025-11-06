@@ -26,6 +26,7 @@ from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
 from saaaaaa.utils.cpp_adapter import CPPAdapter
 from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.orchestrator.factory import build_processor
 from saaaaaa.processing.cpp_ingestion.models import CanonPolicyPackage
 
 
@@ -225,23 +226,37 @@ async def main():
     print()
     
     # ========================================================================
-    # PHASE 3: ORCHESTRATOR INITIALIZATION
+    # PHASE 3: ORCHESTRATOR INITIALIZATION (using official API)
     # ========================================================================
     print("⚙️  PHASE 3: ORCHESTRATOR INITIALIZATION")
     print("-" * 80)
     
-    print('  🔄 Initializing Orchestrator...')
+    print('  🔄 Building processor bundle with build_processor()...')
     
     try:
-        orchestrator = Orchestrator()
+        # Use official API: build_processor() to get processor bundle
+        processor_bundle = build_processor()
+        print(f'  ✅ Processor bundle created')
+        print(f'  ✅ Method executor: {type(processor_bundle.method_executor).__name__}')
+        print(f'  ✅ Questionnaire loaded: {len(processor_bundle.questionnaire)} keys')
+        print(f'  ✅ Factory catalog loaded: {len(processor_bundle.factory.catalog)} keys')
+        print()
+        
+        print('  🔄 Initializing Orchestrator with official arguments...')
+        # Use official API: Orchestrator(monolith=questionnaire, catalog=factory.catalog)
+        orchestrator = Orchestrator(
+            monolith=processor_bundle.questionnaire,
+            catalog=processor_bundle.factory.catalog
+        )
         print(f'  ✅ Orchestrator initialized')
         print(f'  ✅ Phases: {len(orchestrator.FASES)}')
         print(f'  ✅ Executors registered: {len(orchestrator.executors)}')
         print()
     except Exception as e:
         print(f'  ❌ Failed to initialize orchestrator: {e}')
-        print(f'  ℹ️  This may be due to missing questionnaire or catalog files')
-        print(f'  ℹ️  Continuing with minimal orchestrator for demonstration...')
+        print(f'  ℹ️  Error details:')
+        import traceback
+        traceback.print_exc()
         print()
         return 1
     
