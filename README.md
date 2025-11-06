@@ -4,7 +4,50 @@
 
 ---
 
-## Resumen / Abstract
+## 📦 Package Installation & Dependency Management
+
+### Quick Installation
+
+**For development:**
+```bash
+pip install -r requirements-dev.txt
+```
+
+**For production:**
+```bash
+pip install -r requirements-core.txt
+```
+
+**Complete documentation:** See [DEPENDENCIES_QUICKSTART.md](DEPENDENCIES_QUICKSTART.md)
+
+### Dependency Management System
+
+This project uses a comprehensive dependency management system with:
+
+- **Exact version pins** for reproducible builds
+- **Classified dependencies** (core, optional, dev, docs)
+- **Automated verification** and security scanning
+- **CI/CD gates** to prevent dependency drift
+
+**Key files:**
+- `requirements-core.txt` - Core runtime dependencies (37 packages)
+- `requirements-optional.txt` - Optional features (30 packages)
+- `requirements-dev.txt` - Development tools (includes core)
+- `DEPENDENCIES_AUDIT.md` - Complete dependency documentation
+
+**Verification commands:**
+```bash
+# Verify all dependencies
+make deps:verify
+
+# Run dependency audit
+make deps:audit
+
+# Check importability
+python3 scripts/verify_importability.py
+```
+
+**For detailed dependency information:** See [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md)
 
 SAAAAAA (Strategic Analysis Architecture for Administrative Accountability and Audit Assurance) es un sistema de análisis de políticas públicas que integra 584 métodos analíticos distribuidos en 7 productores especializados y 1 agregador, orientado al procesamiento determinista de planes de desarrollo municipales y departamentales en Colombia. La contribución técnica principal radica en: (1) un pipeline de ingesta con 9 fases deterministas que garantiza trazabilidad completa desde token hasta coordenadas de página (provenance_completeness = 1.0), (2) un sistema de señales transversales (cross-cut signals) con transporte memory:// y HTTP opcional, incluyendo circuit breakers para resiliencia, (3) un mecanismo de enrutamiento extendido (ArgRouter) con 30+ rutas especiales que elimina caídas silenciosas de parámetros, y (4) contratos explícitos de entrada/salida con validación en fronteras de proveedor. El sistema procesa 300 preguntas de evaluación organizadas en 6 dimensiones (D1-D6: Insumos, Actividades, Productos, Resultados, Impactos, Causalidad) sobre 10 áreas de política (P1-P10), generando reportes en tres niveles de agregación: MICRO (respuestas atómicas por pregunta, 150-300 palabras), MESO (análisis de clusters por dimensión-área), y MACRO (clasificación y recomendaciones). La arquitectura sigue el patrón "Chess Strategy": apertura paralela con 7 productores independientes, medio juego de triangulación multi-fuente, y final de síntesis doctoral. El alcance excluye procesamiento en tiempo real (modo batch únicamente), datos personales identificables (PII), y claims de precisión absoluta sin intervalos de confianza.
 
