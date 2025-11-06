@@ -438,32 +438,6 @@ class CoreModuleFactory:
     construct_embedding_policy_input = construct_embedding_policy_input
     construct_semantic_chunking_input = construct_semantic_chunking_input
     construct_policy_processor_input = construct_policy_processor_input
-    
-    def create_policy_processor(self, config: Any | None = None) -> Any:
-        """Create IndustrialPolicyProcessor with injected questionnaire data.
-        
-        This is the CORRECT way to create a PolicyProcessor - questionnaire is loaded
-        by the factory ONCE and injected into the processor.
-        
-        Args:
-            config: Optional ProcessorConfig instance
-            
-        Returns:
-            IndustrialPolicyProcessor instance with questionnaire data injected
-        """
-        from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
-        
-        # Load questionnaire via factory (single source of truth)
-        questionnaire = self.get_questionnaire()
-        
-        # Create processor with injected questionnaire (dependency injection)
-        processor = IndustrialPolicyProcessor(
-            config=config,
-            questionnaire_data=questionnaire,  # ✅ INJECTED via orchestrator
-        )
-        
-        logger.info("Created PolicyProcessor with injected questionnaire data")
-        return processor
 
 def build_processor(
     *,
@@ -499,8 +473,7 @@ def build_processor(
 
     questionnaire_snapshot = MappingProxyType(copy.deepcopy(questionnaire_data))
 
-    # ✅ Pass questionnaire data to MethodExecutor
-    executor = MethodExecutor(questionnaire_data=questionnaire_data)
+    executor = MethodExecutor()
 
     return ProcessorBundle(
         method_executor=executor,

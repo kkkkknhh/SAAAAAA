@@ -668,9 +668,8 @@ class IndustrialPolicyProcessor:
     def __init__(
         self,
         config: ProcessorConfig | None = None,
-        *,
-        questionnaire_data: dict[str, Any] | None = None,
         questionnaire_path: Path | None = None,
+        *,
         ontology: MunicipalOntology | None = None,
         semantic_analyzer: SemanticAnalyzer | None = None,
         performance_analyzer: PerformanceAnalyzer | None = None,
@@ -679,20 +678,6 @@ class IndustrialPolicyProcessor:
         confidence_calculator: BayesianConfidenceCalculator | None = None,
         municipal_analyzer: MunicipalAnalyzer | None = None,
     ) -> None:
-        """Initialize IndustrialPolicyProcessor.
-        
-        Args:
-            config: Processor configuration
-            questionnaire_data: Pre-loaded questionnaire data (PREFERRED - via orchestrator)
-            questionnaire_path: Path to questionnaire file (DEPRECATED - only for backward compatibility)
-            ontology: Municipal ontology instance
-            semantic_analyzer: Semantic analyzer instance
-            performance_analyzer: Performance analyzer instance
-            contradiction_detector: Contradiction detector instance
-            temporal_verifier: Temporal logic verifier instance
-            confidence_calculator: Bayesian confidence calculator instance
-            municipal_analyzer: Municipal analyzer instance
-        """
         self.config = config or ProcessorConfig()
         self.config.validate()
 
@@ -710,25 +695,9 @@ class IndustrialPolicyProcessor:
         self.confidence_calculator = confidence_calculator or BayesianConfidenceCalculator()
         self.municipal_analyzer = municipal_analyzer or MunicipalAnalyzer()
 
-        # Get questionnaire data via dependency injection (PREFERRED)
-        # or fall back to loading from file (DEPRECATED)
-        if questionnaire_data is not None:
-            # ✅ CORRECT: Questionnaire provided by orchestrator via dependency injection
-            self.questionnaire_data = questionnaire_data
-            self.questionnaire_file_path = None
-            logger.info(
-                f"PolicyProcessor initialized with injected questionnaire: "
-                f"{len(questionnaire_data.get('questions', []))} questions"
-            )
-        else:
-            # ⚠️ DEPRECATED: Loading from file - only for backward compatibility
-            # This path should only be used in legacy code and will be removed
-            logger.warning(
-                "PolicyProcessor loading questionnaire from file - DEPRECATED. "
-                "Please inject questionnaire_data via orchestrator factory."
-            )
-            self.questionnaire_file_path = questionnaire_path or self.QUESTIONNAIRE_PATH
-            self.questionnaire_data = self._load_questionnaire()
+        # Load canonical questionnaire structure
+        self.questionnaire_file_path = questionnaire_path or self.QUESTIONNAIRE_PATH
+        self.questionnaire_data = self._load_questionnaire()
 
         # Compile pattern taxonomy
         self._pattern_registry = self._compile_pattern_registry()
