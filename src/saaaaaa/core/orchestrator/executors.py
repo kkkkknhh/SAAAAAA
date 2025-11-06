@@ -43,6 +43,7 @@ Memory Requirements:
 
 import logging
 import math
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -87,35 +88,40 @@ class ExecutionMetrics:
 
     def record_execution(self, success: bool, execution_time: float, method_key: str = None) -> None:
         """Record an execution attempt"""
-        self.total_executions += 1
-        if success:
-            self.successful_executions += 1
-        else:
-            self.failed_executions += 1
-        self.total_execution_time += execution_time
-        if method_key:
-            if method_key not in self.method_execution_times:
-                self.method_execution_times[method_key] = []
-            self.method_execution_times[method_key].append(execution_time)
+        with _metrics_lock:
+            self.total_executions += 1
+            if success:
+                self.successful_executions += 1
+            else:
+                self.failed_executions += 1
+            self.total_execution_time += execution_time
+            if method_key:
+                if method_key not in self.method_execution_times:
+                    self.method_execution_times[method_key] = []
+                self.method_execution_times[method_key].append(execution_time)
 
     def record_quantum_optimization(self, convergence_time: float) -> None:
         """Record quantum optimization metrics"""
-        self.quantum_optimizations += 1
-        self.quantum_convergence_times.append(convergence_time)
+        with _metrics_lock:
+            self.quantum_optimizations += 1
+            self.quantum_convergence_times.append(convergence_time)
 
     def record_meta_learner_selection(self, strategy_idx: int) -> None:
         """Record meta-learner strategy selection"""
-        if strategy_idx not in self.meta_learner_strategy_selections:
-            self.meta_learner_strategy_selections[strategy_idx] = 0
-        self.meta_learner_strategy_selections[strategy_idx] += 1
+        with _metrics_lock:
+            if strategy_idx not in self.meta_learner_strategy_selections:
+                self.meta_learner_strategy_selections[strategy_idx] = 0
+            self.meta_learner_strategy_selections[strategy_idx] += 1
 
     def record_information_bottleneck(self) -> None:
         """Record information bottleneck detection"""
-        self.information_bottlenecks_detected += 1
+        with _metrics_lock:
+            self.information_bottlenecks_detected += 1
 
     def record_retry(self) -> None:
         """Record retry attempt"""
-        self.retry_attempts += 1
+        with _metrics_lock:
+            self.retry_attempts += 1
 
     def get_summary(self) -> dict[str, Any]:
         """Get metrics summary"""
@@ -133,8 +139,9 @@ class ExecutionMetrics:
             'retry_attempts': self.retry_attempts,
         }
 
-# Global metrics instance
+# Global metrics instance with thread-safety
 _global_metrics = ExecutionMetrics()
+_metrics_lock = threading.RLock()
 _ARG_UNSET: object = object()
 
 def get_execution_metrics() -> ExecutionMetrics:
