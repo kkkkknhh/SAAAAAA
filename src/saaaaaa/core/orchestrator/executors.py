@@ -41,6 +41,7 @@ Memory Requirements:
 - Large Documents (10MB+): Additional 50-100MB working memory
 """
 
+import asyncio
 import logging
 import math
 import threading
@@ -80,6 +81,34 @@ except Exception:  # pragma: no cover - avoid hard failure if module unavailable
 # ============================================================================
 
 logger = logging.getLogger(__name__)
+
+
+class CircuitBreakerState:
+    """Async-safe circuit breaker state for fault isolation."""
+    
+    def __init__(self):
+        self.failures = 0
+        self.open = False
+        self._lock = asyncio.Lock()
+
+    async def increment_failures(self):
+        """Increment failure count and potentially open circuit."""
+        async with self._lock:
+            self.failures += 1
+            if self.failures >= 3:
+                self.open = True
+    
+    async def reset(self):
+        """Reset circuit breaker state."""
+        async with self._lock:
+            self.failures = 0
+            self.open = False
+    
+    async def is_open(self) -> bool:
+        """Check if circuit is open."""
+        async with self._lock:
+            return self.open
+
 
 @dataclass
 class ExecutionMetrics:
@@ -1091,14 +1120,16 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                         else:
                             results[method_key] = None
                             logger.error(
-                                f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
+                                "Method %s failed",
+                                f"{class_name}.{method_name}",
                                 exc_info=True,
                                 extra={
-                                    'method': method_key,
+                                    'method_key': f"{class_name}.{method_name}",
                                     'class_name': class_name,
                                     'method_name': method_name,
-                                    'attempt': attempt + 1,
-                                    'error_type': type(e).__name__
+                                    'prepared_kwargs_keys': list(prepared_kwargs.keys()),
+                                    'error_type': type(e).__name__,
+                                    'error_details': str(e),
                                 }
                             )
 
@@ -1834,18 +1865,18 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
     def _construct_causal_graph(self, statements: list, instance: Any) -> Any:
         """Construct causal graph from statements with sophisticated extraction"""
         grafo = self._create_empty_graph()
-            
-            # Extract potential causal relationships from statements
-            causal_indicators = [
-                'porque', 'ya que', 'debido a', 'causa', 'resultado',
-                'therefore', 'because', 'due to', 'causes', 'results in',
-                'conduce a', 'genera', 'produce', 'implica'
-            ]
-            
-            nodes = []
-            edges = []
-            
-            for idx, statement in enumerate(statements):
+        
+        # Extract potential causal relationships from statements
+        causal_indicators = [
+            'porque', 'ya que', 'debido a', 'causa', 'resultado',
+            'therefore', 'because', 'due to', 'causes', 'results in',
+            'conduce a', 'genera', 'produce', 'implica'
+        ]
+        
+        nodes = []
+        edges = []
+        
+        for idx, statement in enumerate(statements):
                 if not isinstance(statement, str):
                     continue
                 
@@ -1869,14 +1900,14 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                     # Add as isolated node
                     node_id = f"node_{len(nodes)}"
                     nodes.append(node_id)
-            
-            # Build graph
-            grafo.add_nodes_from(set(nodes))
-            grafo.add_edges_from(edges)
-            
-            logger.debug(f"Constructed causal graph with {len(grafo.nodes())} nodes, {len(grafo.edges())} edges")
-            
-            return grafo
+        
+        # Build graph
+        grafo.add_nodes_from(set(nodes))
+        grafo.add_edges_from(edges)
+        
+        logger.debug(f"Constructed causal graph with {len(grafo.nodes())} nodes, {len(grafo.edges())} edges")
+        
+        return grafo
 
     @staticmethod
     def _compute_pattern_specificity(matches: list[str]) -> float:

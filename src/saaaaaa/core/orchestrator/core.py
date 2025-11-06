@@ -25,7 +25,7 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, TypedDict
 
 from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
@@ -52,6 +52,15 @@ logger = logging.getLogger(__name__)
 # Environment-configurable expectations for validation
 EXPECTED_QUESTION_COUNT = int(os.getenv("EXPECTED_QUESTION_COUNT", "305"))
 EXPECTED_METHOD_COUNT = int(os.getenv("EXPECTED_METHOD_COUNT", "416"))
+PHASE_TIMEOUT_DEFAULT = int(os.getenv("PHASE_TIMEOUT_SECONDS", "300"))
+
+
+class MacroScoreDict(TypedDict):
+    """Typed container for macro score evaluation results."""
+    macro_score: MacroScore
+    macro_score_normalized: float
+    cluster_scores: list[ClusterScore]
+
 
 @dataclass
 class PreprocessedDocument:
@@ -988,7 +997,11 @@ class Orchestrator:
                 if mode == "sync":
                     data = handler(*args)
                 else:
-                    data = await handler(*args)
+                    # Apply timeout for async phases
+                    try:
+                        data = await asyncio.wait_for(handler(*args), timeout=PHASE_TIMEOUT_DEFAULT)
+                    except asyncio.TimeoutError as te:
+                        raise RuntimeError(f"Phase {phase_id} timed out after {PHASE_TIMEOUT_DEFAULT}s") from te
                 success = True
             except AbortRequested as exc:
                 error = exc
@@ -1808,14 +1821,15 @@ class Orchestrator:
 
         instrumentation.increment(latency=time.perf_counter() - start)
         # macro_score is already normalized to 0-1 range from averaging cluster scores
-        # Extract the score field from the MacroScore object
-        macro_score_normalized = macro_score.score if isinstance(macro_score, MacroScore) else macro_score
+        # Extract the score field from the MacroScore object with explicit float conversion
+        macro_score_normalized = float(macro_score.score) if isinstance(macro_score, MacroScore) else float(macro_score)
 
-        return {
+        result: MacroScoreDict = {
             "macro_score": macro_score,
             "macro_score_normalized": macro_score_normalized,
             "cluster_scores": cluster_scores,
         }
+        return result
 
     async def _generate_recommendations(
             self,
