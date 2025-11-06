@@ -24,8 +24,9 @@ def check_file_for_open_ranges(filepath: Path) -> Tuple[bool, List[str]]:
     
     violations = []
     # Match version specifiers more precisely: package_name OPERATOR version
+    # Package names can contain letters, numbers, underscores, hyphens, and dots
     # This avoids false positives from package names or comments
-    version_specifier_pattern = re.compile(r'^[a-zA-Z0-9_-]+\s*(>=|~=|<=|<|>|\*)')
+    version_specifier_pattern = re.compile(r'^[a-zA-Z0-9_.-]+\s*(>=|~=|<=|<|>|\*)')
     
     with open(filepath, 'r') as f:
         for line_num, line in enumerate(f, 1):

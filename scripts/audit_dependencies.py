@@ -65,24 +65,12 @@ LOCAL_MODULES = {
 
 # Standard library modules (Python 3.10+) - should not be listed as dependencies
 # Use sys.stdlib_module_names for Python 3.10+, with fallback for older versions
-try:
-    import sys
-    if hasattr(sys, 'stdlib_module_names'):
-        STDLIB_MODULES = sys.stdlib_module_names
-    else:
-        # Fallback for Python <3.10
-        STDLIB_MODULES = {
-            "abc", "argparse", "ast", "asyncio", "base64", "collections", "concurrent",
-            "contextlib", "copy", "dataclasses", "datetime", "decimal", "enum", "functools",
-            "hashlib", "heapq", "importlib", "inspect", "io", "itertools", "json", "logging",
-            "math", "multiprocessing", "operator", "os", "pathlib", "pickle", "platform",
-            "queue", "random", "re", "shutil", "signal", "socket", "sqlite3", "statistics",
-            "string", "struct", "subprocess", "sys", "tempfile", "textwrap", "threading",
-            "time", "traceback", "types", "typing", "unittest", "urllib", "uuid", "warnings",
-            "weakref", "xml", "zipfile", "zoneinfo"
-        }
-except Exception:
-    # Ultimate fallback if sys is not available
+import sys as _sys
+
+if hasattr(_sys, 'stdlib_module_names'):
+    STDLIB_MODULES = _sys.stdlib_module_names
+else:
+    # Fallback for Python <3.10 - manually maintained list
     STDLIB_MODULES = {
         "abc", "argparse", "ast", "asyncio", "base64", "collections", "concurrent",
         "contextlib", "copy", "dataclasses", "datetime", "decimal", "enum", "functools",
