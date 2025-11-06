@@ -6,7 +6,6 @@ Runs smoke tests for CPPAdapter and CPPIngestionPipeline.
 """
 
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 from typing import Dict, Any
