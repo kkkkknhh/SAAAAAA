@@ -35,6 +35,10 @@ def measure_import_time(module_name: str) -> ImportTiming:
     """
     Measure the time to import a module.
     
+    Note: This measures import time with the module potentially already
+    in sys.modules cache. For accurate first-import timing, run in a
+    fresh Python process.
+    
     Parameters
     ----------
     module_name : str
@@ -45,10 +49,6 @@ def measure_import_time(module_name: str) -> ImportTiming:
     ImportTiming
         Timing result with success status
     """
-    # Clear module from cache if present
-    if module_name in sys.modules:
-        del sys.modules[module_name]
-    
     try:
         start = time.perf_counter()
         importlib.import_module(module_name)

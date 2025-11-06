@@ -156,9 +156,9 @@ def check_import_available(modname: str) -> bool:
     ...     pass
     """
     try:
-        importlib.util.find_spec(modname)
-        return True
-    except (ImportError, ModuleNotFoundError, ValueError):
+        spec = importlib.util.find_spec(modname)
+        return spec is not None
+    except (ImportError, ModuleNotFoundError, ValueError, AttributeError):
         return False
 
 
@@ -184,7 +184,12 @@ def get_import_version(modname: str) -> str | None:
     '1.26.4'
     """
     try:
-        from importlib.metadata import version
+        # Python 3.8+ has importlib.metadata
+        if sys.version_info >= (3, 8):
+            from importlib.metadata import version
+        else:
+            # Fallback for older Python (should not happen with our min version)
+            from importlib_metadata import version  # type: ignore
         return version(modname)
     except Exception:
         return None

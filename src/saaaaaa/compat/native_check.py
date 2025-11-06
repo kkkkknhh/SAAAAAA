@@ -163,7 +163,8 @@ def check_wheel_compatibility(package: str) -> NativeCheckResult:
     
     try:
         # Try to import and check __file__ for wheel origin
-        mod = __import__(package)
+        import importlib
+        mod = importlib.import_module(package)
         if hasattr(mod, "__file__") and mod.__file__:
             file_path = mod.__file__
             # Check if installed from wheel (dist-info present)

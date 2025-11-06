@@ -71,17 +71,12 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     # Python < 3.11 needs tomli package
-    _tomli = try_import(
+    # try_import with required=True will raise if missing
+    tomllib = try_import(  # type: ignore[assignment]
         "tomli",
         required=True,
         hint="Python < 3.11 requires 'tomli' package. Install with: pip install tomli",
     )
-    if _tomli is None:
-        raise ImportErrorDetailed(
-            "TOML support requires 'tomli' on Python < 3.11. "
-            "Install with: pip install tomli"
-        )
-    tomllib = _tomli  # type: ignore[assignment]
 
 
 # ============================================================================
@@ -92,17 +87,13 @@ try:
     from importlib.resources import files as resources_files
 except ImportError:
     # Python < 3.9 needs importlib_resources backport
+    # try_import with required=True will raise if missing
     _resources = try_import(
         "importlib_resources",
         required=True,
         hint="Python < 3.9 requires 'importlib_resources'. "
              "Install with: pip install importlib-resources",
     )
-    if _resources is None:
-        raise ImportErrorDetailed(
-            "Resource files API requires 'importlib_resources' on Python < 3.9. "
-            "Install with: pip install importlib-resources"
-        )
     resources_files = _resources.files  # type: ignore[attr-defined]
 
 

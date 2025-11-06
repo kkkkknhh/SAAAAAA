@@ -41,11 +41,13 @@ def extract_imports(file_path: Path) -> set[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                imports.add(alias.name.split(".")[0])
+                # Keep full module path for better cycle detection
+                imports.add(alias.name)
         
         elif isinstance(node, ast.ImportFrom):
             if node.module and node.level == 0:  # Absolute import
-                imports.add(node.module.split(".")[0])
+                # Keep full module path for better cycle detection
+                imports.add(node.module)
     
     return imports
 
