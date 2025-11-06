@@ -1,4 +1,23 @@
-.PHONY: install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports audit-paths test-paths fix-paths ci-prep-dirs
+.PHONY: help install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports audit-paths test-paths fix-paths ci-prep-dirs
+
+# Default target: show help
+.DEFAULT_GOAL := help
+
+# Show available make targets
+help:
+	@echo "Available make targets:"
+	@echo "  make install         - Install all dependencies and setup for development (alias for setup)"
+	@echo "  make setup           - Install dependencies (requirements.txt + requirements-dev.txt) and package"
+	@echo "  make verify          - Run all verification checks (compilation, linting, testing)"
+	@echo "  make clean           - Remove build artifacts and cache files"
+	@echo "  make validate-schema - Validate questionnaire monolith against JSON Schema"
+	@echo "  make equip           - Verify environment readiness (Python, native, compatibility)"
+	@echo "  make audit-imports   - Run comprehensive import system checks"
+	@echo "  make audit-paths     - Run comprehensive path usage and portability checks"
+	@echo "  make test-paths      - Run path validation tests"
+	@echo "  make ci-prep-dirs    - Create required directories for CI/CD"
+	@echo ""
+	@echo "Note: Run 'make setup' first to install all required dependencies."
 
 # Install dependencies and setup the package for development
 install: setup
@@ -7,6 +26,8 @@ install: setup
 setup:
 	@echo "Installing Python dependencies..."
 	@pip install -r requirements.txt
+	@echo "Installing development dependencies..."
+	@pip install -r requirements-dev.txt
 	@echo "Installing package in editable mode..."
 	@pip install -e .
 	@echo "✓ Setup complete! Package installed and ready to use."
