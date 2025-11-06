@@ -25,6 +25,7 @@ from .models import (
     PolicyFacet,
     PolicyManifest,
     ProvenanceMap,
+    TextSpan,
     TimeFacet,
 )
 from .pipeline import CPPIngestionPipeline
@@ -45,5 +46,6 @@ __all__ = [
     "PolicyManifest",
     "ProvenanceMap",
     "QualityGates",
+    "TextSpan",
     "TimeFacet",
 ]

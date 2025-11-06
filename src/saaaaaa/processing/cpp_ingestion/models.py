@@ -313,6 +313,7 @@ class IngestionOutcome:
     """
     status: str  # "OK" or "ABORT"
     cpp_uri: Optional[str] = None
+    cpp: Optional["CanonPolicyPackage"] = None
     policy_manifest: Optional[PolicyManifest] = None
     metrics: Optional[QualityMetrics] = None
     fingerprints: Dict[str, Any] = field(default_factory=dict)
