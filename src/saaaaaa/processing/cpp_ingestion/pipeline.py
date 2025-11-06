@@ -171,6 +171,7 @@ class CPPIngestionPipeline:
             outcome = IngestionOutcome(
                 status="OK",
                 cpp_uri=str(cpp_path),
+                cpp=cpp,
                 policy_manifest=cpp.policy_manifest,
                 metrics=cpp.quality_metrics,
                 fingerprints={
