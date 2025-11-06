@@ -232,6 +232,13 @@ markers = [
     "contract: Contract tests for API boundaries",
     "property: Property-based tests with Hypothesis",
     "integration: Integration tests",
+    "updated: Tests actualizados y compatibles con arquitectura actual",
+    "outdated: Tests obsoletos - no ejecutar",
+    "core: Tests críticos del núcleo",
+    "validation: Tests de validación y calidad",
+    "gold: Tests de estándares de oro",
+    "operational: Tests operacionales",
+    "regression: Tests de regresión",
 ]
 
 [tool.coverage.run]

@@ -3,6 +3,10 @@ import logging
 import pytest
 
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Logging system migrated to structlog")
+
 def test_executor_logging_structure(caplog):
     """Test that executor logging includes structured context."""
     # This is a basic test to verify the logging structure

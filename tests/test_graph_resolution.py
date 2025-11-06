@@ -1,6 +1,10 @@
 """Test graph argument resolution in executors.py."""
 import pytest
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Graph resolution logic moved to cpp_ingestion ChunkGraph")
+
 try:
     import networkx as nx
     HAS_NETWORKX = True

@@ -6,11 +6,16 @@ Tests that verify API contracts are maintained across module boundaries.
 Every public function/class gets a test that validates documented input/output shapes.
 
 If a signature or schema drifts, the contract test breaks before production does.
+
+NOTE: This test file is OUTDATED. Use test_contracts_comprehensive.py instead.
 """
 
 from typing import Any
 
 import pytest
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="outdated - use test_contracts_comprehensive.py")
 
 from saaaaaa.contracts import (
     MISSING,

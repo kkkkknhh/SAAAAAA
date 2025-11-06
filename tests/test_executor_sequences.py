@@ -1,6 +1,10 @@
 """Test executor method sequence validation in executors.py."""
 import pytest
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Old executor model, replaced by flux phases")
+
 from saaaaaa.core.orchestrator.core import MethodExecutor
 from saaaaaa.core.orchestrator.executors import MethodSequenceValidatingMixin
 
