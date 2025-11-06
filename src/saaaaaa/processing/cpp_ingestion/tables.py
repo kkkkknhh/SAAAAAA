@@ -279,9 +279,9 @@ class TableExtractor:
         
         return None
     
-    def _parse_numeric(self, text: str) -> Optional[float]:
+    def _parse_numeric(self, text: Any) -> Optional[float]:
         """Parse numeric value from text."""
-        if not text:
+        if text is None or not text:
             return None
         
         try:
@@ -298,9 +298,9 @@ class TableExtractor:
         except (ValueError, AttributeError):
             return None
     
-    def _parse_currency(self, text: str) -> Optional[float]:
+    def _parse_currency(self, text: Any) -> Optional[float]:
         """Parse currency value from text."""
-        if not text:
+        if text is None or not text:
             return None
         
         try:
