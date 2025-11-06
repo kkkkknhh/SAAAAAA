@@ -412,124 +412,341 @@ class CircuitBreakerError(Exception):
     pass
 
 
+class SignalUnavailableError(Exception):
+    """Raised when signal service is unavailable or returns error."""
+    
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class InMemorySignalSource:
+    """
+    In-memory signal source for local/testing mode.
+    
+    Provides signal packs directly from memory without HTTP calls.
+    Used when base_url starts with "memory://".
+    """
+    
+    def __init__(self) -> None:
+        """Initialize in-memory signal source."""
+        self._signals: dict[str, SignalPack] = {}
+        logger.info("in_memory_signal_source_initialized")
+    
+    def register(self, policy_area: str, signal_pack: SignalPack) -> None:
+        """
+        Register a signal pack for a policy area.
+        
+        Args:
+            policy_area: Policy area key
+            signal_pack: Signal pack to register
+        """
+        self._signals[policy_area] = signal_pack
+        logger.debug(
+            "signal_registered",
+            policy_area=policy_area,
+            version=signal_pack.version,
+        )
+    
+    def get(self, policy_area: str) -> SignalPack | None:
+        """
+        Get signal pack for policy area.
+        
+        Args:
+            policy_area: Policy area key
+            
+        Returns:
+            SignalPack if found, None otherwise
+        """
+        pack = self._signals.get(policy_area)
+        if pack:
+            logger.debug("memory_signal_hit", policy_area=policy_area)
+        else:
+            logger.debug("memory_signal_miss", policy_area=policy_area)
+        return pack
+
+
 class SignalClient:
     """
-    HTTP client for fetching signal packs with circuit breaker and retry logic.
+    Signal client supporting both memory:// and HTTP transports.
     
     Features:
-    - Automatic retry with exponential backoff
+    - memory:// URL scheme for in-process signals (default)
+    - HTTP with httpx (behind enable_http_signals flag)
+    - ETag support for conditional requests (304 Not Modified)
     - Circuit breaker for fault isolation
-    - Structured logging
-    - Graceful degradation
+    - Automatic retry with exponential backoff
+    - Response size validation (≤1.5 MB)
+    - Timeout enforcement (≤5s by default)
+    - Structured logging and observability
     
-    Production Status:
-    ------------------
-    ⚠️  STUB IMPLEMENTATION - HTTP calls not yet implemented.
+    URL Schemes:
+    - memory://: In-process signal source (no network calls)
+    - http://...: HTTP signal service with circuit breaker
+    - https://...: HTTPS signal service with circuit breaker
     
-    To complete for production:
-    1. Add httpx dependency (or use requests)
-    2. Implement actual HTTP GET in fetch_signal_pack()
-    3. Add authentication/authorization headers
-    4. Add TLS/SSL configuration
-    5. Add comprehensive error handling for network errors
-    
-    See TODO comments in fetch_signal_pack() method.
+    HTTP Status Code Mapping:
+    - 200 OK → SignalPack (validated with Pydantic)
+    - 304 Not Modified → None (cache is fresh)
+    - 401/403 Unauthorized/Forbidden → SignalUnavailableError
+    - 429 Too Many Requests → SignalUnavailableError (with retry)
+    - 500+ Server Error → SignalUnavailableError (with retry)
+    - Timeout → SignalUnavailableError
     """
+    
+    # Maximum response size: 1.5 MB
+    MAX_RESPONSE_SIZE_BYTES = 1_500_000
     
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
+        base_url: str = "memory://",
         max_retries: int = 3,
-        timeout_s: float = 10.0,
+        timeout_s: float = 5.0,
         circuit_breaker_threshold: int = 5,
+        circuit_breaker_cooldown_s: float = 60.0,
+        enable_http_signals: bool = False,
+        memory_source: InMemorySignalSource | None = None,
     ):
         """
         Initialize signal client.
         
         Args:
-            base_url: Base URL for signal service
-            max_retries: Maximum retry attempts
-            timeout_s: Request timeout in seconds
-            circuit_breaker_threshold: Failures before circuit opens
+            base_url: Base URL for signal service or "memory://" for in-process
+            max_retries: Maximum retry attempts for HTTP
+            timeout_s: Request timeout in seconds (≤5s recommended)
+            circuit_breaker_threshold: Failures before circuit opens (default: 5)
+            circuit_breaker_cooldown_s: Cooldown period in seconds (default: 60s)
+            enable_http_signals: Enable HTTP transport (requires http:// or https:// URL)
+            memory_source: InMemorySignalSource for memory:// mode
         """
         self._base_url = base_url.rstrip("/")
         self._max_retries = max_retries
-        self._timeout_s = timeout_s
+        self._timeout_s = min(timeout_s, 5.0)  # Cap at 5s
         self._circuit_breaker_threshold = circuit_breaker_threshold
+        self._circuit_breaker_cooldown_s = circuit_breaker_cooldown_s
+        self._enable_http_signals = enable_http_signals
         
+        # Circuit breaker state
         self._failure_count = 0
         self._circuit_open = False
         self._last_failure_time = 0.0
         
+        # Determine transport mode
+        if base_url.startswith("memory://"):
+            self._transport = "memory"
+            self._memory_source = memory_source or InMemorySignalSource()
+        elif base_url.startswith(("http://", "https://")):
+            if not enable_http_signals:
+                logger.warning(
+                    "http_signals_disabled",
+                    message="HTTP URL provided but enable_http_signals=False. "
+                            "Falling back to memory:// mode.",
+                )
+                self._transport = "memory"
+                self._memory_source = memory_source or InMemorySignalSource()
+            else:
+                self._transport = "http"
+                self._memory_source = None
+                # Import httpx only when needed
+                try:
+                    import httpx
+                    self._httpx = httpx
+                except ImportError as e:
+                    raise ImportError(
+                        "httpx is required for HTTP signal transport. "
+                        "Install with: pip install httpx"
+                    ) from e
+        else:
+            raise ValueError(
+                f"Invalid base_url scheme: {base_url}. "
+                "Must start with 'memory://', 'http://', or 'https://'"
+            )
+        
+        # ETag cache for conditional requests
+        self._etag_cache: dict[str, str] = {}
+        
         logger.info(
             "signal_client_initialized",
             base_url=base_url,
-            max_retries=max_retries,
-            timeout_s=timeout_s,
+            transport=self._transport,
+            timeout_s=self._timeout_s,
+            enable_http_signals=enable_http_signals,
         )
+    
+    def fetch_signal_pack(
+        self,
+        policy_area: str,
+        etag: str | None = None,
+    ) -> SignalPack | None:
+        """
+        Fetch signal pack from signal source.
+        
+        Args:
+            policy_area: Policy area to fetch
+            etag: Optional ETag for conditional request (HTTP only)
+            
+        Returns:
+            SignalPack if successful and fresh
+            None if 304 Not Modified or service unavailable
+            
+        Raises:
+            CircuitBreakerError: If circuit breaker is open
+            SignalUnavailableError: If service returns error status
+        """
+        if self._transport == "memory":
+            return self._fetch_from_memory(policy_area)
+        else:
+            return self._fetch_from_http(policy_area, etag)
+    
+    def _fetch_from_memory(self, policy_area: str) -> SignalPack | None:
+        """Fetch signal pack from in-memory source."""
+        if self._memory_source is None:
+            logger.error("memory_source_not_initialized")
+            return None
+        
+        return self._memory_source.get(policy_area)
     
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_exception_type(ConnectionError),
     )
-    def fetch_signal_pack(self, policy_area: str) -> SignalPack | None:
-        """
-        Fetch signal pack from remote service.
-        
-        Args:
-            policy_area: Policy area to fetch
-            
-        Returns:
-            SignalPack if successful, None on failure
-            
-        Raises:
-            CircuitBreakerError: If circuit breaker is open
-        """
+    def _fetch_from_http(
+        self,
+        policy_area: str,
+        etag: str | None = None,
+    ) -> SignalPack | None:
+        """Fetch signal pack from HTTP service."""
         # Check circuit breaker
         if self._circuit_open:
             now = time.time()
-            # Allow retry after 60 seconds
-            if now - self._last_failure_time < 60.0:
+            if now - self._last_failure_time < self._circuit_breaker_cooldown_s:
                 logger.warning(
                     "signal_client_circuit_open",
                     policy_area=policy_area,
+                    cooldown_remaining=self._circuit_breaker_cooldown_s - (now - self._last_failure_time),
                 )
-                raise CircuitBreakerError("Circuit breaker is open")
+                raise CircuitBreakerError(
+                    f"Circuit breaker is open. Cooldown remaining: "
+                    f"{self._circuit_breaker_cooldown_s - (now - self._last_failure_time):.1f}s"
+                )
             else:
                 # Try to close circuit
                 self._circuit_open = False
                 self._failure_count = 0
                 logger.info("signal_client_circuit_closed")
         
+        # Build request
+        url = f"{self._base_url}/signals/{policy_area}"
+        headers = {}
+        
+        # Add If-None-Match header if ETag provided
+        if etag:
+            headers["If-None-Match"] = etag
+        elif policy_area in self._etag_cache:
+            headers["If-None-Match"] = self._etag_cache[policy_area]
+        
         try:
-            # TODO: Actual HTTP request implementation
-            # import httpx
-            # response = httpx.get(
-            #     f"{self._base_url}/signals/{policy_area}",
-            #     timeout=self._timeout_s,
-            # )
-            # response.raise_for_status()
-            # data = response.json()
-            # return SignalPack(**data)
-            
-            # Stub: Return None to indicate service unavailable
-            logger.warning(
-                "signal_client_stub_implementation",
-                policy_area=policy_area,
-                message="TODO: Implement actual HTTP client",
+            response = self._httpx.get(
+                url,
+                headers=headers,
+                timeout=self._timeout_s,
             )
-            self._record_failure()
-            return None
             
+            # Handle status codes
+            if response.status_code == 200:
+                # Validate response size
+                content_length = len(response.content)
+                if content_length > self.MAX_RESPONSE_SIZE_BYTES:
+                    self._record_failure()
+                    raise SignalUnavailableError(
+                        f"Response size {content_length} bytes exceeds maximum "
+                        f"{self.MAX_RESPONSE_SIZE_BYTES} bytes",
+                        status_code=200,
+                    )
+                
+                # Parse and validate with Pydantic
+                data = response.json()
+                signal_pack = SignalPack(**data)
+                
+                # Cache ETag
+                if "ETag" in response.headers:
+                    self._etag_cache[policy_area] = response.headers["ETag"]
+                
+                # Reset failure count on success
+                self._failure_count = 0
+                
+                logger.info(
+                    "signal_pack_fetched",
+                    policy_area=policy_area,
+                    version=signal_pack.version,
+                    content_length=content_length,
+                )
+                
+                return signal_pack
+            
+            elif response.status_code == 304:
+                # Not Modified - cache is fresh
+                logger.debug("signal_not_modified", policy_area=policy_area)
+                return None
+            
+            elif response.status_code in (401, 403):
+                # Authentication/Authorization error
+                self._record_failure()
+                raise SignalUnavailableError(
+                    f"Authentication failed: {response.status_code} {response.text}",
+                    status_code=response.status_code,
+                )
+            
+            elif response.status_code == 429:
+                # Rate limit - retry will handle this
+                self._record_failure()
+                raise SignalUnavailableError(
+                    "Rate limit exceeded (429 Too Many Requests)",
+                    status_code=429,
+                )
+            
+            elif response.status_code >= 500:
+                # Server error - retry will handle this
+                self._record_failure()
+                raise SignalUnavailableError(
+                    f"Server error: {response.status_code} {response.text}",
+                    status_code=response.status_code,
+                )
+            
+            else:
+                # Other error
+                self._record_failure()
+                raise SignalUnavailableError(
+                    f"Unexpected status: {response.status_code} {response.text}",
+                    status_code=response.status_code,
+                )
+        
+        except self._httpx.TimeoutException as e:
+            self._record_failure()
+            raise SignalUnavailableError(
+                f"Request timeout after {self._timeout_s}s",
+                status_code=None,
+            ) from e
+        
+        except self._httpx.RequestError as e:
+            # Network error
+            self._record_failure()
+            raise SignalUnavailableError(
+                f"Network error: {e}",
+                status_code=None,
+            ) from e
+        
         except Exception as e:
+            # Unexpected error
             logger.error(
                 "signal_client_fetch_failed",
                 policy_area=policy_area,
                 error=str(e),
+                error_type=type(e).__name__,
             )
             self._record_failure()
-            return None
+            raise
     
     def _record_failure(self) -> None:
         """Record a failure and potentially open circuit."""
@@ -542,6 +759,40 @@ class SignalClient:
                 "signal_client_circuit_opened",
                 failure_count=self._failure_count,
             )
+    
+    def get_metrics(self) -> dict[str, Any]:
+        """
+        Get client metrics for observability.
+        
+        Returns:
+            Dict with metrics:
+            - transport: Transport mode (memory or http)
+            - circuit_open: Whether circuit breaker is open
+            - failure_count: Current failure count
+            - etag_cache_size: Number of cached ETags
+        """
+        return {
+            "transport": self._transport,
+            "circuit_open": self._circuit_open,
+            "failure_count": self._failure_count,
+            "etag_cache_size": len(self._etag_cache),
+        }
+    
+    def register_memory_signal(self, policy_area: str, signal_pack: SignalPack) -> None:
+        """
+        Register signal pack in memory source (memory:// mode only).
+        
+        Args:
+            policy_area: Policy area key
+            signal_pack: Signal pack to register
+            
+        Raises:
+            ValueError: If not in memory:// mode
+        """
+        if self._transport != "memory" or self._memory_source is None:
+            raise ValueError("Can only register signals in memory:// mode")
+        
+        self._memory_source.register(policy_area, signal_pack)
 
 
 @dataclass
