@@ -91,7 +91,9 @@ def verify_file(filepath: Path) -> Tuple[bool, List[str]]:
 
 def main():
     """Main verification function."""
-    repo_root = Path('/home/runner/work/SAAAAAA/SAAAAAA')
+    # Detect repository root by looking for pyproject.toml
+    current = Path(__file__).resolve().parent.parent
+    repo_root = current
     src_path = repo_root / 'src'
     
     # Add src to path for import testing FIRST
