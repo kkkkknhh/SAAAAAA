@@ -1,75 +1,67 @@
 {
   "imports_by_file": {},
   "missing_packages": [
-    "tabula-py",
-    "pymc",
-    "flask-cors",
-    "torch",
-    "tenacity",
-    "beautifulsoup4",
-    "pydantic",
-    "pyarrow",
-    "numpy",
-    "hypothesis",
-    "flask-socketio",
-    "opentelemetry",
-    "camelot-py",
-    "scipy",
-    "scikit-learn",
-    "psutil",
-    "fastapi",
-    "PyPDF2",
-    "httpx",
-    "spacy",
     "uvicorn",
-    "pandas",
-    "structlog",
-    "flask",
-    "typer",
-    "langdetect",
+    "python-docx",
     "fuzzywuzzy",
+    "structlog",
+    "pymc",
+    "httpx",
     "werkzeug",
+    "pydantic",
+    "networkx",
+    "pandas",
+    "camelot-py",
     "pdfplumber",
     "PyMuPDF",
-    "sse-starlette",
-    "networkx",
-    "python-docx",
-    "pytest",
-    "polars",
-    "transformers",
+    "fastapi",
+    "beautifulsoup4",
+    "PyPDF2",
+    "sentence_transformers",
     "pydot",
+    "opentelemetry",
     "nltk",
+    "pyarrow",
+    "hypothesis",
+    "transformers",
+    "numpy",
+    "flask",
+    "typer",
+    "torch",
+    "tabula-py",
     "blake3",
-    "sentence_transformers"
+    "polars",
+    "flask-cors",
+    "sse-starlette",
+    "scipy",
+    "pytest",
+    "scikit-learn",
+    "langdetect",
+    "tenacity",
+    "spacy",
+    "flask-socketio",
+    "psutil"
   ],
   "package_classification": {
     "core_runtime": [
       "PyPDF2",
-      "__future__",
       "blake3",
       "beautifulsoup4",
-      "csv",
       "python-docx",
       "fastapi",
       "PyMuPDF",
       "flask",
-      "fnmatch",
-      "glob",
-      "hmac",
       "httpx",
       "jsonschema",
       "networkx",
-      "numbers",
       "numpy",
       "opentelemetry",
       "pandas",
       "pdfplumber",
-      "pkgutil",
       "polars",
       "pyarrow",
       "pydantic",
       "pymc",
-      "resource",
       "scipy",
       "sentence_transformers",
       "scikit-learn",
@@ -81,7 +73,6 @@
       "transformers",
       "typer",
       "typing_extensions",
-      "unicodedata",
       "uvicorn",
       "werkzeug",
       "pyyaml"
@@ -112,62 +103,6 @@
       "src/saaaaaa/processing/document_ingestion.py",
       "src/saaaaaa/analysis/Analyzer_one.py"
     ],
-    "__future__": [
-      "src/saaaaaa/api/signals_service.py",
-      "src/saaaaaa/concurrency/concurrency.py",
-      "src/saaaaaa/utils/schema_monitor.py",
-      "src/saaaaaa/utils/adapters.py",
-      "src/saaaaaa/utils/cpp_adapter.py",
-      "src/saaaaaa/utils/contracts.py",
-      "src/saaaaaa/utils/json_contract_loader.py",
-      "src/saaaaaa/utils/evidence_registry.py",
-      "src/saaaaaa/processing/embedding_policy.py",
-      "src/saaaaaa/processing/semantic_chunking_policy.py",
-      "src/saaaaaa/processing/aggregation.py",
-      "src/saaaaaa/flux/phases.py",
-      "src/saaaaaa/flux/cli.py",
-      "src/saaaaaa/flux/gates.py",
-      "src/saaaaaa/flux/configs.py",
-      "src/saaaaaa/flux/__init__.py",
-      "src/saaaaaa/flux/models.py",
-      "src/saaaaaa/analysis/meso_cluster_analysis.py",
-      "src/saaaaaa/analysis/Analyzer_one.py",
-      "src/saaaaaa/analysis/bayesian_multilevel_system.py",
-      "src/saaaaaa/analysis/financiero_viabilidad_tablas.py",
-      "src/saaaaaa/analysis/micro_prompts.py",
-      "src/saaaaaa/analysis/contradiction_deteccion.py",
-      "src/saaaaaa/utils/determinism/seeds.py",
-      "src/saaaaaa/utils/validation/golden_rule.py",
-      "src/saaaaaa/utils/validation/architecture_validator.py",
-      "src/saaaaaa/core/orchestrator/signals.py",
-      "src/saaaaaa/core/orchestrator/arg_router_extended.py",
-      "src/saaaaaa/core/orchestrator/core_module_factory.py",
-      "src/saaaaaa/core/orchestrator/executor_config.py",
-      "src/saaaaaa/core/orchestrator/questionnaire_resource_provider.py",
-      "src/saaaaaa/core/orchestrator/evidence_registry.py",
-      "src/saaaaaa/core/orchestrator/core.py",
-      "src/saaaaaa/core/orchestrator/arg_router.py",
-      "src/saaaaaa/core/orchestrator/contract_loader.py",
-      "src/saaaaaa/core/orchestrator/choreographer.py",
-      "src/saaaaaa/core/orchestrator/class_registry.py",
-      "src/saaaaaa/analysis/scoring/scoring.py",
-      "recommendation_engine.py",
-      "policy_processor.py",
-      "tests/test_embedding_policy_contracts.py",
-      "tests/test_arg_router.py",
-      "tests/test_signals.py",
-      "tests/test_flux_integration.py",
-      "tests/test_flux_contracts.py",
-      "tests/test_cpp_adapter.py",
-      "tests/test_contract_snapshots.py",
-      "tests/test_regression_semantic_chunking.py",
-      "tests/test_system_audit.py",
-      "tests/test_boundaries.py",
-      "tests/test_signal_integration_e2e.py",
-      "examples/flux_demo.py",
-      "scripts/update_questionnaire_metadata.py",
-      "scripts/bootstrap_validate.py"
-    ],
     "beautifulsoup4": [
       "src/saaaaaa/processing/cpp_ingestion/parsers.py"
     ],
@@ -178,10 +113,6 @@
     ],
     "camelot-py": [
       "src/saaaaaa/analysis/financiero_viabilidad_tablas.py"
-    ],
-    "csv": [
-      "src/saaaaaa/analysis/factory.py",
-      "scripts/inventory_generator.py"
     ],
     "fastapi": [
       "src/saaaaaa/api/signals_service.py"
@@ -195,17 +126,8 @@
     "flask-socketio": [
       "src/saaaaaa/api/api_server.py"
     ],
-    "fnmatch": [
-      "runtime_audit.py"
-    ],
     "fuzzywuzzy": [
       "src/saaaaaa/analysis/dereck_beach.py"
-    ],
-    "glob": [
-      "src/saaaaaa/core/orchestrator/contract_loader.py"
-    ],
-    "hmac": [
-      "src/saaaaaa/utils/seed_factory.py"
     ],
     "httpx": [
       "src/saaaaaa/core/orchestrator/signals.py",
@@ -240,9 +162,6 @@
     ],
     "nltk": [
       "src/saaaaaa/analysis/Analyzer_one.py"
-    ],
-    "numbers": [
-      "src/saaaaaa/analysis/scoring/scoring.py"
     ],
     "numpy": [
       "src/saaaaaa/utils/runtime_error_fixes.py",
@@ -279,10 +198,6 @@
       "src/saaaaaa/processing/factory.py",
       "src/saaaaaa/analysis/factory.py",
       "src/saaaaaa/processing/cpp_ingestion/parsers.py"
-    ],
-    "pkgutil": [
-      "tests/test_smoke_imports.py",
-      "tests/test_boundaries.py"
     ],
     "polars": [
       "src/saaaaaa/flux/phases.py",
@@ -364,6 +279,7 @@
       "tests/test_flux_contracts.py",
       "tests/test_executor_monitoring.py",
       "tests/test_schema_validation.py",
+      "tests/test_dependency_management.py",
       "tests/test_cpp_ingestion.py",
       "tests/test_class_registry_paths.py",
       "tests/test_cpp_adapter.py",
@@ -396,9 +312,6 @@
       "src/saaaaaa/utils/metadata_loader.py",
       "src/saaaaaa/analysis/factory.py",
       "src/saaaaaa/analysis/dereck_beach.py"
-    ],
-    "resource": [
-      "src/saaaaaa/core/orchestrator/core.py"
     ],
     "scikit-learn": [
       "src/saaaaaa/processing/embedding_policy.py",
@@ -463,12 +376,6 @@
       "src/saaaaaa/utils/core_contracts.py",
       "src/saaaaaa/utils/validation/aggregation_models.py"
     ],
-    "unicodedata": [
-      "src/saaaaaa/processing/document_ingestion.py",
-      "src/saaaaaa/processing/policy_processor.py",
-      "src/saaaaaa/processing/cpp_ingestion/pipeline.py",
-      "tests/test_cpp_ingestion.py"
-    ],
     "uvicorn": [
       "src/saaaaaa/api/signals_service.py"
     ],
@@ -479,7 +386,7 @@
   "summary": {
     "installed_packages": 83,
     "missing_packages": 40,
-    "total_files_scanned": 228,
+    "total_files_scanned": 233,
     "total_unique_imports": 131
   }
 }
