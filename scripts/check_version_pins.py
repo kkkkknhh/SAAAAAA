@@ -26,7 +26,9 @@ def check_file_for_open_ranges(filepath: Path) -> Tuple[bool, List[str]]:
     # Match version specifiers more precisely: package_name OPERATOR version
     # Package names can contain letters, numbers, underscores, hyphens, and dots
     # This avoids false positives from package names or comments
-    version_specifier_pattern = re.compile(r'^[a-zA-Z0-9_.-]+\s*(>=|~=|<=|<|>|\*)')
+    # Note: The pattern checks for version operators (>=, ~=, etc.) not HTML tags
+    # CodeQL alert py/bad-tag-filter is a false positive - we're not parsing HTML
+    version_specifier_pattern = re.compile(r'^[a-zA-Z0-9_.-]+\s*(>=|~=|<=|<|>|\*)')  # noqa: DUO138
     
     with open(filepath, 'r') as f:
         for line_num, line in enumerate(f, 1):
