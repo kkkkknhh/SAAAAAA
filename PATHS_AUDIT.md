@@ -43,12 +43,12 @@
   - Code: `outside = Path("/tmp/malicious.txt")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **tests/paths/test_paths_no_absolutes.py:52**
+- **tests/paths/test_paths_no_absolutes.py:55**
   - Absolute Unix path detected
-  - Code: `if 'native_check.py' in str(py_file) and '/usr/lib' in line:`
+  - Code: `if 'native_check.py' in str(py_file) and ('/usr/lib' in line or '/usr/local/lib' in line):`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **tests/paths/test_paths_no_absolutes.py:55**
+- **tests/paths/test_paths_no_absolutes.py:61**
   - Absolute Unix path detected
   - Code: `if 'test_' in str(py_file) and '/tmp/' in line:`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
