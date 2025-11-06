@@ -7,6 +7,8 @@ install: setup
 setup:
 	@echo "Installing Python dependencies..."
 	@pip install -r requirements.txt
+	@echo "Installing development dependencies..."
+	@pip install -r requirements-dev.txt
 	@echo "Installing package in editable mode..."
 	@pip install -e .
 	@echo "✓ Setup complete! Package installed and ready to use."
