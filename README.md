@@ -8,7 +8,12 @@
 
 ### Quick Installation
 
-**For development:**
+**For development (recommended):**
+```bash
+make setup    # Installs requirements.txt + requirements-dev.txt + package in editable mode
+```
+
+**Or manually:**
 ```bash
 pip install -r requirements-dev.txt
 ```
@@ -35,16 +40,22 @@ This project uses a comprehensive dependency management system with:
 - `requirements-dev.txt` - Development tools (includes core)
 - `DEPENDENCIES_AUDIT.md` - Complete dependency documentation
 
-**Verification commands:**
+**Setup and verification commands:**
 ```bash
-# Verify all dependencies
-make deps:verify
+# Install all dependencies (runtime + dev tools)
+make setup
 
-# Run dependency audit
-make deps:audit
+# Run all verification checks
+make verify
+
+# Run import audit
+make audit-imports
 
 # Check importability
 python3 scripts/verify_importability.py
+
+# See all available commands
+make help
 ```
 
 **For detailed dependency information:** See [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md)
