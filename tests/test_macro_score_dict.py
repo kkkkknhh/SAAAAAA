@@ -10,7 +10,11 @@ def test_macro_score_dict_structure():
     # Create a sample MacroScore and ClusterScore
     macro_score = MacroScore(
         score=0.75,
-        confidence=0.9,
+        quality_level="ALTO",
+        cross_cutting_coherence=0.8,
+        systemic_gaps=[],
+        strategic_alignment=0.9,
+        cluster_scores=[],
         validation_passed=True,
         validation_details={}
     )
@@ -18,8 +22,11 @@ def test_macro_score_dict_structure():
     cluster_scores = [
         ClusterScore(
             cluster_id="C1",
+            cluster_name="Cluster 1",
+            areas=["area1"],
             score=0.8,
-            confidence=0.85,
+            coherence=0.85,
+            area_scores=[],
             validation_passed=True,
             validation_details={}
         )
@@ -43,7 +50,11 @@ def test_macro_score_dict_all_keys_present():
     """Test that MacroScoreDict has all required keys."""
     macro_score = MacroScore(
         score=0.65,
-        confidence=0.8,
+        quality_level="MEDIO",
+        cross_cutting_coherence=0.7,
+        systemic_gaps=[],
+        strategic_alignment=0.8,
+        cluster_scores=[],
         validation_passed=True,
         validation_details={}
     )
@@ -64,7 +75,11 @@ def test_macro_score_normalized_is_float():
     """Test that macro_score_normalized is always a float."""
     macro_score = MacroScore(
         score=0.5,
-        confidence=0.7,
+        quality_level="MEDIO",
+        cross_cutting_coherence=0.6,
+        systemic_gaps=[],
+        strategic_alignment=0.7,
+        cluster_scores=[],
         validation_passed=True,
         validation_details={}
     )
