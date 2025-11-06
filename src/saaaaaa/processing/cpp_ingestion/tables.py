@@ -8,6 +8,25 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 
+def _safe_strip(value: Any) -> str:
+    """
+    Safely convert a value to a stripped string.
+    
+    Handles None values and non-string types without raising errors.
+    
+    Args:
+        value: Any value from a table cell
+        
+    Returns:
+        Stripped string representation, or empty string for None
+    """
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        value = str(value)
+    return value.strip()
+
+
 class TableExtractor:
     """Production-ready table and budget data extractor."""
     
@@ -135,10 +154,10 @@ class TableExtractor:
             
             # Extract indicator name
             if indicator_col is not None and indicator_col < len(row):
-                kpi["indicator"] = row[indicator_col].strip()
+                kpi["indicator"] = _safe_strip(row[indicator_col])
             else:
                 # Use first non-empty cell as indicator
-                kpi["indicator"] = next((cell.strip() for cell in row if cell.strip()), "Unknown")
+                kpi["indicator"] = next((_safe_strip(cell) for cell in row if _safe_strip(cell)), "Unknown")
             
             # Extract baseline
             if baseline_col is not None and baseline_col < len(row):
@@ -150,11 +169,11 @@ class TableExtractor:
             
             # Extract unit
             if unit_col is not None and unit_col < len(row):
-                kpi["unit"] = row[unit_col].strip()
+                kpi["unit"] = _safe_strip(row[unit_col])
             
             # Extract year
             if year_col is not None and year_col < len(row):
-                year_text = row[year_col].strip()
+                year_text = _safe_strip(row[year_col])
                 year_match = re.search(r'20\d{2}', year_text)
                 if year_match:
                     kpi["year"] = int(year_match.group())
@@ -193,16 +212,16 @@ class TableExtractor:
             
             # Extract source
             if source_col is not None and source_col < len(row):
-                budget["source"] = row[source_col].strip()
+                budget["source"] = _safe_strip(row[source_col])
             else:
                 budget["source"] = "Unknown"
             
             # Extract use
             if use_col is not None and use_col < len(row):
-                budget["use"] = row[use_col].strip()
+                budget["use"] = _safe_strip(row[use_col])
             else:
                 # Use first non-empty cell if no use column
-                budget["use"] = next((cell.strip() for cell in row if cell.strip()), "Unknown")
+                budget["use"] = next((_safe_strip(cell) for cell in row if _safe_strip(cell)), "Unknown")
             
             # Extract amount (look in all cells if no specific column)
             amount = None
@@ -221,7 +240,7 @@ class TableExtractor:
             
             # Extract year
             if year_col is not None and year_col < len(row):
-                year_text = row[year_col].strip()
+                year_text = _safe_strip(row[year_col])
                 year_match = re.search(r'20\d{2}', year_text)
                 if year_match:
                     budget["year"] = int(year_match.group())
