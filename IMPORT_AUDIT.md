@@ -41,7 +41,9 @@ This audit introduces a **deterministic, auditable, and portable** import system
 ### 🔍 Current Audit Findings (2025-11-06)
 
 - **Shadowing Issues:** 1 FIXED ✅ (logging.py → log_adapters.py)
-- **Circular Imports:** 0 ✅ (no cycles detected)
+- **Circular Imports:** 1 DETECTED, SAFELY RESOLVED ✅
+  - `cpp_adapter` ↔ `core.orchestrator.core`: Already using deferred import pattern (import inside function at line 220 of core.py)
+  - This is the correct solution for breaking circular dependencies
 - **Import Budget:** Not measured yet (TBD)
 - **Optional Dependencies:** Cataloged in compat layer
 
