@@ -226,10 +226,282 @@ class LogPort(Protocol):
         """Log error message."""
         ...
 
+class PortCPPIngest(Protocol):
+    """Port for CPP (Canon Policy Package) ingestion.
+    
+    Ingests documents and produces Canon Policy Packages with complete provenance.
+    """
+    
+    def ingest(self, input_uri: str) -> Any:
+        """Ingest document from URI and produce Canon Policy Package.
+        
+        Args:
+            input_uri: URI to document (file://, http://, etc.)
+            
+        Returns:
+            CanonPolicyPackage with complete chunk graph and metadata
+            
+        Requires:
+            - Valid input URI
+            - Accessible document at URI
+            
+        Ensures:
+            - chunk_graph is not None
+            - policy_manifest is not None
+            - provenance_completeness == 1.0
+        """
+        ...
+
+
+class PortCPPAdapter(Protocol):
+    """Port for CPP to PreprocessedDocument adaptation.
+    
+    Converts Canon Policy Package to orchestrator's PreprocessedDocument format.
+    """
+    
+    def to_preprocessed(self, cpp: Any, document_id: str) -> Any:
+        """Convert CPP to PreprocessedDocument.
+        
+        Args:
+            cpp: Canon Policy Package from ingestion
+            document_id: Unique document identifier
+            
+        Returns:
+            PreprocessedDocument for orchestrator
+            
+        Requires:
+            - cpp with valid chunk_graph
+            - cpp.policy_manifest exists
+            - document_id is non-empty
+            
+        Ensures:
+            - sentence_metadata is not empty
+            - resolution_index is consistent
+            - provenance_completeness == 1.0
+        """
+        ...
+
+
+class PortSignalsClient(Protocol):
+    """Port for fetching strategic signals.
+    
+    Retrieves policy-aware signals from memory or HTTP sources.
+    Sematics: None return = 304 Not Modified or circuit breaker open.
+    """
+    
+    def fetch(self, policy_area: str) -> Any | None:
+        """Fetch signals for policy area.
+        
+        Args:
+            policy_area: Policy domain (fiscal, salud, ambiente, etc.)
+            
+        Returns:
+            SignalPack if available, None if 304/breaker open
+            
+        Requires:
+            - policy_area is valid PolicyArea literal
+            
+        Ensures:
+            - If not None, returns valid SignalPack with version
+            - None is justified (304 or breaker state)
+        """
+        ...
+
+
+class PortSignalsRegistry(Protocol):
+    """Port for signal registry with TTL and LRU.
+    
+    Manages in-memory cache of strategic signals with expiration.
+    """
+    
+    def put(self, pack: Any) -> None:
+        """Store signal pack in registry.
+        
+        Args:
+            pack: SignalPack to store
+            
+        Requires:
+            - pack is valid SignalPack
+            - pack.version is present
+        """
+        ...
+    
+    def get(self, policy_area: str) -> dict[str, Any] | None:
+        """Retrieve signals for policy area.
+        
+        Args:
+            policy_area: Policy domain
+            
+        Returns:
+            Signal data if cached and not expired, None otherwise
+        """
+        ...
+    
+    def fingerprint(self) -> str:
+        """Compute registry fingerprint for drift detection.
+        
+        Returns:
+            BLAKE3 hash of current registry state
+        """
+        ...
+
+
+class PortArgRouter(Protocol):
+    """Port for argument routing and validation.
+    
+    Routes method calls with strict parameter validation.
+    """
+    
+    def route(
+        self,
+        class_name: str,
+        method_name: str,
+        payload: dict[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        """Route method call to (args, kwargs).
+        
+        Args:
+            class_name: Target class name
+            method_name: Target method name
+            payload: Input parameters
+            
+        Returns:
+            Tuple of (args, kwargs) for method call
+            
+        Requires:
+            - class_name exists in registry
+            - method_name exists on class
+            - method signature is known or has **kwargs
+            
+        Ensures:
+            - No silent parameter drops
+            - All required args present
+            - No unexpected kwargs (unless **kwargs in signature)
+        """
+        ...
+
+
+class PortExecutor(Protocol):
+    """Port for executing methods with configuration.
+    
+    Executes methods with injected executor config and signals.
+    """
+    
+    def run(self, prompt: str, overrides: Any | None = None) -> Any:
+        """Execute with prompt and optional config overrides.
+        
+        Args:
+            prompt: Execution prompt/input
+            overrides: Optional ExecutorConfig overrides
+            
+        Returns:
+            Result with metadata including used_signals
+            
+        Requires:
+            - ExecutorConfig is injected
+            - SignalRegistry is available
+            
+        Ensures:
+            - Result includes used_signals metadata
+            - Execution is deterministic if seed is set
+        """
+        ...
+
+
+class PortAggregate(Protocol):
+    """Port for aggregating enriched chunks.
+    
+    Aggregates processed chunks into PyArrow tables.
+    """
+    
+    def aggregate(self, enriched_chunks: list[dict[str, Any]]) -> Any:
+        """Aggregate enriched chunks to PyArrow table.
+        
+        Args:
+            enriched_chunks: List of enriched chunk dictionaries
+            
+        Returns:
+            PyArrow Table with aggregated data
+            
+        Requires:
+            - enriched_chunks has required fields
+            - All chunks have consistent schema
+            
+        Ensures:
+            - Returns valid pa.Table
+            - All required columns present
+        """
+        ...
+
+
+class PortScore(Protocol):
+    """Port for scoring features.
+    
+    Computes scores from feature tables with specified metrics.
+    """
+    
+    def score(self, features: Any, metrics: list[str]) -> Any:
+        """Score features using specified metrics.
+        
+        Args:
+            features: PyArrow Table with features
+            metrics: List of metric names to compute
+            
+        Returns:
+            Polars DataFrame with scores
+            
+        Requires:
+            - features is valid pa.Table
+            - metrics are declared and implemented
+            - Required columns present in features
+            
+        Ensures:
+            - Returns valid pl.DataFrame
+            - All requested metrics computed
+        """
+        ...
+
+
+class PortReport(Protocol):
+    """Port for generating reports.
+    
+    Generates output reports from scores and manifest.
+    """
+    
+    def report(self, scores: Any, manifest: Any) -> dict[str, str]:
+        """Generate reports from scores and manifest.
+        
+        Args:
+            scores: Polars DataFrame with computed scores
+            manifest: Document manifest with metadata
+            
+        Returns:
+            Dictionary mapping report name to output URI
+            
+        Requires:
+            - scores is valid pl.DataFrame
+            - manifest has required metadata
+            
+        Ensures:
+            - All declared reports generated
+            - URIs are accessible
+        """
+        ...
+
+
 __all__ = [
     'FilePort',
     'JsonPort',
     'EnvPort',
     'ClockPort',
     'LogPort',
+    'PortCPPIngest',
+    'PortCPPAdapter',
+    'PortSignalsClient',
+    'PortSignalsRegistry',
+    'PortArgRouter',
+    'PortExecutor',
+    'PortAggregate',
+    'PortScore',
+    'PortReport',
 ]
