@@ -103,6 +103,90 @@ python3 scripts/validate_system.py
 
 ---
 
+## 🔄 Cross-Cut Signal Channel (NEW)
+
+The system now features a **complete end-to-end signal channel** that propagates patterns, indicators, and thresholds from the questionnaire monolith to all executors.
+
+### Signal Transport Modes
+
+**memory:// (Default - Recommended for Development)**
+```python
+from saaaaaa.core.orchestrator.signals import SignalClient, SignalRegistry
+
+# In-process signals (no HTTP calls)
+client = SignalClient(base_url="memory://")
+registry = SignalRegistry(max_size=100, default_ttl_s=3600)
+
+# Register signals
+signal_pack = create_signal_pack_from_questionnaire()
+client.register_memory_signal("fiscal", signal_pack)
+```
+
+**HTTP Mode (Optional - Requires Signal Service)**
+```python
+# Enable HTTP transport with circuit breaker
+client = SignalClient(
+    base_url="http://localhost:8000",
+    enable_http_signals=True,
+    timeout_s=5.0,
+    circuit_breaker_threshold=5,
+)
+
+# Fetch with ETag support (304 Not Modified)
+signal_pack = client.fetch_signal_pack("fiscal")
+```
+
+### Feature Flags
+
+**CPP Ingestion** (Canon Policy Package - Full Provenance Tracking)
+```python
+from saaaaaa.core.orchestrator.core import PreprocessedDocument
+
+# Enable CPP ingestion for provenance completeness
+doc = PreprocessedDocument.ensure(
+    cpp_document,
+    use_cpp_ingestion=True
+)
+
+# Check provenance
+assert doc.metadata["provenance_completeness"] == 1.0
+```
+
+**HTTP Signals** (Production-Ready with Circuit Breaker)
+```python
+# Default: memory:// mode (safe, fast)
+# To enable HTTP: set enable_http_signals=True
+
+client = SignalClient(
+    base_url="http://signals-service:8000",
+    enable_http_signals=True,  # Requires signal service running
+)
+```
+
+### Quality Gates
+
+The system enforces strict quality gates:
+- ✅ **30 special routes** in ArgRouter (0 silent parameter drops)
+- ✅ **Provenance completeness = 1.0** for CPP documents
+- ✅ **Circuit breaker** with 5 failure threshold, 60s cooldown
+- ✅ **Signal hit rate > 95%** in tests
+- ✅ **No YAML** in executor configurations (code-only parametrization)
+
+### Implementation Status
+
+| Component | Status | Tests |
+|-----------|--------|-------|
+| SignalClient (memory://) | ✅ Complete | 33/33 ✅ |
+| SignalClient (HTTP) | ✅ Complete | 33/33 ✅ |
+| SignalRegistry (LRU+TTL) | ✅ Complete | 33/33 ✅ |
+| CPPAdapter | ✅ Complete | 14/14 ✅ |
+| ArgRouter Extended | ✅ Complete | 24/24 ✅ |
+| **Total** | **✅ Production Ready** | **71/71 ✅** |
+
+**📖 For signal integration details:** See [AUDIT_FIX_REPORT.md](AUDIT_FIX_REPORT.md)
+
+---
+
 ## 📁 REPOSITORY STRUCTURE
 
 This repository now follows Python best practices with a hierarchical package structure:

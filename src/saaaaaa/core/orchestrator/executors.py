@@ -55,6 +55,15 @@ from typing import Any, Generic, TypeVar
 
 import numpy as np
 
+try:
+    from opentelemetry import trace
+    from opentelemetry.trace import Status, StatusCode
+    tracer = trace.get_tracer(__name__)
+    HAS_OTEL = True
+except ImportError:
+    tracer = None
+    HAS_OTEL = False
+
 try:  # Optional imports for advanced context propagation
     import networkx as nx
 except Exception:  # pragma: no cover - optional dependency at runtime
@@ -832,8 +841,9 @@ class ProbabilisticExecutor:
 class AdvancedDataFlowExecutor(ABC):
     """Advanced executor with frontier paradigmatic capabilities"""
 
-    def __init__(self, method_executor) -> None:
+    def __init__(self, method_executor, signal_registry=None) -> None:
         self.executor = method_executor
+        self.signal_registry = signal_registry
 
         self.quantum_optimizer = QuantumExecutionOptimizer(num_methods=50)
         self.neuromorphic_controller = NeuromorphicFlowController(num_stages=10)
@@ -848,12 +858,89 @@ class AdvancedDataFlowExecutor(ABC):
         self.execution_metrics: dict[str, list[float]] = defaultdict(list)
         self.method_dependencies: dict[str, set] = {}
         self._argument_context: dict[str, Any] = {}
+        self.used_signals: list[dict[str, Any]] = []  # Track signal usage
+
+    def _fetch_signals(self, policy_area: str = "fiscal") -> dict[str, Any] | None:
+        """
+        Fetch signals from registry for the given policy area.
+        
+        Adds OpenTelemetry span for observability.
+        
+        Args:
+            policy_area: Policy area to fetch signals for
+            
+        Returns:
+            Signal pack data or None if unavailable
+        """
+        if self.signal_registry is None:
+            logger.debug("No signal registry available, skipping signal fetch")
+            return None
+        
+        if HAS_OTEL and tracer:
+            with tracer.start_as_current_span("signals.fetch") as span:
+                span.set_attribute("policy_area", policy_area)
+                fetch_start = time.time()
+                
+                signal_pack = self.signal_registry.get(policy_area)
+                
+                fetch_duration = time.time() - fetch_start
+                span.set_attribute("fetch_duration_ms", fetch_duration * 1000)
+                
+                if signal_pack:
+                    span.set_attribute("signal_version", signal_pack.version)
+                    span.set_attribute("signal_hash", signal_pack.compute_hash()[:16])
+                    span.set_status(Status(StatusCode.OK))
+                    
+                    # Track usage
+                    self.used_signals.append({
+                        "version": signal_pack.version,
+                        "policy_area": signal_pack.policy_area,
+                        "hash": signal_pack.compute_hash(),
+                        "keys_used": signal_pack.get_keys_used(),
+                        "timestamp_utc": time.time(),
+                    })
+                    
+                    logger.info(f"Fetched signals for {policy_area}: version={signal_pack.version}")
+                    return {
+                        "patterns": signal_pack.patterns,
+                        "indicators": signal_pack.indicators,
+                        "regex": signal_pack.regex,
+                        "verbs": signal_pack.verbs,
+                        "entities": signal_pack.entities,
+                        "thresholds": signal_pack.thresholds,
+                    }
+                else:
+                    span.set_status(Status(StatusCode.ERROR, "Signal pack not found"))
+                    logger.warning(f"No signals found for policy area: {policy_area}")
+                    return None
+        else:
+            # No OpenTelemetry, fetch without span
+            signal_pack = self.signal_registry.get(policy_area)
+            if signal_pack:
+                self.used_signals.append({
+                    "version": signal_pack.version,
+                    "policy_area": signal_pack.policy_area,
+                    "hash": signal_pack.compute_hash(),
+                    "keys_used": signal_pack.get_keys_used(),
+                    "timestamp_utc": time.time(),
+                })
+                return {
+                    "patterns": signal_pack.patterns,
+                    "indicators": signal_pack.indicators,
+                    "regex": signal_pack.regex,
+                    "verbs": signal_pack.verbs,
+                    "entities": signal_pack.entities,
+                    "thresholds": signal_pack.thresholds,
+                }
+            return None
 
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
         """Execute with advanced optimization strategies
 
         Includes:
+        - Signal fetching and usage tracking
+        - OpenTelemetry instrumentation
         - Structured logging for debugging
         - Retry logic for transient failures
         - Execution time tracking
@@ -864,129 +951,171 @@ class AdvancedDataFlowExecutor(ABC):
         results = {}
         current_data = doc.raw_text
 
-        strategy_idx = self.meta_learner.select_strategy()
-        self.meta_learner.get_strategy_config(strategy_idx)
+        # Start OpenTelemetry span for entire execution
+        span_context = tracer.start_as_current_span("executor.execute") if HAS_OTEL and tracer else None
+        
+        try:
+            if span_context:
+                span = span_context.__enter__()
+                span.set_attribute("num_methods", len(method_sequence))
+            
+            # Fetch signals at the beginning of execution
+            # Fetch signals and store for use during execution
+            signals = self._fetch_signals("fiscal")
+            if signals and span_context:
+                span.set_attribute("signals.fetched", True)
+                span.set_attribute("signals.pattern_count", len(signals.get("patterns", [])))
+            elif span_context:
+                span.set_attribute("signals.fetched", False)
+            
+            # Store signals in context for methods to access
+            if signals:
+                self._argument_context['signals'] = signals
+                logger.info(f"Signals loaded: {len(signals.get('patterns', []))} patterns, "
+                           f"{len(signals.get('indicators', []))} indicators")
 
-        method_names = [f"{cls}.{method}" for cls, method in method_sequence]
-        self.attention.prioritize_methods(method_names, method_names[:3])
+            strategy_idx = self.meta_learner.select_strategy()
+            self.meta_learner.get_strategy_config(strategy_idx)
 
-        logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
+            method_names = [f"{cls}.{method}" for cls, method in method_sequence]
+            self.attention.prioritize_methods(method_names, method_names[:3])
 
-        total_entropy = 0.0
+            logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
 
-        self._reset_argument_context(doc)
+            total_entropy = 0.0
 
-        for idx, (class_name, method_name) in enumerate(method_sequence):
-            method_key = f"{class_name}.{method_name}"
+            self._reset_argument_context(doc)
+            # Re-add signals after reset if available
+            if signals:
+                self._argument_context['signals'] = signals
 
-            self.probabilistic_executor.define_prior(
-                method_key, "beta", alpha=2, beta=2
+            for idx, (class_name, method_name) in enumerate(method_sequence):
+                method_key = f"{class_name}.{method_name}"
+
+                self.probabilistic_executor.define_prior(
+                    method_key, "beta", alpha=2, beta=2
+                )
+                self.probabilistic_executor.sample_prior(method_key)
+
+                # Execute with retry logic
+                method_start = time.time()
+                success = False
+                max_retries = 3
+
+                for attempt in range(max_retries):
+                    try:
+                        prepared_kwargs = self._prepare_arguments(
+                            class_name,
+                            method_name,
+                            doc,
+                            current_data,
+                        )
+
+                        result = self.executor.execute(
+                            class_name,
+                            method_name,
+                            **prepared_kwargs,
+                        )
+
+                        results[method_key] = result
+                        success = True
+
+                        self.info_optimizer.update_flow_metrics(idx, result)
+
+                        data_quality = self._assess_data_quality(result)
+                        self.neuromorphic_controller.process_data_flow([data_quality])
+
+                        performance = data_quality
+                        self.probabilistic_executor.bayesian_update(method_key, performance)
+
+                        entropy = self.info_optimizer.calculate_entropy(result)
+                        total_entropy += entropy
+
+                        if result is not None:
+                            current_data = result
+
+                        self._update_argument_context(
+                            method_key,
+                            result,
+                            class_name,
+                            method_name,
+                        )
+
+                        break  # Success, exit retry loop
+
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            _global_metrics.record_retry()
+                            logger.warning(
+                                f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
+                                exc_info=False
+                            )
+                            time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                        else:
+                            results[method_key] = None
+                            logger.error(
+                                f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
+                                exc_info=True,
+                                extra={
+                                    'method': method_key,
+                                    'class_name': class_name,
+                                    'method_name': method_name,
+                                    'attempt': attempt + 1,
+                                    'error_type': type(e).__name__
+                                }
+                            )
+
+                # Record execution metrics
+                method_time = time.time() - method_start
+                _global_metrics.record_execution(success, method_time, method_key)
+
+            avg_entropy = total_entropy / max(len(method_sequence), 1)
+            reward = self._calculate_reward(avg_entropy)
+            self.meta_learner.update_strategy_performance(strategy_idx, reward)
+
+            bottlenecks = self.info_optimizer.get_information_bottlenecks()
+
+            total_time = time.time() - execution_start
+            logger.info(
+                f"Execution completed in {total_time:.3f}s: {_global_metrics.successful_executions}/{_global_metrics.total_executions} methods successful",
+                extra={
+                    'total_time': total_time,
+                    'avg_entropy': avg_entropy,
+                    'bottlenecks': len(bottlenecks),
+                    'strategy': strategy_idx
+                }
             )
-            self.probabilistic_executor.sample_prior(method_key)
 
-            # Execute with retry logic
-            method_start = time.time()
-            success = False
-            max_retries = 3
+            # Add execution metrics to span
+            if span_context:
+                span.set_attribute("execution_time_s", total_time)
+                span.set_attribute("successful_methods", _global_metrics.successful_executions)
+                span.set_attribute("total_methods", _global_metrics.total_executions)
+                span.set_attribute("avg_entropy", avg_entropy)
+                span.set_attribute("used_signals_count", len(self.used_signals))
+                span.set_status(Status(StatusCode.OK))
 
-            for attempt in range(max_retries):
-                try:
-                    prepared_kwargs = self._prepare_arguments(
-                        class_name,
-                        method_name,
-                        doc,
-                        current_data,
-                    )
-
-                    result = self.executor.execute(
-                        class_name,
-                        method_name,
-                        **prepared_kwargs,
-                    )
-
-                    results[method_key] = result
-                    success = True
-
-                    self.info_optimizer.update_flow_metrics(idx, result)
-
-                    data_quality = self._assess_data_quality(result)
-                    self.neuromorphic_controller.process_data_flow([data_quality])
-
-                    performance = data_quality
-                    self.probabilistic_executor.bayesian_update(method_key, performance)
-
-                    entropy = self.info_optimizer.calculate_entropy(result)
-                    total_entropy += entropy
-
-                    if result is not None:
-                        current_data = result
-
-                    self._update_argument_context(
-                        method_key,
-                        result,
-                        class_name,
-                        method_name,
-                    )
-
-                    break  # Success, exit retry loop
-
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        _global_metrics.record_retry()
-                        logger.warning(
-                            f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
-                            exc_info=False
-                        )
-                        time.sleep(0.1 * (attempt + 1))  # Exponential backoff
-                    else:
-                        results[method_key] = None
-                        logger.error(
-                            f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
-                            exc_info=True,
-                            extra={
-                                'method': method_key,
-                                'class_name': class_name,
-                                'method_name': method_name,
-                                'attempt': attempt + 1,
-                                'error_type': type(e).__name__
-                            }
-                        )
-
-            # Record execution metrics
-            method_time = time.time() - method_start
-            _global_metrics.record_execution(success, method_time, method_key)
-
-        avg_entropy = total_entropy / max(len(method_sequence), 1)
-        reward = self._calculate_reward(avg_entropy)
-        self.meta_learner.update_strategy_performance(strategy_idx, reward)
-
-        bottlenecks = self.info_optimizer.get_information_bottlenecks()
-
-        total_time = time.time() - execution_start
-        logger.info(
-            f"Execution completed in {total_time:.3f}s: {_global_metrics.successful_executions}/{_global_metrics.total_executions} methods successful",
-            extra={
-                'total_time': total_time,
-                'avg_entropy': avg_entropy,
-                'bottlenecks': len(bottlenecks),
-                'strategy': strategy_idx
+            result = {
+                'modality': 'TYPE_A',
+                'elements': self._extract(results),
+                'raw': results,
+                'confidence': float(self._argument_context.get('confidence', 0.0) or 0.0),
+                'meta': {
+                    'strategy': strategy_idx,
+                    'avg_entropy': avg_entropy,
+                    'bottlenecks': bottlenecks,
+                    'confidence_intervals': self._get_confidence_intervals(method_sequence),
+                    'execution_time': total_time,
+                    'metrics_summary': _global_metrics.get_summary(),
+                    'used_signals': self.used_signals  # Add signal usage metadata
+                }
             }
-        )
-
-        return {
-            'modality': 'TYPE_A',
-            'elements': self._extract(results),
-            'raw': results,
-            'confidence': float(self._argument_context.get('confidence', 0.0) or 0.0),
-            'meta': {
-                'strategy': strategy_idx,
-                'avg_entropy': avg_entropy,
-                'bottlenecks': bottlenecks,
-                'confidence_intervals': self._get_confidence_intervals(method_sequence),
-                'execution_time': total_time,
-                'metrics_summary': _global_metrics.get_summary()
-            }
-        }
+            
+            return result
+            
+        finally:
+            if span_context:
+                span_context.__exit__(None, None, None)
 
     def _assess_data_quality(self, data: Any) -> float:
         """Assess quality of data output"""
@@ -1118,6 +1247,40 @@ class AdvancedDataFlowExecutor(ABC):
     ) -> Any:
         """Enhanced argument resolution with sophisticated graph and segment handling"""
         ctx = self._argument_context
+
+        # ========================================================================
+        # SIGNAL CHANNEL INTEGRATION - Inject signals into method arguments
+        # ========================================================================
+        
+        signals = ctx.get('signals')
+        if signals:
+            # Inject signal patterns
+            if name in {'patterns', 'fiscal_patterns', 'signal_patterns'}:
+                return signals.get('patterns', [])
+            
+            # Inject indicators
+            if name in {'indicators', 'signal_indicators'}:
+                return signals.get('indicators', [])
+            
+            # Inject regex patterns
+            if name in {'regex', 'regex_patterns', 'signal_regex'}:
+                return signals.get('regex', [])
+            
+            # Inject verbs
+            if name in {'verbs', 'signal_verbs'}:
+                return signals.get('verbs', [])
+            
+            # Inject entities
+            if name in {'entities', 'signal_entities'}:
+                return signals.get('entities', [])
+            
+            # Inject thresholds
+            if name in {'thresholds', 'signal_thresholds'}:
+                return signals.get('thresholds', {})
+            
+            # Inject all signals as dict
+            if name in {'signals', 'signal_pack'}:
+                return signals
 
         # ========================================================================
         # STANDARD ARGUMENTS (existing implementation retained)
