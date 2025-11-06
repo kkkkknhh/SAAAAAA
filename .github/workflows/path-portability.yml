@@ -47,6 +47,8 @@ jobs:
 
   path-tests-multi-os:
     name: Path Tests - ${{ matrix.os }}
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     
     strategy:
