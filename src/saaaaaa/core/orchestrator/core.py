@@ -25,7 +25,13 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, TypedDict
+from typing import TYPE_CHECKING, Any, Iterable, TypedDict, TypeVar
+
+# Import ParamSpec from typing_extensions for compatibility
+try:
+    from typing import ParamSpec
+except ImportError:
+    from typing_extensions import ParamSpec
 
 from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine

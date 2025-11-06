@@ -26,18 +26,58 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-import blake3
-import structlog
+# Optional dependency - blake3
+try:
+    import blake3
+    BLAKE3_AVAILABLE = True
+except ImportError:
+    BLAKE3_AVAILABLE = False
+    import hashlib
+    # Fallback to hashlib if blake3 not available
+    class blake3:  # type: ignore
+        @staticmethod
+        def blake3(data: bytes) -> object:
+            class HashResult:
+                def __init__(self, data: bytes):
+                    self._hash = hashlib.sha256(data)
+                def hexdigest(self) -> str:
+                    return self._hash.hexdigest()
+            return HashResult(data)
+# Optional dependency - structlog
+try:
+    import structlog
+    STRUCTLOG_AVAILABLE = True
+except ImportError:
+    STRUCTLOG_AVAILABLE = False
+    import logging
+    structlog = logging  # type: ignore  # Fallback to standard logging
 from pydantic import BaseModel, Field, field_validator
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-)
+
+# Optional dependency - tenacity
+try:
+    from tenacity import (
+        retry,
+        stop_after_attempt,
+        wait_exponential,
+        retry_if_exception_type,
+    )
+    TENACITY_AVAILABLE = True
+except ImportError:
+    TENACITY_AVAILABLE = False
+    # Dummy decorator when tenacity not available
+    def retry(*args, **kwargs):  # type: ignore
+        def decorator(func):
+            return func
+        return decorator
+    stop_after_attempt = lambda x: None  # type: ignore
+    wait_exponential = lambda **kwargs: None  # type: ignore
+    retry_if_exception_type = lambda x: None  # type: ignore
 
 
-logger = structlog.get_logger(__name__)
+if STRUCTLOG_AVAILABLE:
+    logger = structlog.get_logger(__name__)
+else:
+    logger = logging.getLogger(__name__)
 
 
 PolicyArea = Literal["fiscal", "salud", "ambiente", "energía", "transporte"]

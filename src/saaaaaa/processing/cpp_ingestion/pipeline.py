@@ -4,13 +4,24 @@ CPP Ingestion Pipeline - Deterministic 9-phase processing.
 Implements the complete ingestion pipeline with ABORT-on-failure semantics.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-import pyarrow as pa
+# Optional dependency - pyarrow
+if TYPE_CHECKING:
+    import pyarrow as pa
+else:
+    try:
+        import pyarrow as pa
+        PYARROW_AVAILABLE = True
+    except ImportError:
+        PYARROW_AVAILABLE = False
+        pa = None  # type: ignore
 
 from .chunking import AdvancedChunker
 from .models import (

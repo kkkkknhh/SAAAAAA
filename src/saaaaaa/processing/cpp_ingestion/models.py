@@ -4,11 +4,22 @@ Data models for Canon Policy Package (CPP) system.
 Defines all data structures for chunks, graphs, manifests, and outcomes.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-import pyarrow as pa
+# Optional dependency - pyarrow
+if TYPE_CHECKING:
+    import pyarrow as pa
+else:
+    try:
+        import pyarrow as pa
+        PYARROW_AVAILABLE = True
+    except ImportError:
+        PYARROW_AVAILABLE = False
+        pa = None  # type: ignore
 
 
 class ChunkResolution(Enum):

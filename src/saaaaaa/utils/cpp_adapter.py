@@ -9,6 +9,7 @@ Design Principles:
 - Computes provenance_completeness metric
 - Provides prescriptive error messages on failure
 - Supports micro, meso, and macro chunk resolutions
+- Optional dependencies handled gracefully (pyarrow, structlog)
 """
 
 from __future__ import annotations
@@ -16,8 +17,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import structlog
-
+from saaaaaa.compat import try_import
 from saaaaaa.core.orchestrator.core import PreprocessedDocument
 from saaaaaa.processing.cpp_ingestion.models import (
     CanonPolicyPackage,
@@ -25,8 +25,15 @@ from saaaaaa.processing.cpp_ingestion.models import (
     ChunkResolution,
 )
 
+# Optional dependencies - gracefully handle if not available
+structlog = try_import("structlog", required=False, hint="Structured logging for CPPAdapter")
+pyarrow = try_import("pyarrow", required=False, hint="Arrow serialization for CPPAdapter")
 
-logger = structlog.get_logger(__name__)
+# Use structlog if available, otherwise fallback to standard logging
+if structlog is not None:
+    logger = structlog.get_logger(__name__)
+else:
+    logger = logging.getLogger(__name__)
 
 
 class CPPAdapterError(Exception):

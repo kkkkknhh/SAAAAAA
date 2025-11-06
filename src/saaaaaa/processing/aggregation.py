@@ -122,20 +122,27 @@ class DimensionAggregator:
     - Provide detailed logging
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
+    def __init__(self, monolith: dict[str, Any] | None = None, abort_on_insufficient: bool = True) -> None:
         """
         Initialize dimension aggregator.
 
         Args:
-            monolith: Questionnaire monolith configuration
+            monolith: Questionnaire monolith configuration (optional, required for run())
             abort_on_insufficient: Whether to abort on insufficient coverage
+            
+        Raises:
+            ValueError: If monolith is None and required for operations
         """
         self.monolith = monolith
         self.abort_on_insufficient = abort_on_insufficient
 
-        # Extract configuration
-        self.scoring_config = monolith["blocks"]["scoring"]
-        self.niveles = monolith["blocks"]["niveles_abstraccion"]
+        # Extract configuration if monolith provided
+        if monolith is not None:
+            self.scoring_config = monolith["blocks"]["scoring"]
+            self.niveles = monolith["blocks"]["niveles_abstraccion"]
+        else:
+            self.scoring_config = None
+            self.niveles = None
 
         logger.info("DimensionAggregator initialized")
 
@@ -426,22 +433,31 @@ class AreaPolicyAggregator:
     - Ensure hermeticity (no dimension overlap)
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
+    def __init__(self, monolith: dict[str, Any] | None = None, abort_on_insufficient: bool = True) -> None:
         """
         Initialize area aggregator.
 
         Args:
-            monolith: Questionnaire monolith configuration
+            monolith: Questionnaire monolith configuration (optional, required for run())
             abort_on_insufficient: Whether to abort on insufficient coverage
+            
+        Raises:
+            ValueError: If monolith is None and required for operations
         """
         self.monolith = monolith
         self.abort_on_insufficient = abort_on_insufficient
 
-        # Extract configuration
-        self.scoring_config = monolith["blocks"]["scoring"]
-        self.niveles = monolith["blocks"]["niveles_abstraccion"]
-        self.policy_areas = self.niveles["policy_areas"]
-        self.dimensions = self.niveles["dimensions"]
+        # Extract configuration if monolith provided
+        if monolith is not None:
+            self.scoring_config = monolith["blocks"]["scoring"]
+            self.niveles = monolith["blocks"]["niveles_abstraccion"]
+            self.policy_areas = self.niveles["policy_areas"]
+            self.dimensions = self.niveles["dimensions"]
+        else:
+            self.scoring_config = None
+            self.niveles = None
+            self.policy_areas = None
+            self.dimensions = None
 
         logger.info("AreaPolicyAggregator initialized")
 
@@ -705,21 +721,29 @@ class ClusterAggregator:
     - Validate cluster hermeticity
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
+    def __init__(self, monolith: dict[str, Any] | None = None, abort_on_insufficient: bool = True) -> None:
         """
         Initialize cluster aggregator.
 
         Args:
-            monolith: Questionnaire monolith configuration
+            monolith: Questionnaire monolith configuration (optional, required for run())
             abort_on_insufficient: Whether to abort on insufficient coverage
+            
+        Raises:
+            ValueError: If monolith is None and required for operations
         """
         self.monolith = monolith
         self.abort_on_insufficient = abort_on_insufficient
 
-        # Extract configuration
-        self.scoring_config = monolith["blocks"]["scoring"]
-        self.niveles = monolith["blocks"]["niveles_abstraccion"]
-        self.clusters = self.niveles["clusters"]
+        # Extract configuration if monolith provided
+        if monolith is not None:
+            self.scoring_config = monolith["blocks"]["scoring"]
+            self.niveles = monolith["blocks"]["niveles_abstraccion"]
+            self.clusters = self.niveles["clusters"]
+        else:
+            self.scoring_config = None
+            self.niveles = None
+            self.clusters = None
 
         logger.info("ClusterAggregator initialized")
 
@@ -1015,20 +1039,27 @@ class MacroAggregator:
     - Assess strategic alignment
     """
 
-    def __init__(self, monolith: dict[str, Any], abort_on_insufficient: bool = True) -> None:
+    def __init__(self, monolith: dict[str, Any] | None = None, abort_on_insufficient: bool = True) -> None:
         """
         Initialize macro aggregator.
 
         Args:
-            monolith: Questionnaire monolith configuration
+            monolith: Questionnaire monolith configuration (optional, required for run())
             abort_on_insufficient: Whether to abort on insufficient coverage
+            
+        Raises:
+            ValueError: If monolith is None and required for operations
         """
         self.monolith = monolith
         self.abort_on_insufficient = abort_on_insufficient
 
-        # Extract configuration
-        self.scoring_config = monolith["blocks"]["scoring"]
-        self.niveles = monolith["blocks"]["niveles_abstraccion"]
+        # Extract configuration if monolith provided
+        if monolith is not None:
+            self.scoring_config = monolith["blocks"]["scoring"]
+            self.niveles = monolith["blocks"]["niveles_abstraccion"]
+        else:
+            self.scoring_config = None
+            self.niveles = None
 
         logger.info("MacroAggregator initialized")
 

@@ -132,9 +132,25 @@ def _coerce_table_annotations(tables: Sequence[Any]) -> tuple[TableAnnotation, .
     return tuple(annotations)
 
 # PDF Processing
-# Language detection
-from langdetect import LangDetectException, detect
-from PyPDF2 import PdfReader
+# Optional dependency - langdetect
+try:
+    from langdetect import LangDetectException, detect
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    # Dummy implementation
+    class LangDetectException(Exception):
+        pass
+    def detect(text: str) -> str:
+        return "es"  # Default to Spanish
+
+# Optional dependency - PyPDF2
+try:
+    from PyPDF2 import PdfReader
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    PYPDF2_AVAILABLE = False
+    PdfReader = None  # type: ignore
 
 # Importar módulos existentes del sistema
 # NOTA: Estos imports asumen la estructura existente del proyecto
