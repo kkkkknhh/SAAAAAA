@@ -7,6 +7,7 @@ werkzeug==3.0.1
 fastapi==0.115.0
 uvicorn==0.32.0
 sse-starlette==2.2.1
+httpx==0.27.0
 
 # WebSocket Support
 python-socketio==5.14.0

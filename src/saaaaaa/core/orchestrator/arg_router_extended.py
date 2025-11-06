@@ -372,7 +372,7 @@ class ExtendedArgRouter(ArgRouter):
             logger.error(
                 "special_route_missing_args",
                 class_name=class_name,
-                method_name=method_name,
+                method=method_name,
                 missing=sorted(missing),
             )
             raise ArgumentValidationError(
@@ -393,7 +393,7 @@ class ExtendedArgRouter(ArgRouter):
             logger.error(
                 "special_route_unexpected_args",
                 class_name=class_name,
-                method_name=method_name,
+                method=method_name,
                 unexpected=sorted(unexpected),
                 accepts_kwargs=accepts_kwargs,
             )
@@ -409,7 +409,7 @@ class ExtendedArgRouter(ArgRouter):
         logger.debug(
             "special_route_applied",
             class_name=class_name,
-            method_name=method_name,
+            method=method_name,
             params_count=len(kwargs),
         )
         
@@ -454,7 +454,7 @@ class ExtendedArgRouter(ArgRouter):
             logger.error(
                 "default_route_unexpected_args_strict",
                 class_name=class_name,
-                method_name=method_name,
+                method=method_name,
                 unexpected=sorted(unexpected),
                 has_var_keyword=spec.has_var_keyword,
             )
@@ -470,7 +470,7 @@ class ExtendedArgRouter(ArgRouter):
             logger.debug(
                 "default_route_applied",
                 class_name=class_name,
-                method_name=method_name,
+                method=method_name,
             )
             return result
         except ArgumentValidationError:
