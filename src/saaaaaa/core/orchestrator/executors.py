@@ -41,6 +41,7 @@ Memory Requirements:
 - Large Documents (10MB+): Additional 50-100MB working memory
 """
 
+import asyncio
 import logging
 import math
 import threading
@@ -80,6 +81,34 @@ except Exception:  # pragma: no cover - avoid hard failure if module unavailable
 # ============================================================================
 
 logger = logging.getLogger(__name__)
+
+
+class CircuitBreakerState:
+    """Async-safe circuit breaker state for fault isolation."""
+    
+    def __init__(self):
+        self.failures = 0
+        self.open = False
+        self._lock = asyncio.Lock()
+
+    async def increment_failures(self):
+        """Increment failure count and potentially open circuit."""
+        async with self._lock:
+            self.failures += 1
+            if self.failures >= 3:
+                self.open = True
+    
+    async def reset(self):
+        """Reset circuit breaker state."""
+        async with self._lock:
+            self.failures = 0
+            self.open = False
+    
+    async def is_open(self) -> bool:
+        """Check if circuit is open."""
+        async with self._lock:
+            return self.open
+
 
 @dataclass
 class ExecutionMetrics:
@@ -845,7 +874,37 @@ class ProbabilisticExecutor:
 # ADVANCED EXECUTOR BASE CLASS
 # ============================================================================
 
-class AdvancedDataFlowExecutor(ABC):
+class MethodSequenceValidatingMixin:
+    """Mixin for validating method sequences in executors."""
+    
+    def _validate_method_sequences(self) -> None:
+        """Validate that all methods in the sequence exist and are callable.
+        
+        Raises:
+            ValueError: If a class is not registered, method doesn't exist, or method is not callable
+        """
+        seq = self._get_method_sequence()
+        for class_name, method_name in seq:
+            instance = self.executor.instances.get(class_name)
+            if instance is None:
+                raise ValueError(f"Class {class_name} not in executor registry")
+            if not hasattr(instance, method_name):
+                raise ValueError(f"{class_name} has no method {method_name}")
+            method = getattr(instance, method_name)
+            if not callable(method):
+                raise ValueError(f"{class_name}.{method_name} is not callable")
+    
+    def _get_method_sequence(self) -> list[tuple[str, str]]:
+        """Return the method sequence for this executor.
+        
+        Returns:
+            List of (class_name, method_name) tuples
+        """
+        # Default implementation for executors that don't override
+        return []
+
+
+class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
     """Advanced executor with frontier paradigmatic capabilities"""
 
     def __init__(self, method_executor, signal_registry=None) -> None:
@@ -1062,14 +1121,16 @@ class AdvancedDataFlowExecutor(ABC):
                         else:
                             results[method_key] = None
                             logger.error(
-                                f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
+                                "Method %s failed",
+                                f"{class_name}.{method_name}",
                                 exc_info=True,
                                 extra={
-                                    'method': method_key,
+                                    'method_key': f"{class_name}.{method_name}",
                                     'class_name': class_name,
                                     'method_name': method_name,
-                                    'attempt': attempt + 1,
-                                    'error_type': type(e).__name__
+                                    'prepared_kwargs_keys': list(prepared_kwargs.keys()),
+                                    'error_type': type(e).__name__,
+                                    'error_details': str(e),
                                 }
                             )
 
@@ -1389,11 +1450,14 @@ class AdvancedDataFlowExecutor(ABC):
             statements = ctx.get('statements')
             if statements:
                 grafo = self._construct_causal_graph(statements, instance)
-                ctx['grafo'] = grafo
-                return grafo
+                if grafo is not None:
+                    ctx['grafo'] = grafo
+                    return grafo
             
-            # Strategy 4: Return None (will be handled by fallback or method can skip)
-            return _ARG_UNSET
+            # Strategy 4: Return empty graph as standard fallback
+            grafo = self._create_empty_graph()
+            ctx['grafo'] = grafo
+            return grafo
 
         # ========================================================================
         # ENHANCED: GRAPH NODE RESOLUTION (origen, destino for causal links)
@@ -1787,23 +1851,33 @@ class AdvancedDataFlowExecutor(ABC):
     # ENHANCED: GRAPH CONSTRUCTION HELPER
     # ========================================================================
 
-    def _construct_causal_graph(self, statements: list, instance: Any) -> Any:
-        """Construct causal graph from statements with sophisticated extraction"""
+    def _create_empty_graph(self):
+        """Create an empty DiGraph for causal analysis.
+        
+        Raises:
+            ImportError: If NetworkX is not available
+        """
         try:
             import networkx as nx
-            grafo = nx.DiGraph()
-            
-            # Extract potential causal relationships from statements
-            causal_indicators = [
-                'porque', 'ya que', 'debido a', 'causa', 'resultado',
-                'therefore', 'because', 'due to', 'causes', 'results in',
-                'conduce a', 'genera', 'produce', 'implica'
-            ]
-            
-            nodes = []
-            edges = []
-            
-            for idx, statement in enumerate(statements):
+        except ImportError as e:
+            raise ImportError("NetworkX is required for graph operations") from e
+        return nx.DiGraph()
+
+    def _construct_causal_graph(self, statements: list, instance: Any) -> Any:
+        """Construct causal graph from statements with sophisticated extraction"""
+        grafo = self._create_empty_graph()
+        
+        # Extract potential causal relationships from statements
+        causal_indicators = [
+            'porque', 'ya que', 'debido a', 'causa', 'resultado',
+            'therefore', 'because', 'due to', 'causes', 'results in',
+            'conduce a', 'genera', 'produce', 'implica'
+        ]
+        
+        nodes = []
+        edges = []
+        
+        for idx, statement in enumerate(statements):
                 if not isinstance(statement, str):
                     continue
                 
@@ -1827,18 +1901,14 @@ class AdvancedDataFlowExecutor(ABC):
                     # Add as isolated node
                     node_id = f"node_{len(nodes)}"
                     nodes.append(node_id)
-            
-            # Build graph
-            grafo.add_nodes_from(set(nodes))
-            grafo.add_edges_from(edges)
-            
-            logger.debug(f"Constructed causal graph with {len(grafo.nodes())} nodes, {len(grafo.edges())} edges")
-            
-            return grafo
-            
-        except ImportError:
-            logger.warning("NetworkX not available for graph construction")
-            return None
+        
+        # Build graph
+        grafo.add_nodes_from(set(nodes))
+        grafo.add_edges_from(edges)
+        
+        logger.debug(f"Constructed causal graph with {len(grafo.nodes())} nodes, {len(grafo.edges())} edges")
+        
+        return grafo
 
     @staticmethod
     def _compute_pattern_specificity(matches: list[str]) -> float:
@@ -2017,9 +2087,15 @@ class AdvancedDataFlowExecutor(ABC):
 
 class D1Q1_Executor(AdvancedDataFlowExecutor):
     """D1-Q1: Líneas Base y Brechas Cuantificadas"""
-
-    def execute(self, doc, method_executor):
-        method_sequence = [
+    
+    def __init__(self, method_executor, signal_registry=None) -> None:
+        super().__init__(method_executor, signal_registry)
+        # Validate method sequence at construction time
+        self._validate_method_sequences()
+    
+    def _get_method_sequence(self) -> list[tuple[str, str]]:
+        """Return method sequence for this executor."""
+        return [
             ('IndustrialPolicyProcessor', 'process'),
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
             ('IndustrialPolicyProcessor', '_construct_evidence_bundle'),
@@ -2039,6 +2115,9 @@ class D1Q1_Executor(AdvancedDataFlowExecutor):
             ('BayesianNumericalAnalyzer', 'evaluate_policy_metric'),
             ('BayesianNumericalAnalyzer', '_classify_evidence_strength'),
         ]
+
+    def execute(self, doc, method_executor):
+        method_sequence = self._get_method_sequence()
         return self.execute_with_optimization(doc, method_executor, method_sequence)
 
     def _extract(self, results):

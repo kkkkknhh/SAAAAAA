@@ -66,6 +66,33 @@ class ProcessorBundle:
 # FILE I/O OPERATIONS
 # ============================================================================
 
+def validate_questionnaire_structure(data: dict[str, object]) -> None:
+    """Validate questionnaire structure for required fields.
+    
+    Args:
+        data: Questionnaire data to validate
+        
+    Raises:
+        ValueError: If required fields are missing or invalid
+    """
+    required_keys = ["version", "blocks", "schema_version"]
+    missing = [k for k in required_keys if k not in data]
+    if missing:
+        raise ValueError(f"Questionnaire missing keys: {missing}")
+    blocks = data["blocks"]  # type: ignore[index]
+    if not isinstance(blocks, dict) or "micro_questions" not in blocks:
+        raise ValueError("blocks.micro_questions is required and must exist")
+    if not isinstance(blocks["micro_questions"], list):
+        raise ValueError("blocks.micro_questions must be a list")
+    for i, q in enumerate(blocks["micro_questions"]):
+        if not isinstance(q, dict):
+            raise ValueError(f"Question {i} must be a dict")
+        required_q = ["question_id", "question_global", "base_slot"]
+        miss_q = [k for k in required_q if k not in q]
+        if miss_q:
+            raise ValueError(f"Question {i} missing keys: {miss_q}")
+
+
 def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire monolith JSON file.
 
@@ -81,6 +108,7 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
+        ValueError: If questionnaire structure is invalid
     """
     if path is None:
         path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
@@ -94,6 +122,9 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
         raise TypeError(
             "questionnaire_monolith.json must contain a JSON object at the top level"
         )
+    
+    # Validate structure before returning
+    validate_questionnaire_structure(payload)
 
     return payload
 
@@ -641,6 +672,7 @@ __all__ = [
     'CoreModuleFactory',
     'ProcessorBundle',
     'load_questionnaire_monolith',
+    'validate_questionnaire_structure',
     'load_catalog',
     'load_method_map',
     'load_schema',
