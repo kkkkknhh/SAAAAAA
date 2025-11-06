@@ -30,15 +30,36 @@ from .safe_imports import (
     try_import,
 )
 
-# Re-export safe import utilities
+# Lazy loading utilities for heavy dependencies
+from .lazy_deps import (
+    get_numpy,
+    get_pandas,
+    get_polars,
+    get_pyarrow,
+    get_spacy,
+    get_torch,
+    get_transformers,
+)
+
+# Re-export safe import utilities and lazy deps
 __all__ = [
+    # Core import utilities
     "ImportErrorDetailed",
     "try_import",
     "lazy_import",
     "check_import_available",
     "get_import_version",
+    # Version compatibility shims
     "tomllib",
     "resources_files",
+    # Lazy loading utilities
+    "get_numpy",
+    "get_pandas",
+    "get_polars",
+    "get_pyarrow",
+    "get_torch",
+    "get_transformers",
+    "get_spacy",
 ]
 
 
