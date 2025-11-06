@@ -150,6 +150,8 @@ OPTIONAL_DEPENDENCIES = {
     "psutil": "6.1.1",
     "opentelemetry-api": "1.29.0",
     "opentelemetry-sdk": "1.29.0",
+    # Note: opentelemetry-instrumentation-fastapi is beta - use with caution
+    # Consider moving to dev/test if stability is an issue
     "opentelemetry-instrumentation-fastapi": "0.50b0",
     
     # HTML parsing

@@ -77,14 +77,17 @@ class TestDependencyManagement:
                 if not line or line.startswith('#'):
                     continue
                 
-                # Verify exact pin (==) is used
-                if '==' in line:
+                # Verify exact pin (==) is used, or skip -r includes
+                if line.startswith('-r '):
+                    continue
+                elif '==' in line:
                     # Good: exact pin
                     continue
                 elif any(op in line for op in ['>=', '~=', '<=', '<', '>', '*']):
                     pytest.fail(
                         f"Core requirements must use exact pins (==), "
-                        f"found open range in: {line}"
+                        f"found open range in: {line}\n"
+                        f"Expected format: package==X.Y.Z (e.g., numpy==2.2.1)"
                     )
     
     def test_audit_script_runs(self, project_root):
@@ -162,12 +165,14 @@ class TestDependencyManagement:
                     
                     # Verify line format
                     assert not line.startswith('=='), (
-                        f"{filename}:{line_num} - Malformed line (starts with ==): {line}"
+                        f"{filename}:{line_num} - Malformed line (starts with ==): {line}\n"
+                        f"Expected format: package==version (e.g., numpy==2.2.1)"
                     )
                     
                     # Verify contains package name
                     assert len(line.split('==')) >= 1, (
-                        f"{filename}:{line_num} - Invalid format: {line}"
+                        f"{filename}:{line_num} - Invalid format: {line}\n"
+                        f"Expected format: package==version (e.g., numpy==2.2.1)"
                     )
     
     def test_makefile_has_dependency_targets(self, project_root):

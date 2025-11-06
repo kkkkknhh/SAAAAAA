@@ -23,18 +23,22 @@ def check_file_for_open_ranges(filepath: Path) -> Tuple[bool, List[str]]:
         return False, []
     
     violations = []
+    # Match version specifiers more precisely: package_name OPERATOR version
+    # This avoids false positives from package names or comments
+    version_specifier_pattern = re.compile(r'^[a-zA-Z0-9_-]+\s*(>=|~=|<=|<|>|\*)')
     
     with open(filepath, 'r') as f:
         for line_num, line in enumerate(f, 1):
+            original_line = line
             line = line.strip()
             
             # Skip empty lines, comments, and -r includes
             if not line or line.startswith('#') or line.startswith('-r '):
                 continue
             
-            # Check for open ranges
-            if re.search(r'>=|~=|\*|<|>', line):
-                violations.append(f"Line {line_num}: {line}")
+            # Check for open ranges using more precise pattern
+            if version_specifier_pattern.match(line):
+                violations.append(f"Line {line_num}: {original_line.strip()}")
     
     return len(violations) > 0, violations
 
