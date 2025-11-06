@@ -26,8 +26,31 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-import blake3
-import structlog
+# Optional dependency - blake3
+try:
+    import blake3
+    BLAKE3_AVAILABLE = True
+except ImportError:
+    BLAKE3_AVAILABLE = False
+    import hashlib
+    # Fallback to hashlib if blake3 not available
+    class blake3:  # type: ignore
+        @staticmethod
+        def blake3(data: bytes) -> object:
+            class HashResult:
+                def __init__(self, data: bytes):
+                    self._hash = hashlib.sha256(data)
+                def hexdigest(self) -> str:
+                    return self._hash.hexdigest()
+            return HashResult(data)
+# Optional dependency - structlog
+try:
+    import structlog
+    STRUCTLOG_AVAILABLE = True
+except ImportError:
+    STRUCTLOG_AVAILABLE = False
+    import logging
+    structlog = logging  # type: ignore  # Fallback to standard logging
 from pydantic import BaseModel, Field, field_validator
 from tenacity import (
     retry,

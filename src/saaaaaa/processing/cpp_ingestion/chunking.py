@@ -12,10 +12,21 @@ Implements 8 chunking mechanisms:
 8. Redundancy guard
 """
 
-import hashlib
-from typing import Any, Dict, List, Optional, Set
+from __future__ import annotations
 
-import pyarrow as pa
+import hashlib
+from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
+
+# Optional dependency - pyarrow
+if TYPE_CHECKING:
+    import pyarrow as pa
+else:
+    try:
+        import pyarrow as pa
+        PYARROW_AVAILABLE = True
+    except ImportError:
+        PYARROW_AVAILABLE = False
+        pa = None  # type: ignore
 
 from .models import (
     BoundingBox,
