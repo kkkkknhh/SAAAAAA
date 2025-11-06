@@ -5,6 +5,10 @@ import json
 import pytest
 
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Hash validation now part of questionnaire_validation")
+
 def test_monolith_hash_reproducibility():
     """Test that same monolith data produces same hash across runs."""
     monolith = {

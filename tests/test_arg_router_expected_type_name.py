@@ -1,6 +1,10 @@
 """Test for _expected_type_name method in arg_router.py."""
 import pytest
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Merged into test_arg_router_extended.py")
+
 from saaaaaa.core.orchestrator.arg_router import PayloadDriftMonitor
 
 

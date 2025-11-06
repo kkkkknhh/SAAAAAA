@@ -513,6 +513,135 @@ def build_processor(
     )
 
 # ============================================================================
+# HASH AND VALIDATION UTILITIES
+# ============================================================================
+
+def compute_monolith_hash(monolith: dict[str, Any]) -> str:
+    """
+    Compute deterministic SHA-256 hash of questionnaire monolith.
+    
+    This function ensures:
+    - Key order independence via sort_keys=True
+    - Consistent unicode handling via ensure_ascii=True
+    - No whitespace variation via separators
+    
+    Args:
+        monolith: Questionnaire monolith dictionary
+        
+    Returns:
+        Hexadecimal SHA-256 hash string
+    """
+    import hashlib
+    
+    serialized = json.dumps(
+        monolith,
+        sort_keys=True,
+        ensure_ascii=True,  # Consistent unicode handling
+        separators=(',', ':'),  # No whitespace
+    )
+    return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
+
+
+def validate_questionnaire_structure(data: dict[str, Any]) -> None:
+    """
+    Validate questionnaire has required structure and types.
+    
+    Performs comprehensive validation including:
+    - Top-level structure (version, blocks, schema_version)
+    - Block structure (micro_questions must be list)
+    - Question fields (question_id, question_global, base_slot)
+    - Type validation for all fields
+    - Duplicate detection (question_id, question_global)
+    - Null value checking
+    
+    Args:
+        data: Questionnaire data to validate
+        
+    Raises:
+        ValueError: If validation fails with specific error message
+        TypeError: If top-level structure is invalid
+    """
+    if not isinstance(data, dict):
+        raise TypeError("Questionnaire must be a dictionary")
+
+    # Check top-level keys
+    required_keys = ['version', 'blocks', 'schema_version']
+    missing = [k for k in required_keys if k not in data]
+    if missing:
+        raise ValueError(f"Questionnaire missing keys: {missing}")
+
+    # Validate blocks structure
+    blocks = data['blocks']
+    if not isinstance(blocks, dict):
+        raise ValueError("blocks must be a dict")
+
+    if 'micro_questions' not in blocks:
+        raise ValueError("blocks.micro_questions is required")
+
+    micro_questions = blocks['micro_questions']
+    if not isinstance(micro_questions, list):
+        raise ValueError("blocks.micro_questions must be a list")
+
+    # Track for duplicate detection
+    seen_question_ids = set()
+    seen_question_globals = set()
+
+    # Validate each question
+    required_q_keys = ['question_id', 'question_global', 'base_slot']
+
+    for i, q in enumerate(micro_questions):
+        if not isinstance(q, dict):
+            raise ValueError(f"Question {i} must be a dict, got {type(q).__name__}")
+        
+        # Check required keys
+        missing_q = [k for k in required_q_keys if k not in q]
+        if missing_q:
+            raise ValueError(f"Question {i} missing keys: {missing_q}")
+        
+        # Check for None values
+        for key in required_q_keys:
+            if q[key] is None:
+                raise ValueError(f"Question {i}: {key} cannot be None")
+        
+        # Type validation
+        question_id = q['question_id']
+        if not isinstance(question_id, str):
+            raise ValueError(
+                f"Question {i}: question_id must be string, got {type(question_id).__name__}"
+            )
+        
+        question_global = q['question_global']
+        if not isinstance(question_global, int):
+            raise ValueError(
+                f"Question {i}: question_global must be an integer, got {type(question_global).__name__}"
+            )
+        
+        base_slot = q['base_slot']
+        if not isinstance(base_slot, str):
+            raise ValueError(
+                f"Question {i}: base_slot must be string, got {type(base_slot).__name__}"
+            )
+        
+        # Duplicate detection
+        if question_id in seen_question_ids:
+            raise ValueError(f"Duplicate question_id: {question_id} at index {i}")
+        seen_question_ids.add(question_id)
+        
+        if question_global in seen_question_globals:
+            raise ValueError(
+                f"Duplicate question_global: {question_global} at index {i}"
+            )
+        seen_question_globals.add(question_global)
+
+    logger.info(
+        "questionnaire_validation_passed",
+        extra={
+            "question_count": len(micro_questions),
+            "unique_question_ids": len(seen_question_ids),
+        }
+    )
+
+# ============================================================================
 # MIGRATION HELPERS
 # ============================================================================
 
@@ -558,4 +687,6 @@ __all__ = [
     'construct_semantic_chunking_input',
     'construct_policy_processor_input',
     'build_processor',
+    'compute_monolith_hash',
+    'validate_questionnaire_structure',
 ]

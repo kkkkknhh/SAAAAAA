@@ -3,11 +3,17 @@ Test suite for import validation
 =================================
 
 This test verifies that all imports work correctly across the system.
+
+NOTE: This test file is OUTDATED. Use test_import_consistency.py and test_smoke_imports.py instead.
 """
 
 import importlib
 import sys
 from pathlib import Path
+import pytest
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="outdated - use test_import_consistency.py and test_smoke_imports.py")
 
 # Add project paths
 

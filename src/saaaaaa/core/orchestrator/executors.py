@@ -1067,6 +1067,7 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 method_start = time.time()
                 success = False
                 max_retries = 3
+                prepared_kwargs = {}  # Initialize to prevent UnboundLocalError in failure logging
 
                 for attempt in range(max_retries):
                     try:

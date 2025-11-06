@@ -31,7 +31,11 @@ Purpose: AUDIT, ENSURE, FORCE, GUARANTEE, and SUSTAIN high-level wiring
 """
 
 import unittest
+import pytest
 from pathlib import Path
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="outdated - use test_system_audit.py")
 
 # Add parent directory and src to path
 root_dir = Path(__file__).parent.parent

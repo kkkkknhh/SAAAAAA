@@ -12,6 +12,10 @@ This module tests the new enhanced argument resolution features including:
 from unittest.mock import Mock
 import pytest
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Argument resolution now in ArgRouter extended tests")
+
 from saaaaaa.core.orchestrator.executors import AdvancedDataFlowExecutor, D1Q1_Executor
 
 

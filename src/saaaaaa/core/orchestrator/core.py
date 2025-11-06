@@ -328,6 +328,115 @@ class Evidence:
 class AbortRequested(RuntimeError):
     """Raised when an abort signal is triggered during orchestration."""
 
+# Type variables for generic async timeout wrapper
+P = ParamSpec('P')
+T = TypeVar('T')
+
+class PhaseTimeoutError(RuntimeError):
+    """Raised when a phase exceeds its timeout."""
+    
+    def __init__(self, phase_id: int, phase_name: str, timeout_s: float):
+        self.phase_id = phase_id
+        self.phase_name = phase_name
+        self.timeout_s = timeout_s
+        super().__init__(
+            f"Phase {phase_id} ({phase_name}) timed out after {timeout_s}s"
+        )
+
+async def execute_phase_with_timeout(
+    phase_id: int,
+    phase_name: str,
+    coro: Callable[P, T],
+    *args: P.args,
+    timeout_s: float = 300,
+    **kwargs: P.kwargs
+) -> T:
+    """
+    Execute phase with timeout and comprehensive error handling.
+    
+    Logs:
+    - Start time
+    - Completion time
+    - Timeout events
+    - Cancellation events
+    
+    Raises:
+        PhaseTimeoutError: On timeout
+        asyncio.CancelledError: On external cancellation
+        Exception: Original exception from phase
+    """
+    start_time = time.perf_counter()
+    
+    logger.info(
+        "phase_execution_started",
+        extra={
+            "phase_id": phase_id,
+            "phase_name": phase_name,
+            "timeout_s": timeout_s,
+        }
+    )
+    
+    try:
+        result = await asyncio.wait_for(
+            coro(*args, **kwargs),
+            timeout=timeout_s
+        )
+        
+        elapsed = time.perf_counter() - start_time
+        logger.info(
+            "phase_execution_completed",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "time_remaining_s": timeout_s - elapsed,
+            }
+        )
+        
+        return result
+        
+    except asyncio.TimeoutError:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_timeout",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "exceeded_by_s": elapsed - timeout_s,
+            }
+        )
+        raise PhaseTimeoutError(phase_id, phase_name, timeout_s)
+        
+    except asyncio.CancelledError:
+        elapsed = time.perf_counter() - start_time
+        logger.warning(
+            "phase_execution_cancelled",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+            }
+        )
+        raise  # Re-raise to propagate cancellation
+        
+    except Exception as e:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_error",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+            exc_info=True,
+        )
+        raise
+
 class AbortSignal:
     """Thread-safe abort signal shared across orchestration phases."""
 
@@ -918,6 +1027,21 @@ class Orchestrator:
         10: ["report", "config"],
     }
 
+    # Phase timeout configuration (in seconds)
+    PHASE_TIMEOUTS: dict[int, float] = {
+        0: 60,     # Configuration validation
+        1: 120,    # Document ingestion
+        2: 600,    # Micro questions (300 items)
+        3: 300,    # Scoring micro
+        4: 180,    # Dimension aggregation
+        5: 120,    # Policy area aggregation
+        6: 60,     # Cluster aggregation
+        7: 60,     # Macro evaluation
+        8: 120,    # Recommendations
+        9: 60,     # Report assembly
+        10: 120,   # Format and export
+    }
+
     # Score normalization constant
     PERCENTAGE_SCALE: int = 100
 
@@ -1062,6 +1186,10 @@ class Orchestrator:
 
         return path
 
+    def _get_phase_timeout(self, phase_id: int) -> float:
+        """Get timeout for a specific phase."""
+        return self.PHASE_TIMEOUTS.get(phase_id, 300.0)  # Default 5 minutes
+
     def process_development_plan(
             self, pdf_path: str, preprocessed_document: Any | None = None
     ) -> list[PhaseResult]:
@@ -1122,6 +1250,11 @@ class Orchestrator:
                         timeout_s=PHASE_TIMEOUT_DEFAULT,
                     )
                 success = True
+            except PhaseTimeoutError as exc:
+                error = exc
+                success = False
+                instrumentation.record_error("timeout", str(exc))
+                self.request_abort(f"Fase {phase_id} timed out: {exc}")
             except AbortRequested as exc:
                 error = exc
                 success = False
@@ -1240,6 +1373,121 @@ class Orchestrator:
         if self.abort_signal.is_aborted():
             score = min(score, 20.0)
         return {"score": score, "resource_usage": usage, "abort": self.abort_signal.is_aborted()}
+
+    def get_system_health(self) -> dict[str, Any]:
+        """
+        Comprehensive system health check.
+        
+        Returns health status with component checks for:
+        - Method executor
+        - Questionnaire provider (if available)
+        - Resource limits and usage
+        
+        Returns:
+            Dict with overall status ('healthy', 'degraded', 'unhealthy')
+            and component-specific health information
+        """
+        health = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'components': {}
+        }
+
+        # Check method executor
+        try:
+            executor_health = {
+                'instances_loaded': len(self.executor.instances),
+                'calibrations_loaded': len(self.executor.calibrations),
+                'status': 'healthy'
+            }
+            health['components']['method_executor'] = executor_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['method_executor'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check questionnaire provider (if available)
+        try:
+            from . import get_questionnaire_provider
+            provider = get_questionnaire_provider()
+            questionnaire_health = {
+                'has_data': provider.has_data(),
+                'status': 'healthy' if provider.has_data() else 'unhealthy'
+            }
+            health['components']['questionnaire_provider'] = questionnaire_health
+            
+            if not provider.has_data():
+                health['status'] = 'degraded'
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['questionnaire_provider'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check resource limits
+        try:
+            usage = self.resource_limits.get_resource_usage()
+            resource_health = {
+                'cpu_percent': usage.get('cpu_percent', 0),
+                'memory_mb': usage.get('rss_mb', 0),
+                'worker_budget': usage.get('worker_budget', 0),
+                'status': 'healthy'
+            }
+            
+            # Warning thresholds
+            if usage.get('cpu_percent', 0) > 80:
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High CPU usage'
+                health['status'] = 'degraded'
+            
+            if usage.get('rss_mb', 0) > 3500:  # Near 4GB limit
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High memory usage'
+                health['status'] = 'degraded'
+            
+            health['components']['resources'] = resource_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['resources'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check abort status
+        if self.abort_signal.is_aborted():
+            health['status'] = 'unhealthy'
+            health['abort_reason'] = self.abort_signal.get_reason()
+
+        return health
+
+    def export_metrics(self) -> dict[str, Any]:
+        """
+        Export all metrics for monitoring.
+        
+        Returns:
+            Dict containing:
+            - timestamp: Current UTC timestamp
+            - phase_metrics: Metrics for all phases
+            - resource_usage: Resource usage history
+            - abort_status: Current abort status
+            - phase_status: Status of all phases
+        """
+        abort_timestamp = self.abort_signal.get_timestamp()
+        
+        return {
+            'timestamp': datetime.utcnow().isoformat(),
+            'phase_metrics': self.get_phase_metrics(),
+            'resource_usage': self.resource_limits.get_usage_history(),
+            'abort_status': {
+                'is_aborted': self.abort_signal.is_aborted(),
+                'reason': self.abort_signal.get_reason(),
+                'timestamp': abort_timestamp.isoformat() if abort_timestamp else None,
+            },
+            'phase_status': dict(self._phase_status),
+        }
 
     def _load_configuration(self) -> dict[str, Any]:
         self._ensure_not_aborted()

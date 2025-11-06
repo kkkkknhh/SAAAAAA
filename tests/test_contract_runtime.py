@@ -9,6 +9,10 @@ These tests ensure that:
 """
 
 import pytest
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Runtime contracts now in test_contracts_comprehensive.py")
+
 from pydantic import ValidationError
 
 from saaaaaa.utils.contracts_runtime import (

@@ -533,6 +533,8 @@ class SignalClient:
         self._failure_count = 0
         self._circuit_open = False
         self._last_failure_time = 0.0
+        self._state_changes: list[dict[str, Any]] = []
+        self._max_history = 100
         
         # Determine transport mode
         if base_url.startswith("memory://"):
@@ -635,8 +637,22 @@ class SignalClient:
                 )
             else:
                 # Try to close circuit
+                old_open = self._circuit_open
                 self._circuit_open = False
                 self._failure_count = 0
+                
+                # Record state change
+                self._state_changes.append({
+                    'timestamp': time.time(),
+                    'from_open': old_open,
+                    'to_open': self._circuit_open,
+                    'failures': self._failure_count,
+                })
+                
+                # Trim history
+                if len(self._state_changes) > self._max_history:
+                    self._state_changes = self._state_changes[-self._max_history:]
+                
                 logger.info("signal_client_circuit_closed")
         
         # Build request
@@ -753,14 +769,40 @@ class SignalClient:
     
     def _record_failure(self) -> None:
         """Record a failure and potentially open circuit."""
+        old_open = self._circuit_open
+        old_failures = self._failure_count
+        
         self._failure_count += 1
         self._last_failure_time = time.time()
         
         if self._failure_count >= self._circuit_breaker_threshold:
             self._circuit_open = True
+        
+        # Record state change if circuit opened
+        if old_open != self._circuit_open:
+            self._state_changes.append({
+                'timestamp': time.time(),
+                'from_open': old_open,
+                'to_open': self._circuit_open,
+                'failures': self._failure_count,
+            })
+            
+            # Trim history
+            if len(self._state_changes) > self._max_history:
+                self._state_changes = self._state_changes[-self._max_history:]
+            
             logger.warning(
                 "signal_client_circuit_opened",
                 failure_count=self._failure_count,
+                old_open=old_open,
+                new_open=self._circuit_open,
+            )
+        else:
+            # Just log the failure increment
+            logger.debug(
+                "signal_client_failure_recorded",
+                failure_count=self._failure_count,
+                threshold=self._circuit_breaker_threshold,
             )
     
     def get_metrics(self) -> dict[str, Any]:
@@ -773,13 +815,26 @@ class SignalClient:
             - circuit_open: Whether circuit breaker is open
             - failure_count: Current failure count
             - etag_cache_size: Number of cached ETags
+            - state_change_count: Number of circuit breaker state changes
+            - last_failure_time: Timestamp of last failure (or None)
         """
         return {
             "transport": self._transport,
             "circuit_open": self._circuit_open,
             "failure_count": self._failure_count,
             "etag_cache_size": len(self._etag_cache),
+            "state_change_count": len(self._state_changes),
+            "last_failure_time": self._last_failure_time if self._last_failure_time else None,
         }
+    
+    def get_state_history(self) -> list[dict[str, Any]]:
+        """
+        Get history of circuit breaker state changes for monitoring.
+        
+        Returns:
+            List of state change records with timestamps
+        """
+        return list(self._state_changes)
     
     def register_memory_signal(self, policy_area: str, signal_pack: SignalPack) -> None:
         """
