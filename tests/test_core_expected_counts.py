@@ -3,6 +3,10 @@ import os
 import pytest
 
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Count validation moved to structure_verification")
+
 def test_expected_counts_default():
     """Test that default expected counts are loaded correctly."""
     # Import after setting env vars

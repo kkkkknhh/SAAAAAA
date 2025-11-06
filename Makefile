@@ -1,6 +1,6 @@
-.PHONY: install setup verify clean validate-schema validate-monolith \
-	equip:system equip:python equip:signals equip:cpp equip:all \
-	run:flux run:cpp preflight
+.PHONY: install setup verify clean validate-schema validate-monolith
+.PHONY: equip-system equip-python equip-signals equip-cpp equip-all
+.PHONY: run-flux run-cpp preflight
 
 # Install dependencies and setup the package for development
 install: setup
@@ -80,7 +80,7 @@ clean:
 # ========================================================================
 
 # System-level equipment: OS checks, ulimits, locales, ICU
-equip:system:
+equip-system:
 	@echo "=== EQUIP:SYSTEM - Sistema Operativo ==="
 	@echo "Verificando Python..."
 	@python3 --version || (echo "❌ Python 3 no encontrado" && exit 1)
@@ -99,7 +99,7 @@ equip:system:
 	@echo "\n=== SYSTEM EQUIPMENT COMPLETE ==="
 
 # Python-level equipment: install, compile C-exts, verify pins
-equip:python:
+equip-python:
 	@echo "=== EQUIP:PYTHON - Dependencias Python ==="
 	@echo "Instalando dependencias..."
 	@pip install -r requirements.txt --quiet || (echo "❌ Instalación fallida" && exit 1)
@@ -120,7 +120,7 @@ equip:python:
 	@echo "\n=== PYTHON EQUIPMENT COMPLETE ==="
 
 # Signals equipment: memory:// warmup, regex compilation, registry seed
-equip:signals:
+equip-signals:
 	@echo "=== EQUIP:SIGNALS - Sistema de Señales ==="
 	@echo "Inicializando SignalRegistry..."
 	@python3 -c "from saaaaaa.core.orchestrator.signals import SignalRegistry; r = SignalRegistry(max_size=100, default_ttl_s=3600); print(f'✓ SignalRegistry: max_size={r._max_size}, ttl={r._default_ttl_s}s')" || (echo "❌ SignalRegistry init failed" && exit 1)
@@ -131,7 +131,7 @@ equip:signals:
 	@echo "\n=== SIGNALS EQUIPMENT COMPLETE ==="
 
 # CPP equipment: smoke test of CPPAdapter
-equip:cpp:
+equip-cpp:
 	@echo "=== EQUIP:CPP - CPP Adapter ==="
 	@echo "Verificando CPPAdapter..."
 	@python3 -c "from saaaaaa.utils.cpp_adapter import CPPAdapter; print('✓ CPPAdapter importable')" || (echo "❌ CPPAdapter import failed" && exit 1)
@@ -140,7 +140,7 @@ equip:cpp:
 	@echo "\n=== CPP EQUIPMENT COMPLETE ==="
 
 # Run all equipment routines
-equip:all: equip:system equip:python equip:signals equip:cpp
+equip-all: equip-system equip-python equip-signals equip-cpp
 	@echo "\n=========================================="
 	@echo "✓ ALL EQUIPMENT ROUTINES COMPLETE"
 	@echo "=========================================="
@@ -150,7 +150,7 @@ equip:all: equip:system equip:python equip:signals equip:cpp
 # ========================================================================
 
 # Run FLUX pipeline with standard parameters
-run:flux:
+run-flux:
 	@echo "=== EJECUTANDO FLUX PIPELINE ==="
 	@python3 -m saaaaaa.flux.cli run "demo://sample-policy-document.pdf" \
 		--ingest-enable-ocr \
@@ -163,7 +163,7 @@ run:flux:
 	@echo "\n✓ FLUX pipeline complete"
 
 # Run CPP ingestion example
-run:cpp:
+run-cpp:
 	@echo "=== EJECUTANDO CPP INGESTION ==="
 	@python3 examples/cpp_ingestion_example.py
 	@echo "\n✓ CPP ingestion complete"

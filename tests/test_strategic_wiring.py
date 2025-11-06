@@ -353,6 +353,10 @@ class TestStrategicFileInteraction(unittest.TestCase):
 
         from saaaaaa.core.seed_factory import DeterministicContext
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Strategic wiring validation moved to system_audit")
+
         # Save original state
         random.random()
 

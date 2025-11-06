@@ -171,10 +171,10 @@ python3 -c "import spacy; nlp = spacy.load('es_core_news_lg'); print('✓ SpaCy 
 
 ## 3. Comandos de Equipamiento
 
-### 3.1 `make equip:system` — Verificación del Sistema Operativo
+### 3.1 `make equip-system` — Verificación del Sistema Operativo
 
 ```bash
-make equip:system
+make equip-system
 ```
 
 **Realiza:**
@@ -201,10 +201,10 @@ python3 scripts/verify_system_equipment.py --check-all
 ✓ System ready
 ```
 
-### 3.2 `make equip:python` — Instalación y Compilación Python
+### 3.2 `make equip-python` — Instalación y Compilación Python
 
 ```bash
-make equip:python
+make equip-python
 ```
 
 **Realiza:**
@@ -231,10 +231,10 @@ python3 -c "import polars; print(f'✓ polars: {polars.__version__}')"
 python3 tools/import_all.py
 ```
 
-### 3.3 `make equip:signals` — Preparación del Sistema de Señales
+### 3.3 `make equip-signals` — Preparación del Sistema de Señales
 
 ```bash
-make equip:signals
+make equip-signals
 ```
 
 **Realiza:**
@@ -261,10 +261,10 @@ python3 scripts/equip_signals.py \
 ✓ Signals ready
 ```
 
-### 3.4 `make equip:cpp` — Verificación de CPP Adapter
+### 3.4 `make equip-cpp` — Verificación de CPP Adapter
 
 ```bash
-make equip:cpp
+make equip-cpp
 ```
 
 **Realiza:**
@@ -292,12 +292,12 @@ python3 scripts/equip_cpp_smoke.py --run-tests
 
 ```bash
 # Ejecutar todas las fases de equipamiento
-make equip:all
+make equip-all
 # O manualmente:
-make equip:system && \
-make equip:python && \
-make equip:signals && \
-make equip:cpp
+make equip-system && \
+make equip-python && \
+make equip-signals && \
+make equip-cpp
 ```
 
 ---
@@ -729,7 +729,7 @@ if passed < total:
 | 1 | Error general | Ver logs, diagnósticos |
 | 2 | Validación fallida | Revisar preflight checklist |
 | 3 | Configuración inválida | Verificar parámetros de entrada |
-| 4 | Dependencia faltante | Ejecutar `make equip:python` |
+| 4 | Dependencia faltante | Ejecutar `make equip-python` |
 | 5 | Threshold no alcanzado | Revisar calidad de input |
 
 ### 8.2 Rutas de Fallback
@@ -807,7 +807,7 @@ pip uninstall -y -r requirements.txt
 pip install -r requirements.txt
 
 # Re-equipar sistema
-make equip:all
+make equip-all
 
 # Verificar
 pytest tests/test_smoke_imports.py -v
@@ -830,13 +830,13 @@ python3 -m spacy download es_core_news_lg es_dep_news_trf
 
 ```bash
 # Equipamiento completo
-make equip:all
+make equip-all
 
 # O paso a paso
-make equip:system
-make equip:python
-make equip:signals
-make equip:cpp
+make equip-system
+make equip-python
+make equip-signals
+make equip-cpp
 ```
 
 ### 9.3 Ejecución

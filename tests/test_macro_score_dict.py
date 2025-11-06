@@ -1,6 +1,10 @@
 """Test MacroScoreDict typed container in core.py."""
 import pytest
 
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Macro scoring now part of gold_canario_macro_reporting")
+
 from saaaaaa.core.orchestrator.core import MacroScoreDict
 from saaaaaa.processing.aggregation import MacroScore, ClusterScore
 
