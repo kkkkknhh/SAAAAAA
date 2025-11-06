@@ -18,7 +18,24 @@ import os
 from dataclasses import dataclass, field
 from typing import Literal, Any
 
-import blake3
+# Optional dependency - blake3
+try:
+    import blake3
+    BLAKE3_AVAILABLE = True
+except ImportError:
+    BLAKE3_AVAILABLE = False
+    import hashlib
+    # Fallback to hashlib if blake3 not available
+    class blake3:  # type: ignore
+        @staticmethod
+        def blake3(data: bytes) -> object:
+            class HashResult:
+                def __init__(self, data: bytes):
+                    self._hash = hashlib.sha256(data)
+                def hexdigest(self) -> str:
+                    return self._hash.hexdigest()
+            return HashResult(data)
+
 from pydantic import BaseModel, Field, field_validator
 
 
