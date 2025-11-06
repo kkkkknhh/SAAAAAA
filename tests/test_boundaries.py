@@ -24,6 +24,9 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+# Define the package root directory
+PACKAGE_ROOT = Path(__file__).parent.parent / "src" / "saaaaaa"
+
 # Modules that must stay pure (no __main__ and no direct I/O).
 PURE_MODULE_PATHS: dict[str, Path] = {
     "saaaaaa.processing.embedding_policy": PACKAGE_ROOT / "processing" / "embedding_policy.py",
