@@ -8,7 +8,50 @@
 
 ---
 
-## 📦 Package Installation & Import Strategy
+## 📦 Package Installation & Dependency Management
+
+### Quick Installation
+
+**For development:**
+```bash
+pip install -r requirements-dev.txt
+```
+
+**For production:**
+```bash
+pip install -r requirements-core.txt
+```
+
+**Complete documentation:** See [DEPENDENCIES_QUICKSTART.md](DEPENDENCIES_QUICKSTART.md)
+
+### Dependency Management System
+
+This project uses a comprehensive dependency management system with:
+
+- **Exact version pins** for reproducible builds
+- **Classified dependencies** (core, optional, dev, docs)
+- **Automated verification** and security scanning
+- **CI/CD gates** to prevent dependency drift
+
+**Key files:**
+- `requirements-core.txt` - Core runtime dependencies (37 packages)
+- `requirements-optional.txt` - Optional features (30 packages)
+- `requirements-dev.txt` - Development tools (includes core)
+- `DEPENDENCIES_AUDIT.md` - Complete dependency documentation
+
+**Verification commands:**
+```bash
+# Verify all dependencies
+make deps:verify
+
+# Run dependency audit
+make deps:audit
+
+# Check importability
+python3 scripts/verify_importability.py
+```
+
+**For detailed dependency information:** See [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md)
 
 ### Installation
 
