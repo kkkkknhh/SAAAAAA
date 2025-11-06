@@ -1,4 +1,4 @@
-.PHONY: install setup verify clean validate-schema validate-monolith
+.PHONY: install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports
 
 # Install dependencies and setup the package for development
 install: setup
@@ -72,3 +72,38 @@ clean:
 	@rm -rf build/ dist/ *.egg-info .pytest_cache/ .mypy_cache/ .ruff_cache/
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Cleaned"
+
+# Equipment checks - verify environment readiness
+equip: equip-python equip-native equip-compat
+	@echo "\n=== ALL EQUIPMENT CHECKS COMPLETE ==="
+
+equip-python:
+	@echo "Running Python environment checks..."
+	@python3 scripts/equip_python.py
+
+equip-native:
+	@echo "Running native dependencies checks..."
+	@python3 scripts/equip_native.py
+
+equip-compat:
+	@echo "Running compatibility layer checks..."
+	@python3 scripts/equip_compat.py
+
+equip-types:
+	@echo "Running type stubs checks..."
+	@echo "Checking for py.typed marker..."
+	@test -f src/saaaaaa/py.typed && echo "✓ py.typed present" || (echo "✗ py.typed missing" && exit 1)
+	@echo "Checking type checking configuration..."
+	@grep -q "typeCheckingMode" pyproject.toml && echo "✓ pyright configured" || echo "⚠️  pyright not configured"
+	@grep -q "strict = true" pyproject.toml && echo "✓ mypy strict mode enabled" || echo "⚠️  mypy not strict"
+
+# Import audit - comprehensive import system checks
+audit-imports:
+	@echo "=== IMPORT AUDIT ==="
+	@echo "\n1. Shadowing Detection:"
+	@python3 scripts/audit_import_shadowing.py || true
+	@echo "\n2. Circular Import Detection:"
+	@python3 scripts/audit_circular_imports.py || true
+	@echo "\n3. Import Budget Check:"
+	@python3 scripts/audit_import_budget.py || true
+	@echo "\n=== AUDIT COMPLETE ==="

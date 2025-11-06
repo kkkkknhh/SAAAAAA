@@ -99,22 +99,29 @@ def try_import(
     """
     try:
         return importlib.import_module(modname)
-    except Exception as e:
+    except Exception as primary_error:
         msg = f"[IMPORT] Failed '{modname}'"
         
         # Try alternative package if specified
         if alt:
             try:
                 return importlib.import_module(alt)
-            except Exception as e2:
+            except Exception as alt_error:
                 # Both primary and alternative failed
-                e = ImportErrorDetailed(
-                    f"{msg}; alt '{alt}' failed: {e2}. {hint}"
-                ) from e2
+                combined_error = ImportErrorDetailed(
+                    f"{msg}; alt '{alt}' failed: {alt_error}. {hint}"
+                )
+                combined_error.__cause__ = alt_error
+                
+                if required:
+                    raise combined_error from primary_error
+                else:
+                    sys.stderr.write(f"{msg} (optional); alt also failed. {hint}\n")
+                    return None
         
         # Required import failed - abort immediately
         if required:
-            raise ImportErrorDetailed(f"{msg}. {hint}") from e
+            raise ImportErrorDetailed(f"{msg}. {hint}") from primary_error
         
         # Optional dependency: log and defer failure to call site
         # This allows the module to load but fail when the feature is used
