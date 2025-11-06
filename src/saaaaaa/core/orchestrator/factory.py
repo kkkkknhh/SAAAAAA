@@ -426,6 +426,7 @@ class CoreModuleFactory:
         """
         self.data_dir = data_dir or _DEFAULT_DATA_DIR
         self.questionnaire_cache: dict[str, Any] | None = None
+        self.catalog_cache: dict[str, Any] | None = None
 
     def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
@@ -439,6 +440,17 @@ class CoreModuleFactory:
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
         return self.questionnaire_cache
+
+    @property
+    def catalog(self) -> dict[str, Any]:
+        """Get method catalog data (cached).
+
+        Returns:
+            Method catalog data
+        """
+        if self.catalog_cache is None:
+            self.catalog_cache = load_catalog()
+        return self.catalog_cache
 
     def load_document(self, file_path: Path) -> DocumentData:
         """Load document and return structured data.
