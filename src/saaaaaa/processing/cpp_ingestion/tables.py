@@ -135,10 +135,11 @@ class TableExtractor:
             
             # Extract indicator name
             if indicator_col is not None and indicator_col < len(row):
-                kpi["indicator"] = row[indicator_col].strip()
+                cell_value = row[indicator_col]
+                kpi["indicator"] = cell_value.strip() if cell_value else "Unknown"
             else:
                 # Use first non-empty cell as indicator
-                kpi["indicator"] = next((cell.strip() for cell in row if cell.strip()), "Unknown")
+                kpi["indicator"] = next((cell.strip() for cell in row if cell and cell.strip()), "Unknown")
             
             # Extract baseline
             if baseline_col is not None and baseline_col < len(row):
@@ -150,11 +151,13 @@ class TableExtractor:
             
             # Extract unit
             if unit_col is not None and unit_col < len(row):
-                kpi["unit"] = row[unit_col].strip()
+                cell_value = row[unit_col]
+                kpi["unit"] = cell_value.strip() if cell_value else ""
             
             # Extract year
             if year_col is not None and year_col < len(row):
-                year_text = row[year_col].strip()
+                cell_value = row[year_col]
+                year_text = cell_value.strip() if cell_value else ""
                 year_match = re.search(r'20\d{2}', year_text)
                 if year_match:
                     kpi["year"] = int(year_match.group())
@@ -193,16 +196,18 @@ class TableExtractor:
             
             # Extract source
             if source_col is not None and source_col < len(row):
-                budget["source"] = row[source_col].strip()
+                cell_value = row[source_col]
+                budget["source"] = cell_value.strip() if cell_value else "Unknown"
             else:
                 budget["source"] = "Unknown"
             
             # Extract use
             if use_col is not None and use_col < len(row):
-                budget["use"] = row[use_col].strip()
+                cell_value = row[use_col]
+                budget["use"] = cell_value.strip() if cell_value else "Unknown"
             else:
                 # Use first non-empty cell if no use column
-                budget["use"] = next((cell.strip() for cell in row if cell.strip()), "Unknown")
+                budget["use"] = next((cell.strip() for cell in row if cell and cell.strip()), "Unknown")
             
             # Extract amount (look in all cells if no specific column)
             amount = None
@@ -221,7 +226,8 @@ class TableExtractor:
             
             # Extract year
             if year_col is not None and year_col < len(row):
-                year_text = row[year_col].strip()
+                cell_value = row[year_col]
+                year_text = cell_value.strip() if cell_value else ""
                 year_match = re.search(r'20\d{2}', year_text)
                 if year_match:
                     budget["year"] = int(year_match.group())

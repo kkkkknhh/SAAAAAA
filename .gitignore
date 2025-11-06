@@ -75,3 +75,6 @@ saaaaaa-deployment.txt
 /tmp/
 /cache/
 
+
+# Generated CPP output files
+data/output/
