@@ -1,0 +1,194 @@
+"""
+Compatibility Layer - Version Shims and Polyfills
+
+This module provides a unified interface for Python version differences
+and third-party package variations. All version-specific imports should
+go through this layer.
+
+Shims provided:
+- tomllib/tomli (TOML parsing, Python 3.11+ vs earlier)
+- importlib.resources (files() API, Python 3.9+ vs earlier)
+- typing extensions (backports for older Python)
+- typing (future annotations support)
+
+Design:
+- Explicit imports only (no star imports)
+- Fail-fast on missing required compatibility
+- Clear error messages with version requirements
+"""
+
+from __future__ import annotations
+
+import sys
+from typing import Any
+
+from .safe_imports import (
+    ImportErrorDetailed,
+    check_import_available,
+    get_import_version,
+    lazy_import,
+    try_import,
+)
+
+# Re-export safe import utilities
+__all__ = [
+    "ImportErrorDetailed",
+    "try_import",
+    "lazy_import",
+    "check_import_available",
+    "get_import_version",
+    "tomllib",
+    "resources_files",
+]
+
+
+# ============================================================================
+# TOML Parsing - Python 3.11+ tomllib vs tomli
+# ============================================================================
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    # Python < 3.11 needs tomli package
+    _tomli = try_import(
+        "tomli",
+        required=True,
+        hint="Python < 3.11 requires 'tomli' package. Install with: pip install tomli",
+    )
+    if _tomli is None:
+        raise ImportErrorDetailed(
+            "TOML support requires 'tomli' on Python < 3.11. "
+            "Install with: pip install tomli"
+        )
+    tomllib = _tomli  # type: ignore[assignment]
+
+
+# ============================================================================
+# Importlib Resources - Python 3.9+ files() vs older resource API
+# ============================================================================
+
+try:
+    from importlib.resources import files as resources_files
+except ImportError:
+    # Python < 3.9 needs importlib_resources backport
+    _resources = try_import(
+        "importlib_resources",
+        required=True,
+        hint="Python < 3.9 requires 'importlib_resources'. "
+             "Install with: pip install importlib-resources",
+    )
+    if _resources is None:
+        raise ImportErrorDetailed(
+            "Resource files API requires 'importlib_resources' on Python < 3.9. "
+            "Install with: pip install importlib-resources"
+        )
+    resources_files = _resources.files  # type: ignore[attr-defined]
+
+
+# ============================================================================
+# Typing Extensions - Backports for older Python versions
+# ============================================================================
+
+# For maximum compatibility, we always try to import typing_extensions
+# Even on Python 3.10+, typing_extensions provides latest features
+_typing_extensions_available = check_import_available("typing_extensions")
+
+if _typing_extensions_available:
+    import typing_extensions
+    
+    # Use typing_extensions versions if available (they're usually more up-to-date)
+    TypeAlias = typing_extensions.TypeAlias
+    ParamSpec = typing_extensions.ParamSpec
+    Concatenate = typing_extensions.Concatenate
+    Literal = typing_extensions.Literal
+    Protocol = typing_extensions.Protocol
+    TypedDict = typing_extensions.TypedDict
+    Final = typing_extensions.Final
+    Annotated = typing_extensions.Annotated
+    
+else:
+    # Fall back to stdlib typing
+    # This may not have all features on older Python versions
+    from typing import (
+        Annotated,  # 3.9+
+        Final,  # 3.8+
+        Literal,  # 3.8+
+        Protocol,  # 3.8+
+        TypedDict,  # 3.8+
+    )
+    
+    # TypeAlias added in 3.10
+    if sys.version_info >= (3, 10):
+        from typing import TypeAlias, ParamSpec, Concatenate
+    else:
+        # Polyfill for older versions
+        TypeAlias = type  # type: ignore[misc, assignment]
+        ParamSpec = Any  # type: ignore[misc, assignment]
+        Concatenate = Any  # type: ignore[misc, assignment]
+
+
+# ============================================================================
+# Platform Detection Utilities
+# ============================================================================
+
+def get_platform_info() -> dict[str, Any]:
+    """
+    Get comprehensive platform information for debugging.
+    
+    Returns
+    -------
+    dict[str, Any]
+        Platform details including OS, architecture, Python version
+    
+    Examples
+    --------
+    >>> info = get_platform_info()
+    >>> print(f"Running on {info['system']} {info['architecture']}")
+    """
+    import platform
+    
+    return {
+        "system": platform.system(),
+        "release": platform.release(),
+        "version": platform.version(),
+        "architecture": platform.machine(),
+        "python_version": sys.version,
+        "python_implementation": platform.python_implementation(),
+        "python_version_tuple": sys.version_info[:3],
+    }
+
+
+def check_minimum_python_version(major: int, minor: int) -> bool:
+    """
+    Check if Python version meets minimum requirement.
+    
+    Parameters
+    ----------
+    major : int
+        Required major version
+    minor : int
+        Required minor version
+    
+    Returns
+    -------
+    bool
+        True if current version >= required version
+    
+    Examples
+    --------
+    >>> if not check_minimum_python_version(3, 10):
+    ...     raise RuntimeError("Python 3.10+ required")
+    """
+    return sys.version_info >= (major, minor)
+
+
+# ============================================================================
+# Validation on Import
+# ============================================================================
+
+# Ensure minimum Python version (as specified in pyproject.toml)
+if not check_minimum_python_version(3, 10):
+    raise ImportErrorDetailed(
+        f"Python 3.10 or later required. Current version: {sys.version}. "
+        "Please upgrade Python or use a compatible environment."
+    )
