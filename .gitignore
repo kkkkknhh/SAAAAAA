@@ -71,3 +71,7 @@ htmlcov/
 saaaaaa-deployment.zip
 saaaaaa-deployment.txt
 
+# Project-specific temporary and build directories
+/tmp/
+/cache/
+

@@ -1,4 +1,4 @@
-.PHONY: install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports
+.PHONY: install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports audit-paths test-paths fix-paths ci-prep-dirs
 
 # Install dependencies and setup the package for development
 install: setup
@@ -107,3 +107,27 @@ audit-imports:
 	@echo "\n3. Import Budget Check:"
 	@python3 scripts/audit_import_budget.py || true
 	@echo "\n=== AUDIT COMPLETE ==="
+
+# Path audit - comprehensive path usage and portability checks
+audit-paths:
+	@echo "=== PATH AUDIT ==="
+	@python3 scripts/audit_paths.py
+	@echo "✓ Path audit complete. See PATHS_AUDIT.md for details."
+
+# Path testing - run all path validation tests
+test-paths:
+	@echo "=== PATH TESTS ==="
+	@pytest tests/paths/ -v
+	@echo "✓ Path tests complete."
+
+# Path fix - auto-fix common path issues (where safe)
+fix-paths:
+	@echo "=== PATH AUTO-FIX ==="
+	@echo "⚠️  Auto-fix not yet implemented. Manual fixes required."
+	@echo "See PATHS_AUDIT.md for guidance."
+
+# CI prep - create required directories for CI/CD
+ci-prep-dirs:
+	@echo "=== PREPARING CI DIRECTORIES ==="
+	@mkdir -p tmp build/cache build/reports data
+	@echo "✓ CI directories created."
