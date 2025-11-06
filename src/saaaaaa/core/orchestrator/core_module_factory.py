@@ -234,7 +234,7 @@ class CoreModuleFactory:
         """
         return self._provider.get_pattern_statistics()
     
-    def load_catalog(self, path: Any = None) -> dict[str, Any]:
+    def load_catalog(self, path: "Path | None" = None) -> dict[str, Any]:
         """
         Load method catalog JSON file.
         
@@ -245,6 +245,7 @@ class CoreModuleFactory:
             Loaded catalog data
         """
         # Import here to avoid circular dependency
+        from pathlib import Path
         from saaaaaa.core.orchestrator.factory import load_catalog as _load_catalog
         return _load_catalog(path)
 

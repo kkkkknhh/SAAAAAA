@@ -154,7 +154,7 @@ bayesian_inference_robust:
       calculation_L_c: "ln(0.35/0.65) = -0.619"
       calculation_L0: "-1.563 → P0=0.173"
       evidence:
-        positive: "+0.45 (Hoop fuerte \"cómo\") → W=+0.969"
+        positive: '+0.45 (Hoop fuerte "cómo") → W=+0.969'
         negative: "-0.45 (falta entidad) → W=-0.969"
       calculation_final: "-1.563 + 0.969 - 0.969 = -1.563 → P'=0.173 (conmutatividad y neutralidad OK)"
 
