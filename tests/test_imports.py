@@ -107,10 +107,6 @@ def test_aggregation_exports():
     """Test that aggregation module exports expected symbols"""
     import saaaaaa.core.aggregation
 
-
-# Mark all tests in this module as outdated
-pytestmark = pytest.mark.skip(reason="Replaced by test_import_consistency.py and test_smoke_imports.py")
-
     expected_exports = [
         "MacroAggregator",
         "ClusterAggregator",

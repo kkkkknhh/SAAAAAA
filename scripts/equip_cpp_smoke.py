@@ -7,6 +7,7 @@ Runs smoke tests for CPPAdapter and CPPIngestionPipeline.
 
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 from typing import Dict, Any
 
@@ -126,7 +127,6 @@ def test_cpp_adapter_conversion() -> Dict[str, Any]:
             "message": f"Conversion successful (provenance={cpp.quality_metrics.provenance_completeness})"
         }
     except Exception as e:
-        import traceback
         return {
             "success": False,
             "message": f"Conversion failed: {e}",

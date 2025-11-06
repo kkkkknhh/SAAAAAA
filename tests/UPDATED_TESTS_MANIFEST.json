@@ -1,6 +1,6 @@
 {
   "manifest_version": "1.0.0",
-  "generated": "2025-11-06",
+  "generated": "2025-11-06T00:00:00Z",
   "description": "Lista blanca de tests actualizados y soportados en el sistema SIN_CARRETA",
   "total_tests": 61,
   "updated_tests_count": 45,

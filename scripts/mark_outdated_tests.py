@@ -43,7 +43,8 @@ def add_skip_marker_to_file(filepath: Path, reason: str) -> bool:
             if stripped.startswith('"""') or stripped.startswith("'''"):
                 in_docstring = True
                 docstring_char = stripped[:3]
-                if stripped.count(docstring_char) >= 2:
+                # Check if it's a single-line docstring (starts and ends on same line)
+                if stripped.endswith(docstring_char) and len(stripped) > len(docstring_char):
                     # Single-line docstring
                     in_docstring = False
                     docstring_end = i
