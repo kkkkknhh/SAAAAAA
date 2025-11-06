@@ -383,8 +383,9 @@ class PayloadDriftMonitor:
             )
 
     @staticmethod
-    def _expected_type_name(expected: Any) -> str:
-        return ", ".join(getattr(t, "__name__", str(t)) for t in expected)
+    def _expected_type_name(expected: object) -> str:
+        if isinstance(expected, tuple):
+            return ", ".join(getattr(t, "__name__", str(t)) for t in expected)
         if hasattr(expected, "__name__"):
-            return expected.__name__
+            return getattr(expected, "__name__")  # type: ignore[arg-type]
         return str(expected)

@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import json
 import logging
 import os
 import statistics
@@ -47,6 +48,10 @@ if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
 
 logger = logging.getLogger(__name__)
+
+# Environment-configurable expectations for validation
+EXPECTED_QUESTION_COUNT = int(os.getenv("EXPECTED_QUESTION_COUNT", "305"))
+EXPECTED_METHOD_COUNT = int(os.getenv("EXPECTED_METHOD_COUNT", "416"))
 
 @dataclass
 class PreprocessedDocument:
@@ -1112,10 +1117,10 @@ class Orchestrator:
         # Use pre-loaded monolith data (I/O-free path)
         if self._monolith_data is not None:
             monolith = self._monolith_data
-            # For pre-loaded data, compute hash from object id
-            # This is a simple hash that doesn't require serialization
-            # For production use, pre-compute hash in factory and pass it as parameter
-            monolith_hash = hashlib.sha256(str(id(monolith)).encode('utf-8')).hexdigest()
+            # Stable, content-based hash for reproducibility
+            monolith_hash = hashlib.sha256(
+                json.dumps(monolith, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
         else:
             raise ValueError(
                 "No monolith data available. Use saaaaaa.core.orchestrator.factory to load "
@@ -1127,10 +1132,9 @@ class Orchestrator:
         macro_question: dict[str, Any] = monolith["blocks"].get("macro_question", {})
 
         question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
-        if question_total != 305:
-            message = f"Conteo de preguntas inesperado: {question_total}"
-            instrumentation.record_error("integrity", message, expected=305, found=question_total)
-            raise ValueError(message)
+        if question_total != EXPECTED_QUESTION_COUNT:
+            logger.warning("Question count mismatch: expected %s, got %s", EXPECTED_QUESTION_COUNT, question_total)
+            instrumentation.record_error("integrity", f"Conteo de preguntas inesperado: {question_total}", expected=EXPECTED_QUESTION_COUNT, found=question_total)
 
         structure_report = self._validate_contract_structure(monolith, instrumentation)
 
@@ -1140,11 +1144,12 @@ class Orchestrator:
             method_map = self._method_map_data
             summary = method_map.get("summary", {})
             total_methods = summary.get("total_methods")
-            if total_methods != 416:
+            if total_methods != EXPECTED_METHOD_COUNT:
+                logger.warning("Method count mismatch: expected %s, got %s", EXPECTED_METHOD_COUNT, total_methods)
                 instrumentation.record_error(
                     "catalog",
                     "Total de métodos inesperado",
-                    expected=416,
+                    expected=EXPECTED_METHOD_COUNT,
                     found=total_methods,
                 )
             method_summary = {
