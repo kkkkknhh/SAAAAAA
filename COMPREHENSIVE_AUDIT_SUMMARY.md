@@ -140,7 +140,7 @@ def aggregate(self, data: pd.DataFrame) -> AggregatedResult:
 - Sample undeclared: [from audit report]
 
 **Remediation:**
-- Audit all imports: `python3 comprehensive_pipeline_audit.py`
+- Audit all imports: `python3 scripts/comprehensive_pipeline_audit.py`
 - Add to requirements.txt with version pins
 - Run: `pip freeze | grep <package>` to get versions
 
@@ -376,7 +376,7 @@ class MyConfig:
 **Automation:**
 ```bash
 # Add to CI/CD pipeline
-python3 comprehensive_pipeline_audit.py
+python3 scripts/comprehensive_pipeline_audit.py
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
   echo "AUDIT FAILED: Critical findings detected"

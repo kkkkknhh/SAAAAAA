@@ -15,6 +15,8 @@ from opentelemetry import metrics, trace
 from pydantic import BaseModel, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
+from saaaaaa.utils.paths import reports_dir
+
 from .configs import (
     AggregateConfig,
     ChunkConfig,
@@ -601,8 +603,12 @@ def run_report(
         # TODO: Implement actual report generation
         artifacts: dict[str, str] = {}
 
+        # Use reports directory instead of /tmp
+        report_base = reports_dir() / "flux_summaries"
+        report_base.mkdir(parents=True, exist_ok=True)
+
         for fmt in cfg.formats:
-            artifact_path = f"/tmp/{manifest.document_id}.summary.{fmt}"
+            artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
             artifacts[f"summary.{fmt}"] = artifact_path
 
         summary: dict[str, Any] = {
