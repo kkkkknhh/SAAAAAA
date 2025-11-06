@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from saaaaaa.utils.paths import proj_root
+
 try:
     import jsonschema
     JSONSCHEMA_AVAILABLE = True
@@ -79,7 +81,7 @@ class MetadataLoader:
     """
 
     def __init__(self, workspace_root: Path | None = None) -> None:
-        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
+        self.workspace_root = Path(workspace_root) if workspace_root else proj_root()
         self.schemas_dir = self.workspace_root / "schemas"
 
         # Loaded schemas cache
@@ -264,7 +266,7 @@ def load_cuestionario(
         Validated cuestionario data
     """
     if path is None:
-        path = Path.cwd() / "questionnaire_monolith.json"
+        path = proj_root() / "questionnaire_monolith.json"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
@@ -288,7 +290,7 @@ def load_execution_mapping(
         Validated execution mapping
     """
     if path is None:
-        path = Path.cwd() / "execution_mapping.yaml"
+        path = proj_root() / "execution_mapping.yaml"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
@@ -312,7 +314,7 @@ def load_rubric_scoring(
         Validated rubric scoring configuration
     """
     if path is None:
-        path = Path.cwd() / "rubric_scoring.json"
+        path = proj_root() / "rubric_scoring.json"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(

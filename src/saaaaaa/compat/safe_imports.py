@@ -1,129 +1,253 @@
-"""Safe import utilities for optional dependencies.
+"""
+Safe Import System - Deterministic, Auditable, Portable
 
-This module provides utilities to handle optional dependencies gracefully,
-with prescriptive error messages guiding users to install missing packages.
+This module implements the core import safety layer for the SAAAAAA system.
+All imports in the codebase should use this pattern for optional dependencies,
+ensuring fail-fast behavior, clear error messages, and no graceful degradation.
 
 Design Principles:
-- No silent failures - missing required dependencies raise clear errors
-- Optional dependencies return None with warnings when missing
-- Prescriptive messages tell users exactly what to install
-- Lazy imports avoid import-time errors
+- No silent failures - imports either succeed completely or fail loudly
+- No graceful degradation - partial functionality is rejected
+- Deterministic behavior - same inputs always produce same outputs
+- Explicit error messages with installation hints
+- Support for alternative packages (e.g., tomllib vs tomli)
 """
 
 from __future__ import annotations
 
-import logging
+import importlib
 import sys
-from types import ModuleType
-from typing import Any
-
-logger = logging.getLogger(__name__)
+import types
+from typing import Optional
 
 
-class OptionalDependencyError(ImportError):
-    """Raised when a required optional dependency is missing."""
+class ImportErrorDetailed(ImportError):
+    """
+    Enhanced import error with context and actionable guidance.
     
-    def __init__(self, package: str, hint: str | None = None, install_cmd: str | None = None):
-        """
-        Initialize error with package info and installation hint.
-        
-        Args:
-            package: Name of the missing package
-            hint: Usage hint explaining why it's needed
-            install_cmd: Installation command (default: pip install {package})
-        """
-        self.package = package
-        self.hint = hint
-        self.install_cmd = install_cmd or f"pip install {package}"
-        
-        message = f"Missing required dependency: '{package}'"
-        if hint:
-            message += f"\n  Purpose: {hint}"
-        message += f"\n  Install: {self.install_cmd}"
-        
-        super().__init__(message)
+    This exception is raised when a required import fails and provides:
+    - The module that failed to import
+    - Installation instructions or hints
+    - Alternative packages if available
+    - Context about why the import is needed
+    """
+    pass
 
 
 def try_import(
-    package: str,
+    modname: str,
     *,
     required: bool = False,
-    hint: str | None = None,
-    install_cmd: str | None = None,
-    min_version: str | None = None,
-) -> ModuleType | None:
+    hint: str = "",
+    alt: str | None = None,
+) -> types.ModuleType | None:
     """
-    Safely import an optional dependency.
+    Attempt to import a module with explicit error handling and guidance.
     
-    Args:
-        package: Package name to import (e.g., 'pyarrow', 'torch')
-        required: If True, raise OptionalDependencyError when missing
-        hint: Usage hint for error message
-        install_cmd: Custom installation command
-        min_version: Minimum version required (format: "1.2.3")
-        
-    Returns:
-        Imported module if available, None if optional and missing
-        
-    Raises:
-        OptionalDependencyError: If required=True and package is missing
+    This function provides controlled import behavior with clear failure modes:
+    - Required imports fail immediately with detailed errors
+    - Optional imports log warnings and return None
+    - Alternative packages are tried if primary fails
+    - All failures include installation hints
+    
+    Parameters
+    ----------
+    modname : str
+        The fully qualified module name to import (e.g., 'httpx', 'polars')
+    required : bool, default=False
+        If True, raises ImportErrorDetailed on failure
+        If False, logs to stderr and returns None
+    hint : str, default=""
+        Human-readable guidance for resolving the import failure
+        Should include installation command or extra flag
+        Example: "Install extra 'http_signals' or set source=memory://"
+    alt : str | None, default=None
+        Alternative module to try if primary fails
+        Example: 'tomli' as alternative to 'tomllib'
+    
+    Returns
+    -------
+    types.ModuleType | None
+        The imported module if successful, None if optional and failed
+    
+    Raises
+    ------
+    ImportErrorDetailed
+        When required=True and import fails (including alternatives)
+    
+    Examples
+    --------
+    >>> # Optional dependency with hint
+    >>> httpx = try_import("httpx", required=False, hint="Install extra 'http_signals'")
+    >>> if httpx is None:
+    ...     # Use memory:// source instead
+    ...     pass
+    
+    >>> # Required dependency
+    >>> pyarrow = try_import("pyarrow", required=True, hint="Install core runtime")
+    
+    >>> # Version-specific with fallback
+    >>> toml = try_import("tomllib", alt="tomli", required=True, 
+    ...                   hint="Python<3.11 needs 'tomli'")
+    
+    Notes
+    -----
+    - This function must NEVER silently substitute mock objects
+    - Failure modes must be explicit and actionable
+    - Import-time side effects in target modules are NOT controlled here
+    - This is NOT for lazy loading - use separate lazy_import() for that
     """
     try:
-        module = __import__(package)
+        return importlib.import_module(modname)
+    except Exception as primary_error:
+        msg = f"[IMPORT] Failed '{modname}'"
         
-        # Check version if specified (skip if packaging not available)
-        if min_version and hasattr(module, "__version__"):
+        # Try alternative package if specified
+        if alt:
             try:
-                from packaging.version import parse
-                if parse(module.__version__) < parse(min_version):
-                    msg = (
-                        f"Package '{package}' version {module.__version__} is too old. "
-                        f"Minimum required: {min_version}"
-                    )
-                    if required:
-                        raise OptionalDependencyError(package, hint=msg, install_cmd=install_cmd)
-                    else:
-                        logger.warning(msg)
-                        return None
-            except ImportError:
-                # packaging not available, skip version check
-                pass
+                return importlib.import_module(alt)
+            except Exception as alt_error:
+                # Both primary and alternative failed
+                combined_error = ImportErrorDetailed(
+                    f"{msg}; alt '{alt}' failed: {alt_error}. {hint}"
+                )
+                combined_error.__cause__ = alt_error
+                
+                if required:
+                    raise combined_error from primary_error
+                else:
+                    sys.stderr.write(f"{msg} (optional); alt also failed. {hint}\n")
+                    return None
         
-        logger.debug(f"Successfully imported {package}")
-        return module
-        
-    except ImportError as e:
+        # Required import failed - abort immediately
         if required:
-            raise OptionalDependencyError(package, hint=hint, install_cmd=install_cmd) from e
-        else:
-            log_msg = f"Optional dependency '{package}' not available"
-            if hint:
-                log_msg += f" (used for: {hint})"
-            logger.info(log_msg)
-            return None
+            raise ImportErrorDetailed(f"{msg}. {hint}") from primary_error
+        
+        # Optional dependency: log and defer failure to call site
+        # This allows the module to load but fail when the feature is used
+        sys.stderr.write(f"{msg} (optional). {hint}\n")
+        return None
 
 
-def get_optional_import_status() -> dict[str, Any]:
+def check_import_available(modname: str) -> bool:
     """
-    Get status of all known optional dependencies.
+    Check if a module can be imported without actually importing it.
     
-    Returns:
-        Dict with package availability and version info
+    This is useful for feature flags and conditional code paths without
+    triggering import-time side effects.
+    
+    Parameters
+    ----------
+    modname : str
+        The fully qualified module name to check
+    
+    Returns
+    -------
+    bool
+        True if module can be imported, False otherwise
+    
+    Examples
+    --------
+    >>> if check_import_available("polars"):
+    ...     # Use polars backend
+    ...     pass
+    >>> else:
+    ...     # Fall back to pandas
+    ...     pass
     """
-    optional_deps = {
-        "pyarrow": {"hint": "Arrow serialization for CPPAdapter"},
-        "torch": {"hint": "ML backends and neural models"},
-        "structlog": {"hint": "Structured logging"},
-        "tensorflow": {"hint": "TensorFlow ML models"},
-    }
+    try:
+        spec = importlib.util.find_spec(modname)
+        return spec is not None
+    except (ImportError, ModuleNotFoundError, ValueError, AttributeError):
+        return False
+
+
+def get_import_version(modname: str) -> str | None:
+    """
+    Get the version of an installed module without importing it.
     
-    status = {}
-    for package, config in optional_deps.items():
-        module = try_import(package, required=False, hint=config["hint"])
-        if module is not None:
-            version = getattr(module, "__version__", "unknown")
-            status[package] = {"available": True, "version": version}
+    This uses metadata inspection to avoid import-time side effects.
+    
+    Parameters
+    ----------
+    modname : str
+        The module/package name
+    
+    Returns
+    -------
+    str | None
+        Version string if available, None otherwise
+    
+    Examples
+    --------
+    >>> get_import_version("numpy")
+    '1.26.4'
+    """
+    try:
+        # Python 3.8+ has importlib.metadata
+        if sys.version_info >= (3, 8):
+            from importlib.metadata import version
         else:
-            status[package] = {"available": False, "version": None}
+            # Fallback for older Python (should not happen with our min version)
+            from importlib_metadata import version  # type: ignore
+        return version(modname)
+    except Exception:
+        return None
+
+
+# Cache for lazy-loaded modules to ensure deterministic re-import
+_lazy_cache: dict[str, types.ModuleType | None] = {}
+
+
+def lazy_import(modname: str, *, hint: str = "") -> types.ModuleType:
+    """
+    Lazy-load a module with memoization for deterministic behavior.
     
-    return status
+    This is for import-time budget optimization on heavy modules.
+    Use this in functions that are called infrequently or in cold paths.
+    
+    Parameters
+    ----------
+    modname : str
+        Module to lazy-load
+    hint : str, default=""
+        Installation hint if import fails
+    
+    Returns
+    -------
+    types.ModuleType
+        The imported module (cached after first call)
+    
+    Raises
+    ------
+    ImportErrorDetailed
+        If the module cannot be imported
+    
+    Examples
+    --------
+    >>> def to_arrow(df):
+    ...     pa = lazy_import("pyarrow", hint="Install core runtime")
+    ...     return pa.table(df)
+    
+    Notes
+    -----
+    - Memoization ensures the module is only loaded once
+    - Cache is module-global, not process-global
+    - This does NOT avoid import-time side effects, just defers them
+    """
+    if modname in _lazy_cache:
+        cached = _lazy_cache[modname]
+        if cached is None:
+            raise ImportErrorDetailed(f"[IMPORT] Module '{modname}' previously failed")
+        return cached
+    
+    try:
+        mod = importlib.import_module(modname)
+        _lazy_cache[modname] = mod
+        return mod
+    except Exception as e:
+        _lazy_cache[modname] = None
+        msg = f"[IMPORT] Failed lazy import of '{modname}'"
+        if hint:
+            msg += f". {hint}"
+        raise ImportErrorDetailed(msg) from e

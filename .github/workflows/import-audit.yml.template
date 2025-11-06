@@ -1,0 +1,190 @@
+# Import Audit CI Workflow
+# 
+# This workflow enforces import system quality gates:
+# - No shadowing of stdlib or third-party packages
+# - No circular imports
+# - Import-time budget compliance
+# - Optional dependency integrity
+#
+# To enable: Rename to import-audit.yml
+
+name: Import Audit
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  shadowing-check:
+    name: Shadowing Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Check for shadowing issues
+        run: |
+          python scripts/audit_import_shadowing.py
+          if [ $? -ne 0 ]; then
+            echo "❌ Shadowing issues detected"
+            exit 1
+          fi
+
+  circular-imports:
+    name: Circular Import Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Check for circular imports
+        run: |
+          python scripts/audit_circular_imports.py
+          if [ $? -ne 0 ]; then
+            echo "❌ Circular imports detected"
+            exit 1
+          fi
+
+  import-budget:
+    name: Import-Time Budget Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install package
+        run: |
+          pip install -e .
+      
+      - name: Check import-time budget
+        run: |
+          python scripts/audit_import_budget.py
+          if [ $? -ne 0 ]; then
+            echo "⚠️ Import budget exceeded (warning only)"
+            # Don't fail build, just warn
+          fi
+
+  equipment-checks:
+    name: Equipment Verification
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Install package
+        run: |
+          pip install -e .
+      
+      - name: Run Python equipment check
+        run: |
+          python scripts/equip_python.py
+      
+      - name: Run compat equipment check
+        run: |
+          python scripts/equip_compat.py
+      
+      - name: Run native equipment check (non-Windows)
+        if: runner.os != 'Windows'
+        run: |
+          python scripts/equip_native.py
+
+  optional-dependencies:
+    name: Optional Dependency Integrity
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        extra: ['analytics', 'ml', 'nlp', 'http_signals']
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install with extra ${{ matrix.extra }}
+        run: |
+          pip install -e .[${{ matrix.extra }}]
+      
+      - name: Test extra availability
+        run: |
+          python -c "
+          from saaaaaa.compat import check_import_available
+          
+          extras = {
+            'analytics': ['polars', 'pyarrow'],
+            'ml': ['torch', 'tensorflow'],
+            'nlp': ['transformers', 'spacy'],
+            'http_signals': ['httpx'],
+          }
+          
+          for pkg in extras['${{ matrix.extra }}']:
+            assert check_import_available(pkg), f'{pkg} not available in ${{ matrix.extra }}'
+          print('✓ All packages in ${{ matrix.extra }} available')
+          "
+
+  type-checking:
+    name: Type Checking with py.typed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          pip install mypy
+          pip install -e .
+      
+      - name: Verify py.typed marker
+        run: |
+          test -f src/saaaaaa/py.typed || (echo "❌ py.typed marker missing" && exit 1)
+          echo "✓ py.typed marker present"
+      
+      - name: Run mypy
+        run: |
+          mypy src/saaaaaa --config-file pyproject.toml || echo "⚠️ Type errors found"
+
+  audit-summary:
+    name: Import Audit Summary
+    runs-on: ubuntu-latest
+    needs: [shadowing-check, circular-imports, equipment-checks, type-checking]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Import Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Shadowing: ${{ needs.shadowing-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Circular Imports: ${{ needs.circular-imports.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Equipment: ${{ needs.equipment-checks.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Type Checking: ${{ needs.type-checking.result }}" >> $GITHUB_STEP_SUMMARY

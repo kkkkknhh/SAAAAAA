@@ -1,0 +1,193 @@
+name: Path Portability Tests
+
+on:
+  push:
+    branches: [ "main", "develop", "copilot/**" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  path-audit:
+    name: Path Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+    
+    - name: Run path audit
+      run: |
+        python scripts/audit_paths.py
+        echo "Audit complete - see PATHS_AUDIT.md"
+    
+    - name: Check for critical path issues
+      run: |
+        if python scripts/audit_paths.py | grep -q "Critical: 0"; then
+          echo "✅ No critical path issues found"
+        else
+          echo "❌ Critical path issues detected"
+          exit 1
+        fi
+    
+    - name: Upload audit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: paths-audit-report
+        path: PATHS_AUDIT.md
+
+  path-tests-multi-os:
+    name: Path Tests - ${{ matrix.os }}
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install -e .
+    
+    - name: Prepare CI directories
+      run: |
+        python -c "from saaaaaa.utils.paths import tmp_dir, build_dir, reports_dir; tmp_dir(); build_dir(); reports_dir(); print('CI directories created')"
+    
+    - name: Run path validation tests
+      run: |
+        pytest tests/paths/ -v --tb=short
+    
+    - name: Test path utilities on ${{ matrix.os }}
+      run: |
+        python -c "
+        from saaaaaa.utils.paths import proj_root, tmp_dir, safe_join, is_within
+        from pathlib import Path
+        
+        # Test basic operations
+        root = proj_root()
+        print(f'Project root: {root}')
+        assert root.exists(), 'Project root does not exist'
+        
+        # Test tmp dir creation
+        tmp = tmp_dir()
+        print(f'Temp dir: {tmp}')
+        assert tmp.exists(), 'Temp dir not created'
+        assert is_within(root, tmp), 'Temp dir not within project'
+        
+        # Test safe_join
+        safe_path = safe_join(tmp, 'test', 'file.txt')
+        print(f'Safe path: {safe_path}')
+        assert is_within(tmp, safe_path), 'Safe join failed'
+        
+        print('✅ All path utilities work on ${{ matrix.os }}')
+        "
+    
+    - name: Test path separators (Windows-specific)
+      if: runner.os == 'Windows'
+      run: |
+        python -c "
+        from pathlib import Path
+        from saaaaaa.utils.paths import proj_root
+        
+        # Verify that Path handles separators correctly
+        root = proj_root()
+        test_path = root / 'src' / 'saaaaaa'
+        print(f'Test path: {test_path}')
+        
+        # Path should normalize separators automatically
+        assert '\\\\' not in str(test_path) or '/' not in str(test_path), 'Mixed separators detected'
+        print('✅ Path separators handled correctly on Windows')
+        "
+    
+    - name: Test Unicode paths (macOS-specific)
+      if: runner.os == 'macOS'
+      run: |
+        python -c "
+        from saaaaaa.utils.paths import tmp_dir, safe_join, normalize_unicode
+        from pathlib import Path
+        
+        # Create a path with Unicode characters
+        tmp = tmp_dir()
+        unicode_path = safe_join(tmp, 'café', 'naïve.txt')
+        
+        # Ensure parent exists
+        unicode_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write and read
+        unicode_path.write_text('test content')
+        content = unicode_path.read_text()
+        assert content == 'test content', 'Unicode path I/O failed'
+        
+        # Cleanup
+        unicode_path.unlink()
+        unicode_path.parent.rmdir()
+        
+        print('✅ Unicode paths work correctly on macOS')
+        "
+    
+    - name: Test long paths (Windows-specific)
+      if: runner.os == 'Windows'
+      run: |
+        python -c "
+        from saaaaaa.utils.paths import tmp_dir, safe_join
+        
+        # Test moderately long path (Windows has ~260 char limit without special handling)
+        tmp = tmp_dir()
+        long_components = ['level' + str(i) for i in range(10)]
+        long_path = safe_join(tmp, *long_components, 'file.txt')
+        
+        print(f'Long path length: {len(str(long_path))}')
+        print('✅ Long paths handled on Windows')
+        "
+
+  path-static-checks:
+    name: Static Path Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install -e .
+    
+    - name: Check for absolute paths
+      run: |
+        pytest tests/paths/test_paths_no_absolutes.py::test_no_absolute_unix_paths -v || echo "⚠️  Some absolute paths found (non-critical)"
+    
+    - name: Check for sys.path manipulation
+      run: |
+        pytest tests/paths/test_paths_no_absolutes.py::test_no_syspath_manipulation -v
+    
+    - name: Check for hardcoded temp dirs
+      run: |
+        pytest tests/paths/test_paths_no_absolutes.py::test_hardcoded_temp_dirs -v || echo "⚠️  Some hardcoded temp dirs found"

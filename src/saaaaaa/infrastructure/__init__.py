@@ -7,7 +7,7 @@ Structure:
 - filesystem.py: File system operations
 - environment.py: Environment variable access
 - clock.py: Time operations
-- logging.py: Logging operations
+- log_adapters.py: Logging operations (renamed from logging.py to avoid shadowing)
 """
 
 __all__ = []

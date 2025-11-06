@@ -86,6 +86,33 @@ SAAAAAA (Strategic Analysis Architecture for Administrative Accountability and A
 9. [Licencia](#9-licencia)
 10. [Referencias Internas](#10-referencias-internas)
 
+### 🔒 Paranoia Constructiva Import System
+
+This project implements a **deterministic, auditable, and portable** import system:
+
+- ✅ **Safe Imports**: `try_import()` with clear error messages
+- ✅ **Lazy Loading**: Heavy dependencies loaded on-demand
+- ✅ **Optional Extras**: Install only what you need
+- ✅ **Platform Checks**: Verify native libraries and wheels
+- ✅ **Zero Shadowing**: No local files shadow stdlib
+- ✅ **Zero Cycles**: No circular import patterns
+
+**📖 Complete documentation:** [docs/IMPORT_SYSTEM.md](docs/IMPORT_SYSTEM.md)
+
+**Install with optional extras:**
+```bash
+pip install saaaaaa[analytics]    # Polars, PyArrow
+pip install saaaaaa[ml]            # Torch, TensorFlow
+pip install saaaaaa[nlp]           # Transformers, Spacy
+pip install saaaaaa[all]           # Everything
+```
+
+**Run equipment checks:**
+```bash
+make equip              # Verify environment readiness
+make audit-imports      # Check import health
+```
+
 ---
 
 ## 1. Introducción
