@@ -5,42 +5,18 @@
 
 ## Executive Summary
 
-- **Files Scanned:** 317
-- **Total Findings:** 178
-- **Critical:** 4
-- **High:** 13
-- **Medium:** 160
+- **Files Scanned:** 321
+- **Total Findings:** 180
+- **Critical:** 0
+- **High:** 20
+- **Medium:** 159
 - **Low:** 1
 
 ## Findings by Severity
 
-### CRITICAL (4)
+### HIGH (20)
 
-#### sys_path_manipulation (4 occurrences)
-
-- **runtime_pipeline_validation.py:17**
-  - sys.path manipulation detected outside scripts/tests/examples
-  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
-  - Fix: Use proper package imports instead of sys.path
-
-- **comprehensive_pipeline_audit.py:29**
-  - sys.path manipulation detected outside scripts/tests/examples
-  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
-  - Fix: Use proper package imports instead of sys.path
-
-- **tools/import_all.py:18**
-  - sys.path manipulation detected outside scripts/tests/examples
-  - Code: `sys.path.insert(0, str(REPO_ROOT))`
-  - Fix: Use proper package imports instead of sys.path
-
-- **tools/import_all.py:20**
-  - sys.path manipulation detected outside scripts/tests/examples
-  - Code: `sys.path.insert(0, str(SRC_DIR))`
-  - Fix: Use proper package imports instead of sys.path
-
-### HIGH (13)
-
-#### absolute_path (13 occurrences)
+#### absolute_path (20 occurrences)
 
 - **scripts/verify_imports.py:94**
   - Absolute Unix path detected
@@ -62,39 +38,39 @@
   - Code: `file_path="/tmp/sample.pdf",`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/utils/paths.py:167**
+- **tests/paths/test_paths_workspace_bounds.py:96**
   - Absolute Unix path detected
-  - Code: `>>> is_within(Path("/home/user/project"), Path("/home/user/project/src/file.py"))`
+  - Code: `outside = Path("/tmp/outside")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/utils/paths.py:169**
+- **tests/paths/test_paths_workspace_bounds.py:103**
   - Absolute Unix path detected
-  - Code: `>>> is_within(Path("/home/user/project"), Path("/home/user/other/file.py"))`
+  - Code: `outside = Path("/tmp/malicious.txt")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/utils/paths.py:200**
+- **tests/paths/test_paths_no_absolutes.py:52**
   - Absolute Unix path detected
-  - Code: `>>> safe_join(Path("/home/user/project"), "src", "file.py")`
+  - Code: `if 'native_check.py' in str(py_file) and '/usr/lib' in line:`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/utils/paths.py:201**
+- **tests/paths/test_paths_no_absolutes.py:55**
   - Absolute Unix path detected
-  - Code: `Path('/home/user/project/src/file.py')`
+  - Code: `if 'test_' in str(py_file) and '/tmp/' in line:`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/utils/paths.py:202**
+- **tests/paths/test_paths_utils.py:127**
   - Absolute Unix path detected
-  - Code: `>>> safe_join(Path("/home/user/project"), "..", "other")  # raises`
+  - Code: `outside = Path("/tmp/other")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **src/saaaaaa/compat/native_check.py:74**
+- **tests/paths/test_paths_utils.py:166**
   - Absolute Unix path detected
-  - Code: `f"/usr/lib/lib{libname}.so",`
+  - Code: `result = safe_join(base, "/tmp/other")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-  ... and 3 more occurrences
+  ... and 10 more occurrences
 
-### MEDIUM (160)
+### MEDIUM (159)
 
 #### cwd_usage (7 occurrences)
 
@@ -133,7 +109,7 @@
   - Code: `candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-#### file_usage (53 occurrences)
+#### file_usage (49 occurrences)
 
 - **setup.py:22**
   - __file__ usage detected - may break in packaged distributions
@@ -143,16 +119,6 @@
 - **setup.py:29**
   - __file__ usage detected - may break in packaged distributions
   - Code: `requirements_file = Path(__file__).parent / "requirements.txt"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **runtime_pipeline_validation.py:17**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **runtime_pipeline_validation.py:330**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `report_path = Path(__file__).parent / "RUNTIME_VALIDATION_REPORT.md"`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
 - **runtime_audit.py:662**
@@ -165,16 +131,6 @@
   - Code: `root = Path(__file__).parent`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-- **comprehensive_pipeline_audit.py:29**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **comprehensive_pipeline_audit.py:1108**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `repo_root = Path(__file__).parent`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
 - **examples/flux_demo.py:20**
   - __file__ usage detected - may break in packaged distributions
   - Code: `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))`
@@ -185,9 +141,29 @@
   - Code: `source_paths=[Path(__file__).parent.parent / "src" / "saaaaaa" / "flux"],`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-  ... and 43 more occurrences
+- **concurrency/concurrency.py:7**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-#### hardcoded_separator (95 occurrences)
+- **concurrency/__init__.py:14**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+- **executors/__init__.py:14**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+- **scoring/__init__.py:7**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+  ... and 39 more occurrences
+
+#### hardcoded_separator (98 occurrences)
 
 - **setup.py:46**
   - Potential hardcoded path separator detected
@@ -209,37 +185,37 @@
   - Code: `"Source Code": "https://github.com/kkkkknhh/SAAAAAA",`
   - Fix: Use Path.joinpath() or / operator
 
-- **comprehensive_pipeline_audit.py:384**
-  - Potential hardcoded path separator detected
-  - Code: `if "memory://" not in content:`
-  - Fix: Use Path.joinpath() or / operator
-
-- **comprehensive_pipeline_audit.py:389**
-  - Potential hardcoded path separator detected
-  - Code: `title="memory:// protocol not found",`
-  - Fix: Use Path.joinpath() or / operator
-
-- **comprehensive_pipeline_audit.py:390**
-  - Potential hardcoded path separator detected
-  - Code: `description="Signals system should support memory:// for testing",`
-  - Fix: Use Path.joinpath() or / operator
-
-- **comprehensive_pipeline_audit.py:392**
-  - Potential hardcoded path separator detected
-  - Code: `remediation="Add memory:// protocol handler to SignalRegistry",`
-  - Fix: Use Path.joinpath() or / operator
-
-- **comprehensive_pipeline_audit.py:396**
-  - Potential hardcoded path separator detected
-  - Code: `uses_http = "http://" in content or "https://" in content`
-  - Fix: Use Path.joinpath() or / operator
-
 - **examples/concurrency_integration_demo.py:129**
   - Potential hardcoded path separator detected
   - Code: `base_slot = f"D{base_idx//5+1}-Q{base_idx%5+1}"`
   - Fix: Use Path.joinpath() or / operator
 
-  ... and 85 more occurrences
+- **examples/flux_demo.py:67**
+  - Potential hardcoded path separator detected
+  - Code: `input_uri = "demo://sample-policy-document.pdf"`
+  - Fix: Use Path.joinpath() or / operator
+
+- **scripts/audit_paths.py:78**
+  - Potential hardcoded path separator detected
+  - Code: `"absolute_windows": re.compile(r'["\'][A-Z]:\\\\[^"\']*["\']'),`
+  - Fix: Use Path.joinpath() or / operator
+
+- **scripts/audit_paths.py:87**
+  - Potential hardcoded path separator detected
+  - Code: `"hardcoded_separator": re.compile(r'["\'][^"\']*[/\\]{2,}[^"\']*["\']'),`
+  - Fix: Use Path.joinpath() or / operator
+
+- **scripts/audit_paths.py:90**
+  - Potential hardcoded path separator detected
+  - Code: `"temp_hardcode": re.compile(r'["\'](?:/tmp|C:\\\\temp)["\']'),`
+  - Fix: Use Path.joinpath() or / operator
+
+- **scripts/equip_signals.py:14**
+  - Potential hardcoded path separator detected
+  - Code: `"""Warm up memory:// signal cache with test data."""`
+  - Fix: Use Path.joinpath() or / operator
+
+  ... and 88 more occurrences
 
 #### os_path_usage (5 occurrences)
 
@@ -279,17 +255,15 @@
 
 ## Findings by Category
 
-### hardcoded_separator: 95 occurrences
+### hardcoded_separator: 98 occurrences
 
-### file_usage: 53 occurrences
+### file_usage: 49 occurrences
 
-### absolute_path: 13 occurrences
+### absolute_path: 20 occurrences
 
 ### cwd_usage: 7 occurrences
 
 ### os_path_usage: 5 occurrences
-
-### sys_path_manipulation: 4 occurrences
 
 ### open_without_context: 1 occurrences
 

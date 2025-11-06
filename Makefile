@@ -47,7 +47,7 @@ verify:
 	fi
 	
 	@echo "=== Step 8: Bulk Import Test ==="
-	@python tools/import_all.py || (echo "❌ Import test failed" && exit 1)
+	@python scripts/import_all.py || (echo "❌ Import test failed" && exit 1)
 	@echo "✓ Import test passed\n"
 	
 	@echo "=== Step 9: Bandit Security Scan ==="
