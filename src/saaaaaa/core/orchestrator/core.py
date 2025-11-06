@@ -24,7 +24,7 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable, ParamSpec, TypeVar
 
 from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
@@ -197,6 +197,115 @@ class Evidence:
 
 class AbortRequested(RuntimeError):
     """Raised when an abort signal is triggered during orchestration."""
+
+# Type variables for generic async timeout wrapper
+P = ParamSpec('P')
+T = TypeVar('T')
+
+class PhaseTimeoutError(RuntimeError):
+    """Raised when a phase exceeds its timeout."""
+    
+    def __init__(self, phase_id: int, phase_name: str, timeout_s: float):
+        self.phase_id = phase_id
+        self.phase_name = phase_name
+        self.timeout_s = timeout_s
+        super().__init__(
+            f"Phase {phase_id} ({phase_name}) timed out after {timeout_s}s"
+        )
+
+async def execute_phase_with_timeout(
+    phase_id: int,
+    phase_name: str,
+    coro: Callable[P, T],
+    *args: P.args,
+    timeout_s: float = 300,
+    **kwargs: P.kwargs
+) -> T:
+    """
+    Execute phase with timeout and comprehensive error handling.
+    
+    Logs:
+    - Start time
+    - Completion time
+    - Timeout events
+    - Cancellation events
+    
+    Raises:
+        PhaseTimeoutError: On timeout
+        asyncio.CancelledError: On external cancellation
+        Exception: Original exception from phase
+    """
+    start_time = time.perf_counter()
+    
+    logger.info(
+        "phase_execution_started",
+        extra={
+            "phase_id": phase_id,
+            "phase_name": phase_name,
+            "timeout_s": timeout_s,
+        }
+    )
+    
+    try:
+        result = await asyncio.wait_for(
+            coro(*args, **kwargs),
+            timeout=timeout_s
+        )
+        
+        elapsed = time.perf_counter() - start_time
+        logger.info(
+            "phase_execution_completed",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "time_remaining_s": timeout_s - elapsed,
+            }
+        )
+        
+        return result
+        
+    except asyncio.TimeoutError:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_timeout",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "exceeded_by_s": elapsed - timeout_s,
+            }
+        )
+        raise PhaseTimeoutError(phase_id, phase_name, timeout_s)
+        
+    except asyncio.CancelledError:
+        elapsed = time.perf_counter() - start_time
+        logger.warning(
+            "phase_execution_cancelled",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+            }
+        )
+        raise  # Re-raise to propagate cancellation
+        
+    except Exception as e:
+        elapsed = time.perf_counter() - start_time
+        logger.error(
+            "phase_execution_error",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+            exc_info=True,
+        )
+        raise
 
 class AbortSignal:
     """Thread-safe abort signal shared across orchestration phases."""
@@ -788,6 +897,21 @@ class Orchestrator:
         10: ["report", "config"],
     }
 
+    # Phase timeout configuration (in seconds)
+    PHASE_TIMEOUTS: dict[int, float] = {
+        0: 60,     # Configuration validation
+        1: 120,    # Document ingestion
+        2: 600,    # Micro questions (300 items)
+        3: 300,    # Scoring micro
+        4: 180,    # Dimension aggregation
+        5: 120,    # Policy area aggregation
+        6: 60,     # Cluster aggregation
+        7: 60,     # Macro evaluation
+        8: 120,    # Recommendations
+        9: 60,     # Report assembly
+        10: 120,   # Format and export
+    }
+
     # Score normalization constant
     PERCENTAGE_SCALE: int = 100
 
@@ -932,6 +1056,10 @@ class Orchestrator:
 
         return path
 
+    def _get_phase_timeout(self, phase_id: int) -> float:
+        """Get timeout for a specific phase."""
+        return self.PHASE_TIMEOUTS.get(phase_id, 300.0)  # Default 5 minutes
+
     def process_development_plan(
             self, pdf_path: str, preprocessed_document: Any | None = None
     ) -> list[PhaseResult]:
@@ -983,8 +1111,21 @@ class Orchestrator:
                 if mode == "sync":
                     data = handler(*args)
                 else:
-                    data = await handler(*args)
+                    # Use defensive timeout wrapper for async phases
+                    phase_timeout = self._get_phase_timeout(phase_id)
+                    data = await execute_phase_with_timeout(
+                        phase_id=phase_id,
+                        phase_name=phase_label,
+                        coro=handler,
+                        *args,
+                        timeout_s=phase_timeout
+                    )
                 success = True
+            except PhaseTimeoutError as exc:
+                error = exc
+                success = False
+                instrumentation.record_error("timeout", str(exc))
+                self.request_abort(f"Fase {phase_id} timed out: {exc}")
             except AbortRequested as exc:
                 error = exc
                 success = False
