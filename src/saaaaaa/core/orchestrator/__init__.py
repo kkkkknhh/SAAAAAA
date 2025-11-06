@@ -54,6 +54,14 @@ class _QuestionnaireProvider:
         with self._lock:
             return self._cache is not None
 
+    def exists(self) -> bool:
+        """Alias for has_data() for backward compatibility.
+
+        Returns:
+            True if data is available, False otherwise
+        """
+        return self.has_data()
+
 _questionnaire_provider = _QuestionnaireProvider()
 
 def get_questionnaire_provider() -> _QuestionnaireProvider:
