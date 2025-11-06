@@ -62,14 +62,16 @@ class CoreModuleFactory:
         scorer = factory.create_bayesian_evidence_scorer()
     """
     
-    def __init__(self, questionnaire_data: dict[str, Any]):
+    def __init__(self, questionnaire_data: dict[str, Any], signal_registry=None):
         """
-        Initialize factory with questionnaire data.
+        Initialize factory with questionnaire data and optional signal registry.
         
         Args:
             questionnaire_data: Parsed questionnaire monolith JSON
+            signal_registry: Optional SignalRegistry for cross-cut signal propagation
         """
         self._provider = QuestionnaireResourceProvider(questionnaire_data)
+        self._signal_registry = signal_registry
         self._instances: dict[str, Any] = {}
         
         # Extract resources upfront
@@ -87,6 +89,7 @@ class CoreModuleFactory:
             indicators=len(self._indicator_patterns),
             sources=len(self._source_patterns),
             validations=len(self._validations),
+            has_signal_registry=signal_registry is not None,
         )
     
     @classmethod
@@ -106,6 +109,10 @@ class CoreModuleFactory:
     def get_provider(self) -> QuestionnaireResourceProvider:
         """Get the underlying resource provider."""
         return self._provider
+    
+    def get_signal_registry(self):
+        """Get the signal registry if available."""
+        return self._signal_registry
     
     # ==========================
     # Module Creation Methods
