@@ -1,4 +1,4 @@
-.PHONY: install setup verify clean validate-schema validate-monolith
+.PHONY: install setup verify clean validate-schema validate-monolith deps:verify deps:lock deps:audit deps:clean
 
 # Install dependencies and setup the package for development
 install: setup
@@ -72,3 +72,35 @@ clean:
 	@rm -rf build/ dist/ *.egg-info .pytest_cache/ .mypy_cache/ .ruff_cache/
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Cleaned"
+
+# Dependency Management Targets
+
+# Verify all dependencies are correctly installed
+deps:verify:
+	@echo "=== Dependency Verification ==="
+	@echo "\n1. Checking importability..."
+	@python3 scripts/verify_importability.py || (echo "❌ Import verification failed" && exit 1)
+	@echo "\n2. Auditing dependencies..."
+	@python3 scripts/audit_dependencies.py || (echo "⚠️  Some dependencies missing" && exit 0)
+	@echo "\n✓ Dependency verification complete"
+
+# Generate lock file from current environment
+deps:lock:
+	@echo "=== Generating Dependency Lock ==="
+	@pip freeze > constraints-frozen.txt
+	@echo "✓ Lock file generated: constraints-frozen.txt"
+	@echo "\nComparing with current constraints..."
+	@diff constraints-new.txt constraints-frozen.txt || echo "⚠️  Differences detected"
+	@echo "\nTo update constraints: mv constraints-frozen.txt constraints-new.txt"
+
+# Run full dependency audit
+deps:audit:
+	@echo "=== Full Dependency Audit ==="
+	@python3 scripts/audit_dependencies.py
+	@echo "\n✓ Audit complete. Check dependency_audit_report.json for details"
+
+# Clean dependency-related artifacts
+deps:clean:
+	@echo "=== Cleaning Dependency Artifacts ==="
+	@rm -f dependency_audit_report.json freeze-*.txt constraints-frozen.txt
+	@echo "✓ Dependency artifacts cleaned"
