@@ -960,12 +960,19 @@ class AdvancedDataFlowExecutor(ABC):
                 span.set_attribute("num_methods", len(method_sequence))
             
             # Fetch signals at the beginning of execution
+            # Fetch signals and store for use during execution
             signals = self._fetch_signals("fiscal")
             if signals and span_context:
                 span.set_attribute("signals.fetched", True)
                 span.set_attribute("signals.pattern_count", len(signals.get("patterns", [])))
             elif span_context:
                 span.set_attribute("signals.fetched", False)
+            
+            # Store signals in context for methods to access
+            if signals:
+                self._argument_context['signals'] = signals
+                logger.info(f"Signals loaded: {len(signals.get('patterns', []))} patterns, "
+                           f"{len(signals.get('indicators', []))} indicators")
 
             strategy_idx = self.meta_learner.select_strategy()
             self.meta_learner.get_strategy_config(strategy_idx)
@@ -978,92 +985,95 @@ class AdvancedDataFlowExecutor(ABC):
             total_entropy = 0.0
 
             self._reset_argument_context(doc)
+            # Re-add signals after reset if available
+            if signals:
+                self._argument_context['signals'] = signals
 
-        for idx, (class_name, method_name) in enumerate(method_sequence):
-            method_key = f"{class_name}.{method_name}"
+            for idx, (class_name, method_name) in enumerate(method_sequence):
+                method_key = f"{class_name}.{method_name}"
 
-            self.probabilistic_executor.define_prior(
-                method_key, "beta", alpha=2, beta=2
-            )
-            self.probabilistic_executor.sample_prior(method_key)
+                self.probabilistic_executor.define_prior(
+                    method_key, "beta", alpha=2, beta=2
+                )
+                self.probabilistic_executor.sample_prior(method_key)
 
-            # Execute with retry logic
-            method_start = time.time()
-            success = False
-            max_retries = 3
+                # Execute with retry logic
+                method_start = time.time()
+                success = False
+                max_retries = 3
 
-            for attempt in range(max_retries):
-                try:
-                    prepared_kwargs = self._prepare_arguments(
-                        class_name,
-                        method_name,
-                        doc,
-                        current_data,
-                    )
-
-                    result = self.executor.execute(
-                        class_name,
-                        method_name,
-                        **prepared_kwargs,
-                    )
-
-                    results[method_key] = result
-                    success = True
-
-                    self.info_optimizer.update_flow_metrics(idx, result)
-
-                    data_quality = self._assess_data_quality(result)
-                    self.neuromorphic_controller.process_data_flow([data_quality])
-
-                    performance = data_quality
-                    self.probabilistic_executor.bayesian_update(method_key, performance)
-
-                    entropy = self.info_optimizer.calculate_entropy(result)
-                    total_entropy += entropy
-
-                    if result is not None:
-                        current_data = result
-
-                    self._update_argument_context(
-                        method_key,
-                        result,
-                        class_name,
-                        method_name,
-                    )
-
-                    break  # Success, exit retry loop
-
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        _global_metrics.record_retry()
-                        logger.warning(
-                            f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
-                            exc_info=False
-                        )
-                        time.sleep(0.1 * (attempt + 1))  # Exponential backoff
-                    else:
-                        results[method_key] = None
-                        logger.error(
-                            f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
-                            exc_info=True,
-                            extra={
-                                'method': method_key,
-                                'class_name': class_name,
-                                'method_name': method_name,
-                                'attempt': attempt + 1,
-                                'error_type': type(e).__name__
-                            }
+                for attempt in range(max_retries):
+                    try:
+                        prepared_kwargs = self._prepare_arguments(
+                            class_name,
+                            method_name,
+                            doc,
+                            current_data,
                         )
 
-            # Record execution metrics
-            method_time = time.time() - method_start
-            _global_metrics.record_execution(success, method_time, method_key)
+                        result = self.executor.execute(
+                            class_name,
+                            method_name,
+                            **prepared_kwargs,
+                        )
 
-        avg_entropy = total_entropy / max(len(method_sequence), 1)
-        reward = self._calculate_reward(avg_entropy)
-        self.meta_learner.update_strategy_performance(strategy_idx, reward)
+                        results[method_key] = result
+                        success = True
 
-        bottlenecks = self.info_optimizer.get_information_bottlenecks()
+                        self.info_optimizer.update_flow_metrics(idx, result)
+
+                        data_quality = self._assess_data_quality(result)
+                        self.neuromorphic_controller.process_data_flow([data_quality])
+
+                        performance = data_quality
+                        self.probabilistic_executor.bayesian_update(method_key, performance)
+
+                        entropy = self.info_optimizer.calculate_entropy(result)
+                        total_entropy += entropy
+
+                        if result is not None:
+                            current_data = result
+
+                        self._update_argument_context(
+                            method_key,
+                            result,
+                            class_name,
+                            method_name,
+                        )
+
+                        break  # Success, exit retry loop
+
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            _global_metrics.record_retry()
+                            logger.warning(
+                                f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
+                                exc_info=False
+                            )
+                            time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                        else:
+                            results[method_key] = None
+                            logger.error(
+                                f"Method {method_key} failed after {max_retries} attempts: {str(e)}",
+                                exc_info=True,
+                                extra={
+                                    'method': method_key,
+                                    'class_name': class_name,
+                                    'method_name': method_name,
+                                    'attempt': attempt + 1,
+                                    'error_type': type(e).__name__
+                                }
+                            )
+
+                # Record execution metrics
+                method_time = time.time() - method_start
+                _global_metrics.record_execution(success, method_time, method_key)
+
+            avg_entropy = total_entropy / max(len(method_sequence), 1)
+            reward = self._calculate_reward(avg_entropy)
+            self.meta_learner.update_strategy_performance(strategy_idx, reward)
+
+            bottlenecks = self.info_optimizer.get_information_bottlenecks()
 
             total_time = time.time() - execution_start
             logger.info(
@@ -1237,6 +1247,40 @@ class AdvancedDataFlowExecutor(ABC):
     ) -> Any:
         """Enhanced argument resolution with sophisticated graph and segment handling"""
         ctx = self._argument_context
+
+        # ========================================================================
+        # SIGNAL CHANNEL INTEGRATION - Inject signals into method arguments
+        # ========================================================================
+        
+        signals = ctx.get('signals')
+        if signals:
+            # Inject signal patterns
+            if name in {'patterns', 'fiscal_patterns', 'signal_patterns'}:
+                return signals.get('patterns', [])
+            
+            # Inject indicators
+            if name in {'indicators', 'signal_indicators'}:
+                return signals.get('indicators', [])
+            
+            # Inject regex patterns
+            if name in {'regex', 'regex_patterns', 'signal_regex'}:
+                return signals.get('regex', [])
+            
+            # Inject verbs
+            if name in {'verbs', 'signal_verbs'}:
+                return signals.get('verbs', [])
+            
+            # Inject entities
+            if name in {'entities', 'signal_entities'}:
+                return signals.get('entities', [])
+            
+            # Inject thresholds
+            if name in {'thresholds', 'signal_thresholds'}:
+                return signals.get('thresholds', {})
+            
+            # Inject all signals as dict
+            if name in {'signals', 'signal_pack'}:
+                return signals
 
         # ========================================================================
         # STANDARD ARGUMENTS (existing implementation retained)
