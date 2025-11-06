@@ -81,7 +81,7 @@ def get_questionnaire_payload() -> dict[str, Any]:
     """
     caller_frame = inspect.currentframe().f_back
     caller_module = caller_frame.f_globals.get('__name__', '')
-    if not caller_module.startswith('orchestrator'):
+    if not caller_module.startswith('saaaaaa.core.orchestrator'):
         raise RuntimeError("Questionnaire provider access restricted to orchestrator package")
     return _questionnaire_provider.get_data()
 
