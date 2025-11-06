@@ -1,0 +1,4 @@
+# file: /home/runner/work/SAAAAAA/SAAAAAA/src/saaaaaa/flux/models.py
+# hypothesis_version: 6.146.0
+
+['FLUX-2025.1', 'aggregate', 'chunk', 'ingest', 'normalize', 'report', 'score', 'signals']

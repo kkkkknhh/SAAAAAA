@@ -113,57 +113,37 @@ class AggregateExpectation(BaseModel):
 class AggregateDeliverable(BaseModel):
     """Deliverable from aggregate phase."""
 
-    model_config = ConfigDict(frozen=False)  # Allow Arrow table assignment
+    model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
     features: pa.Table  # Arrow table of engineered features
     aggregation_meta: dict[str, Any]
-
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
 
 
 # Score Phase
 class ScoreExpectation(BaseModel):
     """Expected input for score phase."""
 
-    model_config = ConfigDict(frozen=False)
+    model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
     features: pa.Table
-
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
 
 
 class ScoreDeliverable(BaseModel):
     """Deliverable from score phase."""
 
-    model_config = ConfigDict(frozen=False)
+    model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
     scores: pl.DataFrame  # columns: item_id, metric, value
     calibration: dict[str, Any]
-
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
 
 
 # Report Phase
 class ReportExpectation(BaseModel):
     """Expected input for report phase."""
 
-    model_config = ConfigDict(frozen=False)
+    model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)
 
     scores: pl.DataFrame
-
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
 
 
 class ReportDeliverable(BaseModel):

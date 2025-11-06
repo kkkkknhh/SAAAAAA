@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/click/testing.py
+# hypothesis_version: 6.146.0
+
+['<stderr>', '<stdin>', '<stdout>', 'BaseCommand', 'CliRunner', 'backslashreplace', 'okay', 'os.PathLike[str]', 'prog_name', 'r', 'read', 'replace', 'root', 'utf-8', 'w']

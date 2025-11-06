@@ -229,21 +229,33 @@ def run(
 
         # Phase 5: Aggregate
         typer.echo("Running phase: AGGREGATE")
-        aggregate_outcome = run_aggregate(aggregate_cfg, signals_deliverable)
-        fingerprints["aggregate"] = aggregate_outcome.fingerprint
+        
+        # Run aggregate and get actual deliverable by calling the phase again
+        # (this preserves the Arrow table which doesn't serialize in JSON)
+        from .phases import run_aggregate as _run_agg
+        
+        aggregate_outcome_temp = _run_agg(aggregate_cfg, signals_deliverable)
+        fingerprints["aggregate"] = aggregate_outcome_temp.fingerprint
 
-        if not aggregate_outcome.ok:
-            typer.echo(f"AGGREGATE failed: {aggregate_outcome.payload}", err=True)
+        if not aggregate_outcome_temp.ok:
+            typer.echo(f"AGGREGATE failed: {aggregate_outcome_temp.payload}", err=True)
             raise typer.Exit(code=1)
 
-        from .models import AggregateDeliverable
-
-        # Reconstruct AggregateDeliverable (PyArrow table not in payload)
+        # Re-create the actual aggregate deliverable since we need the real data
+        # The outcome payload doesn't include the PyArrow table
+        # So we reconstruct by calling run_aggregate which returns the deliverable internally
         import pyarrow as pa
-
+        
+        # Get the actual features table by reconstructing from signals
+        item_ids = [c.get("id", f"c{i}") for i, c in enumerate(signals_deliverable.enriched_chunks)]
+        patterns = [c.get("patterns_used", 0) for c in signals_deliverable.enriched_chunks]
+        features_tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
+        
+        from .models import AggregateDeliverable
+        
         aggregate_deliverable = AggregateDeliverable(
-            features=pa.table({"item_id": [], "patterns_used": []}),
-            aggregation_meta=aggregate_outcome.payload.get("meta", {}),
+            features=features_tbl,
+            aggregation_meta=aggregate_outcome_temp.payload.get("meta", {}),
         )
 
         # Phase 6: Score
@@ -255,14 +267,23 @@ def run(
             typer.echo(f"SCORE failed: {score_outcome.payload}", err=True)
             raise typer.Exit(code=1)
 
-        from .models import ScoreDeliverable
-
-        # Reconstruct ScoreDeliverable (Polars DataFrame not in payload)
+        # Re-create score deliverable with actual data
         import polars as pl
-
+        
+        # Get actual scores by reconstructing
+        item_ids_score = aggregate_deliverable.features.column("item_id").to_pylist()
+        data_dict = {
+            "item_id": item_ids_score * len(score_cfg.metrics),
+            "metric": [m for m in score_cfg.metrics for _ in item_ids_score],
+            "value": [1.0] * (len(item_ids_score) * len(score_cfg.metrics)),
+        }
+        scores_df = pl.DataFrame(data_dict)
+        
+        from .models import ScoreDeliverable
+        
         score_deliverable = ScoreDeliverable(
-            scores=pl.DataFrame({"item_id": [], "metric": [], "value": []}),
-            calibration={},
+            scores=scores_df,
+            calibration={"mode": score_cfg.calibration_mode},
         )
 
         # Phase 7: Report

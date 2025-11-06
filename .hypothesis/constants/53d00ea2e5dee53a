@@ -1,0 +1,4 @@
+# file: /home/runner/work/SAAAAAA/SAAAAAA/src/saaaaaa/flux/gates.py
+# hypothesis_version: 6.146.0
+
+[80.0, 100, 200, '(\\d+) error', '.yaml', '.yml', '0 errors', '0 secrets', 'AggregateDeliverable', 'AggregateExpectation', 'ChunkDeliverable', 'ChunkExpectation', 'Clean', 'IngestDeliverable', 'No secrets detected', 'No secrets found', 'NormalizeDeliverable', 'NormalizeExpectation', 'ReportExpectation', 'ScoreDeliverable', 'ScoreExpectation', 'SignalsDeliverable', 'SignalsExpectation', 'Type checking passed', 'YAML(', 'all_passed', 'checked_files', 'compatibility', 'contracts', 'contracts_ok', 'coverage', 'determinism', 'determinism_ok', 'error', 'error_count', 'fingerprints', 'gap', 'gates', 'mismatches', 'no leaks detected', 'no_yaml', 'ok', 'output_preview', 'phase', 'phase_count', 'run1', 'run1_phases', 'run2', 'run2_phases', 'scan_output_preview', 'secrets', 'threshold', 'total_phases', 'type', 'utf-8', 'yaml.load', 'yaml.safe_load', 'yaml_reads_found']
