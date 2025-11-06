@@ -6,22 +6,17 @@
 ## Executive Summary
 
 - **Files Scanned:** 321
-- **Total Findings:** 180
+- **Total Findings:** 174
 - **Critical:** 0
-- **High:** 20
-- **Medium:** 159
+- **High:** 18
+- **Medium:** 155
 - **Low:** 1
 
 ## Findings by Severity
 
-### HIGH (20)
+### HIGH (18)
 
-#### absolute_path (20 occurrences)
-
-- **scripts/verify_imports.py:94**
-  - Absolute Unix path detected
-  - Code: `repo_root = Path('/home/runner/work/SAAAAAA/SAAAAAA')`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+#### absolute_path (18 occurrences)
 
 - **tests/test_enhanced_recommendations.py:148**
   - Absolute Unix path detected
@@ -68,35 +63,20 @@
   - Code: `result = safe_join(base, "/tmp/other")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-  ... and 10 more occurrences
+- **tests/paths/test_paths_utils.py:233**
+  - Absolute Unix path detected
+  - Code: `outside = Path("/tmp/outside_workspace.txt")`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-### MEDIUM (159)
+  ... and 8 more occurrences
 
-#### cwd_usage (7 occurrences)
+### MEDIUM (155)
+
+#### cwd_usage (3 occurrences)
 
 - **scripts/audit_paths.py:215**
   - Current working directory usage - fragile in different execution contexts
   - Code: `# os.getcwd() or Path.cwd()`
-  - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
-
-- **src/saaaaaa/utils/metadata_loader.py:82**
-  - Current working directory usage - fragile in different execution contexts
-  - Code: `self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()`
-  - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
-
-- **src/saaaaaa/utils/metadata_loader.py:267**
-  - Current working directory usage - fragile in different execution contexts
-  - Code: `path = Path.cwd() / "questionnaire_monolith.json"`
-  - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
-
-- **src/saaaaaa/utils/metadata_loader.py:291**
-  - Current working directory usage - fragile in different execution contexts
-  - Code: `path = Path.cwd() / "execution_mapping.yaml"`
-  - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
-
-- **src/saaaaaa/utils/metadata_loader.py:315**
-  - Current working directory usage - fragile in different execution contexts
-  - Code: `path = Path.cwd() / "rubric_scoring.json"`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
 - **src/saaaaaa/core/orchestrator/core.py:1179**
@@ -259,11 +239,11 @@
 
 ### file_usage: 49 occurrences
 
-### absolute_path: 20 occurrences
-
-### cwd_usage: 7 occurrences
+### absolute_path: 18 occurrences
 
 ### os_path_usage: 5 occurrences
+
+### cwd_usage: 3 occurrences
 
 ### open_without_context: 1 occurrences
 
