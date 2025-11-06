@@ -1245,6 +1245,121 @@ class Orchestrator:
             score = min(score, 20.0)
         return {"score": score, "resource_usage": usage, "abort": self.abort_signal.is_aborted()}
 
+    def get_system_health(self) -> dict[str, Any]:
+        """
+        Comprehensive system health check.
+        
+        Returns health status with component checks for:
+        - Method executor
+        - Questionnaire provider (if available)
+        - Resource limits and usage
+        
+        Returns:
+            Dict with overall status ('healthy', 'degraded', 'unhealthy')
+            and component-specific health information
+        """
+        health = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'components': {}
+        }
+
+        # Check method executor
+        try:
+            executor_health = {
+                'instances_loaded': len(self.executor.instances),
+                'calibrations_loaded': len(self.executor.calibrations),
+                'status': 'healthy'
+            }
+            health['components']['method_executor'] = executor_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['method_executor'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check questionnaire provider (if available)
+        try:
+            from . import get_questionnaire_provider
+            provider = get_questionnaire_provider()
+            questionnaire_health = {
+                'has_data': provider.has_data(),
+                'status': 'healthy' if provider.has_data() else 'unhealthy'
+            }
+            health['components']['questionnaire_provider'] = questionnaire_health
+            
+            if not provider.has_data():
+                health['status'] = 'degraded'
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['questionnaire_provider'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check resource limits
+        try:
+            usage = self.resource_limits.get_resource_usage()
+            resource_health = {
+                'cpu_percent': usage.get('cpu_percent', 0),
+                'memory_mb': usage.get('rss_mb', 0),
+                'worker_budget': usage.get('worker_budget', 0),
+                'status': 'healthy'
+            }
+            
+            # Warning thresholds
+            if usage.get('cpu_percent', 0) > 80:
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High CPU usage'
+                health['status'] = 'degraded'
+            
+            if usage.get('rss_mb', 0) > 3500:  # Near 4GB limit
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High memory usage'
+                health['status'] = 'degraded'
+            
+            health['components']['resources'] = resource_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['resources'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check abort status
+        if self.abort_signal.is_aborted():
+            health['status'] = 'unhealthy'
+            health['abort_reason'] = self.abort_signal.get_reason()
+
+        return health
+
+    def export_metrics(self) -> dict[str, Any]:
+        """
+        Export all metrics for monitoring.
+        
+        Returns:
+            Dict containing:
+            - timestamp: Current UTC timestamp
+            - phase_metrics: Metrics for all phases
+            - resource_usage: Resource usage history
+            - abort_status: Current abort status
+            - phase_status: Status of all phases
+        """
+        abort_timestamp = self.abort_signal.get_timestamp()
+        
+        return {
+            'timestamp': datetime.utcnow().isoformat(),
+            'phase_metrics': self.get_phase_metrics(),
+            'resource_usage': self.resource_limits.get_usage_history(),
+            'abort_status': {
+                'is_aborted': self.abort_signal.is_aborted(),
+                'reason': self.abort_signal.get_reason(),
+                'timestamp': abort_timestamp.isoformat() if abort_timestamp else None,
+            },
+            'phase_status': dict(self._phase_status),
+        }
+
     def _load_configuration(self) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[0]
