@@ -1,4 +1,0 @@
-# file: /home/runner/work/SAAAAAA/SAAAAAA/src/saaaaaa/flux/configs.py
-# hypothesis_version: 6.146.0
-
-[0.15, 0.85, 3.0, 250, 400, 1200, 3600, ',', '0.15', '0.85', '1200', '250', '3.0', '3600', '400', 'FLUX_INGEST_MAX_MB', 'FLUX_REPORT_FORMATS', 'FLUX_SCORE_METRICS', 'FLUX_SIGNALS_SOURCE', 'FLUX_SIGNALS_TTL_S', 'MACRO', 'MESO', 'MICRO', 'NFC', 'NFKC', 'coverage', 'false', 'full', 'http', 'isotonic', 'json', 'json,md', 'md', 'memory', 'minimal', 'none', 'platt', 'policy_area', 'policy_area,year', 'precision', 'risk', 'true', 'year']

@@ -111,19 +111,36 @@ class QualityGates:
         yaml_patterns = [".yaml", ".yml"]
 
         yaml_reads: list[str] = []
+        files_checked = 0
 
         for path in source_paths:
             if not path.exists():
                 continue
 
-            content = path.read_text(encoding="utf-8")
+            # If it's a directory, recursively check all Python files
+            if path.is_dir():
+                for py_file in path.rglob("*.py"):
+                    if py_file.is_file():
+                        files_checked += 1
+                        content = py_file.read_text(encoding="utf-8")
+                        
+                        # Check for YAML loading patterns
+                        if any(
+                            pattern in content
+                            for pattern in ["yaml.load", "yaml.safe_load", "YAML("]
+                        ):
+                            yaml_reads.append(str(py_file))
+            else:
+                # Single file
+                files_checked += 1
+                content = path.read_text(encoding="utf-8")
 
-            # Check for YAML loading patterns
-            if any(
-                pattern in content
-                for pattern in ["yaml.load", "yaml.safe_load", "YAML("]
-            ):
-                yaml_reads.append(str(path))
+                # Check for YAML loading patterns
+                if any(
+                    pattern in content
+                    for pattern in ["yaml.load", "yaml.safe_load", "YAML("]
+                ):
+                    yaml_reads.append(str(path))
 
         passed = len(yaml_reads) == 0
 
@@ -132,7 +149,7 @@ class QualityGates:
             passed=passed,
             details={
                 "yaml_reads_found": yaml_reads,
-                "checked_files": len(source_paths),
+                "checked_files": files_checked,
             },
             message="No YAML reads in runtime paths"
             if passed

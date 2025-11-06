@@ -1,4 +1,0 @@
-# file: /usr/lib/python3/dist-packages/twisted/logger/_logger.py
-# hypothesis_version: 6.146.0
-
-['.', '<unknown>', 'ILogObserver', 'Logger', '__name__', 'log_trace']
