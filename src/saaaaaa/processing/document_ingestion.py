@@ -1,13 +1,45 @@
 """
-DOCUMENT INGESTION MODULE import logging
-from datetime import datetime
-from dataclasses import dataclass
-from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, TupleICTAMENTE SEGÚN PSEUDOCÓDIGO
+DOCUMENT INGESTION MODULE (DEPRECATED - Use cpp_ingestion instead)
+
+⚠️  DEPRECATION WARNING ⚠️
+==============================================================
+This module is DEPRECATED and maintained only for backward compatibility.
+
+The canonical ingestion system is now:
+    saaaaaa.processing.cpp_ingestion (Canon Policy Package)
+
+The CPP ingestion system provides:
+- Deterministic 9-phase pipeline with quality gates
+- Advanced policy-aware chunking (8 mechanisms)
+- Complete provenance tracking (100% token-to-page mapping)
+- Multi-resolution chunks (micro/meso/macro)
+- Arrow IPC serialization for performance
+- BLAKE3 integrity verification
+- Merkle root support
+
+Migration Guide:
+----------------
+OLD (deprecated):
+    from saaaaaa.processing.document_ingestion import DocumentLoader, PreprocessingEngine
+    
+NEW (canonical):
+    from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+    from saaaaaa.utils.cpp_adapter import CPPAdapter
+    
+    # Ingest document
+    pipeline = CPPIngestionPipeline()
+    outcome = pipeline.ingest(input_path, output_dir)
+    
+    # Convert to PreprocessedDocument for orchestrator
+    adapter = CPPAdapter()
+    doc = adapter.to_preprocessed_document(outcome.cpp)
+
+See: docs/CPP_ARCHITECTURE.md for complete documentation
+See: examples/cpp_ingestion_example.py for usage examples
+
 ==============================================================
 Archivo: document_ingestion.py
-Código: DI
+Código: DI (LEGACY)
 Propósito: Carga inicial de documentos PDF y extracción de texto
 
 MÉTODOS (9 EXACTOS):
@@ -34,6 +66,15 @@ DEPENDENCIAS:
 """
 
 import logging
+import warnings
+
+# Issue deprecation warning when module is imported
+warnings.warn(
+    "document_ingestion module is deprecated. Use cpp_ingestion instead. "
+    "See docs/CPP_ARCHITECTURE.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2
+)
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime

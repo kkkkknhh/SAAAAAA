@@ -266,10 +266,14 @@ from saaaaaa.analysis.teoria_cambio import TeoriaCambio, AdvancedDAGValidator
 from saaaaaa.analysis.dereck_beach import CDAFFramework, BeachEvidentialTest
 from saaaaaa.analysis.bayesian_multilevel_system import BayesianMultilevelScorer
 
-# Processing modules
-from saaaaaa.processing.document_ingestion import DocumentIngestionEngine
+# Processing modules - CPP Ingestion (CANONICAL)
+from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+from saaaaaa.utils.cpp_adapter import CPPAdapter
 from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
 from saaaaaa.processing.embedding_policy import PolicyAnalysisEmbedder
+
+# Legacy processing (DEPRECATED - Use cpp_ingestion instead)
+# from saaaaaa.processing.document_ingestion import DocumentIngestionEngine  # DEPRECATED
 
 # Utilities
 from saaaaaa.utils.contracts import ProducerContract, ScoringModality
@@ -403,26 +407,65 @@ This section guides you through analyzing a municipal development plan using SAA
 ```bash
 # Create data directory for input documents
 mkdir -p data/input_plans
+mkdir -p data/cpp_output
 
 # Place your PDF document
 # Example: copy your plan to data/input_plans/plan_municipal_2024.pdf
 ```
 
 Supported formats:
-- PDF (`.pdf`)
+- PDF (`.pdf`) - Recommended
+- DOCX (`.docx`)
+- HTML (`.html`)
 - Text (`.txt`)
-- JSON (`.json`)
 
-#### Step 2: Document Ingestion
+#### Step 2: CPP Document Ingestion (Canonical Method)
+
+The Canon Policy Package (CPP) ingestion system is the **canonical and recommended** method for document processing. It provides:
+- ✅ Deterministic 9-phase pipeline with quality gates
+- ✅ Advanced policy-aware chunking (8 mechanisms)
+- ✅ Complete provenance tracking (100% token-to-page mapping)
+- ✅ Multi-resolution chunks (micro/meso/macro)
+- ✅ BLAKE3 integrity verification
 
 ```bash
-# Run document ingestion
-python3 -m saaaaaa.processing.document_ingestion \
+# Run CPP ingestion pipeline
+python3 run_complete_analysis_plan1.py \
   --input data/input_plans/plan_municipal_2024.pdf \
-  --output data/processed/plan_parsed.json
+  --output-dir data/cpp_output/
 
-# This extracts text, tables, and metadata from your document
+# Or use the CPP ingestion directly
+python3 -c "
+from pathlib import Path
+from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+
+pipeline = CPPIngestionPipeline()
+outcome = pipeline.ingest(
+    Path('data/input_plans/plan_municipal_2024.pdf'),
+    Path('data/cpp_output/')
+)
+print(f'CPP ingestion completed: {outcome.success}')
+print(f'Quality metrics: {outcome.quality_metrics}')
+"
+
+# This creates a Canon Policy Package with:
+# - content_stream.arrow (text with offsets)
+# - provenance_map.arrow (token-to-page mapping)
+# - chunk_graph (multi-resolution chunks)
+# - metadata.json (quality metrics and manifest)
 ```
+
+**Output Structure:**
+```
+data/cpp_output/
+├── content_stream.arrow      # Text with stable offsets
+├── provenance_map.arrow       # Complete provenance data
+├── chunk_graph.json           # Multi-resolution chunks
+├── metadata.json              # Quality metrics & manifest
+└── integrity_index.json       # BLAKE3 hashes
+```
+
+**Note:** The old `document_ingestion` module is deprecated. Always use CPP ingestion for new projects.
 
 #### Step 3: Policy Processing
 
