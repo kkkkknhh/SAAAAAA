@@ -499,7 +499,8 @@ def build_processor(
 
     questionnaire_snapshot = MappingProxyType(copy.deepcopy(questionnaire_data))
 
-    executor = MethodExecutor()
+    # ✅ Pass questionnaire data to MethodExecutor
+    executor = MethodExecutor(questionnaire_data=questionnaire_data)
 
     return ProcessorBundle(
         method_executor=executor,

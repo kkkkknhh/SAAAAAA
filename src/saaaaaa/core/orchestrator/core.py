@@ -585,7 +585,19 @@ class MethodExecutor:
         "calibracion_bayesiana": ["BayesianEvidenceScorer"],
     }
 
-    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        dispatcher: Any | None = None,
+        calibrations: dict[str, Any] | None = None,
+        questionnaire_data: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize MethodExecutor with questionnaire data for dependency injection.
+        
+        Args:
+            dispatcher: Optional dispatcher instance
+            calibrations: Optional calibration data
+            questionnaire_data: Pre-loaded questionnaire data to inject into processors
+        """
         # Build the class registry
         try:
             registry = build_class_registry()
@@ -602,6 +614,7 @@ class MethodExecutor:
 
         self.raw_calibrations = calibrations
         self.calibrations = self._map_calibrations_to_classes(calibrations)
+        self.questionnaire_data = questionnaire_data  # Store for potential use
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
@@ -621,6 +634,16 @@ class MethodExecutor:
                         logger.warning(
                             "Cannot instantiate %s: MunicipalOntology not available", class_name
                         )
+                # IndustrialPolicyProcessor needs questionnaire data
+                elif class_name == "IndustrialPolicyProcessor":
+                    if questionnaire_data is not None:
+                        # ✅ CORRECT: Inject questionnaire data from orchestrator
+                        self.instances[class_name] = cls(questionnaire_data=questionnaire_data)
+                        logger.info("IndustrialPolicyProcessor initialized with injected questionnaire")
+                    else:
+                        # ⚠️ Will load from file (backward compatible but not ideal)
+                        self.instances[class_name] = cls()
+                        logger.warning("IndustrialPolicyProcessor created without questionnaire injection")
                 # PolicyTextProcessor needs ProcessorConfig
                 elif class_name == "PolicyTextProcessor":
                     try:
@@ -827,7 +850,8 @@ class Orchestrator:
             # This allows construction without I/O but requires data to be set before use
             self.catalog = None
 
-        self.executor = MethodExecutor()
+        # ✅ Pass questionnaire data to MethodExecutor for dependency injection
+        self.executor = MethodExecutor(questionnaire_data=self._monolith_data)
         self.calibrations: dict[str, Any] = getattr(self.executor, "raw_calibrations", {})
 
         # Import executors from the executors module
