@@ -58,7 +58,10 @@ class CPPAdapter:
     def __init__(self) -> None:
         """Initialize CPP adapter."""
         self._conversions_count = 0
-        logger.info("cpp_adapter_initialized")
+        if structlog is not None:
+            logger.info("cpp_adapter_initialized")
+        else:
+            logger.info("cpp_adapter_initialized")
     
     def to_preprocessed_document(
         self,
@@ -224,22 +227,37 @@ class CPPAdapter:
         
         self._conversions_count += 1
         
-        logger.info(
-            "cpp_to_preprocessed_document_complete",
-            document_id=document_id,
-            chunk_count=len(chunks),
-            provenance_completeness=provenance_completeness,
-            conversion_number=self._conversions_count,
-        )
+        # Log completion (compatible with both structlog and standard logging)
+        if structlog is not None:
+            logger.info(
+                "cpp_to_preprocessed_document_complete",
+                document_id=document_id,
+                chunk_count=len(chunks),
+                provenance_completeness=provenance_completeness,
+                conversion_number=self._conversions_count,
+            )
+        else:
+            logger.info(
+                f"cpp_to_preprocessed_document_complete: document_id={document_id}, "
+                f"chunk_count={len(chunks)}, provenance_completeness={provenance_completeness}, "
+                f"conversion_number={self._conversions_count}"
+            )
         
         # Validate provenance completeness
         if provenance_completeness < 1.0:
-            logger.warning(
-                "cpp_incomplete_provenance",
-                document_id=document_id,
-                provenance_completeness=provenance_completeness,
-                message="Some chunks are missing provenance information",
-            )
+            if structlog is not None:
+                logger.warning(
+                    "cpp_incomplete_provenance",
+                    document_id=document_id,
+                    provenance_completeness=provenance_completeness,
+                    message="Some chunks are missing provenance information",
+                )
+            else:
+                logger.warning(
+                    f"cpp_incomplete_provenance: document_id={document_id}, "
+                    f"provenance_completeness={provenance_completeness}, "
+                    f"message=Some chunks are missing provenance information"
+                )
         
         return PreprocessedDocument(
             document_id=document_id,
