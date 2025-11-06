@@ -70,7 +70,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None
+        cls, document: Any, *, document_id: str | None = None, use_cpp_ingestion: bool = False
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
         # Reject class types - only accept instances
@@ -84,12 +84,29 @@ class PreprocessedDocument:
         if isinstance(document, cls):
             return document
 
+        # Check for CPP (Canon Policy Package) ingestion
+        if use_cpp_ingestion or hasattr(document, "chunk_graph"):
+            try:
+                from saaaaaa.utils.cpp_adapter import CPPAdapter
+                adapter = CPPAdapter()
+                return adapter.to_preprocessed_document(document, document_id=document_id)
+            except ImportError as e:
+                raise ImportError(
+                    "CPP ingestion requires cpp_adapter module. "
+                    "Ensure saaaaaa.utils.cpp_adapter is available."
+                ) from e
+            except Exception as e:
+                raise TypeError(
+                    f"Failed to adapt CPP document: {e}. "
+                    "Ensure document is a valid CanonPolicyPackage instance."
+                ) from e
+
         if hasattr(document, "raw_document") and hasattr(document, "full_text"):
             return cls._from_ingestion(document, document_id=document_id)
 
         raise TypeError(
             "Unsupported preprocessed document payload: "
-            f"expected orchestrator or document_ingestion schema, got {type(document)!r}"
+            f"expected orchestrator, document_ingestion, or CPP schema, got {type(document)!r}"
         )
 
     @classmethod
