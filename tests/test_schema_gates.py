@@ -188,7 +188,12 @@ class TestExecutionGraphGate:
             Orchestrator(monolith=valid_monolith, catalog={})
     
     def test_catalog_with_empty_methods_rejected(self):
-        """Catalog with empty 'methods' attribute should be rejected."""
+        """Catalog with empty 'methods' attribute should be rejected.
+        
+        This test validates that an empty methods list is caught during catalog
+        validation, which happens before MethodExecutor initialization, so it
+        doesn't require full dependencies.
+        """
         valid_monolith = {
             "version": "1.0.0",
             "schema_version": "1.0",

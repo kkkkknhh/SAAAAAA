@@ -950,10 +950,10 @@ class Orchestrator:
         # ========================================================================
         # PROMPT_SCHEMA_GATES_ENFORCER: Validate questionnaire structure if provided
         # Cannot proceed with corrupt questionnaire schema
+        # Note: Local import to avoid circular dependency (factory imports from core)
         # ========================================================================
         if self._monolith_data is not None:
             from .factory import validate_questionnaire_structure
-            # Import locally to avoid circular dependency
             try:
                 validate_questionnaire_structure(self._monolith_data)
             except (ValueError, TypeError) as e:
@@ -985,7 +985,7 @@ class Orchestrator:
         if self.catalog is not None:
             if not self.catalog:
                 raise RuntimeError(
-                    "Method catalog is empty — cannot run pipeline. "
+                    "Method catalog is empty - cannot run pipeline. "
                     "A non-empty catalog is required for orchestration."
                 )
             # Check if catalog has methods attribute/key
@@ -997,7 +997,7 @@ class Orchestrator:
             
             if catalog_methods is not None and not catalog_methods:
                 raise RuntimeError(
-                    "Method catalog.methods is empty — cannot run pipeline. "
+                    "Method catalog.methods is empty - cannot run pipeline. "
                     "At least one method must be registered in the catalog."
                 )
 
@@ -1009,7 +1009,7 @@ class Orchestrator:
         # ========================================================================
         if not self.executor.instances:
             raise RuntimeError(
-                "MethodExecutor.instances is empty — no executable methods registered. "
+                "MethodExecutor.instances is empty - no executable methods registered. "
                 "Cannot start orchestration without method instances. "
                 "Check that class registry is properly configured."
             )
@@ -1463,7 +1463,7 @@ class Orchestrator:
             # ========================================================================
             if not method_map:
                 raise RuntimeError(
-                    "Method map is empty — cannot route methods. "
+                    "Method map is empty - cannot route methods. "
                     "A non-empty method map is required for orchestration."
                 )
             
