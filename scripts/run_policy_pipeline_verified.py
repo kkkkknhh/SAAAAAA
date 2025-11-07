@@ -277,7 +277,7 @@ class VerifiedPipelineRunner:
             return None
     
     def save_artifacts(self, cpp: Any, preprocessed_doc: Any, 
-                      results: Any) -> List[str]:
+                      results: Any) -> tuple[List[str], Dict[str, str]]:
         """
         Save artifacts and compute hashes.
         
