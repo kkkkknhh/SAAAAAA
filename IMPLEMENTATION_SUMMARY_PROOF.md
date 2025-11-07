@@ -238,7 +238,7 @@ CodeQL Analysis: 0 vulnerabilities found
 ### 1. Method Map Hash
 **Issue**: `method_map` not directly exposed in `ProcessorBundle`
 
-**Current Solution**: Uses placeholder hash derived from questionnaire
+**Current Solution**: Uses a fixed placeholder hash because method_map is inaccessible
 
 **Location**: `run_complete_analysis_plan1.py:378-383`
 
