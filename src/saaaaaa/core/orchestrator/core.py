@@ -2085,7 +2085,7 @@ class Orchestrator:
 
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScore:
+    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScoreDict:
         """Evaluate macro level using MacroAggregator.
 
         Args:
@@ -2093,7 +2093,7 @@ class Orchestrator:
             config: Configuration dict containing monolith
 
         Returns:
-            MacroScore object with full validation and diagnostics
+            MacroScoreDict with macro_score, macro_score_normalized, and cluster_scores
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
@@ -2103,7 +2103,7 @@ class Orchestrator:
         monolith = config.get("monolith")
         if not monolith:
             logger.error("No monolith in config for macro evaluation")
-            return MacroScore(
+            macro_score = MacroScore(
                 score=0.0,
                 quality_level="INSUFICIENTE",
                 cross_cutting_coherence=0.0,
@@ -2113,6 +2113,12 @@ class Orchestrator:
                 validation_passed=False,
                 validation_details={"error": "No monolith", "type": "config"}
             )
+            result: MacroScoreDict = {
+                "macro_score": macro_score,
+                "macro_score_normalized": 0.0,
+                "cluster_scores": cluster_scores,
+            }
+            return result
 
         # Initialize macro aggregator
         aggregator = MacroAggregator(monolith, abort_on_insufficient=False)
