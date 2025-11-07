@@ -135,12 +135,9 @@ class CalibrationModifier:
     sensitivity_multiplier: float = 1.0
     
     def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
-        """Apply multiplier to evidence snippet count with minimum bound."""
+        """Apply multiplier to evidence snippet count with minimum bound (round up)."""
         import math
-
-        def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
-            """Apply multiplier to evidence snippet count with minimum bound (round up)."""
-            return max(1, int(math.ceil(value * multiplier)))
+        return max(1, int(math.ceil(value * multiplier)))
     
     def apply(self, base: MethodCalibration) -> MethodCalibration:
         """Apply modifiers to base calibration."""
