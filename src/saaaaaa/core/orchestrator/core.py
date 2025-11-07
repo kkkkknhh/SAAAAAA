@@ -2081,6 +2081,39 @@ class Orchestrator:
         return cluster_scores
 
     def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScoreDict:
+        """Evaluate macro level using MacroAggregator."""
+        monolith = config.get("monolith")
+
+        # If monolith is not available, return a contract-compliant MacroScoreDict
+        if not monolith:
+            # Fallback: compute simple aggregates from provided cluster scores
+            try:
+                avg_score = float(statistics.mean([c.score for c in cluster_scores])) if cluster_scores else 0.0
+            except Exception:
+                avg_score = 0.0
+            try:
+                avg_norm = float(statistics.mean([getattr(c, "normalized_score", c.score) for c in cluster_scores])) if cluster_scores else 0.0
+            except Exception:
+                avg_norm = avg_score
+
+            return {
+                "macro_score": MacroScore(  # type: ignore[call-arg]
+                    score=avg_score,
+                    normalized_score=avg_norm,
+                    clusters=cluster_scores,
+                ),
+                "macro_score_normalized": avg_norm,
+                "cluster_scores": cluster_scores,
+            }
+
+        # Normal path with MacroAggregator
+        aggregator = MacroAggregator(monolith)
+        macro: MacroScore = aggregator.aggregate_macro(cluster_scores)
+        return {
+            "macro_score": macro,
+            "macro_score_normalized": macro.normalized_score,
+            "cluster_scores": cluster_scores,
+        }
         """Evaluate macro level using MacroAggregator.
 
         Args:
