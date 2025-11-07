@@ -196,7 +196,7 @@ This ensures that when TensorFlow is installed, the backward-compatible tf-keras
 
 **Problem:** NLTK was in `requirements.txt` but not in `requirements-core.txt` or `setup.py`, causing runtime errors.
 
-**Solution:** Added `nltk==3.9.1` to:
++**Solution:** Added `nltk>=3.9.0` to:
 - `setup.py` install_requires
 - `pyproject.toml` dependencies
 - `requirements-core.txt`
