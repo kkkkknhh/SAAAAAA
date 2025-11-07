@@ -118,6 +118,18 @@ class ExecutorConfig(BaseModel):
         le=2147483647,
         description="Random seed for deterministic execution"
     )
+    require_calibration: bool = Field(
+        default=False,
+        description="Whether to require calibration data for method execution"
+    )
+    fail_on_missing_calibration: bool = Field(
+        default=False,
+        description="Whether to fail when calibration is required but missing"
+    )
+    method_constraints: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Method-specific constraints and calibration data"
+    )
     
     model_config = {
         "frozen": True,
@@ -413,7 +425,10 @@ class ExecutorConfig(BaseModel):
             Hex string of BLAKE3 hash (64 chars)
         """
         # Serialize config to stable JSON representation
-        config_json = self.model_dump_json(indent=None, sort_keys=True)
+        # Pydantic v2: model_dump_json doesn't have sort_keys, but output is deterministic
+        import json
+        config_dict = self.model_dump()
+        config_json = json.dumps(config_dict, sort_keys=True, indent=None)
         
         # Compute BLAKE3 hash
         hasher = blake3.blake3(config_json.encode("utf-8"))
@@ -439,6 +454,20 @@ class ExecutorConfig(BaseModel):
                 f"(retry={self.retry} × timeout_s={self.timeout_s})"
             )
         return True
+    
+    def get_method_constraints(self, class_name: str, method_name: str) -> dict[str, Any]:
+        """
+        Get method-specific constraints and calibration data.
+        
+        Args:
+            class_name: Name of the class
+            method_name: Name of the method
+            
+        Returns:
+            Dictionary of constraints for the method, or empty dict if none defined
+        """
+        method_key = f"{class_name}.{method_name}"
+        return self.method_constraints.get(method_key, {})
 
 
 @dataclass(frozen=True)

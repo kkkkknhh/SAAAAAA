@@ -730,6 +730,9 @@ class MethodExecutor:
             ArgRouterError: If routing fails
             AttributeError: If method doesn't exist
         """
+        # Pop executor_config from kwargs if present
+        executor_config = kwargs.pop('executor_config', None)
+        
         instance = self.instances.get(class_name)
         if not instance:
             logger.warning("No instance available for class %s", class_name)
@@ -740,6 +743,18 @@ class MethodExecutor:
         except AttributeError:
             logger.error("Class %s has no method %s", class_name, method_name)
             raise
+
+        # Handle calibration constraints if config requires it
+        if executor_config and executor_config.require_calibration:
+            constraints = executor_config.get_method_constraints(class_name, method_name)
+            if constraints:
+                logger.debug(f"Applying calibration constraints to {class_name}.{method_name}: {list(constraints.keys())}")
+                kwargs['_method_constraints'] = constraints
+            elif executor_config.fail_on_missing_calibration:
+                raise ValueError(
+                    f"Calibration required but not found for {class_name}.{method_name} "
+                    f"(fail_on_missing_calibration=True)"
+                )
 
         try:
             args, routed_kwargs = self._router.route(class_name, method_name, dict(kwargs))

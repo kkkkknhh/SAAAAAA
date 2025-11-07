@@ -44,6 +44,7 @@ Memory Requirements:
 import asyncio
 import logging
 import math
+import signal
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -56,6 +57,8 @@ import inspect
 from typing import Any, Generic, TypeVar
 
 import numpy as np
+
+from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
 
 try:
     from opentelemetry import trace
@@ -907,9 +910,18 @@ class MethodSequenceValidatingMixin:
 class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
     """Advanced executor with frontier paradigmatic capabilities"""
 
-    def __init__(self, method_executor, signal_registry=None) -> None:
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
         self.executor = method_executor
         self.signal_registry = signal_registry
+        
+        # Set and validate config
+        self.config = config or CONSERVATIVE_CONFIG
+        if self.config is None:
+            raise ValueError("ExecutorConfig must not be None")
+        
+        # Log config hash for traceability
+        config_hash = self.config.compute_hash()
+        logger.info(f"Executor initialized with config hash: {config_hash}")
 
         self.quantum_optimizer = QuantumExecutionOptimizer(num_methods=50)
         self.neuromorphic_controller = NeuromorphicFlowController(num_stages=10)
@@ -1063,26 +1075,46 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 )
                 self.probabilistic_executor.sample_prior(method_key)
 
-                # Execute with retry logic
+                # Execute with retry logic using config
                 method_start = time.time()
                 success = False
-                max_retries = 3
+                max_retries = self.config.retry + 1  # retry=2 means 3 total attempts (1 initial + 2 retries)
                 prepared_kwargs = {}  # Initialize to prevent UnboundLocalError in failure logging
-
+                
+                # Setup timeout handler using signal.alarm
+                def timeout_handler(signum, frame):
+                    raise TimeoutError(f"Method {method_key} exceeded timeout of {self.config.timeout_s}s")
+                
                 for attempt in range(max_retries):
                     try:
-                        prepared_kwargs = self._prepare_arguments(
-                            class_name,
-                            method_name,
-                            doc,
-                            current_data,
-                        )
+                        # Set timeout alarm (Unix-only, will be no-op on Windows)
+                        try:
+                            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+                            signal.alarm(int(self.config.timeout_s))
+                        except (AttributeError, ValueError):
+                            # signal.SIGALRM not available on Windows
+                            pass
+                        
+                        try:
+                            prepared_kwargs = self._prepare_arguments(
+                                class_name,
+                                method_name,
+                                doc,
+                                current_data,
+                            )
 
-                        result = self.executor.execute(
-                            class_name,
-                            method_name,
-                            **prepared_kwargs,
-                        )
+                            result = self.executor.execute(
+                                class_name,
+                                method_name,
+                                **prepared_kwargs,
+                            )
+                        finally:
+                            # Cancel the alarm
+                            try:
+                                signal.alarm(0)
+                                signal.signal(signal.SIGALRM, old_handler)
+                            except (AttributeError, ValueError):
+                                pass
 
                         results[method_key] = result
                         success = True
@@ -2088,8 +2120,8 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
 class D1Q1_Executor(AdvancedDataFlowExecutor):
     """D1-Q1: Líneas Base y Brechas Cuantificadas"""
     
-    def __init__(self, method_executor, signal_registry=None) -> None:
-        super().__init__(method_executor, signal_registry)
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
         # Validate method sequence at construction time
         self._validate_method_sequences()
     
@@ -2126,6 +2158,9 @@ class D1Q1_Executor(AdvancedDataFlowExecutor):
 
 class D1Q2_Executor(AdvancedDataFlowExecutor):
     """D1-Q2: Normalización y Fuentes"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2150,6 +2185,9 @@ class D1Q2_Executor(AdvancedDataFlowExecutor):
 
 class D1Q3_Executor(AdvancedDataFlowExecutor):
     """D1-Q3: Asignación de Recursos"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2184,6 +2222,9 @@ class D1Q3_Executor(AdvancedDataFlowExecutor):
 
 class D1Q4_Executor(AdvancedDataFlowExecutor):
     """D1-Q4: Capacidad Institucional"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2212,6 +2253,9 @@ class D1Q4_Executor(AdvancedDataFlowExecutor):
 
 class D1Q5_Executor(AdvancedDataFlowExecutor):
     """D1-Q5: Restricciones Temporales"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2238,6 +2282,9 @@ class D1Q5_Executor(AdvancedDataFlowExecutor):
 
 class D2Q1_Executor(AdvancedDataFlowExecutor):
     """D2-Q1: Formato Tabular y Trazabilidad"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2270,6 +2317,9 @@ class D2Q1_Executor(AdvancedDataFlowExecutor):
 
 class D2Q2_Executor(AdvancedDataFlowExecutor):
     """D2-Q2: Causalidad de Actividades"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2305,6 +2355,9 @@ class D2Q2_Executor(AdvancedDataFlowExecutor):
 
 class D2Q3_Executor(AdvancedDataFlowExecutor):
     """D2-Q3: Responsables de Actividades"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2332,6 +2385,9 @@ class D2Q3_Executor(AdvancedDataFlowExecutor):
 
 class D2Q4_Executor(AdvancedDataFlowExecutor):
     """D2-Q4: Cuantificación de Actividades"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2362,6 +2418,9 @@ class D2Q4_Executor(AdvancedDataFlowExecutor):
 
 class D2Q5_Executor(AdvancedDataFlowExecutor):
     """D2-Q5: Eslabón Causal Diagnóstico-Actividades"""
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2394,6 +2453,10 @@ class D2Q5_Executor(AdvancedDataFlowExecutor):
 class D3Q1_Executor(AdvancedDataFlowExecutor):
     """D3-Q1: Indicadores de Producto"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2423,6 +2486,10 @@ class D3Q1_Executor(AdvancedDataFlowExecutor):
 
 class D3Q2_Executor(AdvancedDataFlowExecutor):
     """D3-Q2: Cuantificación de Productos"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2455,6 +2522,10 @@ class D3Q2_Executor(AdvancedDataFlowExecutor):
 class D3Q3_Executor(AdvancedDataFlowExecutor):
     """D3-Q3: Responsables de Productos"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2481,6 +2552,10 @@ class D3Q3_Executor(AdvancedDataFlowExecutor):
 
 class D3Q4_Executor(AdvancedDataFlowExecutor):
     """D3-Q4: Plazos de Productos"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2510,6 +2585,10 @@ class D3Q4_Executor(AdvancedDataFlowExecutor):
 
 class D3Q5_Executor(AdvancedDataFlowExecutor):
     """D3-Q5: Eslabón Causal Producto-Resultado"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2557,6 +2636,10 @@ class D3Q5_Executor(AdvancedDataFlowExecutor):
 class D4Q1_Executor(AdvancedDataFlowExecutor):
     """D4-Q1: Indicadores de Resultado"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2586,6 +2669,10 @@ class D4Q1_Executor(AdvancedDataFlowExecutor):
 
 class D4Q2_Executor(AdvancedDataFlowExecutor):
     """D4-Q2: Cadena Causal y Supuestos"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2623,6 +2710,10 @@ class D4Q2_Executor(AdvancedDataFlowExecutor):
 class D4Q3_Executor(AdvancedDataFlowExecutor):
     """D4-Q3: Justificación de Ambición"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', 'process'),
@@ -2655,6 +2746,10 @@ class D4Q3_Executor(AdvancedDataFlowExecutor):
 class D4Q4_Executor(AdvancedDataFlowExecutor):
     """D4-Q4: Población Objetivo"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2681,6 +2776,10 @@ class D4Q4_Executor(AdvancedDataFlowExecutor):
 
 class D4Q5_Executor(AdvancedDataFlowExecutor):
     """D4-Q5: Alineación con Objetivos Superiores"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2709,6 +2808,10 @@ class D4Q5_Executor(AdvancedDataFlowExecutor):
 class D5Q1_Executor(AdvancedDataFlowExecutor):
     """D5-Q1: Indicadores de Impacto"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2736,6 +2839,10 @@ class D5Q1_Executor(AdvancedDataFlowExecutor):
 
 class D5Q2_Executor(AdvancedDataFlowExecutor):
     """D5-Q2: Eslabón Causal Resultado-Impacto"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2774,6 +2881,10 @@ class D5Q2_Executor(AdvancedDataFlowExecutor):
 class D5Q3_Executor(AdvancedDataFlowExecutor):
     """D5-Q3: Evidencia de Causalidad"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2804,6 +2915,10 @@ class D5Q3_Executor(AdvancedDataFlowExecutor):
 class D5Q4_Executor(AdvancedDataFlowExecutor):
     """D5-Q4: Plazos de Impacto"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2830,6 +2945,10 @@ class D5Q4_Executor(AdvancedDataFlowExecutor):
 class D5Q5_Executor(AdvancedDataFlowExecutor):
     """D5-Q5: Sostenibilidad Financiera"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2855,6 +2974,10 @@ class D5Q5_Executor(AdvancedDataFlowExecutor):
 
 class D6Q1_Executor(AdvancedDataFlowExecutor):
     """D6-Q1: Integridad de Teoría de Cambio"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2900,6 +3023,10 @@ class D6Q1_Executor(AdvancedDataFlowExecutor):
 
 class D6Q2_Executor(AdvancedDataFlowExecutor):
     """D6-Q2: Proporcionalidad y Continuidad (Anti-Milagro)"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -2951,6 +3078,10 @@ class D6Q2_Executor(AdvancedDataFlowExecutor):
 class D6Q3_Executor(AdvancedDataFlowExecutor):
     """D6-Q3: Inconsistencias (Sistema Bicameral - Ruta 1)"""
 
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
+
     def execute(self, doc, method_executor):
         method_sequence = [
             ('IndustrialPolicyProcessor', '_match_patterns_in_sentences'),
@@ -2984,6 +3115,10 @@ class D6Q3_Executor(AdvancedDataFlowExecutor):
 
 class D6Q4_Executor(AdvancedDataFlowExecutor):
     """D6-Q4: Adaptación (Sistema Bicameral - Ruta 2)"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
@@ -3033,6 +3168,10 @@ class D6Q4_Executor(AdvancedDataFlowExecutor):
 
 class D6Q5_Executor(AdvancedDataFlowExecutor):
     """D6-Q5: Contextualización y Enfoque Diferencial"""
+
+    
+    def __init__(self, method_executor, signal_registry=None, config: ExecutorConfig | None = None) -> None:
+        super().__init__(method_executor, signal_registry, config)
 
     def execute(self, doc, method_executor):
         method_sequence = [
