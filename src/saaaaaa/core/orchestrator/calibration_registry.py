@@ -2019,5 +2019,88 @@ CALIBRATIONS: Dict[Tuple[str, str], MethodCalibration] = {
 }
 
 def resolve_calibration(class_name: str, method_name: str) -> Optional[MethodCalibration]:
+    """Resolve base calibration for a method.
+    
+    This returns the base calibration. For context-aware calibration,
+    use resolve_contextual_calibration from calibration_context module.
+    """
     key = (class_name, method_name)
     return CALIBRATIONS.get(key)
+
+
+def resolve_calibration_with_context(
+    class_name: str,
+    method_name: str,
+    question_id: Optional[str] = None,
+    policy_area: Optional[str] = None,
+    unit_of_analysis: Optional[str] = None,
+    method_position: int = 0,
+    total_methods: int = 1,
+) -> Optional[MethodCalibration]:
+    """Resolve calibration with contextual refinements.
+    
+    Args:
+        class_name: Class containing the method
+        method_name: Method name
+        question_id: Question identifier (e.g., "D1Q1", "D6Q3")
+        policy_area: Policy domain (fiscal, social, health, etc.)
+        unit_of_analysis: Analysis type (baseline_gap, indicator, etc.)
+        method_position: Position in method sequence (0-indexed)
+        total_methods: Total methods in sequence
+        
+    Returns:
+        Context-aware calibration, or None if no base calibration exists
+        
+    Example:
+        >>> calib = resolve_calibration_with_context(
+        ...     "BayesianEvidenceScorer",
+        ...     "compute_evidence_score",
+        ...     question_id="D1Q1",
+        ...     policy_area="fiscal"
+        ... )
+    """
+    # Get base calibration
+    base_calib = resolve_calibration(class_name, method_name)
+    if base_calib is None:
+        return None
+    
+    # Import here to avoid circular dependency
+    from .calibration_context import (
+        CalibrationContext,
+        PolicyArea,
+        UnitOfAnalysis,
+        resolve_contextual_calibration,
+        infer_context_from_question_id,
+    )
+    
+    # Build context
+    if question_id:
+        context = infer_context_from_question_id(question_id)
+    else:
+        context = CalibrationContext(
+            question_id="unknown",
+            dimension=0,
+            question_num=0,
+        )
+    
+    # Apply additional context overrides
+    if policy_area:
+        try:
+            area_enum = PolicyArea(policy_area.lower())
+            context = context.with_policy_area(area_enum)
+        except (ValueError, AttributeError):
+            pass  # Keep default if invalid
+    
+    if unit_of_analysis:
+        try:
+            unit_enum = UnitOfAnalysis(unit_of_analysis.lower())
+            context = context.with_unit_of_analysis(unit_enum)
+        except (ValueError, AttributeError):
+            pass  # Keep default if invalid
+    
+    # Set method position
+    if total_methods > 1:
+        context = context.with_method_position(method_position, total_methods)
+    
+    # Resolve with context
+    return resolve_contextual_calibration(base_calib, context)

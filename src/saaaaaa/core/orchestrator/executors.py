@@ -1019,6 +1019,9 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         self.method_dependencies: dict[str, set] = {}
         self._argument_context: dict[str, Any] = {}
         self.used_signals: list[dict[str, Any]] = []  # Track signal usage
+        # Validate early: no executor can be constructed with missing/placeholder calibration
+        self._validate_method_sequences()
+        self._validate_calibrations()
 
         # NOTE: Validation NOT called in base class because most executors
         # define method_sequence in execute(), not in _get_method_sequence().
