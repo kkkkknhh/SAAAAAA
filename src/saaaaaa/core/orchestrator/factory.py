@@ -604,6 +604,13 @@ def validate_questionnaire_structure(data: dict[str, Any]) -> None:
     micro_questions = blocks['micro_questions']
     if not isinstance(micro_questions, list):
         raise ValueError("blocks.micro_questions must be a list")
+    
+    # Enforce minimum: at least 1 question required
+    if len(micro_questions) < 1:
+        raise ValueError(
+            "Questionnaire must have at least 1 micro question, got 0. "
+            "Cannot proceed with empty questionnaire."
+        )
 
     # Track for duplicate detection
     seen_question_ids = set()

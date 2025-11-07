@@ -889,6 +889,19 @@ class EvidenceRegistry:
 
         return stats
 
+    def stats(self) -> dict[str, int]:
+        """Get simplified evidence registry statistics.
+        
+        Returns:
+            Dict with counts for records, types, methods, and questions.
+        """
+        return {
+            "records": len(self.hash_index),
+            "types": len(self.type_index),
+            "methods": len(self.method_index),
+            "questions": len(self.question_index),
+        }
+
 # Global registry instance
 _global_registry: EvidenceRegistry | None = None
 

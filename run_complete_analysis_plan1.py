@@ -166,7 +166,7 @@ async def main():
     """Main execution function."""
     
     print("=" * 80)
-    print("COMPLETE SYSTEM EXECUTION: CPP + ORCHESTRATOR FOR PLAN_1.PDF")
+    print("CPP + ORCHESTRATOR PIPELINE: Plan_1.pdf")
     print("=" * 80)
     print()
     
@@ -482,7 +482,7 @@ async def main():
                 print()
             
             print()
-            print("  🎉 ALL PHASES COMPLETED SUCCESSFULLY!")
+            print("✅ ALL PHASES COMPLETED")
             return 0
         else:
             print()

@@ -4,26 +4,56 @@
 
 ---
 
+## ⚠️ PYTHON 3.12 COMPATIBILITY NOTICE
+
+This repository is configured for **Python 3.12** with **NumPy 1.26.4** (NOT a downgrade - this is a binary compatibility requirement).
+
+**Critical Information:**
+- **NumPy 2.0 breaks PyMC/PyTensor** - we use NumPy 1.26.4 (latest 1.x)
+- **PyMC must build from source** on Python 3.12 (no pre-built wheels)
+- **All dependencies are exactly pinned** in `constraints-complete.txt`
+
+**📖 See [PYTHON_312_COMPATIBILITY.md](PYTHON_312_COMPATIBILITY.md) for complete details**
+
+---
+
 ## 📦 Package Installation & Dependency Management
 
 ### Quick Installation
 
-**For development (recommended):**
+**Option 1: Package Installation (Recommended)**
 ```bash
-make setup    # Installs requirements.txt + requirements-dev.txt + package in editable mode
+# Basic installation (core features)
+pip install -e .
+
+# With Bayesian analysis (PyMC, PyTensor, arviz)
+pip install -e ".[bayesian]"
+
+# With ML/DL support (torch, tensorflow)
+pip install -e ".[ml]"
+
+# Complete installation (all features)
+pip install -e ".[all]"
 ```
 
-**Or manually:**
+**Option 2: Pinned Requirements (Development/Production)**
 ```bash
-pip install -r requirements-dev.txt
+# Install with exact version pins from requirements.txt
+pip install -c constraints-complete.txt -r requirements.txt
+
+# Or use the automated script
+./install_fixed.sh
 ```
 
-**For production:**
-```bash
-pip install -r requirements-core.txt
-```
+**Why two installation methods?**
+- `pip install -e .` uses flexible version ranges - **recommended for most users**
+- `requirements.txt` has exact pins - for reproducible development/production environments
+- Heavy packages (PyMC, torch, tensorflow) are optional extras to avoid conflicts
 
-**Complete documentation:** See [DEPENDENCIES_QUICKSTART.md](DEPENDENCIES_QUICKSTART.md)
+**Complete documentation:** 
+- [INSTALLATION_SOLVED.md](INSTALLATION_SOLVED.md) - Installation guide and troubleshooting
+- [PYTHON_312_COMPATIBILITY.md](PYTHON_312_COMPATIBILITY.md) - Python 3.12 specific info
+- [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md) - Complete dependency documentation
 
 ### Dependency Management System
 
