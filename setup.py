@@ -51,7 +51,7 @@ setup(
     },
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    python_requires=">=3.10",
+    python_requires=">=3.10,<3.14",
     install_requires=install_requires,
     extras_require={
         "dev": [
