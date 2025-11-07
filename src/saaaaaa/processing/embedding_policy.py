@@ -768,9 +768,23 @@ class PolicyCrossEncoderReranker:
             model_name: HuggingFace model name (multilingual preferred)
             max_length: Maximum sequence length for cross-encoder
             retry_handler: Optional RetryHandler for model loading
+            
+        Raises:
+            RuntimeError: If online model download is required but HF_ONLINE=0
         """
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model load
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download a remote model when offline
+        if not self._is_model_cached(model_name):
+            lockdown.check_online_model_access(
+                model_name=model_name,
+                operation="load CrossEncoder model"
+            )
 
         # Load model with retry logic if available
         if retry_handler:
@@ -793,6 +807,34 @@ class PolicyCrossEncoderReranker:
         else:
             self.model = CrossEncoder(model_name, max_length=max_length)
             self._logger.info(f"Cross-encoder loaded: {model_name}")
+    
+    def _is_model_cached(self, model_name: str) -> bool:
+        """Check if a model is cached locally (simple heuristic).
+        
+        Returns:
+            True if model appears to be cached, False otherwise
+        """
+        import os
+        from pathlib import Path
+        
+        # Check common HuggingFace cache locations
+        cache_dirs = [
+            os.path.expanduser("~/.cache/huggingface/hub"),
+            os.path.expanduser("~/.cache/torch/sentence_transformers"),
+            os.getenv("HF_HOME"),
+            os.getenv("TRANSFORMERS_CACHE"),
+        ]
+        
+        for cache_dir in cache_dirs:
+            if cache_dir and os.path.exists(cache_dir):
+                # Simplistic check: if cache dir exists and has model-related files
+                cache_path = Path(cache_dir)
+                # Check for model name patterns in cache
+                model_slug = model_name.replace("/", "--")
+                if any(model_slug in str(p) for p in cache_path.rglob("*")):
+                    return True
+        
+        return False
 
     def rerank(
         self,
@@ -878,6 +920,17 @@ class PolicyAnalysisEmbedder:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model loads
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download remote models when offline
+        if not self._is_model_cached(config.embedding_model):
+            lockdown.check_online_model_access(
+                model_name=config.embedding_model,
+                operation="load SentenceTransformer embedding model"
+            )
 
         # Initialize embedding model with retry logic
         if retry_handler:
@@ -922,6 +975,34 @@ class PolicyAnalysisEmbedder:
         # Cache
         self._embedding_cache: dict[str, NDArray[np.float32]] = {}
         self._chunk_cache: dict[str, list[SemanticChunk]] = {}
+    
+    def _is_model_cached(self, model_name: str) -> bool:
+        """Check if a model is cached locally (simple heuristic).
+        
+        Returns:
+            True if model appears to be cached, False otherwise
+        """
+        import os
+        from pathlib import Path
+        
+        # Check common HuggingFace cache locations
+        cache_dirs = [
+            os.path.expanduser("~/.cache/huggingface/hub"),
+            os.path.expanduser("~/.cache/torch/sentence_transformers"),
+            os.getenv("HF_HOME"),
+            os.getenv("TRANSFORMERS_CACHE"),
+        ]
+        
+        for cache_dir in cache_dirs:
+            if cache_dir and os.path.exists(cache_dir):
+                # Simplistic check: if cache dir exists and has model-related files
+                cache_path = Path(cache_dir)
+                # Check for model name patterns in cache
+                model_slug = model_name.replace("/", "--")
+                if any(model_slug in str(p) for p in cache_path.rglob("*")):
+                    return True
+        
+        return False
 
     def process_document(
         self,

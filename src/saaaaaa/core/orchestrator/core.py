@@ -44,6 +44,7 @@ from saaaaaa.processing.aggregation import (
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
 from .calibration_registry import resolve_calibration
 from .class_registry import ClassRegistryError, build_class_registry
+from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
 
 if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
@@ -942,6 +943,12 @@ class Orchestrator:
         self._phase_outputs: dict[int, Any] = {}
         self._context: dict[str, Any] = {}
         self._start_time: float | None = None
+
+        # Initialize dependency lockdown enforcement
+        self.dependency_lockdown = get_dependency_lockdown()
+        logger.info(
+            f"Orchestrator dependency mode: {self.dependency_lockdown.get_mode_description()}"
+        )
 
         # Initialize RecommendationEngine for 3-level recommendations
         try:
