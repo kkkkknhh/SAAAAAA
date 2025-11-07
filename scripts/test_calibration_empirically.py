@@ -155,7 +155,9 @@ class CalibrationTester:
         
         # Monkey-patch to use contextual calibration
         original_resolve = orchestrator._method_executor.__class__.resolve_calibration
-        context_usage_count = [0]  # Mutable container for closure
+        # Use list as mutable container to track usage in closure
+        # (integers are immutable in Python, so we can't use += directly)
+        context_usage_count = [0]
         
         def contextual_with_tracking(class_name, method_name, question_id=None, **kwargs):
             if question_id:

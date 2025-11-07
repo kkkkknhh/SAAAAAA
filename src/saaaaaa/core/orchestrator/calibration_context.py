@@ -113,15 +113,27 @@ class CalibrationModifier:
     aggregation_weight_multiplier: float = 1.0
     sensitivity_multiplier: float = 1.0
     
+    def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
+        """Apply multiplier to evidence snippet count with minimum bound."""
+        return max(1, int(value * multiplier))
+    
     def apply(self, base: MethodCalibration) -> MethodCalibration:
         """Apply modifiers to base calibration."""
         return MethodCalibration(
             score_min=base.score_min,
             score_max=base.score_max,
-            min_evidence_snippets=max(1, int(base.min_evidence_snippets * self.min_evidence_multiplier)),
-            max_evidence_snippets=max(1, int(base.max_evidence_snippets * self.max_evidence_multiplier)),
-            contradiction_tolerance=_clamp(base.contradiction_tolerance * self.contradiction_tolerance_multiplier, 0.0, 1.0),
-            uncertainty_penalty=_clamp(base.uncertainty_penalty * self.uncertainty_penalty_multiplier, 0.0, 1.0),
+            min_evidence_snippets=self._apply_evidence_multiplier(
+                base.min_evidence_snippets, self.min_evidence_multiplier
+            ),
+            max_evidence_snippets=self._apply_evidence_multiplier(
+                base.max_evidence_snippets, self.max_evidence_multiplier
+            ),
+            contradiction_tolerance=_clamp(
+                base.contradiction_tolerance * self.contradiction_tolerance_multiplier, 0.0, 1.0
+            ),
+            uncertainty_penalty=_clamp(
+                base.uncertainty_penalty * self.uncertainty_penalty_multiplier, 0.0, 1.0
+            ),
             aggregation_weight=max(0.1, base.aggregation_weight * self.aggregation_weight_multiplier),
             sensitivity=_clamp(base.sensitivity * self.sensitivity_multiplier, 0.0, 1.0),
             requires_numeric_support=base.requires_numeric_support,
@@ -346,14 +358,15 @@ def _get_position_modifier(position: int, total: int) -> CalibrationModifier:
     if total <= 1:
         return CalibrationModifier()  # No adjustment for single methods
     
-    ratio = position / (total - 1) if total > 1 else 0.0
+    # Calculate position ratio: 0.0 (first) to 1.0 (last)
+    position_ratio = position / (total - 1) if total > 1 else 0.0
     
-    if ratio < 0.33:  # Early methods
+    if position_ratio < 0.33:  # Early methods
         return CalibrationModifier(
             min_evidence_multiplier=1.15,
             aggregation_weight_multiplier=0.95,
         )
-    elif ratio < 0.67:  # Middle methods
+    elif position_ratio < 0.67:  # Middle methods
         return CalibrationModifier(
             aggregation_weight_multiplier=1.0,
         )
