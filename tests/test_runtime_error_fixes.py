@@ -7,21 +7,17 @@ These tests verify that the three critical runtime errors are prevented:
 3. can't multiply sequence by non-int of type 'float'
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from runtime_error_fixes import (
+from saaaaaa.utils.runtime_error_fixes import (
     ensure_list_return,
     safe_list_iteration,
     safe_text_extract,
     safe_weighted_multiply,
 )
-
 
 class TestEnsureListReturn:
     """Test ensure_list_return function for bool-to-list conversion."""
@@ -54,7 +50,6 @@ class TestEnsureListReturn:
         result = ensure_list_return((1, 2, 3))
         assert result == [1, 2, 3]
         assert isinstance(result, list)
-
 
 class TestSafeTextExtract:
     """Test safe_text_extract function for handling text vs spacy objects."""
@@ -93,7 +88,6 @@ class TestSafeTextExtract:
         doc = MockDoc()
         result = safe_text_extract(doc)
         assert result == "Property text"
-
 
 class TestSafeWeightedMultiply:
     """Test safe_weighted_multiply for list * float operations."""
@@ -141,7 +135,6 @@ class TestSafeWeightedMultiply:
         result = safe_weighted_multiply(items, -1.0)
         assert result == [-1.0, -2.0]
 
-
 class TestSafeListIteration:
     """Test safe_list_iteration for preventing iteration errors."""
 
@@ -178,7 +171,6 @@ class TestSafeListIteration:
         """Ranges should convert to lists."""
         result = safe_list_iteration(range(3))
         assert result == [0, 1, 2]
-
 
 class TestIntegrationScenarios:
     """Integration tests for common error scenarios."""

@@ -22,7 +22,6 @@ from concurrency import (
     WorkerPoolConfig,
 )
 
-
 class TestWorkerPoolBasics(unittest.TestCase):
     """Test basic WorkerPool functionality."""
 
@@ -99,7 +98,6 @@ class TestWorkerPoolBasics(unittest.TestCase):
 
         # Pool should be shutdown after context exit
         self.assertTrue(pool._is_shutdown)
-
 
 class TestWorkerPoolRetry(unittest.TestCase):
     """Test retry and backoff behavior."""
@@ -183,7 +181,6 @@ class TestWorkerPoolRetry(unittest.TestCase):
 
         pool.shutdown()
 
-
 class TestWorkerPoolAbort(unittest.TestCase):
     """Test abort and cancellation functionality."""
 
@@ -212,7 +209,6 @@ class TestWorkerPoolAbort(unittest.TestCase):
         self.assertGreater(cancelled_count, 0)
 
         pool.shutdown(wait=False, cancel_futures=True)
-
 
 class TestWorkerPoolMetrics(unittest.TestCase):
     """Test metrics and instrumentation."""
@@ -290,7 +286,6 @@ class TestWorkerPoolMetrics(unittest.TestCase):
 
         pool.shutdown()
 
-
 class TestWorkerPoolThreadSafety(unittest.TestCase):
     """Test thread safety and no race conditions."""
 
@@ -367,7 +362,6 @@ class TestWorkerPoolThreadSafety(unittest.TestCase):
 
         pool.shutdown()
 
-
 class TestWorkerPoolDeterminism(unittest.TestCase):
     """Test deterministic behavior."""
 
@@ -433,11 +427,9 @@ class TestWorkerPoolDeterminism(unittest.TestCase):
 
         pool.shutdown()
 
-
 def run_tests():
     """Run all tests."""
     unittest.main(verbosity=2)
-
 
 if __name__ == "__main__":
     run_tests()

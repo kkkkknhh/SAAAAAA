@@ -10,26 +10,21 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 QUESTIONNAIRE_PATH = REPO_ROOT / "questionnaire.json"
 RUBRIC_PATH = REPO_ROOT / "rubric_scoring.json"
 
 FLOAT_TOLERANCE = 1e-6
 
-
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
-
 def weights_sum_to_one(weights: Mapping[str, float]) -> bool:
     return abs(sum(weights.values()) - 1.0) <= FLOAT_TOLERANCE
-
 
 def ensure(condition: bool, message: str, errors: list[str]) -> None:
     if not condition:
         errors.append(message)
-
 
 def main() -> int:
     errors: list[str] = []
@@ -143,7 +138,6 @@ def main() -> int:
 
     print("✅ Cross-reference validation passed")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -46,7 +46,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # ENUMS - EXACTOS DEL MONOLITH
 # ============================================================================
@@ -60,14 +59,12 @@ class ScoringModality(Enum):
     TYPE_E = "TYPE_E"  # Boolean presence check
     TYPE_F = "TYPE_F"  # Semantic matching with cosine similarity
 
-
 class QualityLevel(Enum):
     """Niveles de calidad micro (línea 34513)."""
     EXCELENTE = "EXCELENTE"    # ≥ 0.85
     BUENO = "BUENO"           # ≥ 0.70
     ACEPTABLE = "ACEPTABLE"   # ≥ 0.55
     INSUFICIENTE = "INSUFICIENTE"  # < 0.55
-
 
 # ============================================================================
 # DATACLASSES
@@ -112,7 +109,6 @@ class ScoringConfig:
     level_aceptable_min: float = 0.55
     level_insuficiente_min: float = 0.0
 
-
 @dataclass
 class Evidence:
     """
@@ -124,7 +120,6 @@ class Evidence:
     semantic_similarity: float | None = None
     pattern_matches: dict[str, int] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class ScoredResult:
@@ -141,7 +136,6 @@ class ScoredResult:
     quality_color: str  # "green", "blue", "yellow", "red"
     evidence: Evidence
     scoring_details: dict[str, Any] = field(default_factory=dict)
-
 
 # ============================================================================
 # CLASE: MicroQuestionScorer
@@ -645,7 +639,6 @@ class MicroQuestionScorer:
         else:
             return QualityLevel.INSUFICIENTE, "red"
 
-
 # ============================================================================
 # FUNCIÓN DE CONVENIENCIA
 # ============================================================================
@@ -690,7 +683,6 @@ def score_question(
     )
 
     return result
-
 
 # ============================================================================
 # EJEMPLO DE USO

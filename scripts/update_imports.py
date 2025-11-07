@@ -106,7 +106,6 @@ FILE_PATH_MAPPINGS = {
     r'\bforge_manifest\.json\b': 'config/forge_manifest.json',
 }
 
-
 def update_file_imports(file_path: Path, dry_run: bool = True) -> tuple[bool, list[str]]:
     """
     Update import statements in a Python file.
@@ -163,7 +162,6 @@ def update_file_imports(file_path: Path, dry_run: bool = True) -> tuple[bool, li
 
     return False, []
 
-
 def main():
     """Main function to update imports in all Python files."""
     import argparse
@@ -206,7 +204,6 @@ def main():
         print("\nThis was a dry run. Use without --dry-run to actually modify files.")
     else:
         print("\nFiles have been updated. Backup files created with .bak extension.")
-
 
 if __name__ == '__main__':
     main()

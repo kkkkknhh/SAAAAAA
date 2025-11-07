@@ -36,9 +36,9 @@ The main Python package containing all production code.
 
 #### `src/saaaaaa/core/`
 Core orchestration and execution components:
-- `ORCHESTRATOR_MONILITH.py` - Main orchestrator
-- `executors_COMPLETE_FIXED.py` - Execution engines
-- `orchestrator/` - Orchestrator sub-package
+- `orchestrator/` - Modular orchestrator package with core, executors, evidence registry, and other components
+- `ports.py` - Port definitions for the orchestrator
+- `contracts.py` - Core contracts and interfaces
 
 #### `src/saaaaaa/processing/`
 Data processing pipeline components:

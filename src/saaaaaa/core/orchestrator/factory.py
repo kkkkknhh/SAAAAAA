@@ -42,9 +42,7 @@ from .core import MethodExecutor
 
 logger = logging.getLogger(__name__)
 
-
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
-
 
 @dataclass(frozen=True)
 class ProcessorBundle:
@@ -64,10 +62,36 @@ class ProcessorBundle:
     questionnaire: Mapping[str, Any]
     factory: "CoreModuleFactory"
 
-
 # ============================================================================
 # FILE I/O OPERATIONS
 # ============================================================================
+
+def validate_questionnaire_structure(data: dict[str, object]) -> None:
+    """Validate questionnaire structure for required fields.
+    
+    Args:
+        data: Questionnaire data to validate
+        
+    Raises:
+        ValueError: If required fields are missing or invalid
+    """
+    required_keys = ["version", "blocks", "schema_version"]
+    missing = [k for k in required_keys if k not in data]
+    if missing:
+        raise ValueError(f"Questionnaire missing keys: {missing}")
+    blocks = data["blocks"]  # type: ignore[index]
+    if not isinstance(blocks, dict) or "micro_questions" not in blocks:
+        raise ValueError("blocks.micro_questions is required and must exist")
+    if not isinstance(blocks["micro_questions"], list):
+        raise ValueError("blocks.micro_questions must be a list")
+    for i, q in enumerate(blocks["micro_questions"]):
+        if not isinstance(q, dict):
+            raise ValueError(f"Question {i} must be a dict")
+        required_q = ["question_id", "question_global", "base_slot"]
+        miss_q = [k for k in required_q if k not in q]
+        if miss_q:
+            raise ValueError(f"Question {i} missing keys: {miss_q}")
+
 
 def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire monolith JSON file.
@@ -84,6 +108,7 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
+        ValueError: If questionnaire structure is invalid
     """
     if path is None:
         path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
@@ -97,9 +122,11 @@ def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
         raise TypeError(
             "questionnaire_monolith.json must contain a JSON object at the top level"
         )
+    
+    # Validate structure before returning
+    validate_questionnaire_structure(payload)
 
     return payload
-
 
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
@@ -118,7 +145,6 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
     with open(path, encoding='utf-8') as f:
         return json.load(f)
 
-
 def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
 
@@ -136,24 +162,22 @@ def load_method_map(path: Path | None = None) -> dict[str, Any]:
     with open(path, encoding='utf-8') as f:
         return json.load(f)
 
-
 def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
 
     Args:
-        path: Path to schema file. Defaults to schemas/questionnaire.schema.json
+        path: Path to schema file. Defaults to schemas/questionnaire_monolith.schema.json
 
     Returns:
         Loaded schema data
     """
     if path is None:
-        path = Path("schemas/questionnaire.schema.json")
+        path = Path("schemas/questionnaire_monolith.schema.json")
 
     logger.info(f"Loading schema from {path}")
 
     with open(path, encoding='utf-8') as f:
         return json.load(f)
-
 
 def load_document(file_path: Path) -> DocumentData:
     """Load a document and construct DocumentData contract.
@@ -187,7 +211,6 @@ def load_document(file_path: Path) -> DocumentData:
         }
     )
 
-
 def save_results(results: dict[str, Any], output_path: Path) -> None:
     """Save analysis results to file.
 
@@ -202,7 +225,6 @@ def save_results(results: dict[str, Any], output_path: Path) -> None:
 
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
-
 
 # ============================================================================
 # CONTRACT CONSTRUCTORS
@@ -226,7 +248,6 @@ def construct_semantic_analyzer_input(
         segments=kwargs.get('segments', document['sentences']),
         ontology_params=kwargs.get('ontology_params', {}),
     )
-
 
 def construct_cdaf_input(
     document: DocumentData,
@@ -253,7 +274,6 @@ def construct_cdaf_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_pdet_input(
     document: DocumentData,
     **kwargs: Any
@@ -273,7 +293,6 @@ def construct_pdet_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_teoria_cambio_input(
     document: DocumentData,
     **kwargs: Any
@@ -292,7 +311,6 @@ def construct_teoria_cambio_input(
         strategic_goals=kwargs.get('strategic_goals', []),
         config=kwargs.get('config', {}),
     )
-
 
 def construct_contradiction_detector_input(
     document: DocumentData,
@@ -316,7 +334,6 @@ def construct_contradiction_detector_input(
         config=kwargs.get('config', {}),
     )
 
-
 def construct_embedding_policy_input(
     document: DocumentData,
     **kwargs: Any
@@ -336,7 +353,6 @@ def construct_embedding_policy_input(
         model_config=kwargs.get('model_config', {}),
     )
 
-
 def construct_semantic_chunking_input(
     document: DocumentData,
     **kwargs: Any
@@ -355,7 +371,6 @@ def construct_semantic_chunking_input(
         preserve_structure=kwargs.get('preserve_structure', True),
         config=kwargs.get('config', {}),
     )
-
 
 def construct_policy_processor_input(
     document: DocumentData,
@@ -377,7 +392,6 @@ def construct_policy_processor_input(
         tables=document['tables'],
         config=kwargs.get('config', {}),
     )
-
 
 # ============================================================================
 # FACTORY FUNCTIONS
@@ -412,6 +426,7 @@ class CoreModuleFactory:
         """
         self.data_dir = data_dir or _DEFAULT_DATA_DIR
         self.questionnaire_cache: dict[str, Any] | None = None
+        self.catalog_cache: dict[str, Any] | None = None
 
     def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
@@ -425,6 +440,17 @@ class CoreModuleFactory:
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
         return self.questionnaire_cache
+
+    @property
+    def catalog(self) -> dict[str, Any]:
+        """Get method catalog data (cached).
+
+        Returns:
+            Method catalog data
+        """
+        if self.catalog_cache is None:
+            self.catalog_cache = load_catalog()
+        return self.catalog_cache
 
     def load_document(self, file_path: Path) -> DocumentData:
         """Load document and return structured data.
@@ -446,6 +472,17 @@ class CoreModuleFactory:
         """
         save_results(results, output_path)
 
+    def load_catalog(self, path: Path | None = None) -> dict[str, Any]:
+        """Load method catalog JSON file.
+
+        Args:
+            path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+
+        Returns:
+            Loaded catalog data
+        """
+        return load_catalog(path)
+
     # Contract constructor methods
     construct_semantic_analyzer_input = construct_semantic_analyzer_input
     construct_cdaf_input = construct_cdaf_input
@@ -455,7 +492,6 @@ class CoreModuleFactory:
     construct_embedding_policy_input = construct_embedding_policy_input
     construct_semantic_chunking_input = construct_semantic_chunking_input
     construct_policy_processor_input = construct_policy_processor_input
-
 
 def build_processor(
     *,
@@ -499,6 +535,141 @@ def build_processor(
         factory=core_factory,
     )
 
+# ============================================================================
+# HASH AND VALIDATION UTILITIES
+# ============================================================================
+
+def compute_monolith_hash(monolith: dict[str, Any]) -> str:
+    """
+    Compute deterministic SHA-256 hash of questionnaire monolith.
+    
+    This function ensures:
+    - Key order independence via sort_keys=True
+    - Consistent unicode handling via ensure_ascii=True
+    - No whitespace variation via separators
+    
+    Args:
+        monolith: Questionnaire monolith dictionary
+        
+    Returns:
+        Hexadecimal SHA-256 hash string
+    """
+    import hashlib
+    
+    serialized = json.dumps(
+        monolith,
+        sort_keys=True,
+        ensure_ascii=True,  # Consistent unicode handling
+        separators=(',', ':'),  # No whitespace
+    )
+    return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
+
+
+def validate_questionnaire_structure(data: dict[str, Any]) -> None:
+    """
+    Validate questionnaire has required structure and types.
+    
+    Performs comprehensive validation including:
+    - Top-level structure (version, blocks, schema_version)
+    - Block structure (micro_questions must be list)
+    - Question fields (question_id, question_global, base_slot)
+    - Type validation for all fields
+    - Duplicate detection (question_id, question_global)
+    - Null value checking
+    
+    Args:
+        data: Questionnaire data to validate
+        
+    Raises:
+        ValueError: If validation fails with specific error message
+        TypeError: If top-level structure is invalid
+    """
+    if not isinstance(data, dict):
+        raise TypeError("Questionnaire must be a dictionary")
+
+    # Check top-level keys
+    required_keys = ['version', 'blocks', 'schema_version']
+    missing = [k for k in required_keys if k not in data]
+    if missing:
+        raise ValueError(f"Questionnaire missing keys: {missing}")
+
+    # Validate blocks structure
+    blocks = data['blocks']
+    if not isinstance(blocks, dict):
+        raise ValueError("blocks must be a dict")
+
+    if 'micro_questions' not in blocks:
+        raise ValueError("blocks.micro_questions is required")
+
+    micro_questions = blocks['micro_questions']
+    if not isinstance(micro_questions, list):
+        raise ValueError("blocks.micro_questions must be a list")
+    
+    # Enforce minimum: at least 1 question required
+    if len(micro_questions) < 1:
+        raise ValueError(
+            "Questionnaire must have at least 1 micro question, got 0. "
+            "Cannot proceed with empty questionnaire."
+        )
+
+    # Track for duplicate detection
+    seen_question_ids = set()
+    seen_question_globals = set()
+
+    # Validate each question
+    required_q_keys = ['question_id', 'question_global', 'base_slot']
+
+    for i, q in enumerate(micro_questions):
+        if not isinstance(q, dict):
+            raise ValueError(f"Question {i} must be a dict, got {type(q).__name__}")
+        
+        # Check required keys
+        missing_q = [k for k in required_q_keys if k not in q]
+        if missing_q:
+            raise ValueError(f"Question {i} missing keys: {missing_q}")
+        
+        # Check for None values
+        for key in required_q_keys:
+            if q[key] is None:
+                raise ValueError(f"Question {i}: {key} cannot be None")
+        
+        # Type validation
+        question_id = q['question_id']
+        if not isinstance(question_id, str):
+            raise ValueError(
+                f"Question {i}: question_id must be string, got {type(question_id).__name__}"
+            )
+        
+        question_global = q['question_global']
+        if not isinstance(question_global, int):
+            raise ValueError(
+                f"Question {i}: question_global must be an integer, got {type(question_global).__name__}"
+            )
+        
+        base_slot = q['base_slot']
+        if not isinstance(base_slot, str):
+            raise ValueError(
+                f"Question {i}: base_slot must be string, got {type(base_slot).__name__}"
+            )
+        
+        # Duplicate detection
+        if question_id in seen_question_ids:
+            raise ValueError(f"Duplicate question_id: {question_id} at index {i}")
+        seen_question_ids.add(question_id)
+        
+        if question_global in seen_question_globals:
+            raise ValueError(
+                f"Duplicate question_global: {question_global} at index {i}"
+            )
+        seen_question_globals.add(question_global)
+
+    logger.info(
+        "questionnaire_validation_passed",
+        extra={
+            "question_count": len(micro_questions),
+            "unique_question_ids": len(seen_question_ids),
+        }
+    )
 
 # ============================================================================
 # MIGRATION HELPERS
@@ -519,7 +690,6 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
         f"lines {line_numbers}"
     )
 
-
 # TODO: Migrate I/O operations from core modules
 # Track progress:
 # - Analyzer_one.py: 72 I/O operations to migrate
@@ -528,11 +698,11 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # - teoria_cambio.py: Some operations to migrate
 # Others are clean
 
-
 __all__ = [
     'CoreModuleFactory',
     'ProcessorBundle',
     'load_questionnaire_monolith',
+    'validate_questionnaire_structure',
     'load_catalog',
     'load_method_map',
     'load_schema',
@@ -547,4 +717,6 @@ __all__ = [
     'construct_semantic_chunking_input',
     'construct_policy_processor_input',
     'build_processor',
+    'compute_monolith_hash',
+    'validate_questionnaire_structure',
 ]

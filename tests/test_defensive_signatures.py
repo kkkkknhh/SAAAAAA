@@ -5,9 +5,7 @@ This test suite validates that the three functions identified in the problem sta
 can gracefully handle unexpected or missing arguments without raising errors.
 """
 
-
 import pytest
-
 
 class TestDefensiveSignatures:
     """Test suite for defensive function signature implementations."""
@@ -91,7 +89,6 @@ class TestDefensiveSignatures:
         except ImportError:
             pytest.skip("financiero_viabilidad_tablas module not available")
 
-
 class TestSignatureDocumentation:
     """Test that defensive signatures are properly documented."""
 
@@ -136,7 +133,6 @@ class TestSignatureDocumentation:
                 "Docstring should explain that extra kwargs are ignored"
         except ImportError:
             pytest.skip("dereck_beach module not available")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

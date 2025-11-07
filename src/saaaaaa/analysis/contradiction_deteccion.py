@@ -28,9 +28,14 @@ import torch
 from scipy import stats
 from scipy.spatial.distance import cosine
 from scipy.stats import beta
-from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Check dependency lockdown before importing transformers
+from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
+_lockdown = get_dependency_lockdown()
+
+from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 
 # Import runtime error fixes for defensive programming
@@ -43,7 +48,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 class ContradictionType(Enum):
     """Taxonomía de contradicciones según estándares de política pública"""
     NUMERICAL_INCONSISTENCY = auto()
@@ -55,7 +59,6 @@ class ContradictionType(Enum):
     REGULATORY_CONFLICT = auto()
     STAKEHOLDER_DIVERGENCE = auto()
 
-
 class PolicyDimension(Enum):
     """Dimensiones del Plan de Desarrollo según DNP Colombia"""
     DIAGNOSTICO = "diagnóstico"
@@ -64,7 +67,6 @@ class PolicyDimension(Enum):
     FINANCIERO = "plan plurianual de inversiones"
     SEGUIMIENTO = "seguimiento y evaluación"
     TERRITORIAL = "ordenamiento territorial"
-
 
 @dataclass(frozen=True)
 class PolicyStatement:
@@ -79,7 +81,6 @@ class PolicyStatement:
     context_window: str = ""
     semantic_role: str | None = None
     dependencies: set[str] = field(default_factory=set)
-
 
 @dataclass
 class ContradictionEvidence:
@@ -97,7 +98,6 @@ class ContradictionEvidence:
     resolution_suggestions: list[str]
     graph_path: list[str] | None = None
     statistical_significance: float | None = None
-
 
 class BayesianConfidenceCalculator:
     """Cálculo Bayesiano de confianza con priors informados por dominio"""
@@ -135,7 +135,6 @@ class BayesianConfidenceCalculator:
         uncertainty_penalty = 1.0 - (credible_interval[1] - credible_interval[0])
 
         return min(1.0, posterior_mean * uncertainty_penalty)
-
 
 class TemporalLogicVerifier:
     """Verificación de consistencia temporal usando lógica temporal lineal (LTL)"""
@@ -274,7 +273,6 @@ class TemporalLogicVerifier:
             if pattern.search(marker):
                 return pattern_type
         return 'unspecified'
-
 
 class PolicyContradictionDetector:
     """

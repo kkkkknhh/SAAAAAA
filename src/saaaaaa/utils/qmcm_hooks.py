@@ -14,7 +14,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 class QMCMRecorder:
     """
     Records method calls for quality monitoring
@@ -147,10 +146,8 @@ class QMCMRecorder:
         """Disable recording"""
         self.enabled = False
 
-
 # Global recorder instance
 _global_recorder: QMCMRecorder | None = None
-
 
 def get_global_recorder() -> QMCMRecorder:
     """Get or create global QMCM recorder"""
@@ -158,7 +155,6 @@ def get_global_recorder() -> QMCMRecorder:
     if _global_recorder is None:
         _global_recorder = QMCMRecorder()
     return _global_recorder
-
 
 def qmcm_record(method):
     """
@@ -215,7 +211,6 @@ def qmcm_record(method):
             raise
 
     return wrapper
-
 
 # Export public API
 __all__ = [

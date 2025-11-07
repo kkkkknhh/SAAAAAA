@@ -15,15 +15,23 @@ Version: 1.0.0
 import json
 
 # Import AGUJA I desde dereck_beach
-import sys
 from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Verify package is available
+try:
+    import saaaaaa
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
 
-from dereck_beach import AdaptivePriorCalculator
-
+from saaaaaa.utils.dereck_beach import AdaptivePriorCalculator
 
 def demo_prompt_i1():
     """Demo PROMPT I-1: Ponderación evidencial con BF y calibración"""
@@ -82,7 +90,6 @@ def demo_prompt_i1():
     print("\n✅ PROMPT I-1 COMPLETADO")
     return evidence_dict
 
-
 def demo_prompt_i2(evidence_dict):
     """Demo PROMPT I-2: Sensibilidad, OOD y ablation"""
     print("\n" + "="*80)
@@ -124,7 +131,6 @@ def demo_prompt_i2(evidence_dict):
 
     print("\n✅ PROMPT I-2 COMPLETADO")
     return sensitivity_result
-
 
 def demo_prompt_i3(evidence_dict):
     """Demo PROMPT I-3: Trazabilidad y reproducibilidad"""
@@ -187,7 +193,6 @@ def demo_prompt_i3(evidence_dict):
     print("\n✅ PROMPT I-3 COMPLETADO")
     return trace_record
 
-
 def demo_quality_validation():
     """Demo: Validación de criterios de calidad"""
     print("\n" + "="*80)
@@ -245,7 +250,6 @@ def demo_quality_validation():
     print("\n✅ QUALITY VALIDATION COMPLETADA")
     return quality_result
 
-
 def main():
     """Ejecuta demo completa de AGUJA I"""
     print("\n" + "="*80)
@@ -291,7 +295,6 @@ def main():
     print("   calculator = AdaptivePriorCalculator()")
     print("   result = calculator.calculate_likelihood_adaptativo(evidence, 'hoop')")
     print("="*80)
-
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ import logging
 import sys
 from typing import Any
 
-from recommendation_engine import load_recommendation_engine
+from saaaaaa.analysis.recommendation_engine import load_recommendation_engine
 
 # Configure logging
 logging.basicConfig(
@@ -36,7 +36,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def load_json_file(filepath: str) -> dict[str, Any]:
     """Load JSON data from file"""
@@ -49,7 +48,6 @@ def load_json_file(filepath: str) -> dict[str, Any]:
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in {filepath}: {e}")
         sys.exit(1)
-
 
 def generate_micro(args):
     """Generate MICRO-level recommendations"""
@@ -81,7 +79,6 @@ def generate_micro(args):
         else:
             print(engine._format_as_markdown({'MICRO': rec_set}))
 
-
 def generate_meso(args):
     """Generate MESO-level recommendations"""
     logger.info("Generating MESO-level recommendations...")
@@ -112,7 +109,6 @@ def generate_meso(args):
         else:
             print(engine._format_as_markdown({'MESO': rec_set}))
 
-
 def generate_macro(args):
     """Generate MACRO-level recommendations"""
     logger.info("Generating MACRO-level recommendations...")
@@ -142,7 +138,6 @@ def generate_macro(args):
             print(json.dumps(rec_set.to_dict(), indent=2, ensure_ascii=False))
         else:
             print(engine._format_as_markdown({'MACRO': rec_set}))
-
 
 def generate_all(args):
     """Generate recommendations at all levels"""
@@ -178,7 +173,6 @@ def generate_all(args):
             print(json.dumps(output, indent=2, ensure_ascii=False))
         else:
             print(engine._format_as_markdown(all_recs))
-
 
 def run_demo(args):
     """Run demonstration with sample data"""
@@ -281,7 +275,6 @@ def run_demo(args):
         engine.export_recommendations(all_recs, args.output, format=args.format)
         logger.info(f"Full report saved to {args.output}")
 
-
 def main():
     """Main CLI entry point"""
     parser = argparse.ArgumentParser(
@@ -348,7 +341,6 @@ def main():
 
     # Execute command
     args.func(args)
-
 
 if __name__ == '__main__':
     main()

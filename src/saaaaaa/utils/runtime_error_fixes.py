@@ -22,7 +22,6 @@ try:
 except ImportError:
     HAS_NUMPY = False
 
-
 def ensure_list_return(value: Any) -> list[Any]:
     """
     Ensure a value is a list, converting bool/None to empty list.
@@ -44,7 +43,6 @@ def ensure_list_return(value: Any) -> list[Any]:
         return list(value)
     except (TypeError, ValueError):
         return []
-
 
 def safe_text_extract(obj: Any) -> str:
     """
@@ -70,7 +68,6 @@ def safe_text_extract(obj: Any) -> str:
 
     # Fallback: convert to string
     return str(obj)
-
 
 def safe_weighted_multiply(items: list[float] | NumpyArray, weight: float) -> list[float] | NumpyArray:
     """
@@ -101,7 +98,6 @@ def safe_weighted_multiply(items: list[float] | NumpyArray, weight: float) -> li
     except (TypeError, ValueError):
         # If multiplication fails, return empty list
         return []
-
 
 def safe_list_iteration(value: Any) -> list[Any]:
     """

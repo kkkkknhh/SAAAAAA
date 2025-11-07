@@ -23,7 +23,6 @@ QUALITY_THRESHOLDS = {
     "INSUFICIENTE": 0.00
 }
 
-
 # Modality score ranges
 MODALITY_RANGES = {
     "TYPE_A": (0, 4),
@@ -34,14 +33,12 @@ MODALITY_RANGES = {
     "TYPE_F": (0, 3),
 }
 
-
 def normalize_score(raw_score: float, modality: str) -> float:
     """Normalize a raw score to [0, 1] range based on modality."""
     min_score, max_score = MODALITY_RANGES[modality]
     if raw_score < min_score or raw_score > max_score:
         raise ValueError(f"Score {raw_score} out of range for {modality}: [{min_score}, {max_score}]")
     return (raw_score - min_score) / (max_score - min_score)
-
 
 def determine_quality_level(normalized_score: float) -> str:
     """Determine quality level from normalized score."""
@@ -55,7 +52,6 @@ def determine_quality_level(normalized_score: float) -> str:
         return "ACEPTABLE"
     else:
         return "INSUFICIENTE"
-
 
 def test_normalization_formulas() -> bool:
     """Test that normalization formulas are correct."""
@@ -89,7 +85,6 @@ def test_normalization_formulas() -> bool:
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
-
 def test_parity_at_thresholds() -> bool:
     """Test that all modalities produce the same quality level at threshold scores."""
     print("\nTesting parity at quality thresholds...")
@@ -121,7 +116,6 @@ def test_parity_at_thresholds() -> bool:
 
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
-
 
 def test_boundary_conditions() -> bool:
     """Test boundary conditions (just above/below thresholds)."""
@@ -160,7 +154,6 @@ def test_boundary_conditions() -> bool:
 
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
-
 
 def test_no_unfair_advantage() -> bool:
     """Test that no modality has an unfair advantage at boundaries."""
@@ -201,7 +194,6 @@ def test_no_unfair_advantage() -> bool:
     print(f"  Passed: {passed}/{passed + failed}")
     return failed == 0
 
-
 def main() -> int:
     """Run all parity validation tests."""
     print("=" * 60)
@@ -225,7 +217,6 @@ def main() -> int:
         print("✗ Some parity validation tests FAILED")
         print("=" * 60)
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -8,20 +8,17 @@ Tests that all import paths work correctly from different locations:
 3. Root-level .py file imports
 """
 
-import sys
 from pathlib import Path
 
 # Add parent directory to path for root-level imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 
 def test_root_level_module_imports():
     """Test that root-level .py files can be imported."""
     # These should all work via compatibility wrappers
-    from scoring import apply_scoring
-    from orchestrator import Orchestrator
-    from contracts import SeedFactory
-    from aggregation import AreaPolicyAggregator
+    from saaaaaa.scoring import apply_scoring
+    from saaaaaa.core.orchestrator import Orchestrator
+    from saaaaaa.contracts import SeedFactory
+    from saaaaaa.core.aggregation import AreaPolicyAggregator
     
     assert callable(apply_scoring)
     assert Orchestrator is not None
@@ -29,14 +26,13 @@ def test_root_level_module_imports():
     assert AreaPolicyAggregator is not None
     print("✓ Root-level module imports work")
 
-
 def test_root_level_package_imports():
     """Test that root-level compatibility packages can be imported."""
     # Import from packages (directories with __init__.py)
-    from scoring.scoring import QualityLevel
-    from orchestrator.core import Evidence
-    from concurrency.concurrency import WorkerPool
-    from contracts import validate_contract
+    from saaaaaa.scoring.scoring import QualityLevel
+    from saaaaaa.core.orchestrator.core import Evidence
+    from saaaaaa.concurrency.concurrency import WorkerPool
+    from saaaaaa.contracts import validate_contract
     
     assert QualityLevel is not None
     assert Evidence is not None
@@ -44,14 +40,10 @@ def test_root_level_package_imports():
     assert callable(validate_contract)
     print("✓ Root-level package imports work")
 
-
 def test_saaaaaa_direct_imports():
     """Test that direct saaaaaa.* imports work."""
     # Ensure src is in path
     src_path = Path(__file__).parent.parent / "src"
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-    
     from saaaaaa.analysis.scoring.scoring import apply_scoring as apply_scoring_direct
     from saaaaaa.core.orchestrator import Orchestrator as OrchestratorDirect
     from saaaaaa.utils.contracts import validate_contract as validate_contract_direct
@@ -63,15 +55,11 @@ def test_saaaaaa_direct_imports():
     assert AggregatorDirect is not None
     print("✓ Direct saaaaaa.* imports work")
 
-
 def test_import_equivalence():
     """Test that both import paths lead to the same objects."""
     src_path = Path(__file__).parent.parent / "src"
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-    
     # Import same thing via different paths
-    from scoring import apply_scoring as apply_scoring_compat
+    from saaaaaa.scoring import apply_scoring as apply_scoring_compat
     from saaaaaa.analysis.scoring.scoring import apply_scoring as apply_scoring_direct
     
     # They should be the same function
@@ -79,14 +67,12 @@ def test_import_equivalence():
         "Compatibility wrapper and direct import should reference the same object"
     print("✓ Import paths are equivalent (reference same objects)")
 
-
 def test_executors_lazy_loading():
     """Test that executors module can be imported (lazy loading)."""
-    from orchestrator import executors
+    from saaaaaa.core.orchestrator import executors
     
     assert executors is not None
     print("✓ Executors module lazy loading works")
-
 
 def test_all_compatibility_shims():
     """Test all compatibility shim directories and modules."""
@@ -129,7 +115,6 @@ def test_all_compatibility_shims():
             print(f"✗ {module} compatibility wrapper FAILED: {e}")
             raise
 
-
 def main():
     """Run all import tests."""
     print("=" * 70)
@@ -165,7 +150,6 @@ def main():
     else:
         print("SUCCESS: All import consistency tests passed!")
         return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

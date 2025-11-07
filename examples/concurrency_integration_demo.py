@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
 
-from concurrency import WorkerPool, WorkerPoolConfig
+from saaaaaa.concurrency.concurrency import WorkerPool, WorkerPoolConfig
 from schemas.preprocessed_document import DocumentIndexesV1, PreprocessedDocument, StructuredTextV1
 
 logging.basicConfig(
@@ -29,14 +29,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 @dataclass(frozen=True, slots=True)
 class Evidence:
     """Mock evidence result."""
 
     modality: str
     elements: tuple[str, ...]
-
 
 def process_micro_question(
     question_num: int,
@@ -71,7 +69,6 @@ def process_micro_question(
         modality="TYPE_A",
         elements=(f"evidence_{question_num}_1", f"evidence_{question_num}_2"),
     )
-
 
 def orchestrator_with_workerpool_demo():
     """
@@ -204,7 +201,6 @@ def orchestrator_with_workerpool_demo():
             'metrics': summary
         }
 
-
 def orchestrator_with_abort_demo():
     """
     Demonstrate abort functionality.
@@ -255,7 +251,6 @@ def orchestrator_with_abort_demo():
         logger.info("ABORT DEMO COMPLETED")
         logger.info("=" * 70)
 
-
 def main():
     """Run all demos."""
     # Demo 1: Normal execution with WorkerPool
@@ -268,7 +263,6 @@ def main():
     logger.info("")
     orchestrator_with_abort_demo()
     logger.info("")
-
 
 if __name__ == "__main__":
     main()

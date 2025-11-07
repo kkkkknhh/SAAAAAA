@@ -25,7 +25,6 @@ from runtime_error_fixes import ensure_list_return
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # DATA STRUCTURES FOR MACRO PROMPTS
 # ============================================================================
@@ -41,7 +40,6 @@ class CoverageAnalysis:
     critical_dimensions_below_threshold: list[str]  # Dimensions needing attention
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class ContradictionReport:
     """Output from Inter-Level Contradiction Scan"""
@@ -51,7 +49,6 @@ class ContradictionReport:
     micro_meso_alignment: float  # 0.0-1.0 micro↔meso alignment
     meso_macro_alignment: float  # 0.0-1.0 meso↔macro alignment
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class BayesianPortfolio:
@@ -63,7 +60,6 @@ class BayesianPortfolio:
     confidence_interval: tuple[float, float]  # 95% CI
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class ImplementationRoadmap:
     """Output from Roadmap Optimizer"""
@@ -73,7 +69,6 @@ class ImplementationRoadmap:
     resource_requirements: dict[str, Any]  # Estimated resources per phase
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 @dataclass
 class PeerNormalization:
     """Output from Peer Normalization & Confidence Scaling"""
@@ -82,7 +77,6 @@ class PeerNormalization:
     peer_position: str  # "above_average", "average", "below_average"
     outlier_areas: list[str]  # Policy areas >2 SD from mean
     metadata: dict[str, Any] = field(default_factory=dict)
-
 
 # ============================================================================
 # MACRO PROMPT 1: COVERAGE & STRUCTURAL GAP STRESSOR
@@ -261,7 +255,6 @@ class CoverageGapStressor:
                 uplift[f"{dim}_completion"] = potential_uplift
 
         return uplift
-
 
 # ============================================================================
 # MACRO PROMPT 2: INTER-LEVEL CONTRADICTION SCAN
@@ -483,7 +476,6 @@ class ContradictionScanner:
         # In production, would use semantic similarity, score correlation, etc.
         return 0.85  # Placeholder
 
-
 # ============================================================================
 # MACRO PROMPT 3: BAYESIAN PORTFOLIO COMPOSER
 # ============================================================================
@@ -662,7 +654,6 @@ class BayesianPortfolioComposer:
         upper = min(1.0, posterior + margin)
 
         return (lower, upper)
-
 
 # ============================================================================
 # MACRO PROMPT 4: ROADMAP OPTIMIZER
@@ -944,7 +935,6 @@ class RoadmapOptimizer:
 
         return resources
 
-
 # ============================================================================
 # MACRO PROMPT 5: PEER NORMALIZATION & CONFIDENCE SCALING
 # ============================================================================
@@ -1111,7 +1101,6 @@ class PeerNormalizer:
             return "below_average"
         else:
             return "average"
-
 
 # ============================================================================
 # MACRO PROMPTS FACADE

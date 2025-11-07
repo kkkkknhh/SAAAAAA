@@ -12,10 +12,8 @@ if TYPE_CHECKING:
 
 PathLike = Union[str, Path]
 
-
 def _canonical_dump(payload: Mapping[str, object]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
 
 @dataclass(frozen=True)
 class ContractDocument:
@@ -24,7 +22,6 @@ class ContractDocument:
     path: Path
     payload: dict[str, object]
     checksum: str
-
 
 @dataclass
 class ContractLoadReport:
@@ -42,7 +39,6 @@ class ContractLoadReport:
         if self.errors:
             parts.append(f"errors={len(self.errors)}")
         return ", ".join(parts)
-
 
 class JSONContractLoader:
     """Load JSON contract files and compute integrity metadata."""
@@ -91,7 +87,6 @@ class JSONContractLoader:
         if not isinstance(data, dict):
             raise ValueError("Contract document must be a JSON object")
         return data
-
 
 __all__ = [
     "ContractDocument",

@@ -24,14 +24,12 @@ __all__ = [
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
-
 def _frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
     if not data:
         return _EMPTY_MAPPING
     if isinstance(data, MappingProxyType):
         return data
     return MappingProxyType(dict(data))
-
 
 @dataclass(frozen=True, slots=True)
 class StructuredSection:
@@ -41,7 +39,6 @@ class StructuredSection:
     start_char: int
     content: str
 
-
 @dataclass(frozen=True, slots=True)
 class StructuredTextV1:
     """Structured representation of a document's text content."""
@@ -49,7 +46,6 @@ class StructuredTextV1:
     full_text: str
     sections: tuple[StructuredSection, ...] = field(default_factory=tuple)
     page_boundaries: tuple[tuple[int, int], ...] = field(default_factory=tuple)
-
 
 @dataclass(frozen=True, slots=True)
 class SentenceMetadata:
@@ -61,7 +57,6 @@ class SentenceMetadata:
     end_char: int | None = None
     extra: Mapping[str, Any] = field(default=_EMPTY_MAPPING)
 
-
 @dataclass(frozen=True, slots=True)
 class TableAnnotation:
     """Minimal metadata for a table extracted from a document."""
@@ -69,7 +64,6 @@ class TableAnnotation:
     table_id: str
     label: str
     attributes: Mapping[str, Any] = field(default=_EMPTY_MAPPING)
-
 
 @dataclass(frozen=True, slots=True)
 class DocumentIndexesV1:
@@ -79,7 +73,6 @@ class DocumentIndexesV1:
     numeric_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
     temporal_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
     entity_index: Mapping[str, tuple[int, ...]] = field(default=_EMPTY_MAPPING)
-
 
 @dataclass(frozen=True, slots=True)
 class PreprocessedDocumentV1:
@@ -100,7 +93,6 @@ class PreprocessedDocumentV1:
         """Backward compatible accessor for legacy consumers."""
 
         return self.full_text
-
 
 @dataclass(frozen=True, slots=True)
 class PreprocessedDocumentV2:
@@ -123,9 +115,7 @@ class PreprocessedDocumentV2:
 
         return self.full_text
 
-
 PreprocessedDocument = PreprocessedDocumentV2
-
 
 def upgrade_preprocessed_document(doc: PreprocessedDocumentV1 | PreprocessedDocumentV2) -> PreprocessedDocumentV2:
     """Promote a legacy preprocessed document to the latest version."""
@@ -149,7 +139,6 @@ def upgrade_preprocessed_document(doc: PreprocessedDocumentV1 | PreprocessedDocu
         metadata=metadata,
         ingested_at=ingested_at,
     )
-
 
 def downgrade_preprocessed_document(doc: PreprocessedDocumentV2) -> PreprocessedDocumentV1:
     """Convert a V2 document to the legacy V1 payload."""

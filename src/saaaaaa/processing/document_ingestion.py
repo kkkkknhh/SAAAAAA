@@ -1,13 +1,45 @@
 """
-DOCUMENT INGESTION MODULE import logging
-from datetime import datetime
-from dataclasses import dataclass
-from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, TupleICTAMENTE SEGÚN PSEUDOCÓDIGO
+DOCUMENT INGESTION MODULE (DEPRECATED - Use cpp_ingestion instead)
+
+⚠️  DEPRECATION WARNING ⚠️
+==============================================================
+This module is DEPRECATED and maintained only for backward compatibility.
+
+The canonical ingestion system is now:
+    saaaaaa.processing.cpp_ingestion (Canon Policy Package)
+
+The CPP ingestion system provides:
+- Deterministic 9-phase pipeline with quality gates
+- Advanced policy-aware chunking (8 mechanisms)
+- Complete provenance tracking (100% token-to-page mapping)
+- Multi-resolution chunks (micro/meso/macro)
+- Arrow IPC serialization for performance
+- BLAKE3 integrity verification
+- Merkle root support
+
+Migration Guide:
+----------------
+OLD (deprecated):
+    from saaaaaa.processing.document_ingestion import DocumentLoader, PreprocessingEngine
+    
+NEW (canonical):
+    from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+    from saaaaaa.utils.cpp_adapter import CPPAdapter
+    
+    # Ingest document
+    pipeline = CPPIngestionPipeline()
+    outcome = pipeline.ingest(input_path, output_dir)
+    
+    # Convert to PreprocessedDocument for orchestrator
+    adapter = CPPAdapter()
+    doc = adapter.to_preprocessed_document(outcome.cpp)
+
+See: docs/CPP_ARCHITECTURE.md for complete documentation
+See: examples/cpp_ingestion_example.py for usage examples
+
 ==============================================================
 Archivo: document_ingestion.py
-Código: DI
+Código: DI (LEGACY)
 Propósito: Carga inicial de documentos PDF y extracción de texto
 
 MÉTODOS (9 EXACTOS):
@@ -34,6 +66,15 @@ DEPENDENCIAS:
 """
 
 import logging
+import warnings
+
+# Issue deprecation warning when module is imported
+warnings.warn(
+    "document_ingestion module is deprecated. Use cpp_ingestion instead. "
+    "See docs/CPP_ARCHITECTURE.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2
+)
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -52,7 +93,6 @@ from schemas.preprocessed_document import (
 
 _EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
-
 def _to_frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
     if not data:
         return _EMPTY_MAPPING
@@ -60,13 +100,11 @@ def _to_frozen_mapping(data: Mapping[str, Any] | None) -> Mapping[str, Any]:
         return data
     return MappingProxyType(dict(data))
 
-
 def _coerce_optional_int(value: Any) -> int | None:
     try:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
-
 
 def _build_sentence_metadata_entries(
     entries: Sequence[Any],
@@ -104,7 +142,6 @@ def _build_sentence_metadata_entries(
 
     return tuple(result)
 
-
 def _coerce_table_annotations(tables: Sequence[Any]) -> tuple[TableAnnotation, ...]:
     annotations: list[TableAnnotation] = []
     for index, table in enumerate(tables):
@@ -136,9 +173,25 @@ def _coerce_table_annotations(tables: Sequence[Any]) -> tuple[TableAnnotation, .
     return tuple(annotations)
 
 # PDF Processing
-# Language detection
-from langdetect import LangDetectException, detect
-from PyPDF2 import PdfReader
+# Optional dependency - langdetect
+try:
+    from langdetect import LangDetectException, detect
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    # Dummy implementation
+    class LangDetectException(Exception):
+        pass
+    def detect(text: str) -> str:
+        return "es"  # Default to Spanish
+
+# Optional dependency - PyPDF2
+try:
+    from PyPDF2 import PdfReader
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    PYPDF2_AVAILABLE = False
+    PdfReader = None  # type: ignore
 
 # Importar módulos existentes del sistema
 # NOTA: Estos imports asumen la estructura existente del proyecto
@@ -151,7 +204,6 @@ except ImportError:
     PDETMunicipalPlanAnalyzer = None
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================================================
 # DATACLASSES - ESTRUCTURAS DE DATOS INMUTABLES
@@ -170,7 +222,6 @@ class RawDocument:
     file_hash: str
     metadata: Mapping[str, Any] = _EMPTY_MAPPING
     is_valid: bool = True
-
 
 # ============================================================================
 # CLASE 1: DocumentLoader
@@ -335,7 +386,6 @@ class DocumentLoader:
         from .factory import calculate_file_hash
         return calculate_file_hash(file_path)
 
-
 # ============================================================================
 # CLASE 2: TextExtractor
 # ============================================================================
@@ -482,7 +532,6 @@ class TextExtractor:
             sections=structured_sections,
             page_boundaries=structured_page_boundaries,
         )
-
 
 # ============================================================================
 # CLASE 3: PreprocessingEngine
@@ -738,7 +787,6 @@ class PreprocessingEngine:
             entity_index=entity_index_frozen,
         )
 
-
 # ============================================================================
 # FUNCIÓN DE CONVENIENCIA
 # ============================================================================
@@ -766,7 +814,6 @@ def ingest_document(*, pdf_path: str) -> PreprocessedDocument:
     preprocessed_doc = engine.preprocess_document(raw_doc)
 
     return preprocessed_doc
-
 
 # ============================================================================
 # EJEMPLO DE USO

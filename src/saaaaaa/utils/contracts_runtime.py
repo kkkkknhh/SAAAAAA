@@ -34,7 +34,6 @@ class StrictModel(BaseModel):
         populate_by_name=True,  # Allow both field name and alias
     )
 
-
 # ============================================================================
 # ANALYZER_ONE.PY CONTRACTS
 # ============================================================================
@@ -77,7 +76,6 @@ class SemanticAnalyzerInputModel(StrictModel):
             raise ValueError("text must contain non-whitespace characters")
         return v
 
-
 class SemanticAnalyzerOutputModel(StrictModel):
     """Runtime validator for SemanticAnalyzerOutputContract."""
     semantic_cube: dict[str, Any] = Field(description="Semantic analysis results")
@@ -100,7 +98,6 @@ class SemanticAnalyzerOutputModel(StrictModel):
                 raise ValueError(f"Probability for {domain} must be in [0, 1], got {prob}")
         return v
 
-
 # ============================================================================
 # DERECK_BEACH.PY CONTRACTS
 # ============================================================================
@@ -117,7 +114,6 @@ class CDAFFrameworkInputModel(StrictModel):
         description="Framework configuration"
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class CDAFFrameworkOutputModel(StrictModel):
     """Runtime validator for CDAFFrameworkOutputContract."""
@@ -139,7 +135,6 @@ class CDAFFrameworkOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # FINANCIERO_VIABILIDAD_TABLAS.PY CONTRACTS
 # ============================================================================
@@ -150,7 +145,6 @@ class PDETAnalyzerInputModel(StrictModel):
     extract_tables: bool = Field(default=True, description="Whether to extract tables")
     config: dict[str, Any] = Field(default_factory=dict, description="Configuration")
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class PDETAnalyzerOutputModel(StrictModel):
     """Runtime validator for PDETAnalyzerOutputContract."""
@@ -172,7 +166,6 @@ class PDETAnalyzerOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # TEORIA_CAMBIO.PY CONTRACTS
 # ============================================================================
@@ -186,7 +179,6 @@ class TeoriaCambioInputModel(StrictModel):
     )
     config: dict[str, Any] = Field(default_factory=dict, description="Configuration")
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class TeoriaCambioOutputModel(StrictModel):
     """Runtime validator for TeoriaCambioOutputContract."""
@@ -208,7 +200,6 @@ class TeoriaCambioOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # CONTRADICTION_DETECCION.PY CONTRACTS
 # ============================================================================
@@ -223,7 +214,6 @@ class ContradictionDetectorInputModel(StrictModel):
     )
     config: dict[str, Any] = Field(default_factory=dict, description="Configuration")
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class ContradictionDetectorOutputModel(StrictModel):
     """Runtime validator for ContradictionDetectorOutputContract."""
@@ -245,7 +235,6 @@ class ContradictionDetectorOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # EMBEDDING_POLICY.PY CONTRACTS
 # ============================================================================
@@ -263,7 +252,6 @@ class EmbeddingPolicyInputModel(StrictModel):
         alias="model_config"
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class EmbeddingPolicyOutputModel(StrictModel):
     """Runtime validator for EmbeddingPolicyOutputContract."""
@@ -285,7 +273,6 @@ class EmbeddingPolicyOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # SEMANTIC_CHUNKING_POLICY.PY CONTRACTS
 # ============================================================================
@@ -299,7 +286,6 @@ class SemanticChunkingInputModel(StrictModel):
     )
     config: dict[str, Any] = Field(default_factory=dict, description="Configuration")
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class SemanticChunkingOutputModel(StrictModel):
     """Runtime validator for SemanticChunkingOutputContract."""
@@ -321,7 +307,6 @@ class SemanticChunkingOutputModel(StrictModel):
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
 
-
 # ============================================================================
 # POLICY_PROCESSOR.PY CONTRACTS
 # ============================================================================
@@ -340,7 +325,6 @@ class PolicyProcessorInputModel(StrictModel):
     )
     config: dict[str, Any] = Field(default_factory=dict, description="Configuration")
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 class PolicyProcessorOutputModel(StrictModel):
     """Runtime validator for PolicyProcessorOutputContract."""
@@ -361,7 +345,6 @@ class PolicyProcessorOutputModel(StrictModel):
         description="Matched patterns"
     )
     schema_version: str = Field(default="sem-1.0", pattern=r"^sem-\d+\.\d+$")
-
 
 # ============================================================================
 # EXPORTS

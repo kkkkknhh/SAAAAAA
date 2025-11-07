@@ -4,7 +4,6 @@ import ast
 import json
 from pathlib import Path
 
-
 def count_methods_in_class(filepath: Path, class_name: str) -> dict[str, int]:
     """Count public and private methods in a class"""
     with open(filepath, encoding='utf-8') as f:

@@ -3,16 +3,27 @@
 Demo script for the scoring module.
 
 Shows how to use TYPE_A through TYPE_F scoring modalities.
+
+REQUIREMENTS:
+    Install the package first: pip install -e .
+    Or set PYTHONPATH: export PYTHONPATH=/path/to/SAAAAAA/src
 """
 
-import sys
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Verify package is available
+try:
+    from saaaaaa.analysis.scoring.scoring import apply_scoring
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
 
-from scoring.scoring import apply_scoring
-
+print("✓ Package imported successfully\n")
 
 def demo_type_a():
     """Demonstrate TYPE_A (Bayesian) scoring."""
@@ -42,7 +53,6 @@ def demo_type_a():
     print(f"Quality: {result.quality_level}")
     print(f"Evidence Hash: {result.evidence_hash[:16]}...")
 
-
 def demo_type_b():
     """Demonstrate TYPE_B (DAG) scoring."""
     print("\n=== TYPE_B: DAG Causal Chains ===")
@@ -69,7 +79,6 @@ def demo_type_b():
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_c():
     """Demonstrate TYPE_C (Coherence) scoring."""
     print("\n=== TYPE_C: Coherence Analysis ===")
@@ -94,7 +103,6 @@ def demo_type_c():
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
-
 
 def demo_type_d():
     """Demonstrate TYPE_D (Pattern) scoring."""
@@ -122,7 +130,6 @@ def demo_type_d():
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_e():
     """Demonstrate TYPE_E (Financial) scoring."""
     print("\n=== TYPE_E: Budget Traceability ===")
@@ -148,7 +155,6 @@ def demo_type_e():
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_f():
     """Demonstrate TYPE_F (Beach) scoring."""
     print("\n=== TYPE_F: Mechanism Inference ===")
@@ -173,7 +179,6 @@ def demo_type_f():
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
-
 
 def demo_error_handling():
     """Demonstrate error handling."""
@@ -224,7 +229,6 @@ def demo_error_handling():
     except Exception as e:
         print(f"   ✗ Error caught: {type(e).__name__}: {e}")
 
-
 def main():
     """Run all demos."""
     print("=" * 60)
@@ -242,7 +246,6 @@ def main():
     print("\n" + "=" * 60)
     print("Demo complete!")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     main()

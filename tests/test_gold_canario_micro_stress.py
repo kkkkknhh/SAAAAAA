@@ -14,13 +14,12 @@ Tests for AntiMilagroStressTester including:
 
 import pytest
 
-from micro_prompts import (
+from saaaaaa.processing.micro_prompts import (
     AntiMilagroStressTester,
     CausalChain,
     ProportionalityPattern,
     StressTestResult,
 )
-
 
 class TestAntiMilagroStressTesterBasics:
     """Test basic functionality of AntiMilagroStressTester"""
@@ -48,7 +47,6 @@ class TestAntiMilagroStressTesterBasics:
         assert isinstance(result, StressTestResult)
         assert result.density == 0.0
         assert result.pattern_coverage == 0.0
-
 
 class TestPatternDensity:
     """Test pattern density calculation"""
@@ -123,7 +121,6 @@ class TestPatternDensity:
         # 3 patterns / 2 steps = 1.5
         assert result.density == 1.5
 
-
 class TestPatternCoverage:
     """Test pattern coverage calculation"""
 
@@ -177,7 +174,6 @@ class TestPatternCoverage:
 
         # All steps covered
         assert result.pattern_coverage == 1.0
-
 
 class TestNodeRemovalSimulation:
     """Test node removal simulation"""
@@ -254,7 +250,6 @@ class TestNodeRemovalSimulation:
         # With single pattern, drop should be 0 (no weak patterns to remove)
         assert result.simulated_drop == 0.0
 
-
 class TestFragilityDetection:
     """Test fragility flag detection"""
 
@@ -326,7 +321,6 @@ class TestFragilityDetection:
         # With single pattern, drop is 0, which is below 0.8 threshold
         assert not result.fragility_flag
 
-
 class TestExplanationGeneration:
     """Test explanation generation"""
 
@@ -386,7 +380,6 @@ class TestExplanationGeneration:
         # Should mention drop percentage
         assert "%" in result.explanation or "drop" in result.explanation.lower()
 
-
 class TestMissingPatterns:
     """Test handling of missing patterns"""
 
@@ -422,7 +415,6 @@ class TestMissingPatterns:
         result = tester.stress_test(chain, patterns, missing)
 
         assert result.missing_patterns == []
-
 
 class TestPatternStrength:
     """Test pattern strength impact"""
@@ -488,7 +480,6 @@ class TestPatternStrength:
         assert result.density >= 0.0
         assert 0.0 <= result.pattern_coverage <= 1.0
 
-
 class TestJSONExport:
     """Test JSON export functionality"""
 
@@ -516,7 +507,6 @@ class TestJSONExport:
         assert 'pattern_coverage' in json_output
         assert 'missing_patterns' in json_output
         assert 'timestamp' in json_output
-
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions"""
@@ -570,7 +560,6 @@ class TestEdgeCases:
         assert result.simulated_drop == 0.0
         assert not result.fragility_flag
 
-
 class TestCausalChainHelpers:
     """Test CausalChain helper methods"""
 
@@ -594,7 +583,6 @@ class TestCausalChainHelpers:
         chain = CausalChain(steps=["A"], edges=[])
 
         assert chain.length() == 1
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

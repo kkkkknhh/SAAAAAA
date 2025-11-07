@@ -2,12 +2,9 @@
 Tests for signature validation and defensive programming fixes
 """
 
-import sys
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 
 def test_defensive_function_with_extra_kwargs():
     """Test defensive function that accepts unexpected kwargs"""
@@ -31,7 +28,6 @@ def test_defensive_function_with_extra_kwargs():
     print("✓ Accepts unexpected kwargs without crashing")
 
     print("\n✅ test_defensive_function_with_extra_kwargs PASSED")
-
 
 def test_defensive_function_with_optional_param():
     """Test defensive function that handles missing required parameter"""
@@ -63,7 +59,6 @@ def test_defensive_function_with_optional_param():
     print("✓ Works without optional parameter")
 
     print("\n✅ test_defensive_function_with_optional_param PASSED")
-
 
 def test_defensive_class_init_with_extra_kwargs():
     """Test defensive class __init__ that accepts unexpected kwargs"""
@@ -98,11 +93,10 @@ def test_defensive_class_init_with_extra_kwargs():
 
     print("\n✅ test_defensive_class_init_with_extra_kwargs PASSED")
 
-
 def test_signature_validator_basic_functionality():
     """Test basic signature validation functionality"""
 
-    from signature_validator import validate_call_signature
+    from saaaaaa.validation.signature_validator import validate_call_signature
 
     def sample_function(arg1: str, arg2: int):
         return f"{arg1}: {arg2}"
@@ -121,11 +115,10 @@ def test_signature_validator_basic_functionality():
 
     print("\n✅ test_signature_validator_basic_functionality PASSED")
 
-
 def test_validate_signature_decorator():
     """Test the validate_signature decorator"""
 
-    from signature_validator import validate_signature
+    from saaaaaa.validation.signature_validator import validate_signature
 
     @validate_signature(enforce=False, track=False)
     def decorated_function(param1: str, param2: int) -> str:
@@ -142,7 +135,6 @@ def test_validate_signature_decorator():
     print("✓ Decorated function works with kwargs")
 
     print("\n✅ test_validate_signature_decorator PASSED")
-
 
 if __name__ == "__main__":
     print("=" * 70)

@@ -27,7 +27,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-
 class ContractErrorLogger:
     """Structured logger for contract validation errors."""
 
@@ -284,7 +283,6 @@ class ContractErrorLogger:
             remediation=remediation,
             stack_trace=stack_trace
         )
-
 
 # Example usage
 # Note: Example usage removed to maintain I/O boundary separation.

@@ -6,13 +6,18 @@ Tests that verify API contracts are maintained across module boundaries.
 Every public function/class gets a test that validates documented input/output shapes.
 
 If a signature or schema drifts, the contract test breaks before production does.
+
+NOTE: This test file is OUTDATED. Use test_contracts_comprehensive.py instead.
 """
 
 from typing import Any
 
 import pytest
 
-from contracts import (
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="outdated - use test_contracts_comprehensive.py")
+
+from saaaaaa.contracts import (
     MISSING,
     AnalysisInputV1,
     AnalysisOutputV1,
@@ -25,7 +30,6 @@ from contracts import (
     validate_contract,
     validate_mapping_keys,
 )
-
 
 class TestContractValidation:
     """Test runtime contract validation helpers."""
@@ -142,7 +146,6 @@ class TestContractValidation:
                 consumer="validator",
             )
 
-
 class TestValueObjects:
     """Test value objects that prevent type confusion."""
 
@@ -204,13 +207,12 @@ class TestValueObjects:
         mapping = {s1: "first", s2: "second"}
         assert mapping[s1] == "first"
 
-
 class TestSentinelValues:
     """Test MISSING sentinel for optional parameters."""
 
     def test_missing_sentinel_identity(self) -> None:
         """MISSING has identity semantics."""
-        from contracts import MISSING as MISSING2
+        from saaaaaa.contracts import MISSING as MISSING2
         assert MISSING is MISSING2
 
     def test_missing_sentinel_not_none(self) -> None:
@@ -221,7 +223,6 @@ class TestSentinelValues:
     def test_missing_sentinel_repr(self) -> None:
         """MISSING has readable repr."""
         assert repr(MISSING) == "<MISSING>"
-
 
 class TestTypedDictContracts:
     """Test TypedDict definitions for data shapes."""
@@ -268,7 +269,6 @@ class TestTypedDictContracts:
         assert output["confidence"] == 0.85
         assert len(output["matches"]) == 2
 
-
 @pytest.mark.contract
 class TestDocumentIngestionContracts:
     """Contract tests for document ingestion module boundaries."""
@@ -277,7 +277,7 @@ class TestDocumentIngestionContracts:
         """DocumentLoader.load_pdf must use keyword-only params."""
         import inspect
 
-        from contracts import DocumentLoaderProtocol
+        from saaaaaa.contracts import DocumentLoaderProtocol
 
         # Check protocol signature
         sig = inspect.signature(DocumentLoaderProtocol.load_pdf)
@@ -289,7 +289,6 @@ class TestDocumentIngestionContracts:
         pdf_path_param = [p for p in params if p.name == "pdf_path"][0]
         assert pdf_path_param.kind == inspect.Parameter.KEYWORD_ONLY
 
-
 @pytest.mark.contract
 class TestAnalyzerContracts:
     """Contract tests for analyzer module boundaries."""
@@ -298,7 +297,7 @@ class TestAnalyzerContracts:
         """Analyzer.analyze must use keyword-only params."""
         import inspect
 
-        from contracts import AnalyzerProtocol
+        from saaaaaa.contracts import AnalyzerProtocol
 
         sig = inspect.signature(AnalyzerProtocol.analyze)
         params = list(sig.parameters.values())
@@ -309,7 +308,6 @@ class TestAnalyzerContracts:
                 inspect.Parameter.KEYWORD_ONLY,
                 inspect.Parameter.VAR_KEYWORD,
             )
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

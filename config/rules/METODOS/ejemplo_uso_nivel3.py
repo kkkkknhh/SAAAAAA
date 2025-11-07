@@ -12,8 +12,6 @@ from pathlib import Path
 from typing import Any
 
 # Añadir el directorio raíz al path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 # Imports de los productores principales
 try:
     from Analyzer_one import MunicipalAnalyzer
@@ -22,7 +20,6 @@ except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Ensure all dependencies are installed and paths are correct")
     sys.exit(1)
-
 
 class NIVEL3ExecutionGuide:
     """
@@ -297,7 +294,6 @@ class NIVEL3ExecutionGuide:
                 if log.get('status') == 'FAILED':
                     print(f"  - {log['method']}: {log.get('error', 'Unknown error')}")
 
-
 def main() -> None:
     """Función principal de demostración"""
     print("="*70)
@@ -332,7 +328,6 @@ def main() -> None:
     print("  - CHEATSHEET_NIVEL3.txt (referencia rápida)")
     print("  - README_NIVEL3.md (análisis detallado)")
     print("="*70)
-
 
 if __name__ == "__main__":
     main()

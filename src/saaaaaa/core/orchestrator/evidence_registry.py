@@ -42,7 +42,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class EvidenceRecord:
     """
@@ -276,7 +275,6 @@ class EvidenceRecord:
 
         return record
 
-
 @dataclass
 class ProvenanceNode:
     """Node in provenance DAG."""
@@ -291,7 +289,6 @@ class ProvenanceNode:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return asdict(self)
-
 
 @dataclass
 class ProvenanceDAG:
@@ -461,7 +458,6 @@ class ProvenanceDAG:
                 "by_question": {k: len(v) for k, v in self.by_question.items()},
             }
         }
-
 
 class EvidenceRegistry:
     """
@@ -893,10 +889,21 @@ class EvidenceRegistry:
 
         return stats
 
+    def stats(self) -> dict[str, int]:
+        """Get simplified evidence registry statistics.
+        
+        Returns:
+            Dict with counts for records, types, methods, and questions.
+        """
+        return {
+            "records": len(self.hash_index),
+            "types": len(self.type_index),
+            "methods": len(self.method_index),
+            "questions": len(self.question_index),
+        }
 
 # Global registry instance
 _global_registry: EvidenceRegistry | None = None
-
 
 def get_global_registry() -> EvidenceRegistry:
     """Get or create global evidence registry."""
@@ -904,7 +911,6 @@ def get_global_registry() -> EvidenceRegistry:
     if _global_registry is None:
         _global_registry = EvidenceRegistry()
     return _global_registry
-
 
 __all__ = [
     "EvidenceRecord",

@@ -45,7 +45,6 @@ MODEL_PARAPHRASE_MULTILINGUAL = "sentence-transformers/paraphrase-multilingual-m
 # TYPE SYSTEM - Python 3.10+ Type Safety
 # ============================================================================
 
-
 class PolicyDomain(Enum):
     """Colombian PDM policy areas (P1-P10) per Decálogo."""
 
@@ -60,7 +59,6 @@ class PolicyDomain(Enum):
     P9 = "Crisis de derechos de personas privadas de la libertad"
     P10 = "Migración transfronteriza"
 
-
 class AnalyticalDimension(Enum):
     """Analytical dimensions (D1-D6) per canonical notation."""
 
@@ -71,7 +69,6 @@ class AnalyticalDimension(Enum):
     D5 = "Impactos y Efectos de Largo Plazo"
     D6 = "Teoría de Cambio y Coherencia Causal"
 
-
 class PDQIdentifier(TypedDict):
     """Canonical P-D-Q identifier structure."""
 
@@ -81,12 +78,10 @@ class PDQIdentifier(TypedDict):
     question: int  # Q#
     rubric_key: str  # D#-Q#
 
-
 class PosteriorSampleRecord(TypedDict):
     """Serializable posterior sample used by downstream Bayesian consumers."""
 
     coherence: float
-
 
 class SemanticChunk(TypedDict):
     """Structured semantic chunk with metadata."""
@@ -99,12 +94,10 @@ class SemanticChunk(TypedDict):
     token_count: int
     position: tuple[int, int]  # (start, end) in document
 
-
 class PosteriorSample(TypedDict):
     """Serialized posterior sample representation."""
 
     coherence: float
-
 
 class BayesianEvaluation(TypedDict):
     """Bayesian uncertainty-aware evaluation result."""
@@ -116,14 +109,12 @@ class BayesianEvaluation(TypedDict):
     numerical_coherence: float  # Statistical consistency score
     posterior_records: list[PosteriorSampleRecord]
 
-
 class EmbeddingProtocol(Protocol):
     """Protocol for embedding models."""
 
     def encode(
         self, texts: list[str], batch_size: int = 32, normalize: bool = True
     ) -> NDArray[np.float32]: ...
-
 
 def to_dict_samples(samples: NDArray[np.float32] | Iterable[float]) -> list[PosteriorSample]:
     """Convert posterior samples to the serialized TypedDict format."""
@@ -132,14 +123,12 @@ def to_dict_samples(samples: NDArray[np.float32] | Iterable[float]) -> list[Post
     flat = array.ravel()
     return [{"coherence": float(value)} for value in flat]
 
-
 def samples_to_array(samples: NDArray[np.float32] | Iterable[PosteriorSample]) -> NDArray[np.float32]:
     """Normalize posterior samples into a numpy array for computation."""
 
     if isinstance(samples, np.ndarray):
         return samples.astype(np.float32)
     return np.array([sample["coherence"] for sample in samples], dtype=np.float32)
-
 
 def ensure_content_schema(chunk: dict[str, Any]) -> dict[str, Any]:
     """Ensure chunk dictionaries expose the ``content`` key."""
@@ -150,11 +139,9 @@ def ensure_content_schema(chunk: dict[str, Any]) -> dict[str, Any]:
         return upgraded
     return chunk
 
-
 # ============================================================================
 # ADVANCED SEMANTIC CHUNKING - State-of-the-Art
 # ============================================================================
-
 
 @dataclass
 class ChunkingConfig:
@@ -167,7 +154,6 @@ class ChunkingConfig:
     preserve_tables: bool = True  # Keep tables intact
     detect_lists: bool = True  # Recognize enumerations
     section_aware: bool = True  # Understand document structure
-
 
 class AdvancedSemanticChunker:
     """
@@ -470,11 +456,9 @@ class AdvancedSemanticChunker:
                 return section["title"]
         return None
 
-
 # ============================================================================
 # BAYESIAN NUMERICAL ANALYSIS - Rigorous Statistical Framework
 # ============================================================================
-
 
 class BayesianNumericalAnalyzer:
     """
@@ -630,7 +614,7 @@ class BayesianNumericalAnalyzer:
             **kwargs: Additional optional parameters for compatibility
 
         Returns:
-            Evidence strength classification
+            Evidence strength classification (weak/moderate/strong/very_strong)
         """
         if credible_interval_width > 0.5:
             return "weak"
@@ -759,11 +743,9 @@ class BayesianNumericalAnalyzer:
             ),
         }
 
-
 # ============================================================================
 # CROSS-ENCODER RERANKING - State-of-the-Art Retrieval
 # ============================================================================
-
 
 class PolicyCrossEncoderReranker:
     """
@@ -786,9 +768,23 @@ class PolicyCrossEncoderReranker:
             model_name: HuggingFace model name (multilingual preferred)
             max_length: Maximum sequence length for cross-encoder
             retry_handler: Optional RetryHandler for model loading
+            
+        Raises:
+            RuntimeError: If online model download is required but HF_ONLINE=0
         """
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model load
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown, _is_model_cached
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download a remote model when offline
+        if not _is_model_cached(model_name):
+            lockdown.check_online_model_access(
+                model_name=model_name,
+                operation="load CrossEncoder model"
+            )
 
         # Load model with retry logic if available
         if retry_handler:
@@ -850,11 +846,9 @@ class PolicyCrossEncoderReranker:
 
         return filtered
 
-
 # ============================================================================
 # MAIN EMBEDDING SYSTEM - Orchestrator
 # ============================================================================
-
 
 @dataclass
 class PolicyEmbeddingConfig:
@@ -880,7 +874,6 @@ class PolicyEmbeddingConfig:
     batch_size: int = 32
     normalize_embeddings: bool = True
 
-
 class PolicyAnalysisEmbedder:
     """
     Production-ready embedding system for Colombian PDM analysis.
@@ -899,6 +892,17 @@ class PolicyAnalysisEmbedder:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model loads
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown, _is_model_cached
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download remote models when offline
+        if not _is_model_cached(config.embedding_model):
+            lockdown.check_online_model_access(
+                model_name=config.embedding_model,
+                operation="load SentenceTransformer embedding model"
+            )
 
         # Initialize embedding model with retry logic
         if retry_handler:
@@ -1519,11 +1523,9 @@ class PolicyAnalysisEmbedder:
             },
         }
 
-
 # ============================================================================
 # PRODUCTION FACTORY AND UTILITIES
 # ============================================================================
-
 
 def create_policy_embedder(
     model_tier: Literal["fast", "balanced", "accurate"] = "balanced",
@@ -1577,11 +1579,9 @@ def create_policy_embedder(
 
     return PolicyAnalysisEmbedder(config)
 
-
 # ============================================================================
 # PRODUCER CLASS - Registry Exposure
 # ============================================================================
-
 
 class EmbeddingPolicyProducer:
     """
@@ -1801,11 +1801,9 @@ class EmbeddingPolicyProducer:
             rubric_key=f"{dimension}-Q{question}"
         )
 
-
 # ============================================================================
 # COMPREHENSIVE EXAMPLE - Production Usage
 # ============================================================================
-
 
 def example_pdm_analysis() -> None:
     """

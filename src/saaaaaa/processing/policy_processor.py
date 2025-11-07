@@ -124,7 +124,6 @@ from saaaaaa.analysis.financiero_viabilidad_tablas import PDETAnalysisException,
 # not at module import time to avoid side effects
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # CAUSAL DIMENSION TAXONOMY (DECALOGO Framework)
 # ============================================================================
@@ -138,7 +137,6 @@ class CausalDimension(Enum):
     D4_RESULTADOS = "d4_resultados"
     D5_IMPACTOS = "d5_impactos"
     D6_CAUSALIDAD = "d6_causalidad"
-
 
 # ============================================================================
 # ENHANCED PATTERN LIBRARY WITH SEMANTIC HIERARCHIES
@@ -287,7 +285,6 @@ CAUSAL_PATTERN_TAXONOMY: dict[CausalDimension, dict[str, list[str]]] = {
     },
 }
 
-
 # ============================================================================
 # CONFIGURATION ARCHITECTURE
 # ============================================================================
@@ -383,7 +380,6 @@ class ProcessorConfig:
                     f"critical_dimension_overrides[{dimension}] must be in [0, 1]"
                 )
 
-
 # ============================================================================
 # MATHEMATICAL SCORING ENGINE
 # ============================================================================
@@ -396,10 +392,61 @@ class BayesianEvidenceScorer:
     with automatic calibration against ground-truth policy corpora.
     """
 
-    def __init__(self, prior_confidence: float = 0.5, entropy_weight: float = 0.3) -> None:
+    def __init__(
+        self,
+        prior_confidence: float = 0.5,
+        entropy_weight: float = 0.3,
+        calibration: dict[str, Any] | None = None,
+    ) -> None:
         self.prior = prior_confidence
         self.entropy_weight = entropy_weight
         self._evidence_cache: dict[str, float] = {}
+        self.calibration = calibration or {}
+
+        # Defaults that can be overridden by calibration manifests
+        self.epsilon_clip: float = 0.02
+        self.duplicate_gamma: float = 1.0
+        self.cross_type_floor: float = 0.0
+        self.source_quality_weights: dict[str, float] = {}
+        self.sector_multipliers: dict[str, float] = {}
+        self.sector_default: float = 1.0
+        self.municipio_multipliers: dict[str, float] = {}
+        self.municipio_default: float = 1.0
+
+        self._configure_from_calibration()
+
+    def _configure_from_calibration(self) -> None:
+        config = self.calibration.get("bayesian_inference_robust") if isinstance(self.calibration, dict) else {}
+        if not isinstance(config, dict):
+            return
+
+        evidence_cfg = config.get("mechanistic_evidence_system", {})
+        if isinstance(evidence_cfg, dict):
+            stability = evidence_cfg.get("stability_controls", {})
+            if isinstance(stability, dict):
+                self.epsilon_clip = float(stability.get("epsilon_clip", self.epsilon_clip))
+                self.duplicate_gamma = float(stability.get("duplicate_gamma", self.duplicate_gamma))
+                self.cross_type_floor = float(stability.get("cross_type_floor", self.cross_type_floor))
+                self.epsilon_clip = min(max(self.epsilon_clip, 0.0), 0.45)
+                self.duplicate_gamma = max(0.0, self.duplicate_gamma)
+                self.cross_type_floor = max(0.0, min(1.0, self.cross_type_floor))
+
+            weights = evidence_cfg.get("source_quality_weights", {})
+            if isinstance(weights, dict):
+                self.source_quality_weights = {str(k): float(v) for k, v in weights.items() if isinstance(v, (int, float))}
+
+        context_cfg = config.get("theoretically_grounded_priors", {})
+        if isinstance(context_cfg, dict):
+            hierarchy = context_cfg.get("hierarchical_context_priors", {})
+            if isinstance(hierarchy, dict):
+                sector = hierarchy.get("sector_multipliers", {})
+                if isinstance(sector, dict):
+                    self.sector_multipliers = {str(k).lower(): float(v) for k, v in sector.items() if isinstance(v, (int, float))}
+                    self.sector_default = float(self.sector_multipliers.get("default", 1.0))
+                muni = hierarchy.get("municipio_tamano_multipliers", {})
+                if isinstance(muni, dict):
+                    self.municipio_multipliers = {str(k).lower(): float(v) for k, v in muni.items() if isinstance(v, (int, float))}
+                    self.municipio_default = float(self.municipio_multipliers.get("default", 1.0))
 
     def compute_evidence_score(
         self,
@@ -425,12 +472,18 @@ class BayesianEvidenceScorer:
 
         # Term frequency normalization
         tf = len(matches) / max(1, total_corpus_size / 1000)
+        if self.cross_type_floor:
+            tf = max(self.cross_type_floor, tf)
 
         # Entropy-based diversity penalty
         match_lengths = np.array([len(m) for m in matches])
         entropy = self._calculate_shannon_entropy(match_lengths)
 
         # Bayesian update
+        clip_low = self.epsilon_clip
+        clip_high = 1.0 - self.epsilon_clip
+        pattern_specificity = max(clip_low, min(clip_high, pattern_specificity))
+
         likelihood = min(1.0, tf * pattern_specificity)
         posterior = (likelihood * self.prior) / (
             (likelihood * self.prior) + ((1 - likelihood) * (1 - self.prior))
@@ -440,6 +493,26 @@ class BayesianEvidenceScorer:
         final_score = (1 - self.entropy_weight) * posterior + self.entropy_weight * (
             1 - entropy
         )
+
+        # Apply duplicate penalty if provided by caller
+        if kwargs.get("duplicate_penalty"):
+            final_score *= self.duplicate_gamma
+
+        # Apply source quality weighting
+        if self.source_quality_weights:
+            source_quality = kwargs.get("source_quality")
+            if source_quality is not None:
+                weight = self._lookup_weight(self.source_quality_weights, source_quality, default=1.0)
+                final_score *= weight
+
+        # Context multipliers (sector / municipality)
+        sector = kwargs.get("sector") or kwargs.get("policy_sector")
+        if self.sector_multipliers:
+            final_score *= self._lookup_weight(self.sector_multipliers, sector, default=self.sector_default)
+
+        municipio = kwargs.get("municipio_tamano") or kwargs.get("municipio_size")
+        if self.municipio_multipliers:
+            final_score *= self._lookup_weight(self.municipio_multipliers, municipio, default=self.municipio_default)
 
         return np.clip(final_score, 0.0, 1.0)
 
@@ -467,6 +540,21 @@ class BayesianEvidenceScorer:
 
         return entropy / max_entropy if max_entropy > 0 else 0.0
 
+    @staticmethod
+    def _lookup_weight(mapping: dict[str, float], key: Any, default: float = 1.0) -> float:
+        if not mapping:
+            return default
+        if key is None:
+            return mapping.get("default", default)
+        if isinstance(key, str):
+            direct = mapping.get(key)
+            if direct is not None:
+                return direct
+            lowered = key.lower()
+            for candidate, value in mapping.items():
+                if isinstance(candidate, str) and candidate.lower() == lowered:
+                    return value
+        return mapping.get("default", default)
 
 # ============================================================================
 # ADVANCED TEXT PROCESSOR
@@ -478,8 +566,9 @@ class PolicyTextProcessor:
     coherence-preserving normalization for policy document analysis.
     """
 
-    def __init__(self, config: ProcessorConfig) -> None:
+    def __init__(self, config: ProcessorConfig, *, calibration: dict[str, Any] | None = None) -> None:
         self.config = config
+        self.calibration = calibration or {}
         self._compiled_patterns: dict[str, re.Pattern] = {}
         self._sentence_boundaries = re.compile(
             r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])|(?<=\n\n)"
@@ -542,7 +631,6 @@ class PolicyTextProcessor:
         """Cache and compile regex patterns for performance."""
         return re.compile(pattern_str, re.IGNORECASE | re.UNICODE)
 
-
 # ============================================================================
 # CORE INDUSTRIAL PROCESSOR
 # ============================================================================
@@ -567,7 +655,6 @@ class EvidenceBundle:
             "evidence_samples": self.matches[:3],
             "context_preview": self.context_windows[:2],
         }
-
 
 class IndustrialPolicyProcessor:
     """
@@ -1195,7 +1282,6 @@ class IndustrialPolicyProcessor:
         save_json(results, output_path)
         logger.info(f"Results exported to {output_path}")
 
-
 # ============================================================================
 # ENHANCED SANITIZER WITH STRUCTURE PRESERVATION
 # ============================================================================
@@ -1291,7 +1377,6 @@ class AdvancedTextSanitizer:
             restored = restored.replace(end_mark, "")
         return restored
 
-
 # ============================================================================
 # INTEGRATED FILE HANDLING WITH RESILIENCE
 # ============================================================================
@@ -1333,7 +1418,6 @@ class ResilientFileHandler:
         from .factory import write_text_file
 
         write_text_file(content, file_path)
-
 
 # ============================================================================
 # UNIFIED ORCHESTRATOR
@@ -1439,7 +1523,6 @@ class PolicyAnalysisPipeline:
         sanitized_text = self.sanitizer.sanitize(raw_text)
         return self.processor.process(sanitized_text)
 
-
 # ============================================================================
 # FACTORY FUNCTIONS FOR BACKWARD COMPATIBILITY
 # ============================================================================
@@ -1469,7 +1552,6 @@ def create_policy_processor(
         **kwargs,
     )
     return PolicyAnalysisPipeline(config=config)
-
 
 # ============================================================================
 # COMMAND-LINE INTERFACE

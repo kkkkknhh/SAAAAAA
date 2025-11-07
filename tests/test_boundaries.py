@@ -24,12 +24,8 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SRC_ROOT = REPO_ROOT / "src"
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-PACKAGE_ROOT = SRC_ROOT / "saaaaaa"
-
+# Define the package root directory
+PACKAGE_ROOT = Path(__file__).parent.parent / "src" / "saaaaaa"
 
 # Modules that must stay pure (no __main__ and no direct I/O).
 PURE_MODULE_PATHS: dict[str, Path] = {
@@ -46,7 +42,6 @@ LEGACY_IO_MODULES: dict[str, Path] = {
     "saaaaaa.analysis.contradiction_deteccion": PACKAGE_ROOT / "analysis" / "contradiction_deteccion.py",
     "saaaaaa.processing.semantic_chunking_policy": PACKAGE_ROOT / "processing" / "semantic_chunking_policy.py",
 }
-
 
 class _IODetector(ast.NodeVisitor):
     """AST visitor that flags direct file/network I/O usage."""
@@ -93,7 +88,6 @@ class _IODetector(ast.NodeVisitor):
                     self.matches.append(node.lineno)
         self.generic_visit(node)
 
-
 class _MainDetector(ast.NodeVisitor):
     """AST visitor that flags ``if __name__ == '__main__'`` blocks."""
 
@@ -112,7 +106,6 @@ class _MainDetector(ast.NodeVisitor):
                     self.locations.append(node.lineno)
         self.generic_visit(node)
 
-
 def _load_source(path: Path) -> ast.AST:
     with path.open("r", encoding="utf-8") as handle:
         source = handle.read()
@@ -121,13 +114,11 @@ def _load_source(path: Path) -> ast.AST:
     except SyntaxError as exc:  # pragma: no cover - sanity guard
         pytest.fail(f"Syntax error while parsing {path}: {exc}")
 
-
 def _iter_core_modules() -> Iterable[str]:
     package_path = PACKAGE_ROOT / "core"
     for module_info in pkgutil.walk_packages([str(package_path)], prefix="saaaaaa.core."):
         if not module_info.ispkg:
             yield module_info.name
-
 
 @pytest.mark.parametrize("module_name", sorted(_iter_core_modules()))
 def test_core_modules_import_cleanly(module_name: str) -> None:
@@ -142,7 +133,6 @@ def test_core_modules_import_cleanly(module_name: str) -> None:
     except ImportError as exc:  # pragma: no cover - exercised only when failing
         pytest.fail(f"Importing {module_name} failed: {exc}")
 
-
 @pytest.mark.parametrize("qualified_name, path", sorted(PURE_MODULE_PATHS.items()))
 def test_pure_modules_have_no_main_blocks(qualified_name: str, path: Path) -> None:
     tree = _load_source(path)
@@ -152,7 +142,6 @@ def test_pure_modules_have_no_main_blocks(qualified_name: str, path: Path) -> No
         f"{qualified_name} contains __main__ guards at lines {detector.locations}. "
         "Pure modules must not ship executable entry points."
     )
-
 
 @pytest.mark.parametrize("qualified_name, path", sorted({
     **PURE_MODULE_PATHS,
@@ -179,7 +168,6 @@ def test_ast_scanner_reports_io_usage(qualified_name: str, path: Path) -> None:
         f"{qualified_name} contains I/O operations at lines {detector.matches}. "
         "Core libraries must remain pure."
     )
-
 
 def test_import_linter_layer_contract(tmp_path: Path) -> None:
     """Run a lightweight import-linter contract when the tool is available."""
@@ -219,7 +207,6 @@ forbidden_modules =
     assert completed.returncode == 0, (
         "import-linter detected a layering violation:\n" + stdout
     )
-
 
 def test_boundary_scanner_tool_exists() -> None:
     scanner_path = REPO_ROOT / "tools" / "scan_boundaries.py"

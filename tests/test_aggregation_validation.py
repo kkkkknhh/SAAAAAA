@@ -17,7 +17,6 @@ from validation.aggregation_models import (
     validate_weights,
 )
 
-
 class TestAggregationWeights:
     """Test AggregationWeights validation model."""
 
@@ -92,7 +91,6 @@ class TestAggregationWeights:
         assert weights.weights[0] == 0.0
         assert weights.weights[1] == 0.0
 
-
 class TestDimensionAggregationConfig:
     """Test DimensionAggregationConfig validation."""
 
@@ -132,7 +130,6 @@ class TestDimensionAggregationConfig:
         )
         assert config.weights == weights
 
-
 class TestAreaAggregationConfig:
     """Test AreaAggregationConfig validation."""
 
@@ -146,7 +143,6 @@ class TestAreaAggregationConfig:
         """Test invalid area ID."""
         with pytest.raises(ValidationError):
             AreaAggregationConfig(area_id="INVALID")
-
 
 class TestClusterAggregationConfig:
     """Test ClusterAggregationConfig validation."""
@@ -192,7 +188,6 @@ class TestClusterAggregationConfig:
                 policy_area_ids=["PA"]  # Too short
             )
 
-
 class TestMacroAggregationConfig:
     """Test MacroAggregationConfig validation."""
 
@@ -216,7 +211,6 @@ class TestMacroAggregationConfig:
             MacroAggregationConfig(
                 cluster_ids=["CL"]  # Too short
             )
-
 
 class TestValidationHelpers:
     """Test validation helper functions."""
@@ -242,7 +236,6 @@ class TestValidationHelpers:
         assert isinstance(config, DimensionAggregationConfig)
         assert config.dimension_id == "DIM02"
         assert config.weights is not None
-
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
@@ -270,7 +263,6 @@ class TestEdgeCases:
         weights = AggregationWeights(weights=weight_list)
         assert len(weights.weights) == n
         assert sum(weights.weights) == pytest.approx(1.0, abs=1e-6)
-
 
 class TestStrictValidationBehavior:
     """Test strict validation behavior for the problem statement requirements."""

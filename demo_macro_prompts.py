@@ -14,10 +14,6 @@ from saaaaaa.analysis.macro_prompts import (  # noqa: F401
 )
 
 # Ensure src/ is in path for imports within the example
-_root = Path(__file__).parent
-if str(_root / "src") not in sys.path:
-    sys.path.insert(0, str(_root / "src"))
-
 # Load the actual module from examples/
 _module_path = _root / "examples" / "demo_macro_prompts.py"
 _spec = importlib.util.spec_from_file_location("_demo_macro_prompts_impl", _module_path)

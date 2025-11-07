@@ -5,20 +5,15 @@ These tests validate that the boot check script correctly identifies
 module loading issues and runtime validator initialization problems.
 """
 
-import sys
 import unittest
 from pathlib import Path
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 from tools.testing.boot_check import (
     check_module_import,
     check_registry_validation,
     check_runtime_validators,
 )
-
 
 class TestBootCheck(unittest.TestCase):
     """Test boot check functionality."""
@@ -54,7 +49,6 @@ class TestBootCheck(unittest.TestCase):
         # Either succeeds or returns True with no error (not implemented)
         self.assertIsInstance(success, bool)
         self.assertIsInstance(error, str)
-
 
 if __name__ == "__main__":
     unittest.main()

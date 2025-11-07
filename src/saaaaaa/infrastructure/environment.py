@@ -7,7 +7,6 @@ For testing, use InMemoryEnvAdapter instead.
 
 import os
 
-
 class SystemEnvAdapter:
     """Real environment adapter using os.environ.
 
@@ -41,7 +40,6 @@ class SystemEnvAdapter:
             return False
         else:
             return default
-
 
 class InMemoryEnvAdapter:
     """In-memory environment adapter for testing.
@@ -89,7 +87,6 @@ class InMemoryEnvAdapter:
     def clear(self) -> None:
         """Clear all environment variables (for testing)."""
         self._env.clear()
-
 
 __all__ = [
     'SystemEnvAdapter',

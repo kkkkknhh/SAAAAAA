@@ -25,11 +25,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================================
 # SCHEMA SHAPE TRACKING
 # ============================================================================
-
 
 class SchemaShape(TypedDict):
     """Shape of a data payload."""
@@ -38,7 +36,6 @@ class SchemaShape(TypedDict):
     types: dict[str, str]
     sample_values: dict[str, Any]
     timestamp: str
-
 
 @dataclass
 class SchemaStats:
@@ -50,7 +47,6 @@ class SchemaStats:
     missing_keys: set[str] = field(default_factory=set)
     total_samples: int = 0
     last_updated: datetime | None = None
-
 
 class SchemaDriftDetector:
     """
@@ -290,11 +286,9 @@ class SchemaDriftDetector:
             ]),
         }
 
-
 # ============================================================================
 # PAYLOAD VALIDATOR
 # ============================================================================
-
 
 class PayloadValidator:
     """
@@ -385,15 +379,12 @@ class PayloadValidator:
         except Exception as e:
             logger.error(f"Failed to load schemas: {e}")
 
-
 # ============================================================================
 # GLOBAL INSTANCE (optional convenience)
 # ============================================================================
 
-
 # Singleton detector for application-wide use
 _global_detector: SchemaDriftDetector | None = None
-
 
 def get_detector() -> SchemaDriftDetector:
     """Get or create global schema drift detector."""

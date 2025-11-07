@@ -23,7 +23,6 @@ import ast
 import sys
 from pathlib import Path
 
-
 class Colors:
     """ANSI color codes for terminal output."""
     GREEN = '\033[92m'
@@ -33,33 +32,27 @@ class Colors:
     RESET = '\033[0m'
     BOLD = '\033[1m'
 
-
 def print_header(text: str):
     """Print formatted header."""
     print(f"\n{Colors.BOLD}{Colors.BLUE}{'=' * 80}")
     print(f"{text:^80}")
     print(f"{'=' * 80}{Colors.RESET}\n")
 
-
 def print_success(text: str):
     """Print success message."""
     print(f"{Colors.GREEN}✓{Colors.RESET} {text}")
-
 
 def print_error(text: str):
     """Print error message."""
     print(f"{Colors.RED}✗{Colors.RESET} {text}")
 
-
 def print_warning(text: str):
     """Print warning message."""
     print(f"{Colors.YELLOW}⚠{Colors.RESET} {text}")
 
-
 def check_file_exists(file_path: Path) -> bool:
     """Check if file exists and is readable."""
     return file_path.exists() and file_path.is_file()
-
 
 def check_python_syntax(file_path: Path) -> tuple[bool, str]:
     """Check Python file syntax."""
@@ -71,7 +64,6 @@ def check_python_syntax(file_path: Path) -> tuple[bool, str]:
         return False, f"Syntax error at line {e.lineno}: {e.msg}"
     except Exception as e:
         return False, str(e)
-
 
 def extract_imports(file_path: Path) -> set[str]:
     """Extract all imports from a Python file."""
@@ -91,7 +83,6 @@ def extract_imports(file_path: Path) -> set[str]:
         pass
 
     return imports
-
 
 def validate_strategic_files() -> dict[str, bool]:
     """Validate all strategic files exist and are syntactically correct."""
@@ -143,7 +134,6 @@ def validate_strategic_files() -> dict[str, bool]:
 
     return results
 
-
 def validate_provenance() -> bool:
     """Validate provenance.csv includes all strategic files."""
     print_header("PROVENANCE TRACKING VALIDATION")
@@ -185,7 +175,6 @@ def validate_provenance() -> bool:
             all_tracked = False
 
     return all_tracked
-
 
 def validate_cross_file_wiring() -> bool:
     """Validate cross-file imports and dependencies."""
@@ -234,7 +223,6 @@ def validate_cross_file_wiring() -> bool:
             all_wired = False
 
     return all_wired
-
 
 def validate_module_interfaces() -> bool:
     """Validate that modules expose expected interfaces."""
@@ -295,13 +283,12 @@ def validate_module_interfaces() -> bool:
 
     return all_valid
 
-
 def validate_determinism() -> bool:
     """Validate determinism guarantees."""
     print_header("DETERMINISM VALIDATION")
 
     try:
-        from seed_factory import create_deterministic_seed
+        from saaaaaa.core.seed_factory import create_deterministic_seed
 
         # Test deterministic seed generation
         seed1 = create_deterministic_seed("test-001", question_id="Q1", policy_area="P1")
@@ -327,13 +314,12 @@ def validate_determinism() -> bool:
         print_error(f"Determinism validation failed: {e}")
         return False
 
-
 def validate_immutability() -> bool:
     """Validate immutability guarantees."""
     print_header("IMMUTABILITY VALIDATION")
 
     try:
-        from evidence_registry import EvidenceRegistry
+        from saaaaaa.core.evidence_registry import EvidenceRegistry
 
         registry = EvidenceRegistry(auto_load=False)
 
@@ -369,7 +355,6 @@ def validate_immutability() -> bool:
     except Exception as e:
         print_error(f"Immutability validation failed: {e}")
         return False
-
 
 def validate_golden_rules() -> bool:
     """Validate Golden Rules enforcement."""
@@ -412,7 +397,6 @@ def validate_golden_rules() -> bool:
     except Exception as e:
         print_error(f"Golden Rules validation failed: {e}")
         return False
-
 
 def generate_wiring_report():
     """Generate comprehensive wiring validation report."""
@@ -466,11 +450,9 @@ def generate_wiring_report():
         print("Strategic high-level wiring requires attention{Colors.RESET}\n")
         return 1
 
-
 def main():
     """Main entry point."""
     return generate_wiring_report()
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -14,7 +14,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from contracts import (
+from saaaaaa.contracts import (
     SentenceCollection,
     TextDocument,
     ensure_hashable,
@@ -27,14 +27,12 @@ from contracts import (
 # STRATEGIES - Generate Test Data
 # ============================================================================
 
-
 @st.composite
 def valid_text_strategy(draw: Any) -> str:
     """Generate valid non-empty text strings."""
     text = draw(st.text(min_size=1, max_size=1000))
     assume(text.strip())  # Must have non-whitespace content
     return text
-
 
 @st.composite
 def metadata_dict_strategy(draw: Any) -> dict[str, Any]:
@@ -51,7 +49,6 @@ def metadata_dict_strategy(draw: Any) -> dict[str, Any]:
         min_size=0,
         max_size=10,
     ))
-
 
 @st.composite
 def malformed_mapping_strategy(draw: Any) -> dict[str, Any]:
@@ -70,11 +67,9 @@ def malformed_mapping_strategy(draw: Any) -> dict[str, Any]:
         for key in available_keys
     }
 
-
 # ============================================================================
 # PROPERTY TESTS - TextDocument
 # ============================================================================
-
 
 @pytest.mark.property
 class TestTextDocumentProperties:
@@ -127,11 +122,9 @@ class TestTextDocumentProperties:
         with pytest.raises(ValueError):
             TextDocument(text="", document_id=document_id, metadata=metadata)
 
-
 # ============================================================================
 # PROPERTY TESTS - SentenceCollection
 # ============================================================================
-
 
 @pytest.mark.property
 class TestSentenceCollectionProperties:
@@ -180,11 +173,9 @@ class TestSentenceCollectionProperties:
         with pytest.raises(TypeError):
             SentenceCollection(sentences=tuple(sentences))
 
-
 # ============================================================================
 # PROPERTY TESTS - Contract Validation
 # ============================================================================
-
 
 @pytest.mark.property
 class TestContractValidationProperties:
@@ -316,11 +307,9 @@ class TestContractValidationProperties:
                 consumer="validator",
             )
 
-
 # ============================================================================
 # PROPERTY TESTS - Edge Cases
 # ============================================================================
-
 
 @pytest.mark.property
 class TestEdgeCases:
@@ -365,7 +354,6 @@ class TestEdgeCases:
 
         assert len(collection) == len(valid_sentences)
         assert list(collection) == valid_sentences
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--hypothesis-show-statistics"])

@@ -18,12 +18,9 @@ Then the code was incorrectly dividing by 3.0 again, causing:
 - Incorrect variance computations
 """
 
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 try:
     import pytest
     HAS_PYTEST = True
@@ -37,7 +34,6 @@ except ImportError:
     # Fallback for manual execution without pytest
     def approx_equal(a, b, abs_tol=0.01):
         return abs(a - b) <= abs_tol
-
 
 def test_macro_score_normalization():
     """Test that macro scores are not double-normalized."""
@@ -75,7 +71,6 @@ def test_macro_score_normalization():
     # Verify the score is in the expected range (not capped at 0.33)
     assert result["macro_score"] > 0.6, "Macro score should be > 60%, not capped at 33%"
 
-
 def test_cluster_score_not_double_normalized():
     """Test that cluster scores are correctly used without /3.0 division."""
     # Simulate a cluster score that's already normalized (0-1 range)
@@ -91,7 +86,6 @@ def test_cluster_score_not_double_normalized():
     assert approx_equal(percentage, 80.0, abs_tol=0.1), \
         f"Expected percentage to be 80.0, got {percentage}"
     assert percentage > 50, "Score should be 80%, not 26.7%"
-
 
 def test_clusters_below_target_threshold():
     """Test that cluster comparison uses correct normalization."""
@@ -119,7 +113,6 @@ def test_clusters_below_target_threshold():
     assert "cluster_4" in clusters_below_target
     assert "cluster_1" not in clusters_below_target  # 60% is above target
     assert "cluster_3" not in clusters_below_target  # 80% is above target
-
 
 def test_macro_band_classification():
     """Test that macro band is correctly classified with proper normalization."""
@@ -153,7 +146,6 @@ def test_macro_band_classification():
         assert macro_band == expected_band, \
             f"Score {macro_score} ({scaled_score}%) should be {expected_band}, not {macro_band}"
 
-
 def test_variance_calculation():
     """Test that variance is calculated with correct normalization."""
     # Simulate cluster scores (already 0-1 range)
@@ -183,7 +175,6 @@ def test_variance_calculation():
 
     # Old code would have calculated variance on values/3.0, giving much smaller variance
     # This ensures we're using the correct scale
-
 
 if __name__ == "__main__":
     if HAS_PYTEST:

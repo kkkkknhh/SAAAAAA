@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 # Type variable for decorated functions
 F = TypeVar('F', bound=Callable[..., Any])
 
-
 # ============================================================================
 # SIGNATURE METADATA STORAGE
 # ============================================================================
@@ -47,7 +46,6 @@ class FunctionSignature:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
 
 class SignatureRegistry:
     """
@@ -174,10 +172,8 @@ class SignatureRegistry:
         except Exception as e:
             logger.error(f"Failed to load registry: {e}")
 
-
 # Global registry instance
 _signature_registry = SignatureRegistry()
-
 
 # ============================================================================
 # RUNTIME VALIDATION DECORATOR
@@ -230,7 +226,6 @@ def validate_signature(enforce: bool = True, track: bool = True):
 
     return decorator
 
-
 def validate_call_signature(func: Callable, *args, **kwargs) -> bool:
     """
     Validate that a function call matches the expected signature without actually calling it
@@ -250,7 +245,6 @@ def validate_call_signature(func: Callable, *args, **kwargs) -> bool:
     except TypeError:
         return False
 
-
 # ============================================================================
 # STATIC SIGNATURE AUDITOR
 # ============================================================================
@@ -268,7 +262,6 @@ class SignatureMismatch:
     actual_call: str
     severity: str  # 'high', 'medium', 'low'
     description: str
-
 
 class SignatureAuditor:
     """
@@ -380,7 +373,6 @@ class SignatureAuditor:
 
         logger.info(f"Exported audit report to {output_path}")
 
-
 # ============================================================================
 # COMPATIBILITY LAYER
 # ============================================================================
@@ -417,7 +409,6 @@ def create_adapter(
 
     return adapter
 
-
 # ============================================================================
 # MODULE INITIALIZATION
 # ============================================================================
@@ -438,7 +429,6 @@ def initialize_signature_registry(project_root: Path) -> None:
     # For now, we rely on decorators to register functions
 
     _signature_registry.save()
-
 
 def audit_project_signatures(project_root: Path, output_path: Path | None = None) -> list[SignatureMismatch]:
     """
@@ -475,7 +465,6 @@ def audit_project_signatures(project_root: Path, output_path: Path | None = None
     logger.info(f"Audit complete: {len(all_mismatches)} mismatches detected")
 
     return all_mismatches
-
 
 # ============================================================================
 # CLI INTERFACE

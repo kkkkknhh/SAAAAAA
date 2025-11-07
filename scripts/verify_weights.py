@@ -15,16 +15,12 @@ Exit codes:
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from pydantic import ValidationError
 
 from validation.aggregation_models import validate_weights
-
 
 def verify_aggregation_system():
     """
@@ -93,7 +89,6 @@ def verify_aggregation_system():
 
     return len(errors) == 0, errors
 
-
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -129,7 +124,6 @@ def main():
             print(error)
         print()
         return 1
-
 
 if __name__ == '__main__':
     sys.exit(main())

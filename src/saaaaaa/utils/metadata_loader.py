@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from saaaaaa.utils.paths import proj_root
+
 try:
     import jsonschema
     JSONSCHEMA_AVAILABLE = True
@@ -18,14 +20,11 @@ except ImportError:
     JSONSCHEMA_AVAILABLE = False
     logging.warning("jsonschema not available - schema validation disabled")
 
-
 logger = logging.getLogger(__name__)
-
 
 class MetadataError(Exception):
     """Base exception for metadata errors"""
     pass
-
 
 class MetadataVersionError(MetadataError):
     """Version mismatch error"""
@@ -36,7 +35,6 @@ class MetadataVersionError(MetadataError):
         super().__init__(
             f"Version mismatch in {file_path}: expected {expected}, got {actual}"
         )
-
 
 class MetadataIntegrityError(MetadataError):
     """Checksum/integrity violation error"""
@@ -49,7 +47,6 @@ class MetadataIntegrityError(MetadataError):
             msg += f": expected checksum {expected_checksum}, got {actual_checksum}"
         super().__init__(msg)
 
-
 class MetadataSchemaError(MetadataError):
     """Schema validation error"""
     def __init__(self, file_path: str, validation_errors: list) -> None:
@@ -59,7 +56,6 @@ class MetadataSchemaError(MetadataError):
         super().__init__(
             f"Schema validation failed for {file_path}:\n{error_msgs}"
         )
-
 
 class MetadataMissingKeyError(MetadataError):
     """Required key missing in metadata"""
@@ -71,7 +67,6 @@ class MetadataMissingKeyError(MetadataError):
         if context:
             msg += f" ({context})"
         super().__init__(msg)
-
 
 class MetadataLoader:
     """
@@ -86,7 +81,7 @@ class MetadataLoader:
     """
 
     def __init__(self, workspace_root: Path | None = None) -> None:
-        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
+        self.workspace_root = Path(workspace_root) if workspace_root else proj_root()
         self.schemas_dir = self.workspace_root / "schemas"
 
         # Loaded schemas cache
@@ -256,7 +251,6 @@ class MetadataLoader:
 
         logger.error(json.dumps(log_entry, indent=2))
 
-
 def load_cuestionario(
     path: Path | None = None,
     required_version: str = "2.0.0"
@@ -272,7 +266,7 @@ def load_cuestionario(
         Validated cuestionario data
     """
     if path is None:
-        path = Path.cwd() / "questionnaire_monolith.json"
+        path = proj_root() / "questionnaire_monolith.json"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
@@ -280,7 +274,6 @@ def load_cuestionario(
         schema_ref=None,  # TODO: Create cuestionario schema
         required_version=required_version
     )
-
 
 def load_execution_mapping(
     path: Path | None = None,
@@ -297,7 +290,7 @@ def load_execution_mapping(
         Validated execution mapping
     """
     if path is None:
-        path = Path.cwd() / "execution_mapping.yaml"
+        path = proj_root() / "execution_mapping.yaml"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
@@ -305,7 +298,6 @@ def load_execution_mapping(
         schema_ref="execution_mapping.schema.json",
         required_version=required_version
     )
-
 
 def load_rubric_scoring(
     path: Path | None = None,
@@ -322,7 +314,7 @@ def load_rubric_scoring(
         Validated rubric scoring configuration
     """
     if path is None:
-        path = Path.cwd() / "rubric_scoring.json"
+        path = proj_root() / "rubric_scoring.json"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(

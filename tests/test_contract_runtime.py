@@ -9,6 +9,10 @@ These tests ensure that:
 """
 
 import pytest
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Runtime contracts now in test_contracts_comprehensive.py")
+
 from pydantic import ValidationError
 
 from saaaaaa.utils.contracts_runtime import (
@@ -28,7 +32,6 @@ from saaaaaa.utils.contracts_runtime import (
     SemanticChunkingOutputModel,
     TeoriaCambioInputModel,
 )
-
 
 class TestSemanticAnalyzerContracts:
     """Test SemanticAnalyzer contract validation."""
@@ -128,7 +131,6 @@ class TestSemanticAnalyzerContracts:
             )
         assert "Probability" in str(exc_info.value)
 
-
 class TestCDAFFrameworkContracts:
     """Test CDAF Framework contract validation."""
 
@@ -151,7 +153,6 @@ class TestCDAFFrameworkContracts:
             schema_version="sem-1.0"
         )
         assert len(model.causal_mechanisms) == 1
-
 
 class TestPDETAnalyzerContracts:
     """Test PDET Analyzer contract validation."""
@@ -188,7 +189,6 @@ class TestPDETAnalyzerContracts:
             )
         assert "viability_score" in str(exc_info.value)
 
-
 class TestContradictionDetectorContracts:
     """Test Contradiction Detector contract validation."""
 
@@ -213,7 +213,6 @@ class TestContradictionDetectorContracts:
         )
         assert len(model.contradictions) == 1
 
-
 class TestEmbeddingPolicyContracts:
     """Test Embedding Policy contract validation."""
 
@@ -236,7 +235,6 @@ class TestEmbeddingPolicyContracts:
             schema_version="sem-1.0"
         )
         assert len(model.embeddings) == 1
-
 
 class TestSemanticChunkingContracts:
     """Test Semantic Chunking contract validation."""
@@ -261,7 +259,6 @@ class TestSemanticChunkingContracts:
         )
         assert len(model.chunks) == 1
 
-
 class TestPolicyProcessorContracts:
     """Test Policy Processor contract validation."""
 
@@ -285,7 +282,6 @@ class TestPolicyProcessorContracts:
             schema_version="sem-1.0"
         )
         assert model.processed_data["result"] == "data"
-
 
 class TestSchemaVersioning:
     """Test schema versioning across all contracts."""
@@ -337,7 +333,6 @@ class TestSchemaVersioning:
                 schema_version=invalid_version
             )
         assert "schema_version" in str(exc_info.value)
-
 
 class TestStrictMode:
     """Test that strict mode rejects unknown fields."""

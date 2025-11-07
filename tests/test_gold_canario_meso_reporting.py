@@ -12,13 +12,12 @@ Tests for all 4 meso-level analysis functions:
 
 import pytest
 
-from meso_cluster_analysis import (
+from saaaaaa.analysis.meso_cluster_analysis import (
     analyze_policy_dispersion,
     calibrate_against_peers,
     compose_cluster_posterior,
     reconcile_cross_metrics,
 )
-
 
 class TestAnalyzePolicyDispersion:
     """Test analyze_policy_dispersion function"""
@@ -172,7 +171,6 @@ class TestAnalyzePolicyDispersion:
 
         assert result['cv'] == 0.0  # No variance with one value
         assert result['max_gap'] == 0.0
-
 
 class TestReconcileCrossMetrics:
     """Test reconcile_cross_metrics function"""
@@ -393,7 +391,6 @@ class TestReconcileCrossMetrics:
         # M1 should be clean, M2 should have violations
         assert result['reconciled_confidence'] < 1.0
 
-
 class TestComposeClusterPosterior:
     """Test compose_cluster_posterior function"""
 
@@ -490,7 +487,6 @@ class TestComposeClusterPosterior:
 
         # Posterior should be significantly lower than prior
         assert result['posterior_meso'] < result['prior_meso'] * 0.5
-
 
 class TestCalibrateAgainstPeers:
     """Test calibrate_against_peers function"""
@@ -608,7 +604,6 @@ class TestCalibrateAgainstPeers:
         assert result['outliers'] == {}
         assert isinstance(narrative, str)
 
-
 class TestEdgeCases:
     """Test edge cases across all meso functions"""
 
@@ -661,7 +656,6 @@ class TestEdgeCases:
         # Should not crash, should validate metrics
         assert len(result['metrics_validated']) == 1
 
-
 class TestNarrativeQuality:
     """Test narrative quality and content"""
 
@@ -699,7 +693,6 @@ class TestNarrativeQuality:
         # Should mention IQR, outliers, and positioning
         assert len(narrative) > 200
         assert any(word in narrative.lower() for word in ["iqr", "cuartil", "quartile"])
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
