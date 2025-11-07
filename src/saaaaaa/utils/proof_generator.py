@@ -217,7 +217,7 @@ def generate_proof(
             f,
             sort_keys=True,
             ensure_ascii=True,
-            indent=2,  # Pretty print for human readability
+            separators=(',', ':'),
         )
     
     # Compute hash of proof.json (using compact serialization for hash)
