@@ -60,6 +60,43 @@ make help
 
 **For detailed dependency information:** See [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md)
 
+---
+
+## 🔐 Cryptographic Proof of Execution
+
+Every successful pipeline execution now generates cryptographic proof files that allow anyone (even non-engineers) to verify that the execution was genuine and complete.
+
+### Generated Files
+
+When the pipeline completes successfully, two files are created:
+- **`proof.json`** - Execution metadata and cryptographic hashes
+- **`proof.hash`** - SHA-256 hash for tamper detection
+
+### Quick Verification
+
+```bash
+# View the proof
+cat data/output/cpp_plan_1/proof.json
+
+# Verify proof integrity (no dependencies required)
+python verify_proof.py data/output/cpp_plan_1
+```
+
+### What's Verified?
+
+- ✅ All phases completed successfully
+- ✅ No execution aborts
+- ✅ Complete question coverage
+- ✅ Code signatures (core.py, executors.py, factory.py)
+- ✅ Input PDF hash
+- ✅ All artifacts present and hashed
+
+**Proof is ONLY generated when ALL success conditions are met.**
+
+For detailed information, see [PROOF_VERIFICATION.md](PROOF_VERIFICATION.md)
+
+---
+
 SAAAAAA (Strategic Analysis Architecture for Administrative Accountability and Audit Assurance) es un sistema de análisis de políticas públicas que integra 584 métodos analíticos distribuidos en 7 productores especializados y 1 agregador, orientado al procesamiento determinista de planes de desarrollo municipales y departamentales en Colombia. La contribución técnica principal radica en: (1) un pipeline de ingesta con 9 fases deterministas que garantiza trazabilidad completa desde token hasta coordenadas de página (provenance_completeness = 1.0), (2) un sistema de señales transversales (cross-cut signals) con transporte memory:// y HTTP opcional, incluyendo circuit breakers para resiliencia, (3) un mecanismo de enrutamiento extendido (ArgRouter) con 30+ rutas especiales que elimina caídas silenciosas de parámetros, y (4) contratos explícitos de entrada/salida con validación en fronteras de proveedor. El sistema procesa 300 preguntas de evaluación organizadas en 6 dimensiones (D1-D6: Insumos, Actividades, Productos, Resultados, Impactos, Causalidad) sobre 10 áreas de política (P1-P10), generando reportes en tres niveles de agregación: MICRO (respuestas atómicas por pregunta, 150-300 palabras), MESO (análisis de clusters por dimensión-área), y MACRO (clasificación y recomendaciones). La arquitectura sigue el patrón "Chess Strategy": apertura paralela con 7 productores independientes, medio juego de triangulación multi-fuente, y final de síntesis doctoral. El alcance excluye procesamiento en tiempo real (modo batch únicamente), datos personales identificables (PII), y claims de precisión absoluta sin intervalos de confianza.
 
 ---
