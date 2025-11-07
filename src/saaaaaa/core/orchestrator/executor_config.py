@@ -422,7 +422,10 @@ class ExecutorConfig(BaseModel):
             Hex string of BLAKE3 hash (64 chars)
         """
         # Serialize config to stable JSON representation
-        config_json = self.model_dump_json(indent=None, sort_keys=True)
+        # Pydantic v2 doesn't support sort_keys in model_dump_json
+        import json
+        config_dict = self.model_dump()
+        config_json = json.dumps(config_dict, sort_keys=True, indent=None)
         
         # Compute BLAKE3 hash
         hasher = blake3.blake3(config_json.encode("utf-8"))
