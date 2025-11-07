@@ -155,7 +155,7 @@ async def main():
     """Main execution function."""
     
     print("=" * 80)
-    print("COMPLETE SYSTEM EXECUTION: CPP + ORCHESTRATOR FOR PLAN_1.PDF")
+    print("CPP + ORCHESTRATOR PIPELINE: Plan_1.pdf")
     print("=" * 80)
     print()
     
@@ -326,13 +326,17 @@ async def main():
         print(f"  Total time: {total_time/1000:.1f}s")
         print(f"  Average per phase: {total_time/total:.0f}ms")
         
-        if successful == total:
+        # Mechanically derived status based on actual results
+        if successful == total and all(r.error is None for r in phase_results):
             print()
-            print("  🎉 ALL PHASES COMPLETED SUCCESSFULLY!")
+            print("✅ ALL PHASES COMPLETED")
             return 0
         else:
             print()
-            print("  ⚠️  Some phases failed or were aborted")
+            print("⚠️ PHASES INCOMPLETE")
+            for r in phase_results:
+                if not r.success:
+                    print(f" - Phase {r.phase_id} failed: {r.error}")
             return 1
             
     except Exception as e:
