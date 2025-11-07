@@ -30,7 +30,7 @@ jobs:
         pip install mypy
         npm install -g pyright
         # Install minimal runtime dependencies for type checking
-        pip install -r requirements.txt || pip install numpy scipy pandas scikit-learn torch transformers jsonschema pydantic pyyaml || true
+        pip install -r requirements.txt
 
     - name: Run pyright (strict)
       run: pyright --project pyproject.toml
