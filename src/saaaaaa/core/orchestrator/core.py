@@ -2080,7 +2080,7 @@ class Orchestrator:
 
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScore:
+    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScoreDict:
         """Evaluate macro level using MacroAggregator.
 
         Args:
@@ -2088,7 +2088,7 @@ class Orchestrator:
             config: Configuration dict containing monolith
 
         Returns:
-            MacroScore object with full validation and diagnostics
+            MacroScoreDict with macro_score, macro_score_normalized, and cluster_scores
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
