@@ -382,27 +382,39 @@ async def main():
                     "derived_from": "questionnaire"
                 })
                 
-                # Count questions (from micro_questions in phase 2)
+                # Count questions from questionnaire monolith
                 questions_total = 0
+                if 'blocks' in processor_bundle.questionnaire:
+                    blocks = processor_bundle.questionnaire['blocks']
+                    if 'micro_questions' in blocks and isinstance(blocks['micro_questions'], list):
+                        questions_total = len(blocks['micro_questions'])
+                
+                # Count questions answered (from micro_questions phase results)
                 questions_answered = 0
-                # FIXME(PROOF): Need to extract question counts from phase_results[2].data
                 if len(phase_results) > 2 and phase_results[2].data:
                     if isinstance(phase_results[2].data, list):
-                        questions_total = len(phase_results[2].data)
+                        # Count successful executions (no error)
                         questions_answered = sum(
                             1 for item in phase_results[2].data
                             if hasattr(item, 'error') and item.error is None
                         )
                 
-                # Count evidence records
+                # Count evidence records from all phases
                 evidence_records = 0
-                # FIXME(PROOF): Need to count evidence from all phases
                 for result in phase_results:
-                    if result.data and isinstance(result.data, list):
+                    if not result.data:
+                        continue
+                    
+                    # Count items with evidence attribute
+                    if isinstance(result.data, list):
                         evidence_records += sum(
                             1 for item in result.data
                             if hasattr(item, 'evidence') and item.evidence is not None
                         )
+                    # Some phases may have dict results with evidence
+                    elif isinstance(result.data, dict):
+                        if 'evidence' in result.data and result.data['evidence']:
+                            evidence_records += 1
                 
                 # Collect artifacts manifest
                 print("  🔄 Computing artifact hashes...")
