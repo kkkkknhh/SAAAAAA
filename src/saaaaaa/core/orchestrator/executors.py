@@ -958,38 +958,41 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             },
         )
 
-        # Initialize advanced modules with academically-justified parameters
-        # All parameters grounded in peer-reviewed research (see advanced_module_config.py)
+        # Initialize advanced modules with academically-informed parameters
+        # Parameters combine VERIFIED academic principles with EMPIRICAL practical defaults
+        # See advanced_module_config.py for honest categorization
         
         # Quantum-inspired optimization (Nielsen & Chuang 2010)
-        # num_methods: search space size for Grover's algorithm
-        # Optimal: 32-128 for practical problems
+        # FORMULA-DERIVED: iterations ≈ √num_methods from Grover's algorithm
+        # EMPIRICAL: num_methods chosen for policy analysis (not from paper)
         self.quantum_optimizer = QuantumExecutionOptimizer(
             num_methods=adv_config.quantum_num_methods
         )
         
         # Neuromorphic computing (Maass 1997)
-        # num_stages: 8-12 for effective spike-timing-dependent plasticity
+        # VERIFIED: Paper discusses spiking neurons and STDP
+        # EMPIRICAL: 8-12 stages range based on practice (not explicit in paper)
         self.neuromorphic_controller = NeuromorphicFlowController(
             num_stages=adv_config.neuromorphic_num_stages
         )
         
         # Causal inference (Spirtes et al. 2000; Pearl 2009)
-        # num_variables: 10-30 for PC algorithm computational tractability
+        # VERIFIED: PC algorithm and independence testing (α=0.05)
+        # EMPIRICAL: 10-30 variables for computational tractability (not explicit)
         self.causal_graph = CausalGraph(
             num_variables=adv_config.causal_num_variables
         )
         
         # Information-theoretic flow optimization (Shannon 1948; Cover & Thomas 2006)
-        # num_stages: log₂(N) for N-element system, ~7-10 for typical policy documents
+        # FORMULA-DERIVED: log₂(N) stages from information theory
+        # EMPIRICAL: Practical minimum samples
         self.info_optimizer = InformationFlowOptimizer(
             num_stages=adv_config.info_num_stages
         )
         
         # Meta-learning strategy (Thrun & Pratt 1998; Hospedales et al. 2021)
-        # num_strategies: 3-7 optimal for epsilon-greedy exploration
-        # epsilon: exploration rate (standard RL)
-        # learning_rate: 0.01-0.1 for stable convergence
+        # VERIFIED: Learning rate range 0.01-0.1 from Thrun & Pratt
+        # EMPIRICAL: Number of strategies based on exploration-exploitation (not explicit)
         self.meta_learner = MetaLearningStrategy(
             num_strategies=adv_config.meta_num_strategies,
             epsilon=adv_config.meta_epsilon,
@@ -997,13 +1000,14 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         )
         
         # Attention mechanism (Vaswani et al. 2017; Bahdanau et al. 2014)
-        # embedding_dim: ≥64 for effective attention and semantic richness
+        # CLARIFIED: Vaswani uses 64 as per-head dimension (with 8 heads, d_model=512)
+        # EMPIRICAL: We use 64 as conservative total for resource-constrained scenarios
         self.attention = AttentionMechanism(
             embedding_dim=adv_config.attention_embedding_dim
         )
         
         # Topological data analysis (Carlsson 2009)
-        # Parameters set for persistent homology analysis
+        # VERIFIED: Dimension 1 sufficient, <1000 points practical
         self.topology_analyzer = PersistentHomology()
         
         # Category theory and probabilistic programming
