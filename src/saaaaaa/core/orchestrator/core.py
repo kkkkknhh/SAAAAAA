@@ -760,6 +760,69 @@ class MethodExecutor:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
 
+def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orchestrator_class: type) -> None:
+    """Validate phase definitions for structural coherence.
+    
+    This is a hard gate: if phase definitions are broken, the orchestrator cannot start.
+    No "limited mode" is allowed when the base schema is corrupted.
+    
+    Args:
+        phase_list: List of phase tuples (id, mode, handler, label)
+        orchestrator_class: Orchestrator class to check for handler methods
+        
+    Raises:
+        RuntimeError: If phase definitions are invalid
+    """
+    if not phase_list:
+        raise RuntimeError("FASES cannot be empty — no phases defined for orchestration")
+    
+    # Extract phase IDs
+    phase_ids = [phase[0] for phase in phase_list]
+    
+    # Check for duplicate phase IDs
+    seen_ids = set()
+    for phase_id in phase_ids:
+        if phase_id in seen_ids:
+            raise RuntimeError(
+                f"Duplicate phase ID {phase_id} in FASES definition. "
+                "Phase IDs must be unique."
+            )
+        seen_ids.add(phase_id)
+    
+    # Check that IDs are contiguous starting from 0
+    expected_ids = list(range(len(phase_list)))
+    if phase_ids != expected_ids:
+        raise RuntimeError(
+            f"Phase IDs must be contiguous starting from 0. "
+            f"Expected {expected_ids}, got {phase_ids}"
+        )
+    
+    # Validate each phase
+    valid_modes = {"sync", "async"}
+    for phase_id, mode, handler_name, label in phase_list:
+        # Validate mode
+        if mode not in valid_modes:
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): invalid mode '{mode}'. "
+                f"Mode must be one of {valid_modes}"
+            )
+        
+        # Validate handler exists as method in orchestrator
+        if not hasattr(orchestrator_class, handler_name):
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): handler method '{handler_name}' "
+                f"does not exist in {orchestrator_class.__name__}"
+            )
+        
+        # Validate handler is callable
+        handler = getattr(orchestrator_class, handler_name, None)
+        if not callable(handler):
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): handler '{handler_name}' "
+                f"is not callable"
+            )
+
+
 class Orchestrator:
     """Robust 11-phase orchestrator with abort support and resource control.
 
@@ -877,6 +940,27 @@ class Orchestrator:
         self._monolith_data = monolith
         self._method_map_data = method_map
         self._schema_data = schema
+        
+        # ========================================================================
+        # PROMPT_SCHEMA_GATES_ENFORCER: Validate phase definitions at startup
+        # No limited mode allowed — if schema is broken, orchestrator cannot start
+        # ========================================================================
+        validate_phase_definitions(self.FASES, self.__class__)
+        
+        # ========================================================================
+        # PROMPT_SCHEMA_GATES_ENFORCER: Validate questionnaire structure if provided
+        # Cannot proceed with corrupt questionnaire schema
+        # ========================================================================
+        if self._monolith_data is not None:
+            from .factory import validate_questionnaire_structure
+            # Import locally to avoid circular dependency
+            try:
+                validate_questionnaire_structure(self._monolith_data)
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(
+                    f"Questionnaire structure validation failed: {e}. "
+                    "Cannot start orchestrator with corrupt questionnaire."
+                ) from e
 
         # Store paths for backward compatibility
         self.catalog_path = self._resolve_path(catalog_path) if catalog_path else None
@@ -893,8 +977,43 @@ class Orchestrator:
             # No data provided - will need to load later or fail
             # This allows construction without I/O but requires data to be set before use
             self.catalog = None
+        
+        # ========================================================================
+        # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate catalog is non-empty
+        # Cannot proceed with empty catalog
+        # ========================================================================
+        if self.catalog is not None:
+            if not self.catalog:
+                raise RuntimeError(
+                    "Method catalog is empty — cannot run pipeline. "
+                    "A non-empty catalog is required for orchestration."
+                )
+            # Check if catalog has methods attribute/key
+            catalog_methods = None
+            if isinstance(self.catalog, dict):
+                catalog_methods = self.catalog.get("methods")
+            elif hasattr(self.catalog, "methods"):
+                catalog_methods = getattr(self.catalog, "methods", None)
+            
+            if catalog_methods is not None and not catalog_methods:
+                raise RuntimeError(
+                    "Method catalog.methods is empty — cannot run pipeline. "
+                    "At least one method must be registered in the catalog."
+                )
 
         self.executor = MethodExecutor()
+        
+        # ========================================================================
+        # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate MethodExecutor.instances is non-empty
+        # No "limited mode" when instances registry is empty
+        # ========================================================================
+        if not self.executor.instances:
+            raise RuntimeError(
+                "MethodExecutor.instances is empty — no executable methods registered. "
+                "Cannot start orchestration without method instances. "
+                "Check that class registry is properly configured."
+            )
+        
         self.calibrations: dict[str, Any] = getattr(self.executor, "raw_calibrations", {})
 
         # Import executors from the executors module
@@ -1337,6 +1456,17 @@ class Orchestrator:
         # Use pre-loaded method_map data (I/O-free path)
         if self._method_map_data is not None:
             method_map = self._method_map_data
+            
+            # ========================================================================
+            # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate method_map is non-empty
+            # Cannot route methods with empty map
+            # ========================================================================
+            if not method_map:
+                raise RuntimeError(
+                    "Method map is empty — cannot route methods. "
+                    "A non-empty method map is required for orchestration."
+                )
+            
             summary = method_map.get("summary", {})
             total_methods = summary.get("total_methods")
             if total_methods != EXPECTED_METHOD_COUNT:
