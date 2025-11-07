@@ -376,16 +376,12 @@ async def main():
                 print(f"  ✅ Catalog hash: {catalog_hash[:16]}...")
                 
                 # FIXME(PROOF): method_map not directly accessible from processor_bundle
-                # For now, use a placeholder based on questionnaire
                 # method_map must be derived from real execution data
                 method_map = getattr(processor_bundle, "method_map", None)
                 if method_map is None:
                     # FIXME(PROOF): method_map not exposed by ProcessorBundle; proof must not be generated without it
                     raise RuntimeError("Proof generation aborted: real method_map is unavailable")
                 method_map_hash = compute_dict_hash(method_map)
-                    "note": "method_map not separately tracked",
-                    "derived_from": "questionnaire"
-                })
                 
                 # Count questions from questionnaire monolith
                 questions_total = 0

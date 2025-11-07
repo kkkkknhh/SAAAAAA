@@ -202,7 +202,6 @@ def verify_proof(output_dir: Path) -> int:
     
     # Final verdict
     print("=" * 80)
-    # Final verdict
     if phases_total == phases_success and phases_total > 0:
         print("=" * 80)
         print("✅ PROOF VERIFICATION SUCCESSFUL")
