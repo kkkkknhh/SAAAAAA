@@ -32,7 +32,7 @@ jobs:
         if [ -f requirements.txt ]; then 
           pip install -r requirements.txt || {
             echo "Full requirements install failed, installing essentials..."
-            pip install pydantic jsonschema numpy scipy pandas
+            pip install pydantic jsonschema numpy scipy pandas pyyaml
           }
         fi
     - name: Lint with flake8
