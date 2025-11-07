@@ -56,6 +56,7 @@ typing-extensions==4.12.2
 urllib3==2.2.0
 uvicorn==0.34.0
 werkzeug==3.0.6
+pytest-cov==6.0.0
 
 # Notes:
 # - tensorflow requires Python <3.12 or version >=2.16
