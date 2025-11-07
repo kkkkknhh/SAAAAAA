@@ -4,6 +4,7 @@
 
 # This file contains ONLY critical runtime dependencies
 # with exact version pins for reproducibility
+# Last updated: 2025-11-07 - Fixed huggingface-hub to 0.27.1 for transformers 4.48.3 compatibility
 
 PyMuPDF==1.25.2
 PyPDF2==3.0.1
