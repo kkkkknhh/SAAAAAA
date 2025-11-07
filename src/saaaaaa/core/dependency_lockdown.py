@@ -12,9 +12,48 @@ and configured correctly, or the system fails fast with clear error messages.
 
 import os
 import logging
-from typing import Literal
 
 logger = logging.getLogger(__name__)
+
+
+def _is_model_cached(model_name: str) -> bool:
+    """Check if a HuggingFace model is cached locally.
+    
+    Uses a heuristic check of common cache locations to determine if a model
+    is likely available offline. This is a best-effort check - false positives
+    are acceptable (will fail later when model actually loads), but false negatives
+    should be minimized to avoid blocking offline usage of cached models.
+    
+    Args:
+        model_name: HuggingFace model name (e.g., "sentence-transformers/model")
+        
+    Returns:
+        True if model appears to be cached locally, False otherwise
+    """
+    from pathlib import Path
+    
+    # Check common HuggingFace cache locations
+    cache_dirs = [
+        os.path.expanduser("~/.cache/huggingface/hub"),
+        os.path.expanduser("~/.cache/torch/sentence_transformers"),
+        os.getenv("HF_HOME"),
+        os.getenv("TRANSFORMERS_CACHE"),
+    ]
+    
+    # Convert model name to cache directory pattern
+    # HF uses "models--org--name" format in cache
+    model_slug = model_name.replace("/", "--")
+    cache_pattern = f"*{model_slug}*"
+    
+    for cache_dir in cache_dirs:
+        if cache_dir and os.path.exists(cache_dir):
+            cache_path = Path(cache_dir)
+            # Use glob with specific pattern instead of rglob for efficiency
+            # Check just the top-level directories, not recursive
+            if any(model_slug in p.name for p in cache_path.iterdir()):
+                return True
+    
+    return False
 
 
 class DependencyLockdownError(RuntimeError):
