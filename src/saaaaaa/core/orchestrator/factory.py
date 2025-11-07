@@ -42,7 +42,9 @@ from .core import MethodExecutor
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DATA_DIR = Path(__file__).resolve().parents[4] / "data"
+# Canonical repository root - single source of truth for all file paths
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 
 @dataclass(frozen=True)
 class ProcessorBundle:
@@ -132,13 +134,18 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
 
     Args:
-        path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+        path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
+              relative to repository root.
 
     Returns:
         Loaded catalog data
+    
+    Raises:
+        FileNotFoundError: If catalog file doesn't exist
+        json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
-        path = Path("rules/METODOS/metodos_completos_nivel3.json")
+        path = _REPO_ROOT / "config" / "rules" / "METODOS" / "metodos_completos_nivel3.json"
 
     logger.info(f"Loading catalog from {path}")
 
@@ -150,12 +157,17 @@ def load_method_map(path: Path | None = None) -> dict[str, Any]:
 
     Args:
         path: Path to method map file. Defaults to COMPLETE_METHOD_CLASS_MAP.json
+              relative to repository root.
 
     Returns:
         Loaded method map data
+    
+    Raises:
+        FileNotFoundError: If method map file doesn't exist
+        json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
-        path = Path("COMPLETE_METHOD_CLASS_MAP.json")
+        path = _REPO_ROOT / "COMPLETE_METHOD_CLASS_MAP.json"
 
     logger.info(f"Loading method map from {path}")
 
@@ -167,12 +179,17 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
 
     Args:
         path: Path to schema file. Defaults to schemas/questionnaire_monolith.schema.json
+              relative to repository root.
 
     Returns:
         Loaded schema data
+    
+    Raises:
+        FileNotFoundError: If schema file doesn't exist
+        json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
-        path = Path("schemas/questionnaire_monolith.schema.json")
+        path = _REPO_ROOT / "schemas" / "questionnaire_monolith.schema.json"
 
     logger.info(f"Loading schema from {path}")
 
@@ -476,7 +493,8 @@ class CoreModuleFactory:
         """Load method catalog JSON file.
 
         Args:
-            path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+            path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
+                  relative to repository root.
 
         Returns:
             Loaded catalog data
