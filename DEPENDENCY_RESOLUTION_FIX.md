@@ -168,3 +168,35 @@ Or for exact reproducibility:
 **Solution:** Use flexible ranges in setup.py, make heavy packages optional extras  
 **Result:** Package installs successfully with pip's dependency resolver  
 **Benefit:** Users can choose basic install or opt-in to heavy dependencies
+
+## Additional Fixes
+
+### Keras 3 Compatibility Issue
+
+**Problem:** TensorFlow 2.16+ ships with Keras 3, which is incompatible with transformers.
+
+**Error:**
+```
+Incompatible ML stack — installed Keras 3 is not supported by transformers.
+The logs instruct to install the backwards-compatible tf-keras package.
+```
+
+**Solution:** Added `tf-keras>=2.16.0` to the `ml` and `all` extras:
+```python
+"ml": [
+    "torch>=2.0.0",
+    "tensorflow>=2.16.0",
+    "tf-keras>=2.16.0",  # Required for transformers compatibility
+]
+```
+
+This ensures that when TensorFlow is installed, the backward-compatible tf-keras is also installed for transformers compatibility.
+
+### Missing NLTK Dependency
+
+**Problem:** NLTK was in `requirements.txt` but not in `requirements-core.txt` or `setup.py`, causing runtime errors.
+
+**Solution:** Added `nltk>=3.9.0` to:
+- `setup.py` install_requires
+- `pyproject.toml` dependencies
+- `requirements-core.txt`

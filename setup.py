@@ -50,6 +50,7 @@ install_requires = [
     "transformers>=4.48.0",
     "sentence-transformers>=3.0.0",
     "spacy>=3.8.0",
+    "nltk>=3.9.0",
     "pdfplumber>=0.11.0",
     "PyPDF2>=3.0.0",
     "PyMuPDF>=1.25.0",
@@ -89,6 +90,7 @@ setup(
         "ml": [
             "torch>=2.0.0",
             "tensorflow>=2.16.0",
+            "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
         ],
         "bayesian": [
             "pytensor>=2.34.0,<2.35",
@@ -98,8 +100,9 @@ setup(
         "all": [
             "torch>=2.0.0",
             "tensorflow>=2.16.0",
+            "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
             "pytensor>=2.34.0,<2.35",
-            "pymc>=5.16.0",
+            "pymc>=5.16.2",
             "arviz>=0.20.0",
         ],
     },
