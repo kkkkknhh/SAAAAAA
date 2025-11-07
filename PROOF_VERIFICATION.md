@@ -36,7 +36,7 @@ The proof file contains:
   - `factory.py`
 
 ### Additional Data
-- `artifacts_manifest` - Hashes of all generated artifacts
+- `artifacts_manifest` - Hashes of generated JSON/MD/log/txt artifacts
 - `execution_metadata` - Runtime statistics
 
 ## When is Proof Generated?
