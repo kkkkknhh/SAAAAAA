@@ -133,7 +133,7 @@ All profiles stay within academic bounds:
 | neuromorphic_num_stages | 8 | 10 | 12 | 8-12 (Maass) |
 | causal_num_variables | 10 | 20 | 30 | 10-30 (Spirtes et al.) |
 | meta_num_strategies | 3 | 5 | 7 | 3-7 (Thrun & Pratt) |
-| attention_embedding_dim | 32 | 64 | 128 | 64-512 (Vaswani et al.) |
+| attention_embedding_dim | 64 | 64 | 128 | 64-512 (Vaswani et al.) |
 
 ### Validation Results
 
