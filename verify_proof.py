@@ -202,7 +202,25 @@ def verify_proof(output_dir: Path) -> int:
     
     # Final verdict
     print("=" * 80)
-    print("✅ PROOF VERIFICATION SUCCESSFUL")
+    # Final verdict
+    if phases_total == phases_success and phases_total > 0:
+        print("=" * 80)
+        print("✅ PROOF VERIFICATION SUCCESSFUL")
+        print("=" * 80)
+        print()
+        print("This execution proof is valid and has not been tampered with.")
+        print("The pipeline completed successfully with verified results.")
+        print()
+        return 0
+    else:
+        print("=" * 80)
+        print("❌ PROOF VERIFICATION FAILED")
+        print("=" * 80)
+        print()
+        print("The proof indicates not all phases succeeded or phase counts are invalid.")
+        print("Verification fails to prevent accepting incomplete or tampered executions.")
+        print()
+        return 1
     print("=" * 80)
     print()
     print("This execution proof is valid and has not been tampered with.")
