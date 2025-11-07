@@ -102,7 +102,7 @@ All core dependency lockdown tests pass ✅
 
 ## Files Changed
 
-### New Files (5)
+### New Files (7)
 1. `src/saaaaaa/core/dependency_lockdown.py` (205 lines)
 2. `tests/test_dependency_lockdown.py` (255 lines)
 3. `DEPENDENCY_LOCKDOWN.md` (474 lines)
