@@ -28,7 +28,6 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Iterable, ParamSpec, TypedDict, TypeVar
 
-from saaaaaa.analysis.factory import load_all_calibrations
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
     AreaPolicyAggregator,
@@ -43,7 +42,7 @@ from saaaaaa.processing.aggregation import (
 )
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
-from .calibration_registry import resolve_calibration
+from .calibration_registry import resolve_calibration, get_calibration_hash, CALIBRATION_VERSION
 from .class_registry import ClassRegistryError, build_class_registry
 from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
 
@@ -795,17 +794,21 @@ class MethodExecutor:
             registry = {}
 
         if calibrations is None:
-            try:
-                calibrations = load_all_calibrations()
-            except Exception as exc:  # pragma: no cover - defensive
-                self.degraded_mode = True
-                reason = f"Calibration loading failed: {exc}"
-                self.degraded_reasons.append(reason)
-                logger.warning("DEGRADED MODE: %s", reason)
-                calibrations = {}
+            # DEPRECATION: No longer loading from YAML
+            # Calibrations are now internal in calibration_registry.py
+            # Leaving this logic in place only for backward compatibility during transition
+            logger.info(
+                "Calibration loading from YAML is deprecated. "
+                "Using internal calibration_registry.CALIBRATIONS instead."
+            )
+            calibrations = {}  # Empty dict - YAML calibrations no longer supported
 
-        self.raw_calibrations = calibrations
-        self.calibrations = self._map_calibrations_to_classes(calibrations)
+        self.raw_calibrations = calibrations  # Will be empty dict after migration
+        self.calibrations = self._map_calibrations_to_classes(calibrations)  # Will be empty dict
+        
+        # Add calibration metadata for traceability
+        self.calibration_version = CALIBRATION_VERSION
+        self.calibration_hash = get_calibration_hash()
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
