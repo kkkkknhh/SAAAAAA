@@ -42,6 +42,7 @@ from saaaaaa.processing.aggregation import (
 )
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
+from .calibration_registry import resolve_calibration
 from .class_registry import ClassRegistryError, build_class_registry
 
 if TYPE_CHECKING:
@@ -729,7 +730,15 @@ class MethodExecutor:
         Raises:
             ArgRouterError: If routing fails
             AttributeError: If method doesn't exist
+            RuntimeError: If calibration is missing or placeholder
         """
+        # Fail-fast calibration enforcement
+        calib = resolve_calibration(class_name, method_name)
+        if calib is None:
+            raise RuntimeError(f"No calibration registered for {class_name}.{method_name}")
+        if calib.is_default_like():
+            raise RuntimeError(f"Placeholder calibration detected for {class_name}.{method_name}")
+        
         instance = self.instances.get(class_name)
         if not instance:
             logger.warning("No instance available for class %s", class_name)

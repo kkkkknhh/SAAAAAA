@@ -949,6 +949,10 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         self._argument_context: dict[str, Any] = {}
         self.used_signals: list[dict[str, Any]] = []  # Track signal usage
 
+        # Validate early: no executor can be constructed with missing/placeholder calibration
+        self._validate_method_sequences()
+        self._validate_calibrations()
+
     def _fetch_signals(self, policy_area: str = "fiscal") -> dict[str, Any] | None:
         """
         Fetch signals from registry for the given policy area.
