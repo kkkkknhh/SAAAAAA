@@ -126,7 +126,7 @@ class TestPhaseSchemaGate:
             (2, "sync", "_ingest_document", "Phase 2"),  # Skipped 1
         ]
         
-        with pytest.raises(RuntimeError, match="must be contiguous starting from 0"):
+        with pytest.raises(RuntimeError, match="must be contiguous"):
             validate_phase_definitions(invalid_phases, Orchestrator)
     
     def test_duplicate_phase_id_rejected(self):
@@ -164,7 +164,7 @@ class TestPhaseSchemaGate:
             (2, "sync", "_ingest_document", "Phase 2"),
         ]
         
-        with pytest.raises(RuntimeError, match="must be contiguous starting from 0"):
+        with pytest.raises(RuntimeError, match="must start from 0"):
             validate_phase_definitions(invalid_phases, Orchestrator)
 
 

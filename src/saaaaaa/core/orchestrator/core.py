@@ -774,7 +774,7 @@ def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orch
         RuntimeError: If phase definitions are invalid
     """
     if not phase_list:
-        raise RuntimeError("FASES cannot be empty — no phases defined for orchestration")
+        raise RuntimeError("FASES cannot be empty - no phases defined for orchestration")
     
     # Extract phase IDs
     phase_ids = [phase[0] for phase in phase_list]
@@ -790,11 +790,19 @@ def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orch
         seen_ids.add(phase_id)
     
     # Check that IDs are contiguous starting from 0
-    expected_ids = list(range(len(phase_list)))
-    if phase_ids != expected_ids:
+    # For performance: check sorted and validate range
+    if phase_ids != sorted(phase_ids):
         raise RuntimeError(
-            f"Phase IDs must be contiguous starting from 0. "
-            f"Expected {expected_ids}, got {phase_ids}"
+            f"Phase IDs must be sorted in ascending order. Got {phase_ids}"
+        )
+    if phase_ids[0] != 0:
+        raise RuntimeError(
+            f"Phase IDs must start from 0. Got first ID: {phase_ids[0]}"
+        )
+    if phase_ids[-1] != len(phase_list) - 1:
+        raise RuntimeError(
+            f"Phase IDs must be contiguous from 0 to {len(phase_list) - 1}. "
+            f"Got highest ID: {phase_ids[-1]}"
         )
     
     # Validate each phase
@@ -943,7 +951,7 @@ class Orchestrator:
         
         # ========================================================================
         # PROMPT_SCHEMA_GATES_ENFORCER: Validate phase definitions at startup
-        # No limited mode allowed — if schema is broken, orchestrator cannot start
+        # No limited mode allowed - if schema is broken, orchestrator cannot start
         # ========================================================================
         validate_phase_definitions(self.FASES, self.__class__)
         
