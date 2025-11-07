@@ -15,7 +15,7 @@ click==8.1.7
 fastapi==0.115.6
 filelock==3.13.1
 flask==3.0.3
-# huggingface-hub >= 0.34 required for transformers full initialization
+# huggingface-hub pinned to 0.27.1 for transformers compatibility in this environment
 huggingface-hub==0.27.1
 httpx==0.28.1
 idna==3.6
