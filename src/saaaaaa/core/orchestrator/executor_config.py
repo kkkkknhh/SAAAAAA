@@ -38,6 +38,8 @@ except ImportError:
 
 from pydantic import BaseModel, Field, field_validator
 
+from .advanced_module_config import AdvancedModuleConfig
+
 
 PolicyArea = Literal["fiscal", "salud", "ambiente", "energía", "transporte"]
 
@@ -60,12 +62,15 @@ class ExecutorConfig(BaseModel):
         entities_whitelist: Allowlist of entity types for NER filtering
         enable_symbolic_sparse: Enable symbolic sparse computation optimizations
         seed: Random seed for deterministic execution (range: 0-2^31-1)
+        advanced_modules: Academic research-based configuration for advanced executor modules
+                         (quantum, neuromorphic, causal, information theory, meta-learning, attention)
         
     Design:
         - Frozen model prevents mutation after construction
         - validate_assignment disabled for performance
         - All fields have explicit defaults
         - Ranges documented for property-based testing
+        - Advanced modules use peer-reviewed academic parameter values
     """
     
     max_tokens: int = Field(
@@ -117,6 +122,10 @@ class ExecutorConfig(BaseModel):
         ge=0,
         le=2147483647,
         description="Random seed for deterministic execution"
+    )
+    advanced_modules: AdvancedModuleConfig | None = Field(
+        default=None,
+        description="Academic research-based configuration for advanced modules"
     )
     
     model_config = {
@@ -484,6 +493,8 @@ def compute_input_hash(data: str | bytes) -> str:
 
 
 # Default conservative config for fallback scenarios
+from .advanced_module_config import CONSERVATIVE_ADVANCED_CONFIG
+
 CONSERVATIVE_CONFIG = ExecutorConfig(
     max_tokens=1024,
     temperature=0.0,  # Fully deterministic
@@ -496,4 +507,5 @@ CONSERVATIVE_CONFIG = ExecutorConfig(
     },
     enable_symbolic_sparse=False,
     seed=42,
+    advanced_modules=CONSERVATIVE_ADVANCED_CONFIG,
 )

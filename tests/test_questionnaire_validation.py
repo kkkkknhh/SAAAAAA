@@ -13,7 +13,7 @@ def test_valid_questionnaire_structure():
             "micro_questions": [
                 {
                     "question_id": "Q1",
-                    "question_global": "Q1 Global",
+                    "question_global": 1,  # Must be int, not str
                     "base_slot": "slot1"
                 }
             ]
