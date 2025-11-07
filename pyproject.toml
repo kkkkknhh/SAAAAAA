@@ -7,7 +7,7 @@ name = "saaaaaa"
 version = "0.1.0"
 description = "Strategic Policy Analysis System - Doctoral-level integration of 584 methods across 300 questions"
 readme = "README.md"
-requires-python = ">=3.9,<3.11"
+requires-python = ">=3.10,<3.11"
 authors = [
     {name = "SAAAAAA Development Team"}
 ]
