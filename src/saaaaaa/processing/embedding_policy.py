@@ -606,7 +606,7 @@ class BayesianNumericalAnalyzer:
 
     def _classify_evidence_strength(
         self, credible_interval_width: float, **kwargs: Any
-    ) -> str:
+    ) -> Literal["weak", "moderate", "strong", "very_strong"]:
         """Classify evidence strength based on posterior uncertainty.
 
         Args:
