@@ -54,7 +54,7 @@ echo -e "${BLUE}================================================================
 echo ""
 
 # Check Python version
-PYTHON_VERSION=$(python3 --version | grep -oP '\d+\.\d+')
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 echo -e "${BLUE}Python version: ${PYTHON_VERSION}${NC}"
 
 if [[ "$PYTHON_VERSION" != "3.12" && "$PYTHON_VERSION" != "3.11" && "$PYTHON_VERSION" != "3.10" ]]; then
