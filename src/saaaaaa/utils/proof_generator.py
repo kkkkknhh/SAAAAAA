@@ -13,7 +13,6 @@ The proof is ONLY generated when ALL success conditions are met:
 
 import hashlib
 import json
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -254,8 +253,8 @@ def collect_artifacts_manifest(output_dir: Path) -> dict[str, str]:
             try:
                 rel_path = artifact_path.relative_to(output_dir)
                 manifest[str(rel_path)] = compute_file_hash(artifact_path)
-            except Exception:
-                # Skip files we can't hash
+            except (OSError, PermissionError, ValueError):
+                # Skip files we can't read or hash
                 pass
     
     return manifest

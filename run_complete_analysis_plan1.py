@@ -389,13 +389,22 @@ async def main():
                     if 'micro_questions' in blocks and isinstance(blocks['micro_questions'], list):
                         questions_total = len(blocks['micro_questions'])
                 
-                # Count questions answered (from micro_questions phase results)
+                # Count questions answered (from micro_questions phase - Phase 2)
+                # Find the micro questions phase by name instead of hardcoded index
                 questions_answered = 0
-                if len(phase_results) > 2 and phase_results[2].data:
-                    if isinstance(phase_results[2].data, list):
+                micro_phase_result = None
+                for i, result in enumerate(phase_results):
+                    if i < len(orchestrator.FASES):
+                        phase_name = orchestrator.FASES[i][3]
+                        if "Micro Preguntas" in phase_name or "FASE 2" in phase_name:
+                            micro_phase_result = result
+                            break
+                
+                if micro_phase_result and micro_phase_result.data:
+                    if isinstance(micro_phase_result.data, list):
                         # Count successful executions (no error)
                         questions_answered = sum(
-                            1 for item in phase_results[2].data
+                            1 for item in micro_phase_result.data
                             if hasattr(item, 'error') and item.error is None
                         )
                 
@@ -475,15 +484,12 @@ async def main():
             print("  🎉 ALL PHASES COMPLETED SUCCESSFULLY!")
             return 0
         else:
+            print()
+            print("  ⚠️  Some phases failed or were aborted")
             if errors:
-                print()
-                print("  ⚠️  Some phases failed or were aborted")
                 print("  ❌ Proof NOT generated due to:")
                 for error in errors:
                     print(f"     - {error}")
-            else:
-                print()
-                print("  ⚠️  Some phases failed or were aborted")
             return 1
             
     except Exception as e:
