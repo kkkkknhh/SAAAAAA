@@ -76,8 +76,10 @@ T = TypeVar("T")
 async def execute_phase_with_timeout(
     phase_id: int,
     phase_name: str,
-    coro: Callable[P, T],
-    *args: P.args,
+    coro: Callable[P, T] | None = None,
+    *varargs: P.args,
+    handler: Callable[P, T] | None = None,  # Legacy parameter for backward compatibility
+    args: tuple | None = None,  # Legacy parameter for backward compatibility
     timeout_s: float = 300.0,
     **kwargs: P.kwargs,
 ) -> T:
@@ -86,8 +88,10 @@ async def execute_phase_with_timeout(
     Args:
         phase_id: Numeric phase identifier
         phase_name: Human-readable phase name
-        coro: Coroutine/callable to execute
-        *args: Positional arguments for coro
+        coro: Coroutine/callable to execute (preferred)
+        *varargs: Positional arguments for coro (when using positional style)
+        handler: Legacy alias for coro (for backward compatibility)
+        args: Legacy parameter for positional arguments (for backward compatibility)
         timeout_s: Timeout in seconds (default: 300.0)
         **kwargs: Keyword arguments for coro
         
@@ -97,14 +101,23 @@ async def execute_phase_with_timeout(
     Raises:
         PhaseTimeoutError: If execution exceeds timeout_s
         Exception: Any exception raised by coro
+        ValueError: If neither coro nor handler is provided
     """
+    # Support both coro and handler (legacy) parameter names
+    target = coro or handler
+    if target is None:
+        raise ValueError("Either 'coro' or 'handler' must be provided")
+    
+    # Support both varargs (*args in signature) and args kwarg (legacy)
+    call_args = varargs if varargs else (args or ())
+    
     start = time.perf_counter()
     logger.info(
         "phase_execution_started",
         extra={"phase_id": phase_id, "phase_name": phase_name, "timeout_s": timeout_s},
     )
     try:
-        result = await asyncio.wait_for(coro(*args, **kwargs), timeout=timeout_s)
+        result = await asyncio.wait_for(target(*call_args, **kwargs), timeout=timeout_s)
         elapsed = time.perf_counter() - start
         logger.info(
             "phase_execution_completed",
