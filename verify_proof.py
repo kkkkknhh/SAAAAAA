@@ -97,6 +97,49 @@ def verify_proof(output_dir: Path) -> int:
     # Display proof contents
     print("📊 PROOF CONTENTS")
     print("-" * 80)
+    # Validate mandatory fields before displaying contents
+    required_fields = [
+        'run_id', 'timestamp_utc',
+        'phases_total', 'phases_success',
+        'questions_total', 'questions_answered',
+        'evidence_records',
+        'monolith_hash', 'catalog_hash'
+    ]
+    # Optional-but-expected fields that must be present if produced by generator
+    expected_fields = ['questionnaire_hash', 'input_pdf_hash', 'artifacts_manifest', 'code_signature']
+
+    missing = [k for k in required_fields if k not in proof_data]
+    if missing:
+        print(f"❌ Missing required field(s) in proof.json: {', '.join(missing)}")
+        return 1
+
+    # Basic structural/type validations
+    hash_keys = [k for k in ['monolith_hash', 'catalog_hash', 'questionnaire_hash', 'input_pdf_hash'] if k in proof_data]
+    for k in hash_keys:
+        v = proof_data.get(k, '')
+        if not (isinstance(v, str) and len(v) == 64 and all(c in '0123456789abcdef' for c in v)):
+            print(f"❌ Invalid hash for {k}: expected 64-char lowercase hex")
+            return 1
+
+    if not isinstance(proof_data.get('phases_total'), int) or not isinstance(proof_data.get('phases_success'), int):
+        print("❌ phases_total and phases_success must be integers")
+        return 1
+    if not isinstance(proof_data.get('questions_total'), int) or not isinstance(proof_data.get('questions_answered'), int):
+        print("❌ questions_total and questions_answered must be integers")
+        return 1
+    if not isinstance(proof_data.get('evidence_records'), int):
+        print("❌ evidence_records must be an integer")
+        return 1
+
+    # Validate maps presence and non-empty
+    for k in ['code_signature', 'artifacts_manifest']:
+        if k not in proof_data or not isinstance(proof_data[k], dict) or len(proof_data[k]) == 0:
+            print(f"❌ {k} must be present and non-empty")
+            return 1
+
+    # Display proof contents
+    print("📊 PROOF CONTENTS")
+    print("-" * 80)
     print(f"Run ID:              {proof_data.get('run_id', 'N/A')}")
     print(f"Timestamp (UTC):     {proof_data.get('timestamp_utc', 'N/A')}")
     print(f"Phases Total:        {proof_data.get('phases_total', 'N/A')}")
