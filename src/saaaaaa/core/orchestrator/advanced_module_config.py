@@ -308,7 +308,7 @@ class AdvancedModuleConfig(BaseModel):
         "extra": "forbid",
     }
     
-    def __post_init__(self) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Validate academic constraints after initialization.
         
         Note: Using model_validator would be better for Pydantic v2,
