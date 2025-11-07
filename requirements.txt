@@ -80,7 +80,7 @@ langdetect==1.0.9
 regex==2024.11.6
 
 # Hugging Face Ecosystem
-# huggingface-hub >= 0.34 required for transformers full initialization
+# huggingface-hub==0.27.1 resolves the transformers initialization regression
 huggingface-hub==0.27.1
 safetensors==0.5.2
 tokenizers==0.21.0
