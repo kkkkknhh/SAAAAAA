@@ -218,7 +218,7 @@ def check_method_executor_instances() -> tuple[bool, str]:
         # We don't require instances to be non-empty as dependencies might be missing
         # but we warn if it's empty
         if len(executor.instances) == 0:
-            return True, "MethodExecutor instances empty (warning: may indicate missing dependencies)"
+        return False, "MethodExecutor instances empty (warning: may indicate missing dependencies)"
         
         return True, f"MethodExecutor OK: {len(executor.instances)} instances"
     except Exception as e:
