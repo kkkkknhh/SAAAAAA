@@ -35,7 +35,10 @@ jobs:
           pip install pydantic>=2.5.0 jsonschema>=4.20.0 pytest
           # Try full requirements first, fallback to essentials
           if [ -f requirements.txt ]; then
-            pip install -r requirements.txt || pip install numpy scipy pandas pyyaml
+            pip install -r requirements.txt || {
+              echo "Full requirements install failed, installing essentials..."
+              pip install numpy scipy pandas pyyaml
+            }
           else
             pip install numpy scipy pandas pyyaml
           fi

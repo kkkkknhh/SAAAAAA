@@ -30,9 +30,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pyright ruff hypothesis pytest
           # Install minimal runtime dependencies
-          pip install jsonschema pydantic || true
+          pip install jsonschema pydantic || echo "⚠️ Optional runtime dependencies failed (non-blocking)"
           # Install project in editable mode
-          pip install -e . || true
+          pip install -e . || echo "⚠️ Project install failed (non-blocking)"
       
       - name: Run Ruff linter
         run: |
