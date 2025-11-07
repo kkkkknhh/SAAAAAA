@@ -141,31 +141,33 @@ This negligent comment implied:
 
 ## Quick Start - Fixed Installation
 
-### Option 1: Automated Script (Recommended)
+### Option 1: Package Installation (Recommended for most users)
+```bash
+# Basic installation (without PyMC/PyTensor/torch/tensorflow)
+pip install -e .
+
+# With Bayesian analysis support (PyMC, PyTensor, arviz)
+pip install -e ".[bayesian]"
+
+# With ML/DL support (torch, tensorflow)
+pip install -e ".[ml]"
+
+# Complete installation (all features)
+pip install -e ".[all]"
+```
+
+### Option 2: Direct Requirements Installation (For development/pinned versions)
+```bash
+# Install with complete constraints (exact versions from requirements.txt)
+pip install -c constraints-complete.txt -r requirements.txt
+```
+
+### Option 3: Automated Script
 ```bash
 ./install_fixed.sh
 ```
 
-### Option 2: Manual Installation
-```bash
-# Create virtual environment
-python3.12 -m venv venv
-source venv/bin/activate
-
-# Install system dependencies (Ubuntu/Debian)
-sudo apt-get install -y gcc ghostscript libgl1-mesa-glx libglib2.0-0
-
-# Install with complete constraints
-pip install -c constraints-complete.txt -r requirements.txt
-
-# Verify
-python -c "import numpy; print(f'NumPy: {numpy.__version__}')"  # Should be 1.26.4
-```
-
-### Option 3: Test Existing Installation
-```bash
-./install_fixed.sh --test-only
-```
+**Note:** PyMC, PyTensor, torch, and tensorflow are now optional extras to avoid dependency conflicts during basic installation. Install them explicitly if needed for Bayesian analysis or deep learning.
 
 ---
 

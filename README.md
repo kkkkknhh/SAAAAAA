@@ -21,22 +21,37 @@ This repository is configured for **Python 3.12** with **NumPy 1.26.4** (NOT a d
 
 ### Quick Installation
 
-**Recommended: Use the fixed installation script:**
+**Option 1: Package Installation (Recommended)**
 ```bash
+# Basic installation (core features)
+pip install -e .
+
+# With Bayesian analysis (PyMC, PyTensor, arviz)
+pip install -e ".[bayesian]"
+
+# With ML/DL support (torch, tensorflow)
+pip install -e ".[ml]"
+
+# Complete installation (all features)
+pip install -e ".[all]"
+```
+
+**Option 2: Pinned Requirements (Development/Production)**
+```bash
+# Install with exact version pins from requirements.txt
+pip install -c constraints-complete.txt -r requirements.txt
+
+# Or use the automated script
 ./install_fixed.sh
 ```
 
-**Or manually:**
-```bash
-# Install with complete constraints
-pip install -c constraints-complete.txt -r requirements-core.txt
-
-# For development
-pip install -c constraints-complete.txt -r requirements-dev.txt
-```
+**Why two installation methods?**
+- `pip install -e .` uses flexible version ranges - **recommended for most users**
+- `requirements.txt` has exact pins - for reproducible development/production environments
+- Heavy packages (PyMC, torch, tensorflow) are optional extras to avoid conflicts
 
 **Complete documentation:** 
-- [DEPENDENCIES_QUICKSTART.md](DEPENDENCIES_QUICKSTART.md) - Installation guide
+- [INSTALLATION_SOLVED.md](INSTALLATION_SOLVED.md) - Installation guide and troubleshooting
 - [PYTHON_312_COMPATIBILITY.md](PYTHON_312_COMPATIBILITY.md) - Python 3.12 specific info
 - [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md) - Complete dependency documentation
 
