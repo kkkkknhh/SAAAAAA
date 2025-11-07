@@ -111,7 +111,9 @@ class CalibrationTester:
         orchestrator = Orchestrator(processor)
         
         # Monkey-patch to use base calibration only
-        original_resolve = orchestrator._method_executor.__class__.resolve_calibration
+        # Monkey-patch module-level resolver instead of non-existent class attribute
+        import saaaaaa.core.orchestrator.calibration_registry as _calib_reg
+        original_resolve = _calib_reg.resolve_calibration
         
         def base_only(class_name, method_name):
             return resolve_calibration(class_name, method_name)
