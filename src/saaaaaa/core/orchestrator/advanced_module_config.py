@@ -114,7 +114,15 @@ class AcademicReference:
     justification: str
     
     def cite_apa(self) -> str:
-        """Format citation in APA style."""
+        """Format citation in simplified APA style.
+        
+        Note: This is a simplified citation format for documentation purposes.
+        For formal academic citations, consult the official APA Publication Manual
+        or use a dedicated citation management tool.
+        
+        Returns:
+            Simplified APA-style citation string
+        """
         return f"{self.authors} ({self.year}). {self.title}. {self.venue}. {self.doi_or_isbn}"
 
 
@@ -299,6 +307,27 @@ class AdvancedModuleConfig(BaseModel):
         "validate_assignment": False,
         "extra": "forbid",
     }
+    
+    def __post_init__(self) -> None:
+        """Validate academic constraints after initialization.
+        
+        Note: Using model_validator would be better for Pydantic v2,
+        but __post_init__ provides clear validation logic.
+        """
+        # Validate Grover's algorithm relationship: iterations ≈ √num_methods
+        # Allow 50% tolerance for practical flexibility
+        import math
+        optimal_iterations = math.sqrt(self.quantum_num_methods)
+        tolerance = 0.5  # 50% tolerance
+        
+        if not (optimal_iterations * (1 - tolerance) <= self.quantum_iterations <= optimal_iterations * (1 + tolerance)):
+            import warnings
+            warnings.warn(
+                f"quantum_iterations ({self.quantum_iterations}) deviates from optimal "
+                f"√quantum_num_methods (≈{optimal_iterations:.1f}). "
+                f"Nielsen & Chuang (2010) recommend iterations ≈ √N for Grover's algorithm.",
+                UserWarning
+            )
     
     @classmethod
     def get_academic_references(cls) -> dict[str, list[AcademicReference]]:

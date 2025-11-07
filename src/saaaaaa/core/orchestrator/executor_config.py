@@ -38,13 +38,7 @@ except ImportError:
 
 from pydantic import BaseModel, Field, field_validator
 
-# Import advanced module configuration (lazy import to avoid circular dependencies)
-try:
-    from .advanced_module_config import AdvancedModuleConfig, DEFAULT_ADVANCED_CONFIG
-except ImportError:
-    # Fallback if advanced_module_config not available yet
-    AdvancedModuleConfig = None  # type: ignore
-    DEFAULT_ADVANCED_CONFIG = None  # type: ignore
+from .advanced_module_config import AdvancedModuleConfig
 
 
 PolicyArea = Literal["fiscal", "salud", "ambiente", "energía", "transporte"]
@@ -129,9 +123,9 @@ class ExecutorConfig(BaseModel):
         le=2147483647,
         description="Random seed for deterministic execution"
     )
-    advanced_modules: Any = Field(
+    advanced_modules: AdvancedModuleConfig | None = Field(
         default=None,
-        description="Academic research-based configuration for advanced modules (AdvancedModuleConfig)"
+        description="Academic research-based configuration for advanced modules"
     )
     
     model_config = {
@@ -499,12 +493,7 @@ def compute_input_hash(data: str | bytes) -> str:
 
 
 # Default conservative config for fallback scenarios
-# Import advanced config if available
-try:
-    from .advanced_module_config import CONSERVATIVE_ADVANCED_CONFIG as _adv_config
-    _default_advanced = _adv_config
-except ImportError:
-    _default_advanced = None
+from .advanced_module_config import CONSERVATIVE_ADVANCED_CONFIG
 
 CONSERVATIVE_CONFIG = ExecutorConfig(
     max_tokens=1024,
@@ -518,5 +507,5 @@ CONSERVATIVE_CONFIG = ExecutorConfig(
     },
     enable_symbolic_sparse=False,
     seed=42,
-    advanced_modules=_default_advanced,
+    advanced_modules=CONSERVATIVE_ADVANCED_CONFIG,
 )

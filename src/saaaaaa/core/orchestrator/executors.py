@@ -938,16 +938,10 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             raise RuntimeError("ExecutorConfig is required and cannot be None")
 
         # Get advanced module configuration from config or use default
-        adv_config = self.config.advanced_modules
-        if adv_config is None:
-            # Fallback to conservative academic configuration
-            adv_config = CONSERVATIVE_ADVANCED_CONFIG
-        
-        # Validate it's the correct type
-        if not isinstance(adv_config, AdvancedModuleConfig):
-            raise TypeError(
-                f"advanced_modules must be AdvancedModuleConfig, got {type(adv_config)}"
-            )
+        # Pydantic ensures type safety, so if advanced_modules is set, it's AdvancedModuleConfig
+        adv_config: AdvancedModuleConfig = (
+            self.config.advanced_modules or CONSERVATIVE_ADVANCED_CONFIG
+        )
 
         # Log only hard facts with academic basis
         logger.info(
