@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 # Add repo root to path
+repo_root = Path(__file__).parent.parent
 
 def check_init_files():
     """Verify all Python packages have __init__.py files."""

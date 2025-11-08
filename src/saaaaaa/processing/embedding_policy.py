@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, List, Literal, Protocol, TypedDict
 
 import numpy as np
 from sentence_transformers import CrossEncoder, SentenceTransformer

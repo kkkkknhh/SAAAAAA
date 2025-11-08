@@ -1144,7 +1144,9 @@ class StrategicIntegrator:
         
         for idx, chain_group in enumerate(grouped_chains):
             full_text = ' '.join([f"{c.get('antecedent', '')} {c.get('consequent', '')}" for c in chain_group])
-            
+            # Derive hierarchy for this segment
+            start_pos = chain_group[0]['position'][0] if chain_group and 'position' in chain_group[0] else 0
+            hierarchy = self._derive_hierarchy_for_segment(start_pos, structural_analysis)
             # Unidades de integración
             unit = {
                 'index': idx,

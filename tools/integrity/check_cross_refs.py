@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+REPO_ROOT = Path(__file__).parent.parent.parent
 QUESTIONNAIRE_PATH = REPO_ROOT / "questionnaire.json"
 RUBRIC_PATH = REPO_ROOT / "rubric_scoring.json"
 
