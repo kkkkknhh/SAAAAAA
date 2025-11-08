@@ -6,15 +6,16 @@ import sys
 from pathlib import Path
 
 # Add src to path using portable path utilities
-_script_dir = Path(__file__).parent
+_script_dir = Path(__file__).resolve().parent
 _proj_root = _script_dir.parent
 sys.path.insert(0, str(_proj_root / 'src'))
 
 from saaaaaa.core.orchestrator.calibration_registry import CALIBRATIONS
 
-# Load catalog
+# Load catalog using portable path resolution
 catalog_path = _proj_root / 'config' / 'rules' / 'METODOS' / 'catalogo_completo_canonico.json'
-catalog = json.load(open(catalog_path))
+with open(catalog_path, encoding='utf-8') as f:
+    catalog = json.load(f)
 
 print("=" * 80)
 print("CALIBRATION GAP ANALYSIS")
