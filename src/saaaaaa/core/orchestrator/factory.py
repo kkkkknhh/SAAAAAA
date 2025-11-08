@@ -132,13 +132,14 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
 
     Args:
-        path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+        path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
 
     Returns:
         Loaded catalog data
     """
     if path is None:
-        path = Path("rules/METODOS/metodos_completos_nivel3.json")
+        repo_root = Path(__file__).resolve().parents[4]
+        path = repo_root / "config" / "rules" / "METODOS" / "metodos_completos_nivel3.json"
 
     logger.info(f"Loading catalog from {path}")
 
@@ -149,13 +150,14 @@ def load_method_map(path: Path | None = None) -> dict[str, Any]:
     """Load method-class mapping JSON file.
 
     Args:
-        path: Path to method map file. Defaults to COMPLETE_METHOD_CLASS_MAP.json
+        path: Path to method map file. Defaults to config/COMPLETE_METHOD_CLASS_MAP.json
 
     Returns:
         Loaded method map data
     """
     if path is None:
-        path = Path("COMPLETE_METHOD_CLASS_MAP.json")
+        repo_root = Path(__file__).resolve().parents[4]
+        path = repo_root / "config" / "COMPLETE_METHOD_CLASS_MAP.json"
 
     logger.info(f"Loading method map from {path}")
 
@@ -166,13 +168,14 @@ def load_schema(path: Path | None = None) -> dict[str, Any]:
     """Load questionnaire schema JSON file.
 
     Args:
-        path: Path to schema file. Defaults to schemas/questionnaire_monolith.schema.json
+        path: Path to schema file. Defaults to config/schemas/questionnaire_monolith.schema.json
 
     Returns:
         Loaded schema data
     """
     if path is None:
-        path = Path("schemas/questionnaire_monolith.schema.json")
+        repo_root = Path(__file__).resolve().parents[4]
+        path = repo_root / "config" / "schemas" / "questionnaire_monolith.schema.json"
 
     logger.info(f"Loading schema from {path}")
 

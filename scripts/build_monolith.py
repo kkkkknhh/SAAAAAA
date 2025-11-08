@@ -94,6 +94,8 @@ class MonolithForge:
         logger.info(f"=== {phase} START ===")
 
         # Get repository root dynamically
+        repo_root = Path(__file__).resolve().parents[1]
+        
         # Whitelist of allowed files (relative to repo root)
         allowed_files = {
             'questionnaire.json': repo_root / 'questionnaire.json',
