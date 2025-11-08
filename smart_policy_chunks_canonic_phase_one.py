@@ -1438,7 +1438,7 @@ class StrategicChunkingSystem:
         institutional_patterns = [
             (r'(?:Ministerio|Secretaría|Departamento|Dirección|Instituto|Agencia)\s+(?:de|del?|para)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+', 'institution'),
             (r'(?:Alcaldía|Gobernación|Prefectura)\s+(?:de|del?)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+', 'local_government'),
-            (r'(?:Consejo|Comité|Junta)\\s+(?:de|del?|para)\\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ\\s]+', 'committee')
+            (r'(?:Consejo|Comité|Junta)\s+(?:de|del?|para)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+', 'committee')
         ]
         
         for pattern, entity_type in institutional_patterns:
