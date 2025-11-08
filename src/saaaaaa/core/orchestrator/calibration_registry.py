@@ -2109,38 +2109,6 @@ def resolve_calibration(class_name: str, method_name: str, strict: bool = True) 
     return calib
 
 
-def get_calibration_hash() -> str:
-    """Compute deterministic hash of all calibrations for versioning.
-    
-    Returns:
-        SHA256 hex digest of calibration registry
-    """
-    import hashlib
-    import json
-    
-    # Serialize all calibrations to stable JSON
-    calib_data = {}
-    for (class_name, method_name), calib in sorted(CALIBRATIONS.items()):
-        key = f"{class_name}.{method_name}"
-        calib_data[key] = {
-            "score_min": calib.score_min,
-            "score_max": calib.score_max,
-            "min_evidence_snippets": calib.min_evidence_snippets,
-            "max_evidence_snippets": calib.max_evidence_snippets,
-            "contradiction_tolerance": calib.contradiction_tolerance,
-            "uncertainty_penalty": calib.uncertainty_penalty,
-            "aggregation_weight": calib.aggregation_weight,
-            "sensitivity": calib.sensitivity,
-            "requires_numeric_support": calib.requires_numeric_support,
-            "requires_temporal_support": calib.requires_temporal_support,
-            "requires_source_provenance": calib.requires_source_provenance,
-            "safe_default_allowed": calib.safe_default_allowed,
-        }
-    
-    calib_json = json.dumps(calib_data, sort_keys=True)
-    return hashlib.sha256(calib_json.encode("utf-8")).hexdigest()
-
-
 def resolve_calibration_with_context(
     class_name: str,
     method_name: str,
