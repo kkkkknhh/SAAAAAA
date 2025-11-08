@@ -490,7 +490,8 @@ async def main():
     artifacts_dir = REPO_ROOT / args.artifacts_dir
     
     print("=" * 80, flush=True)
-    print("VERIFIED POLICY PIPELINE RUNNER", flush=True)
+    print("F.A.R.F.A.N VERIFIED POLICY PIPELINE RUNNER", flush=True)
+    print("Framework for Advanced Retrieval of Administrativa Narratives", flush=True)
     print("=" * 80, flush=True)
     print(f"Plan: {plan_path}", flush=True)
     print(f"Artifacts: {artifacts_dir}", flush=True)
