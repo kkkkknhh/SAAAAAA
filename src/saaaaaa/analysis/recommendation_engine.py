@@ -677,7 +677,7 @@ class RecommendationEngine:
         priority_gaps = when.get('priority_micro_gaps')
         if priority_gaps is not None:
             if not isinstance(priority_gaps, list) or not priority_gaps:
-                raise ValueError(f"Rule {rule_id} must declare non empty priority_micro_gaps")
+                raise ValueError(f"Rule {rule_id} must declare non-empty priority_micro_gaps")
             if not all(isinstance(item, str) and item.strip() for item in priority_gaps):
                 raise ValueError(f"Rule {rule_id} has invalid priority_micro_gaps entries")
             discriminants += 1
