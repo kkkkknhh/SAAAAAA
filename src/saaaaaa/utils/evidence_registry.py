@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
-def _canonical_json(payload: Dict[str, Any]) -> str:
+def _canonical_json(payload: dict[str, Any]) -> str:
     """Return a canonical JSON representation with sorted keys."""
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
 
 @dataclass(frozen=True)
 class EvidenceRecord:
@@ -26,8 +27,8 @@ class EvidenceRecord:
     index: int
     timestamp: str
     method_name: str
-    evidence: List[str]
-    metadata: Dict[str, Any]
+    evidence: list[str]
+    metadata: dict[str, Any]
     previous_hash: str
     entry_hash: str
 
@@ -36,10 +37,10 @@ class EvidenceRecord:
         index: int,
         method_name: str,
         evidence: Iterable[str],
-        metadata: Optional[Dict[str, Any]],
+        metadata: dict[str, Any] | None,
         previous_hash: str,
-        timestamp: Optional[datetime] = None,
-    ) -> "EvidenceRecord":
+        timestamp: datetime | None = None,
+    ) -> EvidenceRecord:
         """Build a new evidence record and compute its hash."""
         ts = (timestamp or datetime.utcnow()).isoformat() + "Z"
         metadata_dict = dict(metadata or {})
@@ -64,18 +65,17 @@ class EvidenceRecord:
             entry_hash=digest,
         )
 
-
 class EvidenceRegistry:
     """Append-only registry that persists evidence records to disk."""
 
-    def __init__(self, storage_path: Optional[Path] = None, auto_load: bool = True):
+    def __init__(self, storage_path: Path | None = None, auto_load: bool = True) -> None:
         self.storage_path = storage_path or Path(".evidence_registry.json")
-        self._records: List[EvidenceRecord] = []
+        self._records: list[EvidenceRecord] = []
         if auto_load and self.storage_path.exists():
             self._records = self._load_records(self.storage_path)
 
     @property
-    def records(self) -> Tuple[EvidenceRecord, ...]:
+    def records(self) -> tuple[EvidenceRecord, ...]:
         """Expose records as an immutable tuple."""
         return tuple(self._records)
 
@@ -83,7 +83,7 @@ class EvidenceRegistry:
         self,
         method_name: str,
         evidence: Iterable[str],
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> EvidenceRecord:
         """Append a new evidence record to the registry."""
         previous_hash = self._records[-1].entry_hash if self._records else "GENESIS"
@@ -108,7 +108,7 @@ class EvidenceRegistry:
             encoding="utf-8",
         )
 
-    def _load_records(self, path: Path) -> List[EvidenceRecord]:
+    def _load_records(self, path: Path) -> list[EvidenceRecord]:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
@@ -117,7 +117,7 @@ class EvidenceRegistry:
         if not isinstance(data, list):
             raise ValueError("Evidence registry payload must be a list")
 
-        records: List[EvidenceRecord] = []
+        records: list[EvidenceRecord] = []
         for index, raw in enumerate(data):
             if not isinstance(raw, dict):
                 raise ValueError("Evidence record must be a JSON object")
@@ -149,7 +149,7 @@ class EvidenceRegistry:
         return True
 
     @staticmethod
-    def _assert_chain(records: List[EvidenceRecord]) -> None:
+    def _assert_chain(records: list[EvidenceRecord]) -> None:
         previous_hash = "GENESIS"
         for expected_index, record in enumerate(records):
             if record.index != expected_index:
@@ -172,13 +172,11 @@ class EvidenceRegistry:
                 )
             previous_hash = record.entry_hash
 
-
-def _serialize_record(record: EvidenceRecord) -> Dict[str, Any]:
+def _serialize_record(record: EvidenceRecord) -> dict[str, Any]:
     payload = asdict(record)
     payload["evidence"] = list(record.evidence)
     payload["metadata"] = dict(record.metadata)
     return payload
-
 
 __all__ = [
     "EvidenceRecord",

@@ -5,28 +5,26 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Mapping, List
+from typing import TYPE_CHECKING, Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 QUESTIONNAIRE_PATH = REPO_ROOT / "questionnaire.json"
 RUBRIC_PATH = REPO_ROOT / "rubric_scoring.json"
 
 FLOAT_TOLERANCE = 1e-6
 
-
-def load_json(path: Path) -> Dict[str, Any]:
+def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
 
 def weights_sum_to_one(weights: Mapping[str, float]) -> bool:
     return abs(sum(weights.values()) - 1.0) <= FLOAT_TOLERANCE
 
-
-def ensure(condition: bool, message: str, errors: List[str]) -> None:
+def ensure(condition: bool, message: str, errors: list[str]) -> None:
     if not condition:
         errors.append(message)
-
 
 def main() -> int:
     errors: list[str] = []
@@ -57,7 +55,7 @@ def main() -> int:
     pa_lookup = {pa["policy_area_id"]: pa for pa in policy_areas}
     dim_ids = {dim["dimension_id"] for dim in dimensions}
 
-    cluster_for_pa: Dict[str, str] = {}
+    cluster_for_pa: dict[str, str] = {}
     for cluster in clusters:
         cluster_id = cluster.get("cluster_id")
         for pa in cluster.get("policy_area_ids", []):
@@ -78,7 +76,7 @@ def main() -> int:
     for cluster_id, weights in aggregation.get("cluster_policy_area_weights", {}).items():
         if not weights_sum_to_one(weights):
             errors.append(f"Cluster weights for {cluster_id} must sum to 1.0")
-        for pa in weights.keys():
+        for pa in weights:
             if pa not in cluster_for_pa:
                 errors.append(f"Cluster {cluster_id} has weight for unknown policy area {pa}")
             elif cluster_for_pa[pa] != cluster_id:
@@ -140,7 +138,6 @@ def main() -> int:
 
     print("✅ Cross-reference validation passed")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

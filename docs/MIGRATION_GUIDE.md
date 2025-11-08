@@ -11,14 +11,11 @@ The repository has been reorganized from a flat structure into a standard Python
 All Python modules have moved from the root directory to `src/saaaaaa/` subdirectories. Here's the mapping:
 
 ### Core Modules
-**Old:** `import ORCHESTRATOR_MONILITH`  
-**New:** `from saaaaaa.core import ORCHESTRATOR_MONILITH`
-
-**Old:** `import executors_COMPLETE_FIXED`  
-**New:** `from saaaaaa.core import executors_COMPLETE_FIXED`
 
 **Old:** `from orchestrator import ...`  
 **New:** `from saaaaaa.core.orchestrator import ...`
+
+**Note:** ORCHESTRATOR_MONILITH.py and executors_COMPLETE_FIXED.py have been removed. Use the modular orchestrator package instead.
 
 ### Processing Modules
 **Old:** `import document_ingestion`  
@@ -171,9 +168,9 @@ This will:
 To test if imports are working correctly:
 
 ```python
-# Test core imports
-from saaaaaa.core import ORCHESTRATOR_MONILITH
-from saaaaaa.core.orchestrator import core
+# Test core orchestrator imports
+from saaaaaa.core.orchestrator import Orchestrator
+from saaaaaa.core.orchestrator.executors import MethodExecutor
 
 # Test processing imports
 from saaaaaa.processing import document_ingestion

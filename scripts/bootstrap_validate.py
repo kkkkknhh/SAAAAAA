@@ -23,8 +23,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, Optional
-
 
 def create_virtualenv(venv_path: Path, python_executable: str) -> Path:
     """Create the virtual environment if it does not yet exist."""
@@ -49,7 +47,6 @@ def create_virtualenv(venv_path: Path, python_executable: str) -> Path:
 
     return python_path
 
-
 def install_dependencies(venv_python: Path, requirements_file: Path) -> None:
     """Install project requirements into the virtual environment."""
     print(f"[bootstrap] Installing dependencies from {requirements_file}")
@@ -69,7 +66,6 @@ def install_dependencies(venv_python: Path, requirements_file: Path) -> None:
         check=True,
     )
 
-
 def dry_run_import(venv_python: Path, repo_root: Path) -> None:
     """Trigger a dry-run import to surface missing wheels early."""
     print("[bootstrap] Performing dry-run import of PolicyAnalysisOrchestrator")
@@ -83,8 +79,7 @@ def dry_run_import(venv_python: Path, repo_root: Path) -> None:
         check=True,
     )
 
-
-def load_plan_metadata(metadata_path: Optional[Path], plan_path: Path) -> Dict:
+def load_plan_metadata(metadata_path: Path | None, plan_path: Path) -> dict:
     """Load plan metadata from JSON or synthesize a default payload."""
     if metadata_path:
         print(f"[bootstrap] Loading plan metadata from {metadata_path}")
@@ -99,12 +94,11 @@ def load_plan_metadata(metadata_path: Optional[Path], plan_path: Path) -> Dict:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
-
 def execute_chess_strategy(
     venv_python: Path,
     repo_root: Path,
     plan_path: Path,
-    metadata: Dict,
+    metadata: dict,
     output_dir: Path,
 ) -> None:
     """Run the CHESS strategy end to end using the orchestrator."""
@@ -114,7 +108,7 @@ def execute_chess_strategy(
         f"""
         import json
         from pathlib import Path
-        from orchestrator import PolicyAnalysisOrchestrator, OrchestratorConfig
+        from saaaaaa.core.orchestrator import PolicyAnalysisOrchestrator, OrchestratorConfig
 
         repo_root = Path({json.dumps(str(repo_root))})
         plan_path = Path({json.dumps(str(plan_path))})
@@ -147,7 +141,6 @@ def execute_chess_strategy(
         check=True,
     )
 
-
 def run_validation(venv_python: Path, repo_root: Path, mode: str) -> None:
     """Validate either via integration tests or by launching the API."""
     if mode == "tests":
@@ -164,7 +157,6 @@ def run_validation(venv_python: Path, repo_root: Path, mode: str) -> None:
             cwd=str(repo_root),
             check=True,
         )
-
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -211,10 +203,8 @@ def parse_arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def main() -> None:
     args = parse_arguments()
-    repo_root = Path(__file__).resolve().parent.parent
     plan_path = args.plan.resolve()
 
     if not plan_path.exists():
@@ -237,7 +227,6 @@ def main() -> None:
     run_validation(venv_python, repo_root, args.validate)
 
     print("[bootstrap] All steps completed successfully")
-
 
 if __name__ == "__main__":
     main()

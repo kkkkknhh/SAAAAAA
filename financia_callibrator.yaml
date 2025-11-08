@@ -1,0 +1,1246 @@
+# =============================================================================
+# CATÁLOGO DE REGLAS DE AUDITORÍA - OperationalizationAuditor v3.0
+# Sistema de Evaluación Causal FARFAN 3.0 - CDAF
+# CALIBRACIÓN INSTITUCIONAL: Planes Plurianuales de Inversiones (PPI)
+# Alcaldías Municipales - Colombia
+# =============================================================================
+# 
+# Este auditor valida la coherencia operativa y trazabilidad financiera de la
+# cadena causal en Planes de Desarrollo Municipal (PDM), con énfasis especial
+# en la articulación con el Plan Plurianual de Inversiones (PPI).
+#
+# MARCO NORMATIVO:
+# - Ley 152 de 1994: Ley Orgánica del Plan de Desarrollo
+# - Ley 715 de 2001: Sistema General de Participaciones (SGP)
+# - Ley 1530 de 2012: Regalías y Sistema General de Regalías (SGR)
+# - Ley 617 de 2000: Racionalización del gasto público territorial
+# - Decreto 111 de 1996: Estatuto Orgánico del Presupuesto
+#
+# Autor: JCRR
+# Fecha: 2025-11-03
+# Versión: 3.0.0 (Integración con FinancialAuditor)
+# =============================================================================
+
+auditors:
+  OperationalizationAuditor:
+    version: "3.0.0"
+    description: |
+      Auditor de trazabilidad operativa y coherencia financiera de la cadena 
+      causal en PDM, con validación exhaustiva de la articulación con el Plan 
+      Plurianual de Inversiones (PPI) y cumplimiento normativo presupuestal 
+      municipal colombiano.
+    
+    # =========================================================================
+    # CONFIGURACIÓN GENERAL
+    # =========================================================================
+    
+    audit_config:
+      strict_mode: false
+      description: |
+        Si strict_mode = true, todas las reglas WARN se convierten en FAIL.
+        Recomendado SOLO para municipios categoría especial, 1 y 2 con alta 
+        capacidad técnica y equipos de planeación robustos.
+      
+      enable_auto_fix_suggestions: true
+      description: "Genera sugerencias automáticas de corrección para cada falla"
+      
+      max_warnings_per_eslabon: 10
+      description: "Número máximo de advertencias antes de emitir un FAIL general"
+      
+      require_evidence: true
+      description: "Requiere que cada hallazgo incluya el fragmento textual de evidencia"
+      
+      financial_auditor_integration: true
+      description: |
+        CRÍTICO: Integración con FinancialAuditor para validación cruzada de:
+        - Códigos BPIN registrados en el PPI
+        - Fuentes de financiación (SGP, Regalías, ICLD)
+        - Suficiencia presupuestal y desagregación plurianual
+        - Cumplimiento de destinación específica (SGP sectorial)
+      
+      ppi_context:
+        instrument: "Plan Plurianual de Inversiones"
+        description: |
+          Instrumento financiero que desagrega año por año las inversiones del 
+          PDM durante el cuatrienio. Es el puente entre el Plan Operativo Anual 
+          de Inversiones (POAI) y el Presupuesto Municipal.
+        
+        regulatory_basis:
+          - "Ley 152 de 1994 Art. 8: Conformación del PDM"
+          - "Ley 38 de 1989: Normas de presupuesto general"
+          - "Decreto 111 de 1996: Estatuto Orgánico del Presupuesto"
+        
+        critical_validations:
+          - "Toda inversión > $50M debe tener código BPIN o registro interno PPI"
+          - "SGP sectorial debe usarse SOLO en su sector (Educación, Salud, APSB)"
+          - "Recursos de Regalías requieren aprobación OCAD previo a ejecución"
+          - "Vigencias futuras requieren autorización del Concejo Municipal"
+    
+    # =========================================================================
+    # CATEGORÍA 1: TRAZABILIDAD FINANCIERA DE LA CADENA CAUSAL
+    # (INTEGRACIÓN CON FINANCIAL AUDITOR)
+    # =========================================================================
+    
+    categories:
+      trazabilidad_financiera:
+        description: |
+          Reglas que verifican la coherencia entre la cadena causal operativa 
+          (Insumos→Actividades→Productos→Resultados→Impactos) y el Plan Plurianual 
+          de Inversiones (PPI). Estas reglas se complementan con FinancialAuditor 
+          para garantizar suficiencia y coherencia presupuestal.
+        
+        rules:
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-001: Productos sin Actividades [FAIL CRÍTICO]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-001"
+            name: "Productos huérfanos (sin Actividades generadoras)"
+            description: |
+              Todo Producto debe tener al menos una Actividad vinculada que lo genere. 
+              En el contexto del PPI, esto asegura que todo output tangible tenga una 
+              acción ejecutable y presupuestada que lo produzca.
+            
+            eslabon_target: "Productos"
+            
+            validation_logic:
+              type: "must_have_parent"
+              parent_eslabon: "Actividades"
+              minimum_parents: 1
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-001"
+              message: "Producto '{producto_nombre}' no tiene actividades asociadas que lo generen"
+              impact: |
+                No es verificable cómo se producirá este producto, quién es responsable, 
+                ni si hay presupuesto asignado en el PPI. Riesgo de producto 
+                aspiracional sin ruta de ejecución.
+              
+              regulatory_basis: |
+                Ley 152/1994 Art. 3: Los planes deben ser operacionalizables. 
+                Un producto sin actividad es inejecutable.
+              
+            ppi_implication: |
+              Si el producto tiene costo declarado pero no hay actividad vinculada, 
+              el presupuesto en el PPI queda "flotando" sin responsable de ejecución.
+              
+            example_pass: |
+              ACTIVIDAD: "Realizar 50 talleres de formación en emprendimiento a jóvenes 
+              rurales (Responsable: Secretaría de Desarrollo Económico, 2024-2025, 
+              Costo: $180M, Fuente: SGP Propósito General + Recursos Propios)"
+              
+              PRODUCTO: "500 jóvenes rurales capacitados en emprendimiento (Meta: 500, 
+              Indicador: # de certificados emitidos, Verificación: listados de asistencia 
+              + certificados digitales, Registro PPI: PROG-2024-015)"
+              
+            example_fail: |
+              PRODUCTO: "500 jóvenes rurales capacitados en emprendimiento"
+              [No existe ninguna Actividad que declare "capacitar", "formar" o "realizar 
+              talleres" para estos jóvenes. El PPI muestra $180M asignados pero sin 
+              descripción de la acción ejecutable.]
+              
+            auto_fix_suggestion: |
+              AGREGAR ACTIVIDAD: "Ejecutar programa de capacitación en emprendimiento 
+              dirigido a 500 jóvenes rurales mediante 50 talleres presenciales durante 
+              2024-2025 (Costo: $180M según PPI PROG-2024-015, Fuente: SGP Propósito 
+              General $120M + Recursos Propios $60M)"
+            
+            cross_validation_with_financial_auditor:
+              rule_id: "FIN-AUDIT-001"
+              check: |
+                Si Producto tiene costo > $50M, debe existir registro en PPI con código 
+                BPIN o identificador interno. FinancialAuditor valida la existencia del 
+                registro; OperationalizationAuditor valida que haya actividad ejecutable.
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-002: Actividades sin Productos verificables [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-002"
+            name: "Actividades sin Productos verificables"
+            description: |
+              Toda Actividad debe generar al menos un Producto tangible o intangible 
+              verificable. En el PPI, esto asegura que la inversión tenga un output 
+              medible y auditable.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "must_have_child"
+              child_eslabon: "Productos"
+              minimum_children: 1
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-002"
+              message: "Actividad '{actividad_nombre}' no declara productos resultantes"
+              impact: |
+                Dificulta el seguimiento y verificación de la ejecución. No es claro 
+                qué entregable concreto resulta de la inversión declarada en el PPI.
+              
+              regulatory_basis: |
+                Decreto 111/1996 Art. 67: Los proyectos de inversión deben tener 
+                productos verificables para efectos de seguimiento presupuestal.
+              
+            ppi_implication: |
+              La inversión aparece en el PPI con presupuesto, pero sin claridad sobre 
+              qué se entrega. Riesgo de ejecución presupuestal sin resultado tangible.
+              
+            example_pass: |
+              ACTIVIDAD: "Construir 3 Centros de Desarrollo Infantil (CDI) en zona rural 
+              (Costo: $4.200M, BPIN: 2024001234567, Fuente: SGP Primera Infancia + 
+              Regalías, Vigencia: 2024-2025)"
+              
+              PRODUCTO: "3 CDI construidos y dotados con capacidad para 150 niños c/u 
+              (Meta: 3 unidades, Indicador: # de CDI en operación con licencia, 
+              Verificación: actas de entrega + registro fotográfico + habilitación ICBF)"
+              
+            example_fail: |
+              ACTIVIDAD: "Fortalecer la capacidad institucional de la Secretaría de Salud 
+              (Costo PPI: $350M, Fuente: SGP Salud)"
+              
+              [No declara QUÉ productos concretos resultan: ¿protocolos elaborados? 
+              ¿funcionarios capacitados? ¿sistemas implementados? El PPI muestra $350M 
+              pero sin claridad de entregables.]
+              
+            auto_fix_suggestion: |
+              ESPECIFICAR PRODUCTOS: "20 funcionarios certificados en gestión de salud 
+              pública + 5 protocolos de atención implementados + 1 sistema de información 
+              en salud operando (SISPRO integrado)"
+            
+            cross_validation_with_financial_auditor:
+              rule_id: "FIN-AUDIT-003"
+              check: |
+                Si Actividad tiene presupuesto en PPI, la suma de costos de Productos 
+                asociados debe ser ≤ presupuesto de la Actividad (tolerancia ±5%).
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-017: Actividad sin respaldo presupuestal en PPI [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-017"
+            name: "Actividad sin respaldo presupuestal verificable en PPI"
+            description: |
+              REGLA CRÍTICA PARA PPI: Toda Actividad con costo declarado > $50M debe 
+              estar respaldada por un registro en el Plan Plurianual de Inversiones 
+              con código BPIN (si aplica) o identificador interno del proyecto, y con 
+              fuente de financiación específica.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "financial_traceability_ppi"
+              min_cost_threshold: 50000000  # $50 millones COP
+              require_ppi_code: true
+              require_funding_source: true
+              
+              funding_sources_valid:
+                - "SGP Educación"
+                - "SGP Salud"
+                - "SGP Agua Potable y Saneamiento Básico"
+                - "SGP Propósito General"
+                - "SGP Alimentación Escolar"
+                - "SGP Primera Infancia"
+                - "Recursos Propios (ICLD)"
+                - "Regalías (SGR)"
+                - "Cofinanciación Nacional"
+                - "Cofinanciación Departamental"
+                - "Crédito"
+                - "Cooperación Internacional"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-017"
+              message: |
+                Actividad '{actividad}' con costo ${costo} no tiene código BPIN ni 
+                registro identificable en el PPI con fuente de financiación
+              
+              impact: |
+                INEJECUTABLE: No hay respaldo financiero verificable en el PPI. 
+                La actividad no puede ejecutarse sin presupuesto asignado en el 
+                instrumento financiero oficial. Riesgo de inelegibilidad de gasto.
+              
+              regulatory_basis: |
+                - Ley 152/1994 Art. 8: El PDM debe incluir el PPI discriminado por año
+                - Decreto 111/1996 Art. 25: Todo gasto requiere apropiación presupuestal
+                - Ley 819/2003 Art. 5: Marco Fiscal de Mediano Plazo y sostenibilidad
+              
+            ppi_implication: |
+              Sin registro en PPI, la actividad es aspiracional. No hay garantía de 
+              recursos para ejecutarla. Si se ejecuta sin estar en PPI, existe riesgo 
+              de control fiscal adverso por gasto no programado.
+              
+            example_pass: |
+              ACTIVIDAD: "Construir 3 CDI en zona rural (Costo: $4.200 millones, 
+              BPIN: 2024001234567, Registro PPI: PROG-EDU-2024-003, 
+              Fuente: SGP Primera Infancia $2.800M + Regalías $1.400M aprobadas por 
+              OCAD Acta 045-2023, Desagregación: 2024: $2.100M, 2025: $2.100M, 
+              Vigencias futuras autorizadas Acuerdo Municipal 012-2023)"
+              
+            example_fail: |
+              ACTIVIDAD: "Pavimentar 15 km de vías terciarias (Costo estimado: $5.000 millones)"
+              
+              [Sin código BPIN, sin registro en PPI, sin fuente de financiación identificada. 
+              El Marco Fiscal de Mediano Plazo no muestra esta inversión. No es verificable 
+              de dónde saldrán los $5.000M.]
+              
+            auto_fix_suggestion: |
+              REGISTRAR EN PPI: "Asignar código interno PROG-INFRA-2024-008, registrar 
+              en Banco de Proyectos Municipal, especificar fuente: SGP Propósito General 
+              $3.000M + Cofinanciación Departamental $2.000M (gestión en curso con 
+              Gobernación). Desagregar: 2024: $1.500M (estudios), 2025-2026: $3.500M 
+              (ejecución obras). Solicitar vigencias futuras al Concejo."
+            
+            cross_validation_with_financial_auditor:
+              rule_id: "FIN-AUDIT-001"
+              description: |
+                FinancialAuditor valida que el código BPIN o registro PPI exista en 
+                la base de datos del PPI. OperationalizationAuditor valida que la 
+                Actividad declare este código. Ambos deben coincidir.
+              
+              rule_id_2: "FIN-AUDIT-005"
+              description: |
+                FinancialAuditor valida coherencia entre la fuente declarada en la 
+                Actividad y la fuente registrada en el PPI para el mismo código BPIN.
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-019: Desagregación plurianual incoherente [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-019"
+            name: "Desagregación plurianual incoherente con cronograma de ejecución"
+            description: |
+              NUEVA REGLA ESPECÍFICA PARA PPI: Si una Actividad tiene presupuesto 
+              plurianual (2+ años), la desagregación anual en el PPI debe ser coherente 
+              con el cronograma de ejecución de la actividad. Los desembolsos deben 
+              alinearse con los hitos de ejecución.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "temporal_financial_alignment"
+              check: "disbursement_schedule aligns with execution_schedule"
+              tolerance: "±1 trimestre"
+              
+              heuristics:
+                infrastructure:
+                  - "Estudios y diseños: 10-15% del presupuesto total en año 1"
+                  - "Ejecución de obras: 70-80% distribuido en años 2-3"
+                  - "Interventoría y cierre: 5-10% en año final"
+                
+                social_programs:
+                  - "Distribución uniforme si es programa continuo (ej. alimentación escolar)"
+                  - "Concentración en año inicial si es dotación (ej. mobiliario)"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-019"
+              message: |
+                Desagregación plurianual del PPI incoherente con cronograma de ejecución 
+                para Actividad '{actividad}'
+              
+              impact: |
+                Riesgo de inejecutabilidad: Los recursos llegan en un momento distinto 
+                a cuando se necesitan. Puede generar parálisis de obra o subejecución 
+                presupuestal.
+              
+              regulatory_basis: |
+                Ley 819/2003 Art. 4: Programación presupuestal debe ser realista y 
+                coherente con capacidad de ejecución.
+              
+            ppi_implication: |
+              El PPI pierde credibilidad como instrumento de programación financiera 
+              si los desembolsos no se alinean con la ejecución real.
+              
+            example_pass: |
+              ACTIVIDAD: "Construir Hospital de Segundo Nivel (2024-2027)"
+              
+              CRONOGRAMA:
+              - 2024: Estudios y diseños (Marzo-Diciembre)
+              - 2025-2026: Construcción (Enero 2025 - Junio 2026)
+              - 2027: Dotación e interventoría (Julio 2026 - Marzo 2027)
+              
+              DESAGREGACIÓN PPI:
+              - 2024: $1.200M (12% - estudios) ✓
+              - 2025: $4.000M (40% - pico de obra) ✓
+              - 2026: $3.500M (35% - finalización obra) ✓
+              - 2027: $1.300M (13% - dotación y cierre) ✓
+              Total: $10.000M
+              
+              [Desagregación coherente con cronograma de ejecución]
+              
+            example_fail: |
+              ACTIVIDAD: "Construir Hospital de Segundo Nivel (2024-2027)"
+              
+              CRONOGRAMA:
+              - 2024: Estudios y diseños
+              - 2025-2026: Construcción
+              - 2027: Dotación
+              
+              DESAGREGACIÓN PPI:
+              - 2024: $6.000M (60% del total) ❌
+              - 2025: $1.000M (10%) ❌
+              - 2026: $1.500M (15%) ❌
+              - 2027: $1.500M (15%) ❌
+              Total: $10.000M
+              
+              [ERROR: Se asigna el 60% del presupuesto al año de estudios, cuando la 
+              obra fuerte es en 2025-2026. No es coherente. Riesgo de recursos no 
+              ejecutados en 2024 y déficit en 2025.]
+              
+            auto_fix_suggestion: |
+              REDISTRIBUIR PRESUPUESTO:
+              - 2024: $1.200M (estudios)
+              - 2025: $4.000M (pico de construcción)
+              - 2026: $3.500M (finalización obra)
+              - 2027: $1.300M (dotación y cierre)
+              
+              "Solicitar modificación del PPI en el Consejo de Gobierno y posterior 
+              aprobación del Concejo Municipal (Acuerdo de modificación presupuestal)."
+            
+            cross_validation_with_financial_auditor:
+              rule_id: "FIN-AUDIT-013"
+              description: |
+                FinancialAuditor valida que el desembolso esté alineado temporalmente 
+                con el cronograma (match_tolerance: ±1 año). OperationalizationAuditor 
+                valida que la lógica de desagregación siga patrones esperados según 
+                tipo de proyecto.
+
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-020: SGP sectorial usado en actividad incoherente [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-020"
+            name: "Destinación específica del SGP violada en Actividad"
+            description: |
+              REGLA CRÍTICA DE CUMPLIMIENTO NORMATIVO: Valida que los recursos del 
+              Sistema General de Participaciones (SGP) con destinación específica 
+              (Educación, Salud, APSB, Alimentación Escolar, Primera Infancia) se 
+              usen ÚNICAMENTE en actividades del sector correspondiente.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "sgp_sector_compliance"
+              
+              sector_keywords:
+                "SGP Educación":
+                  required_keywords: ["educación", "escolar", "docente", "aula", "colegio", 
+                                    "estudiante", "matrícula", "calidad educativa"]
+                  forbidden_keywords: ["salud", "hospital", "agua", "alcantarillado"]
+                
+                "SGP Salud":
+                  required_keywords: ["salud", "hospital", "centro de salud", "atención médica", 
+                                    "vacunación", "medicina", "paciente"]
+                  forbidden_keywords: ["educación", "vía", "alcantarillado"]
+                
+                "SGP Agua Potable y Saneamiento Básico":
+                  required_keywords: ["agua potable", "alcantarillado", "saneamiento", 
+                                    "acueducto", "tratamiento de aguas"]
+                  forbidden_keywords: ["educación", "hospital", "vía"]
+                
+                "SGP Primera Infancia":
+                  required_keywords: ["primera infancia", "CDI", "jardín", "niños menores de 5", 
+                                    "desarrollo infantil"]
+                  forbidden_keywords: ["hospital", "vía", "adulto mayor"]
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-020"
+              message: |
+                Actividad '{actividad}' usa {fuente_sgp} pero NO corresponde al sector 
+                de destinación específica de esa fuente
+              
+              impact: |
+                INELEGIBILIDAD DE GASTO: Uso indebido de recursos del SGP. Cualquier 
+                gasto ejecutado será objetado por control fiscal (Contraloría). 
+                Riesgo de glosa y responsabilidad fiscal.
+              
+              regulatory_basis: |
+                Ley 715/2001 Art. 76: Destinación específica del SGP por sectores.
+                Ley 715/2001 Art. 83: Prohibición de trasladar recursos entre sectores.
+                Sentencia C-579/2001 Corte Constitucional: Destinación específica es 
+                mandato constitucional.
+              
+            ppi_implication: |
+              El PPI queda jurídicamente inviable si asigna SGP sectorial a actividades 
+              de otro sector. La Contraloría puede suspender giros de recursos.
+              
+            example_pass: |
+              ACTIVIDAD: "Construir 5 aulas escolares en la Institución Educativa Rural 
+              San José (Costo: $800M, Fuente: SGP Educación, BPIN: 2024001234567)"
+              
+              [✓ Actividad es del sector educativo, fuente es SGP Educación: COHERENTE]
+              
+            example_fail: |
+              ACTIVIDAD: "Pavimentar vía de acceso al hospital municipal (Costo: $1.200M, 
+              Fuente: SGP Salud, BPIN: 2024001234999)"
+              
+              [❌ ERROR CRÍTICO: Pavimentación de vías NO es gasto elegible con SGP Salud. 
+              SGP Salud solo puede usarse en prestación de servicios de salud, dotación 
+              hospitalaria, talento humano en salud. La vía de acceso debe financiarse 
+              con SGP Propósito General o Recursos Propios.]
+              
+            auto_fix_suggestion: |
+              CAMBIAR FUENTE DE FINANCIACIÓN: "Reasignar a SGP Propósito General 
+              (libre destinación) o Recursos Propios. Si no hay disponibilidad, 
+              priorizar obras de salud directas con SGP Salud (ej. dotación de equipos 
+              médicos, mejoras en infraestructura hospitalaria interna)."
+            
+            cross_validation_with_financial_auditor:
+              rule_id: "FIN-AUDIT-006"
+              description: |
+                FinancialAuditor valida destinación específica del SGP a nivel de 
+                registro en PPI. OperationalizationAuditor valida coherencia semántica 
+                entre la descripción de la Actividad y el sector de la fuente SGP.
+                Doble validación para máxima seguridad jurídica.
+
+      # =========================================================================
+      # CATEGORÍA 2: TRAZABILIDAD DE LA CADENA CAUSAL (ESLABONES)
+      # =========================================================================
+      
+      trazabilidad_cadena:
+        description: |
+          Reglas que verifican la integridad de la cadena causal completa y la 
+          lógica de intervención del PDM, asegurando que cada eslabón esté 
+          correctamente vinculado con sus predecesores y sucesores.
+        
+        rules:
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-003: Resultados sin Productos intermedios [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-003"
+            name: "Resultados sin Productos intermedios (salto lógico)"
+            description: |
+              Todo Resultado debe estar vinculado a al menos un Producto que lo habilite. 
+              No se puede esperar un cambio en la población (Resultado) sin entregar 
+              productos concretos que lo generen.
+            
+            eslabon_target: "Resultados"
+            
+            validation_logic:
+              type: "must_have_parent"
+              parent_eslabon: "Productos"
+              minimum_parents: 1
+              allow_indirect_via: "Actividades"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-003"
+              message: "Resultado '{resultado_nombre}' no está vinculado a productos que lo generen"
+              impact: |
+                Salto lógico en la cadena causal: no es claro cómo se alcanzará este 
+                resultado sin productos intermedios. El PDM carece de teoría de cambio 
+                verificable.
+              
+              regulatory_basis: |
+                Ley 152/1994 Art. 3 literal e): Coherencia. Los planes deben tener 
+                coherencia interna entre sus componentes.
+              
+            ppi_implication: |
+              Si hay presupuesto asignado en el PPI para lograr este Resultado, pero 
+              no hay productos específicos, no es auditable cómo se gastará el dinero.
+              
+            example_pass: |
+              PRODUCTO: "500 mujeres víctimas de VBG atendidas integralmente (atención 
+              psicológica, jurídica y acompañamiento económico, Costo: $450M, 
+              Fuente: SGP Propósito General + Recursos Propios)"
+              
+              RESULTADO: "Reducción del 15% en la tasa de reincidencia de VBG en mujeres 
+              atendidas (Línea base: 42% reincidencia en 2023, Meta 2027: 36%, 
+              Fuente: seguimiento Comisaría de Familia)"
+              
+            example_fail: |
+              RESULTADO: "Reducción del 20% en la pobreza multidimensional del municipio 
+              (de 35% a 28% en 4 años)"
+              
+              [❌ No hay productos específicos declarados que contribuyan: ¿viviendas 
+              mejoradas? ¿empleos generados? ¿transferencias monetarias? ¿acceso a 
+              servicios? Sin productos, el resultado es aspiracional.]
+              
+            auto_fix_suggestion: |
+              VINCULAR A PRODUCTOS CONCRETOS: "1.000 viviendas mejoradas (techo, piso, 
+              cocina) + 500 empleos formales generados + 2.000 familias con transferencias 
+              monetarias condicionadas → ESTOS productos contribuyen a reducción de 
+              pobreza multidimensional. Especificar contribución esperada de cada producto."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-004: Actividades sin Insumos [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-004"
+            name: "Actividades sin justificación diagnóstica ni presupuesto"
+            description: |
+              Toda Actividad debe estar justificada por Insumos (diagnóstico que 
+              identifica el problema) y tener presupuesto asignado en el PPI.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "must_have_parent_and_budget"
+              parent_eslabon: "Insumos"
+              require_diagnostic_link: true
+              require_budget_link: true
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-004"
+              message: |
+                Actividad '{actividad_nombre}' no está justificada por diagnóstico 
+                ni tiene presupuesto asignado en PPI
+              
+              impact: |
+                No es claro POR QUÉ se ejecuta esta actividad (falta diagnóstico del 
+                problema) ni SI ES VIABLE financieramente (falta presupuesto PPI).
+              
+            ppi_implication: |
+              Actividades sin presupuesto PPI son aspiracionales. No hay garantía de 
+              ejecución. Actividades sin diagnóstico pueden ser intervenciones ineficaces.
+              
+            example_pass: |
+              INSUMO (Diagnóstico): "Tasa de mortalidad materna: 68,5 por 100.000 nacidos 
+              vivos en 2023 (DANE), superior al promedio nacional de 52,1. Principales 
+              causas: falta de controles prenatales en zona rural (58% de gestantes sin 
+              control adecuado) y barreras de acceso geográfico."
+              
+              INSUMO (Presupuesto PPI): "Recursos SGP Salud: $1.200 millones (2024-2027)"
+              
+              ACTIVIDAD: "Implementar programa de controles prenatales con enfoque 
+              diferencial en 5 centros de salud rurales (Costo: $800M, Fuente: SGP Salud, 
+              BPIN: 2024001234567, Responsable: Secretaría de Salud, Meta: 400 gestantes 
+              atendidas/año)"
+              
+            example_fail: |
+              ACTIVIDAD: "Realizar campaña de sensibilización sobre derechos de las mujeres"
+              
+              [❌ No hay diagnóstico previo que identifique: ¿Cuál es el nivel de 
+              desconocimiento actual? ¿Qué derecho específico? ¿Qué población objetivo? 
+              Tampoco hay presupuesto asignado en PPI.]
+              
+            auto_fix_suggestion: |
+              VINCULAR A DIAGNÓSTICO Y PRESUPUESTO: "Dado que el 42% de mujeres reporta 
+              desconocimiento de rutas de atención a VBG (Encuesta Municipal de Seguridad 
+              2023), se ejecutará campaña de sensibilización con presupuesto de $150M 
+              (Recursos Propios, Registro PPI: PROG-SOC-2024-018), dirigida a 2.000 
+              mujeres en 10 corregimientos."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-005: Impactos sin Resultados intermedios [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-005"
+            name: "Impactos sin trayectoria de Resultados (wishful thinking)"
+            description: |
+              Todo Impacto debe estar sustentado en Resultados intermedios que lo 
+              hagan plausible. Los impactos de largo plazo no se logran por decreto, 
+              requieren cambios graduales verificables (Resultados).
+            
+            eslabon_target: "Impactos"
+            
+            validation_logic:
+              type: "must_have_parent"
+              parent_eslabon: "Resultados"
+              minimum_parents: 1
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-005"
+              message: "Impacto '{impacto_nombre}' no tiene resultados intermedios que lo sustenten"
+              impact: |
+                Wishful thinking: el impacto es aspiracional sin ruta realista para 
+                alcanzarlo. No hay teoría de cambio verificable entre las intervenciones 
+                del PDM y el impacto esperado.
+              
+            ppi_implication: |
+              Si el PPI asigna recursos "para lograr el impacto" pero no hay resultados 
+              intermedios medibles, no es auditable la efectividad de la inversión.
+              
+            example_pass: |
+              RESULTADO 1: "Incremento del 12% en la tasa de graduación de educación 
+              media (de 78% a 90% en 4 años)"
+              
+              RESULTADO 2: "Reducción del 8% en la tasa de deserción escolar (de 3,2% 
+              a 2,4%)"
+              
+              IMPACTO: "Mejora del Índice de Desarrollo Humano (IDH) del municipio, 
+              específicamente en el componente de educación (de 0,72 a 0,78 en 8 años). 
+              Contribución esperada: los 2 resultados anteriores aportan ~60% de la 
+              mejora del componente educación del IDH."
+              
+            example_fail: |
+              IMPACTO: "Desarrollo territorial sostenible y paz territorial consolidada"
+              
+              [❌ No hay resultados específicos que expliquen cómo se llegará a este 
+              impacto: ¿qué cambios concretos en indicadores de desarrollo (empleo, 
+              pobreza, NBI)? ¿qué cambios en indicadores de paz (homicidios, desplazamiento, 
+              reintegración)?]
+              
+            auto_fix_suggestion: |
+              DEFINIR RESULTADOS INTERMEDIOS: 
+              "RESULTADO 1: Reducción de 30% en tasa de homicidios (de 45 por 100.000 
+              a 31 por 100.000)
+              + RESULTADO 2: Incremento del 20% en tasa de empleo formal (de 42% a 50%)
+              + RESULTADO 3: Reducción del 15% en NBI (de 28% a 24%)
+              → Estos 3 resultados CONTRIBUYEN a desarrollo territorial sostenible y paz."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-006: Productos sin Indicadores de verificación [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-006"
+            name: "Productos sin indicadores ni medios de verificación"
+            description: |
+              Todo Producto debe tener un indicador cuantificable, una meta numérica 
+              y un medio de verificación. En el contexto PPI, esto asegura que la 
+              inversión sea auditable.
+            
+            eslabon_target: "Productos"
+            
+            validation_logic:
+              type: "must_have_attributes"
+              required_attributes:
+                - "indicador"
+                - "unidad_medida"
+                - "meta_cuantitativa"
+                - "medio_verificacion"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-006"
+              message: "Producto '{producto_nombre}' carece de indicador o medio de verificación"
+              impact: |
+                NO VERIFICABLE: Imposible constatar si el producto fue realmente 
+                entregado. La inversión del PPI no puede auditarse. Riesgo de ejecución 
+                presupuestal sin resultado comprobable.
+              
+              regulatory_basis: |
+                Decreto 1082/2015 Art. 2.2.9.1: Los indicadores de producto deben ser 
+                verificables y medibles.
+                Ley 1474/2011 Art. 74: Rendición de cuentas requiere indicadores verificables.
+              
+            ppi_implication: |
+              Sin indicador y medio de verificación, el seguimiento al PPI es imposible. 
+              No se puede reportar avance de ejecución física vs. financiera.
+              
+            example_pass: |
+              PRODUCTO: "500 adultos mayores atendidos con servicio de fisioterapia 
+              (Costo PPI: $280M, Fuente: Recursos Propios)"
+              
+              - Indicador: Número de adultos mayores atendidos con fisioterapia
+              - Unidad de medida: Número absoluto de personas
+              - Meta cuantitativa: 500 adultos mayores
+              - Medio de verificación: Base de datos de beneficiarios del programa + 
+                historias clínicas con registro de sesiones + listados de asistencia 
+                firmados + registro fotográfico (con autorización)
+              
+            example_fail: |
+              PRODUCTO: "Comunidad empoderada en participación ciudadana 
+              (Costo PPI: $180M)"
+              
+              [❌ Sin indicador cuantificable, sin meta numérica, sin medio de verificación. 
+              ¿Cómo se mide "empoderamiento"? ¿Cuántas personas? ¿Cómo se verifica?]
+              
+            auto_fix_suggestion: |
+              REFORMULAR: "150 líderes comunitarios certificados en participación 
+              ciudadana y mecanismos de control social
+              - Indicador: # de líderes certificados
+              - Meta: 150 líderes
+              - Verificación: certificados emitidos + listados de asistencia a 
+                capacitaciones (mínimo 80% asistencia) + evaluación de conocimientos 
+                (mínimo 70% aprobación)"
+
+      # =========================================================================
+      # CATEGORÍA 3: COHERENCIA DE ENTIDADES (Actores, Responsables)
+      # =========================================================================
+      
+      coherencia_entidades:
+        description: |
+          Reglas que verifican consistencia de actores institucionales y 
+          responsables de ejecución, asegurando claridad sobre quién ejecuta 
+          cada acción del PPI.
+        
+        rules:
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-007: Responsable inexistente [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-007"
+            name: "Responsable no reconocido en estructura administrativa"
+            description: |
+              El responsable declarado debe existir en la ontología oficial de 
+              actores institucionales del municipio (estructura administrativa 
+              aprobada por Acuerdo Municipal).
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "actor_exists_in_ontology"
+              ontology_source: "estructura_administrativa_municipal"
+              
+              valid_actors_examples:
+                - "Alcaldía Municipal"
+                - "Secretaría de Planeación"
+                - "Secretaría de Hacienda"
+                - "Secretaría de Educación"
+                - "Secretaría de Salud"
+                - "Secretaría de Desarrollo Social"
+                - "Secretaría de Infraestructura"
+                - "Secretaría de Gobierno"
+                - "Oficina de Víctimas"
+                - "Comisaría de Familia"
+                - "Inspección de Policía"
+                - "UMATA (Unidad Municipal de Asistencia Técnica Agropecuaria)"
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-007"
+              message: |
+                Responsable '{actor_nombre}' no existe en la estructura administrativa 
+                del municipio
+              
+              impact: |
+                Confusión sobre quién ejecutará. Puede ser error de digitación, entidad 
+                no competente, o entidad de otro nivel (departamental/nacional) sin 
+                convenio formalizado.
+              
+            example_pass: |
+              ACTIVIDAD: "Construir 3 aulas escolares en IE San José (Responsable: 
+              Secretaría de Educación Municipal, Costo PPI: $800M)"
+              
+            example_fail: |
+              ACTIVIDAD: "Atender población desplazada con ruta integral (Responsable: 
+              Ministerio del Interior, Costo PPI: $350M)"
+              
+              [❌ ERROR: El Ministerio del Interior es entidad NACIONAL, no municipal.]
+              
+            auto_fix_suggestion: |
+              VERIFICAR COMPETENCIA: "¿Es 'Secretaría de Gobierno' (competente en 
+              víctimas a nivel municipal) o 'Oficina/Enlace Municipal de Víctimas'?"
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-008: Incoherencia Actividad-Producto [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-008"
+            name: "Responsables distintos Actividad-Producto sin coordinación explícita"
+            description: |
+              Si Actividad y Producto tienen responsables distintos, debe haber 
+              coordinación explícita declarada.
+            
+            eslabon_target: "Productos"
+            
+            validation_logic:
+              type: "actor_continuity_or_coordination"
+              compare_with: "Actividades"
+              require_coordination_if_different: true
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-008"
+              message: |
+                Actividad ejecutada por '{actor_A}' pero Producto medido/entregado por 
+                '{actor_B}' sin coordinación explícita
+              
+              impact: |
+                Riesgo de desarticulación institucional.
+              
+            example_pass: |
+              ACTIVIDAD: "Pavimentar 10 km de vías rurales (Responsable: Secretaría de 
+              Infraestructura, en coordinación con Secretaría de Planeación para 
+              supervisión técnica)"
+              
+            auto_fix_suggestion: |
+              ACLARAR COORDINACIÓN entre secretarías.
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-009: Actividad sin responsable [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-009"
+            name: "Actividad sin responsable institucional"
+            description: |
+              Toda Actividad con presupuesto en el PPI debe tener un responsable 
+              institucional específico.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "must_have_attribute"
+              required_attribute: "responsable"
+              allow_null: false
+              allow_generic: false
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-009"
+              message: "Actividad '{actividad_nombre}' no tiene responsable asignado"
+              impact: |
+                INEJECUTABLE: No hay claridad sobre quién lidera la implementación.
+              
+              regulatory_basis: |
+                Ley 87/1993 Art. 2: Sistema de Control Interno requiere asignación 
+                clara de responsabilidades.
+              
+            auto_fix_suggestion: |
+              ASIGNAR responsable según competencia sectorial.
+
+      # =========================================================================
+      # CATEGORÍA 4: COHERENCIA TEMPORAL
+      # =========================================================================
+      
+      coherencia_temporal:
+        description: |
+          Reglas que verifican consistencia de cronogramas, líneas de tiempo, 
+          y coherencia temporal entre diagnóstico, ejecución y resultados.
+        
+        rules:
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-010: Línea base con año incorrecto [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-010"
+            name: "Línea base con año incorrecto (posterior al inicio del plan)"
+            description: |
+              La línea base debe tener un año anterior o igual al año de inicio del plan.
+            
+            eslabon_target: "Insumos"
+            
+            validation_logic:
+              type: "temporal_coherence"
+              check: "baseline_year <= plan_start_year"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-010"
+              message: |
+                Línea base del año {baseline_year} es POSTERIOR al inicio del plan 
+                ({plan_start_year})
+              
+              impact: |
+                Dato temporal imposible: No se puede tener línea base del futuro.
+              
+            example_pass: |
+              PLAN: 2024-2027
+              LÍNEA BASE: "Tasa de desempleo: 12,4% en 2023 (DANE)"
+              
+            example_fail: |
+              PLAN: 2024-2027
+              LÍNEA BASE: "Tasa de desempleo: 10,8% en 2025 (DANE)"
+              
+            auto_fix_suggestion: |
+              VERIFICAR: "Probablemente es 2023 en lugar de 2025."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-011: Producto antes de Actividad [FAIL]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-011"
+            name: "Producto entregado ANTES de ejecutar Actividad"
+            description: |
+              La fecha de entrega del Producto debe ser posterior o simultánea a la 
+              fecha de finalización de la Actividad.
+            
+            eslabon_target: "Productos"
+            
+            validation_logic:
+              type: "temporal_sequence"
+              check: "actividad_end_date <= producto_delivery_date"
+              allow_simultaneous: true
+              tolerance: "±1 mes"
+              
+            failure_contract:
+              level: "FAIL"
+              emit_code: "OP-FAIL-011"
+              message: |
+                Producto '{producto}' programado para {fecha_P} ANTES de finalizar 
+                Actividad generadora ({fecha_A})
+              
+              impact: |
+                Cronograma imposible.
+              
+            auto_fix_suggestion: |
+              AJUSTAR fechas o aclarar entregas parciales.
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-012: Horizonte temporal inadecuado [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-012"
+            name: "Horizonte temporal inadecuado para Resultado"
+            description: |
+              Las metas de Resultado deben tener un horizonte de mediano plazo (2-5 años).
+            
+            eslabon_target: "Resultados"
+            
+            validation_logic:
+              type: "temporal_range"
+              expected_min_years: 2
+              expected_max_years: 5
+              reference_point: "plan_start_year"
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-012"
+              message: |
+                Resultado '{resultado}' tiene meta para {año}, fuera del rango esperado
+              
+              impact: |
+                Clasificación incorrecta del eslabón.
+              
+            auto_fix_suggestion: |
+              RECLASIFICAR según horizonte temporal apropiado.
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-013: Actividad sin cronograma [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-013"
+            name: "Actividad sin fechas de ejecución definidas"
+            description: |
+              Toda Actividad debe tener fecha de inicio y fecha de fin programadas.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "must_have_attributes"
+              required_attributes:
+                - "fecha_inicio"
+                - "fecha_fin"
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-013"
+              message: "Actividad '{actividad}' no tiene cronograma definido"
+              impact: |
+                Dificulta el seguimiento temporal.
+              
+            auto_fix_suggestion: |
+              DEFINIR CRONOGRAMA con fechas claras.
+
+      # =========================================================================
+      # CATEGORÍA 5: SUFICIENCIA Y PROPORCIONALIDAD
+      # =========================================================================
+      
+      suficiencia:
+        description: |
+          Reglas que verifican proporcionalidad, suficiencia lógica y coherencia 
+          cuantitativa entre diagnóstico, población objetivo, presupuesto y metas.
+        
+        rules:
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-014: Población objetivo incoherente [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-014"
+            name: "Población objetivo incoherente entre Diagnóstico y Actividad"
+            description: |
+              La población objetivo de la Actividad debe ser coherente con la población 
+              diagnosticada en los Insumos. No se puede atender más población de la 
+              que existe, ni significativamente menos sin justificación (focalización).
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "population_coherence"
+              compare_with: "Insumos"
+              allow_subset: true
+              allow_superset: false
+              tolerance: 0.10
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-014"
+              message: |
+                Actividad focaliza {N_actividad} personas pero diagnóstico identifica 
+                {N_insumo}. Diferencia: {diferencia}%
+              
+              impact: |
+                Desajuste cuantitativo: La actividad planea atender más población de 
+                la que existe según el diagnóstico, o muy poca sin justificar la focalización.
+              
+            ppi_implication: |
+              El presupuesto PPI puede estar sobredimensionado o subdimensionado según 
+              la población real a atender.
+              
+            example_pass: |
+              DIAGNÓSTICO: "1.200 adultos mayores en condición de vulnerabilidad en 
+              el municipio (Censo 2023)"
+              
+              ACTIVIDAD: "Atender 600 adultos mayores con subsidio alimentario (50% 
+              de cobertura priorizada en zona rural, Costo PPI: $720M)"
+              
+              [✓ Cobertura del 50% justificada por focalización rural]
+              
+            example_fail: |
+              DIAGNÓSTICO: "800 niños de 0-5 años en zona rural sin acceso a CDI 
+              (Proyección DANE 2024)"
+              
+              ACTIVIDAD: "Construir 5 CDI con capacidad total para 1.500 niños 
+              (Costo PPI: $6.000M)"
+              
+              [❌ ERROR: Se planea atender 1.500 niños cuando solo existen 800 en la 
+              zona. Sobredimensionamiento de infraestructura y presupuesto.]
+              
+            auto_fix_suggestion: |
+              AJUSTAR DIMENSIONAMIENTO: "Construir 3 CDI con capacidad para 450 niños 
+              (cobertura del 56%), dejando margen para crecimiento poblacional. 
+              Ajustar presupuesto PPI a $3.600M. Alternativamente, ampliar el 
+              diagnóstico si se incluye zona urbana."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-015: Costo unitario atípico [WARN]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-015"
+            name: "Costo unitario atípico o no justificado"
+            description: |
+              Los costos unitarios (ej. costo por beneficiario, costo por km de vía, 
+              costo por aula) deben estar dentro de rangos razonables comparados con 
+              estándares nacionales o regionales. Valores atípicos requieren justificación.
+            
+            eslabon_target: "Actividades"
+            
+            validation_logic:
+              type: "unit_cost_benchmark"
+              
+              benchmarks:
+                aula_escolar:
+                  typical_range: [120000000, 180000000]  # $120M - $180M por aula
+                  unit: "pesos_por_aula"
+                  source: "MEN - Estándares de infraestructura educativa"
+                
+                km_via_pavimentada:
+                  typical_range: [280000000, 450000000]  # $280M - $450M por km
+                  unit: "pesos_por_km"
+                  source: "INVIAS - Precios de referencia 2024"
+                
+                beneficiario_programa_social:
+                  typical_range: [800000, 2500000]  # $800K - $2.5M por beneficiario/año
+                  unit: "pesos_por_beneficiario_año"
+                  source: "DNP - Costos promedio programas sociales"
+              
+            failure_contract:
+              level: "WARN"
+              emit_code: "OP-WARN-015"
+              message: |
+                Costo unitario de {valor_unitario} para '{actividad}' está fuera del 
+                rango típico ({rango_min} - {rango_max})
+              
+              impact: |
+                Posible sobreestimación o subestimación de costos. Puede indicar error 
+                de cálculo, contexto especial no explicado, o riesgo de corrupción.
+              
+            ppi_implication: |
+              El PPI puede tener presupuestos irrealistas, generando subejecución 
+              (si está sobreestimado) o déficit (si está subestimado).
+              
+            example_pass: |
+              ACTIVIDAD: "Construir 5 aulas escolares (Costo PPI: $750M)"
+              
+              Costo unitario: $750M / 5 aulas = $150M por aula
+              [✓ Dentro del rango típico $120M - $180M]
+              
+            example_fail: |
+              ACTIVIDAD: "Construir 3 aulas escolares en zona rural (Costo PPI: $900M)"
+              
+              Costo unitario: $900M / 3 aulas = $300M por aula
+              [❌ ATÍPICO: $300M por aula está muy por encima del rango típico $120M-$180M. 
+              Sin justificación de por qué cuesta el doble.]
+              
+            auto_fix_suggestion: |
+              JUSTIFICAR O AJUSTAR: "Si hay condiciones especiales (zona remota, 
+              difícil acceso, costos de transporte elevados), declarar explícitamente: 
+              'Costo mayor al estándar debido a transporte fluvial de materiales y 
+              mano de obra especializada con viáticos adicionales'. De lo contrario, 
+              revisar presupuesto estimado con Secretaría de Infraestructura y 
+              ajustar en el PPI."
+          
+          # -------------------------------------------------------------------
+          # REGLA OP-AUDIT-016: Meta no ambiciosa [INFO]
+          # -------------------------------------------------------------------
+          - rule_id: "OP-AUDIT-016"
+            name: "Meta poco ambiciosa respecto a capacidad instalada"
+            description: |
+              Las metas deben representar un esfuerzo razonable y uso eficiente de 
+              recursos. Metas muy bajas respecto al presupuesto o capacidad instalada 
+              pueden indicar subutilización de recursos.
+            
+            eslabon_target: "Productos"
+            
+            validation_logic:
+              type: "ambition_assessment"
+              
+              heuristics:
+                - "Si presupuesto > $500M y meta < 100 beneficiarios directos: revisar"
+                - "Si hay infraestructura nueva y se usa < 50% capacidad: revisar"
+                - "Si hay personal contratado y productividad < 50% estándar: revisar"
+              
+            failure_contract:
+              level: "INFO"
+              emit_code: "OP-INFO-016"
+              message: |
+                Meta de {meta_valor} para '{producto}' parece poco ambiciosa dado el 
+                presupuesto de {presupuesto}
+              
+              impact: |
+                Posible subutilización de recursos públicos. Oportunidad perdida de 
+                ampliar cobertura o impacto.
+              
+            ppi_implication: |
+              El PPI podría estar asignando recursos excesivos para resultados modestos, 
+              sacrificando otras inversiones prioritarias.
+              
+            example_pass: |
+              PRODUCTO: "500 jóvenes capacitados en competencias laborales (Costo PPI: 
+              $400M, incluye materiales, docentes, certificación y seguimiento)"
+              
+              Costo unitario: $400M / 500 = $800K por joven
+              [✓ Razonable para capacitación integral]
+              
+            example_fail: |
+              PRODUCTO: "50 jóvenes capacitados en competencias laborales (Costo PPI: 
+              $400M)"
+              
+              Costo unitario: $400M / 50 = $8M por joven
+              [⚠️ ATÍPICO: $8M por joven es excesivo para capacitación estándar. Con 
+              $400M se podrían capacitar 400-500 jóvenes según costos típicos.]
+              
+            auto_fix_suggestion: |
+              AMPLIAR META O JUSTIFICAR: "Con presupuesto de $400M, meta debería ser 
+              400-500 jóvenes. Si meta es realmente 50 jóvenes, justificar: ¿Es 
+              capacitación especializada de alto costo (ej. tecnologías avanzadas, 
+              certificación internacional)? De lo contrario, ajustar meta a cifra 
+              razonable o reducir presupuesto PPI y reasignar a otras prioridades."
+
+    # =========================================================================
+    # METADATOS DE CIERRE
+    # =========================================================================
+    
+    metadata:
+      last_updated: "2025-11-03"
+      total_rules: 16
+      critical_rules: 9
+      warnings: 6
+      info_rules: 1
+      
+      rules_by_category:
+        trazabilidad_financiera: 5
+        trazabilidad_cadena: 4
+        coherencia_entidades: 3
+        coherencia_temporal: 4
+        suficiencia: 3
+      
+      integration_dependencies:
+        - "FinancialAuditor v2.0 (validación presupuestal PPI)"
+        - "OntologyManager v1.5 (actores institucionales)"
+        - "TemporalValidator v1.2 (coherencia cronogramas)"
+      
+      regulatory_compliance:
+        - "Ley 152 de 1994 (Ley Orgánica del Plan de Desarrollo)"
+        - "Ley 715 de 2001 (Sistema General de Participaciones)"
+        - "Ley 819 de 2003 (Responsabilidad Fiscal)"
+        - "Decreto 111 de 1996 (Estatuto Orgánico del Presupuesto)"
+        - "Ley 1474 de 2011 (Estatuto Anticorrupción)"
+      
+      notes: |
+        Este catálogo está calibrado para la realidad operativa de alcaldías 
+        municipales colombianas, con especial énfasis en la articulación con el 
+        Plan Plurianual de Inversiones (PPI) como instrumento de trazabilidad 
+        financiera. Las reglas están diseñadas para detectar errores comunes en 
+        la formulación de PDM y garantizar ejecutabilidad, legalidad y auditoría.
+        
+        IMPORTANTE: El modo strict_mode debe usarse con precaución. Solo municipios 
+        con alta capacidad técnica deberían activarlo, ya que convierte todos los 
+        WARN en FAIL y puede hacer inviable la aprobación de PDM en contextos de 
+        baja capacidad institucional.
+        
+        Para soporte técnico o calibraciones específicas por municipio, contactar 
+        al equipo CDAF - Sistema FARFAN 3.0.
+
+# =============================================================================
+# FIN DEL CATÁLOGO
+# =============================================================================

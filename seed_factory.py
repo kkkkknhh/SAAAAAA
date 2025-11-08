@@ -1,5 +1,8 @@
 """Compatibility wrapper for deterministic seed helpers."""
-from saaaaaa.utils.seed_factory import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.utils.seed_factory import (  # noqa: F401, E402
     DeterministicContext,
     SeedFactory,
     create_deterministic_seed,

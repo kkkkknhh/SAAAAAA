@@ -5,22 +5,23 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from core.contracts import IndustrialInput
-
 if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
+    from core.contracts import IndustrialInput
     from policy_processor import IndustrialPolicyProcessor
 
+def _load_questionnaire(path: Path) -> dict[str, Any]:
+    """Load questionnaire data from *path* with UTF-8 encoding.
 
-def _load_questionnaire(path: Path) -> Any:
-    """Load questionnaire data from *path* with UTF-8 encoding."""
+    Note: Returns dict[str, Any] because questionnaire structure is dynamic.
+    A more specific TypedDict could be defined if the structure stabilizes.
+    """
     text = path.read_text(encoding="utf-8")
-    return json.loads(text)
-
+    return json.loads(text)  # type: ignore[no-any-return]
 
 def build_processor(
     path: str | Path = "questionnaire_monolith.json",
     locale: str = "es",
-) -> "IndustrialPolicyProcessor":
+) -> IndustrialPolicyProcessor:
     """Build an :class:`IndustrialPolicyProcessor` initialised with questionnaire data."""
     questionnaire_path = Path(path)
     data = _load_questionnaire(questionnaire_path)

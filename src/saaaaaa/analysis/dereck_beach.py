@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Causal Deconstruction and Audit Framework (CDAF) v2.0
 Framework de Producción para Análisis Causal de Planes de Desarrollo Territorial
@@ -20,29 +19,35 @@ import json
 import logging
 import re
 import sys
+import warnings
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import (
-    Any, Dict, List, Optional, Set, Tuple, Union, TypedDict,
-    NamedTuple, Literal, cast
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    TypedDict,
+    cast,
 )
-import warnings
+
+if TYPE_CHECKING:
+    import fitz
 
 # Core dependencies
 try:
-    import fitz  # PyMuPDF
     import networkx as nx
     import numpy as np
     import pandas as pd
     import spacy
     import yaml
     from fuzzywuzzy import fuzz, process
+    from pydantic import BaseModel, Field, ValidationError, validator
     from pydot import Dot, Edge, Node
+    from scipy import stats
     from scipy.spatial.distance import cosine
     from scipy.special import rel_entr
-    from scipy import stats
-    from pydantic import BaseModel, Field, validator, ValidationError
 except ImportError as e:
     print(f"ERROR: Dependencia faltante. Ejecute: pip install {e.name}")
     sys.exit(1)
@@ -54,7 +59,7 @@ try:
     DNP_AVAILABLE = True
 except ImportError:
     DNP_AVAILABLE = False
-    warnings.warn("Módulos DNP no disponibles. Validación DNP deshabilitada.")
+    warnings.warn("Módulos DNP no disponibles. Validación DNP deshabilitada.", stacklevel=2)
 
 # Refactored Bayesian Engine (F1.2: Architectural Refactoring)
 try:
@@ -63,7 +68,7 @@ try:
     REFACTORED_BAYESIAN_AVAILABLE = True
 except ImportError:
     REFACTORED_BAYESIAN_AVAILABLE = False
-    warnings.warn("Motor Bayesiano refactorizado no disponible. Usando implementación legacy.")
+    warnings.warn("Motor Bayesiano refactorizado no disponible. Usando implementación legacy.", stacklevel=2)
 
 # Configure logging
 logging.basicConfig(
@@ -84,7 +89,6 @@ NodeType = Literal["programa", "producto", "resultado", "impacto"]
 RigorStatus = Literal["fuerte", "débil", "sin_evaluar"]
 TestType = Literal["hoop_test", "smoking_gun", "doubly_decisive", "straw_in_wind"]
 DynamicsType = Literal["suma", "decreciente", "constante", "indefinido"]
-
 
 # ============================================================================
 # BEACH THEORETICAL PRIMITIVES - Added to existing code
@@ -141,7 +145,7 @@ class BeachEvidentialTest:
 
     @staticmethod
     def apply_test_logic(test_type: TestType, evidence_found: bool,
-                         prior: float, bayes_factor: float) -> Tuple[float, str]:
+                         prior: float, bayes_factor: float) -> tuple[float, str]:
         """
         Apply Beach test-specific logic to Bayesian updating.
 
@@ -186,7 +190,6 @@ class BeachEvidentialTest:
                 posterior = max(0.05, prior / min(bayes_factor, 2.0))
                 return posterior, "STRAW_IN_WIND: Weak disconfirmation"
 
-
 # ============================================================================
 # Custom Exceptions - Structured Error Semantics
 # ============================================================================
@@ -194,8 +197,8 @@ class BeachEvidentialTest:
 class CDAFException(Exception):
     """Base exception for CDAF framework with structured payloads"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None,
-                 stage: Optional[str] = None, recoverable: bool = False):
+    def __init__(self, message: str, details: dict[str, Any] | None = None,
+                 stage: str | None = None, recoverable: bool = False) -> None:
         self.message = message
         self.details = details or {}
         self.stage = stage
@@ -204,7 +207,7 @@ class CDAFException(Exception):
 
     def _format_message(self) -> str:
         """Format error message with structured information"""
-        parts = [f"[CDAF Error]"]
+        parts = ["[CDAF Error]"]
         if self.stage:
             parts.append(f"[Stage: {self.stage}]")
         parts.append(self.message)
@@ -212,7 +215,7 @@ class CDAFException(Exception):
             parts.append(f"Details: {json.dumps(self.details, indent=2)}")
         return " ".join(parts)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to structured dictionary"""
         return {
             'error_type': self.__class__.__name__,
@@ -222,26 +225,21 @@ class CDAFException(Exception):
             'recoverable': self.recoverable
         }
 
-
 class CDAFValidationError(CDAFException):
     """Configuration or data validation error"""
     pass
-
 
 class CDAFProcessingError(CDAFException):
     """Error during document processing"""
     pass
 
-
 class CDAFBayesianError(CDAFException):
     """Error during Bayesian inference"""
     pass
 
-
 class CDAFConfigError(CDAFException):
     """Configuration loading or validation error"""
     pass
-
 
 # ============================================================================
 # Pydantic Configuration Models - Schema Validation at Load Time
@@ -276,7 +274,6 @@ class BayesianThresholdsConfig(BaseModel):
         description="Laplace smoothing parameter"
     )
 
-
 class MechanismTypeConfig(BaseModel):
     """Mechanism type prior probabilities"""
     administrativo: float = Field(default=0.30, ge=0.0, le=1.0)
@@ -293,7 +290,6 @@ class MechanismTypeConfig(BaseModel):
             if abs(total - 1.0) > 0.01:
                 raise ValueError(f"Mechanism type priors must sum to 1.0, got {total}")
         return v
-
 
 class PerformanceConfig(BaseModel):
     """Performance and optimization settings"""
@@ -315,7 +311,6 @@ class PerformanceConfig(BaseModel):
         description="Cache spaCy embeddings for reuse"
     )
 
-
 class SelfReflectionConfig(BaseModel):
     """Self-reflective learning configuration"""
     enable_prior_learning: bool = Field(
@@ -328,7 +323,7 @@ class SelfReflectionConfig(BaseModel):
         le=1.0,
         description="Weight for feedback in prior updates (0=ignore, 1=full)"
     )
-    prior_history_path: Optional[str] = Field(
+    prior_history_path: str | None = Field(
         default=None,
         description="Path to save/load historical priors"
     )
@@ -338,19 +333,18 @@ class SelfReflectionConfig(BaseModel):
         description="Minimum documents before applying learned priors"
     )
 
-
 class CDAFConfigSchema(BaseModel):
     """Complete CDAF configuration schema with validation"""
-    patterns: Dict[str, str] = Field(
+    patterns: dict[str, str] = Field(
         description="Regex patterns for document parsing"
     )
-    lexicons: Dict[str, Any] = Field(
+    lexicons: dict[str, Any] = Field(
         description="Lexicons for causal logic, classification, etc."
     )
-    entity_aliases: Dict[str, str] = Field(
+    entity_aliases: dict[str, str] = Field(
         description="Entity name aliases and mappings"
     )
-    verb_sequences: Dict[str, int] = Field(
+    verb_sequences: dict[str, int] = Field(
         description="Verb sequence ordering for temporal coherence"
     )
     bayesian_thresholds: BayesianThresholdsConfig = Field(
@@ -373,14 +367,12 @@ class CDAFConfigSchema(BaseModel):
     class Config:
         extra = 'allow'  # Allow additional fields for extensibility
 
-
 class GoalClassification(NamedTuple):
     """Classification structure for goals"""
     type: NodeType
     dynamics: DynamicsType
     test_type: TestType
     confidence: float
-
 
 class EntityActivity(NamedTuple):
     """
@@ -397,27 +389,24 @@ class EntityActivity(NamedTuple):
     verb_lemma: str
     confidence: float
 
-
 class CausalLink(TypedDict):
     """Structure for causal links in the graph"""
     source: str
     target: str
     logic: str
     strength: float
-    evidence: List[str]
-    posterior_mean: Optional[float]
-    posterior_std: Optional[float]
-    kl_divergence: Optional[float]
-    converged: Optional[bool]
-
+    evidence: list[str]
+    posterior_mean: float | None
+    posterior_std: float | None
+    kl_divergence: float | None
+    converged: bool | None
 
 class AuditResult(TypedDict):
     """Audit result structure"""
     passed: bool
-    warnings: List[str]
-    errors: List[str]
-    recommendations: List[str]
-
+    warnings: list[str]
+    errors: list[str]
+    recommendations: list[str]
 
 @dataclass
 class MetaNode:
@@ -425,21 +414,20 @@ class MetaNode:
     id: str
     text: str
     type: NodeType
-    baseline: Optional[Union[float, str]] = None
-    target: Optional[Union[float, str]] = None
-    unit: Optional[str] = None
-    responsible_entity: Optional[str] = None
-    entity_activity: Optional[EntityActivity] = None
-    financial_allocation: Optional[float] = None
-    unit_cost: Optional[float] = None
+    baseline: float | str | None = None
+    target: float | str | None = None
+    unit: str | None = None
+    responsible_entity: str | None = None
+    entity_activity: EntityActivity | None = None
+    financial_allocation: float | None = None
+    unit_cost: float | None = None
     rigor_status: RigorStatus = "sin_evaluar"
     dynamics: DynamicsType = "indefinido"
     test_type: TestType = "straw_in_wind"
-    contextual_risks: List[str] = field(default_factory=list)
-    causal_justification: List[str] = field(default_factory=list)
-    audit_flags: List[str] = field(default_factory=list)
+    contextual_risks: list[str] = field(default_factory=list)
+    causal_justification: list[str] = field(default_factory=list)
+    audit_flags: list[str] = field(default_factory=list)
     confidence_score: float = 0.0
-
 
 class ConfigLoader:
     """External configuration management with Pydantic schema validation"""
@@ -447,26 +435,28 @@ class ConfigLoader:
     def __init__(self, config_path: Path) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config_path = config_path
-        self.config: Dict[str, Any] = {}
-        self.validated_config: Optional[CDAFConfigSchema] = None
+        self.config: dict[str, Any] = {}
+        self.validated_config: CDAFConfigSchema | None = None
         # HARMONIC FRONT 4: Track uncertainty over iterations
-        self._uncertainty_history: List[float] = []
+        self._uncertainty_history: list[float] = []
         self._load_config()
         self._validate_config()
         self._load_uncertainty_history()
 
     def _load_config(self) -> None:
         """Load YAML configuration file"""
+        # Delegate to factory for I/O operation
+        from .factory import load_yaml
+
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
-                self.config = yaml.safe_load(f)
+            self.config = load_yaml(self.config_path)
             self.logger.info(f"Configuración cargada desde {self.config_path}")
         except FileNotFoundError:
             self.logger.warning(f"Archivo de configuración no encontrado: {self.config_path}")
             self._load_default_config()
         except Exception as e:
             raise CDAFConfigError(
-                f"Error cargando configuración",
+                "Error cargando configuración",
                 details={'path': str(self.config_path), 'error': str(e)},
                 stage="config_load",
                 recoverable=True
@@ -619,7 +609,7 @@ class ConfigLoader:
             return getattr(self.validated_config.performance, key)
         return self.get(f'performance.{key}')
 
-    def update_priors_from_feedback(self, feedback_data: Dict[str, Any]) -> None:
+    def update_priors_from_feedback(self, feedback_data: dict[str, Any]) -> None:
         """
         Self-reflective loop: Update priors based on audit feedback
         Implements frontier paradigm of learning from results
@@ -715,8 +705,8 @@ class ConfigLoader:
 
         self.logger.info(f"Priors actualizados con peso de retroalimentación {feedback_weight}")
 
-    def _save_prior_history(self, feedback_data: Optional[Dict[str, Any]] = None,
-                            uncertainty_reduction: Optional[float] = None) -> None:
+    def _save_prior_history(self, feedback_data: dict[str, Any] | None = None,
+                            uncertainty_reduction: float | None = None) -> None:
         """
         Save prior history for learning across documents
 
@@ -732,15 +722,17 @@ class ConfigLoader:
             history_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Load existing history if available
+            # Delegate to factory for I/O operation
+            from .factory import load_json, save_json
+
             history_records = []
             if history_path.exists():
                 try:
-                    with open(history_path, 'r', encoding='utf-8') as f:
-                        existing_data = json.load(f)
-                        if isinstance(existing_data, list):
-                            history_records = existing_data
-                        elif isinstance(existing_data, dict) and 'history' in existing_data:
-                            history_records = existing_data['history']
+                    existing_data = load_json(history_path)
+                    if isinstance(existing_data, list):
+                        history_records = existing_data
+                    elif isinstance(existing_data, dict) and 'history' in existing_data:
+                        history_records = existing_data['history']
                 except json.JSONDecodeError:
                     self.logger.warning("Existing history file corrupted, starting fresh")
 
@@ -771,8 +763,7 @@ class ConfigLoader:
                 'history': history_records
             }
 
-            with open(history_path, 'w', encoding='utf-8') as f:
-                json.dump(history_data, f, indent=2)
+            save_json(history_data, history_path)
 
             self.logger.info(f"Historial de priors guardado en {history_path} (iteración {len(history_records)})")
         except Exception as e:
@@ -787,23 +778,25 @@ class ConfigLoader:
         if not self.validated_config or not self.validated_config.self_reflection.prior_history_path:
             return
 
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+
         try:
             history_path = Path(self.validated_config.self_reflection.prior_history_path)
             if history_path.exists():
-                with open(history_path, 'r', encoding='utf-8') as f:
-                    history_data = json.load(f)
-                    if isinstance(history_data, dict) and 'history' in history_data:
-                        # Extract uncertainty from each record
-                        for record in history_data['history']:
-                            if 'uncertainty_reduction_percent' in record:
-                                self._uncertainty_history.append(
-                                    record['uncertainty_reduction_percent']
-                                )
+                history_data = load_json(history_path)
+                if isinstance(history_data, dict) and 'history' in history_data:
+                    # Extract uncertainty from each record
+                    for record in history_data['history']:
+                        if 'uncertainty_reduction_percent' in record:
+                            self._uncertainty_history.append(
+                                record['uncertainty_reduction_percent']
+                            )
                 self.logger.info(f"Loaded {len(self._uncertainty_history)} uncertainty measurements")
         except Exception as e:
             self.logger.warning(f"Could not load uncertainty history: {e}")
 
-    def check_uncertainty_reduction_criterion(self, current_uncertainty: float) -> Dict[str, Any]:
+    def check_uncertainty_reduction_criterion(self, current_uncertainty: float) -> dict[str, Any]:
         """
         Check if mean mechanism_type uncertainty has decreased ≥5% over 10 iterations
 
@@ -845,17 +838,16 @@ class ConfigLoader:
 
         return result
 
-
 class PDFProcessor:
     """Advanced PDF processing and extraction"""
 
     def __init__(self, config: ConfigLoader, retry_handler=None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
-        self.document: Optional[fitz.Document] = None
+        self.document: fitz.Document | None = None
         self.text_content: str = ""
-        self.tables: List[pd.DataFrame] = []
-        self.metadata: Dict[str, Any] = {}
+        self.tables: list[pd.DataFrame] = []
+        self.metadata: dict[str, Any] = {}
         self.retry_handler = retry_handler
 
     def load_document(self, pdf_path: Path) -> bool:
@@ -870,7 +862,10 @@ class PDFProcessor:
                     exceptions=(IOError, OSError, RuntimeError)
                 )
                 def load_with_retry():
-                    doc = fitz.open(str(pdf_path))
+                    # Delegate to factory for I/O operation
+                    from .factory import open_pdf_with_fitz
+
+                    doc = open_pdf_with_fitz(pdf_path)
                     self.logger.info(f"PDF cargado: {pdf_path.name} ({len(doc)} páginas)")
                     return doc
 
@@ -882,8 +877,11 @@ class PDFProcessor:
                 return False
         else:
             # Fallback without retry
+            # Delegate to factory for I/O operation
+            from .factory import open_pdf_with_fitz
+
             try:
-                self.document = fitz.open(str(pdf_path))
+                self.document = open_pdf_with_fitz(pdf_path)
                 self.metadata = self.document.metadata
                 self.logger.info(f"PDF cargado: {pdf_path.name} ({len(self.document)} páginas)")
                 return True
@@ -909,7 +907,7 @@ class PDFProcessor:
         self.logger.info(f"Texto total extraído: {len(self.text_content)} caracteres")
         return self.text_content
 
-    def extract_tables(self) -> List[pd.DataFrame]:
+    def extract_tables(self) -> list[pd.DataFrame]:
         """Extract tables from PDF"""
         if not self.document:
             return []
@@ -940,7 +938,7 @@ class PDFProcessor:
         self.logger.info(f"Total de tablas extraídas: {len(self.tables)}")
         return self.tables
 
-    def extract_sections(self) -> Dict[str, str]:
+    def extract_sections(self) -> dict[str, str]:
         """Extract document sections based on patterns"""
         sections = {}
         section_pattern = re.compile(
@@ -959,7 +957,6 @@ class PDFProcessor:
         self.logger.info(f"Secciones identificadas: {len(sections)}")
         return sections
 
-
 class CausalExtractor:
     """Extract and structure causal chains from text"""
 
@@ -968,8 +965,8 @@ class CausalExtractor:
         self.config = config
         self.nlp = nlp_model
         self.graph = nx.DiGraph()
-        self.nodes: Dict[str, MetaNode] = {}
-        self.causal_chains: List[CausalLink] = []
+        self.nodes: dict[str, MetaNode] = {}
+        self.causal_chains: list[CausalLink] = []
 
     def extract_causal_hierarchy(self, text: str) -> nx.DiGraph:
         """Extract complete causal hierarchy from text"""
@@ -990,7 +987,7 @@ class CausalExtractor:
                          f"{self.graph.number_of_edges()} aristas")
         return self.graph
 
-    def _extract_goals(self, text: str) -> List[MetaNode]:
+    def _extract_goals(self, text: str) -> list[MetaNode]:
         """Extract all goals from text"""
         goals = []
         goal_pattern = re.compile(
@@ -1012,7 +1009,7 @@ class CausalExtractor:
         self.logger.info(f"Metas extraídas: {len(goals)}")
         return goals
 
-    def _parse_goal_context(self, goal_id: str, context: str) -> Optional[MetaNode]:
+    def _parse_goal_context(self, goal_id: str, context: str) -> MetaNode | None:
         """Parse goal context to extract structured information"""
         # Determine goal type
         if goal_id.startswith('MP'):
@@ -1040,7 +1037,7 @@ class CausalExtractor:
         goal = MetaNode(
             id=goal_id,
             text=context[:200].strip(),
-            type=cast(NodeType, node_type),
+            type=cast("NodeType", node_type),
             baseline=numbers[0] if len(numbers) > 0 else None,
             target=numbers[1] if len(numbers) > 1 else None,
             responsible_entity=entities[0] if entities else None
@@ -1048,27 +1045,27 @@ class CausalExtractor:
 
         return goal
 
-    def _extract_goal_text(self, text: str, **kwargs) -> Optional[str]:
+    def _extract_goal_text(self, text: str, **kwargs) -> str | None:
         """
         Extract the text content associated with a specific goal ID.
-        
+
         This method extracts goal text from the provided document text. It can work
         in two modes:
         1. If a goal_id is provided in kwargs, it extracts text for that specific goal
         2. Otherwise, it returns the first goal text found in the document
-        
+
         Args:
             text: The full document text
-            **kwargs: Additional parameters including optional 'goal_id', 'data', 
+            **kwargs: Additional parameters including optional 'goal_id', 'data',
                      'sentences', 'tables'
-            
+
         Returns:
             The extracted text for the goal, or None if not found
         """
         # Get goal_id from kwargs if provided, otherwise look for data parameter
         goal_id = kwargs.get('goal_id')
-        data = kwargs.get('data')
-        
+        kwargs.get('data')
+
         # If no goal_id specified, try to extract the first goal from text
         if not goal_id:
             goal_pattern = re.compile(
@@ -1081,22 +1078,22 @@ class CausalExtractor:
             else:
                 # No goal found in text
                 return None
-        
+
         # Now extract the context around the goal_id
         goal_pattern = re.compile(
             rf'\b{re.escape(goal_id)}\b',
             re.IGNORECASE
         )
-        
+
         match = goal_pattern.search(text)
         if not match:
             return None
-            
+
         # Extract context around the goal ID
         context_start = max(0, match.start() - 500)
         context_end = min(len(text), match.end() + 500)
         context = text[context_start:context_end]
-        
+
         return context.strip()
 
     def _add_node_to_graph(self, node: MetaNode) -> None:
@@ -1119,14 +1116,14 @@ class CausalExtractor:
         convergence_min_evidence = self.config.get_bayesian_threshold('convergence_min_evidence')
 
         # Track evidence for each potential link
-        link_evidence: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
+        link_evidence: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
 
         # Phase 1: Collect all evidence
         for keyword in causal_keywords:
             pattern = re.compile(
-                rf'({"|".join(re.escape(nid) for nid in self.nodes.keys())})'
+                rf'({"|".join(re.escape(nid) for nid in self.nodes)})'
                 rf'\s+{re.escape(keyword)}\s+'
-                rf'({"|".join(re.escape(nid) for nid in self.nodes.keys())})',
+                rf'({"|".join(re.escape(nid) for nid in self.nodes)})',
                 re.IGNORECASE
             )
 
@@ -1303,7 +1300,7 @@ class CausalExtractor:
 
         return transition_priors.get((source_type, target_type), 0.40)
 
-    def _check_structural_violation(self, source: str, target: str) -> Optional[str]:
+    def _check_structural_violation(self, source: str, target: str) -> str | None:
         """
         AUDIT POINT 2.1: Structural Veto (D6-Q2)
 
@@ -1339,12 +1336,12 @@ class CausalExtractor:
 
         # Special case: Producto → Impacto is impermissible (must go through Resultado)
         if source_type == 'producto' and target_type == 'impacto':
-            return f"missing_intermediate:producto→impacto requires resultado"
+            return "missing_intermediate:producto→impacto requires resultado"
 
         return None
 
-    def _calculate_language_specificity(self, keyword: str, policy_area: Optional[str] = None,
-                                        context: Optional[str] = None) -> float:
+    def _calculate_language_specificity(self, keyword: str, policy_area: str | None = None,
+                                        context: str | None = None) -> float:
         """Assess specificity of causal language (epistemic certainty)
 
         Harmonic Front 3 - Enhancement 4: Language Specificity Assessment
@@ -1530,7 +1527,7 @@ class CausalExtractor:
 
         return 0.5
 
-    def _initialize_prior(self, source: str, target: str) -> Tuple[float, float, float]:
+    def _initialize_prior(self, source: str, target: str) -> tuple[float, float, float]:
         """Initialize prior distribution for causal link"""
         # Use type transition as base prior
         type_prior = self._calculate_type_transition_prior(source, target)
@@ -1548,7 +1545,7 @@ class CausalExtractor:
 
         return prior_mean, adjusted_alpha, adjusted_beta
 
-    def _calculate_composite_likelihood(self, evidence: Dict[str, Any]) -> float:
+    def _calculate_composite_likelihood(self, evidence: dict[str, Any]) -> float:
         """Calculate composite likelihood from multiple evidence components
 
         Enhanced with:
@@ -1609,9 +1606,8 @@ class CausalExtractor:
 
     def _build_type_hierarchy(self) -> None:
         """Build hierarchy based on goal types"""
-        type_order = {'programa': 0, 'producto': 1, 'resultado': 2, 'impacto': 3}
 
-        nodes_by_type: Dict[str, List[str]] = defaultdict(list)
+        nodes_by_type: dict[str, list[str]] = defaultdict(list)
         for node_id in self.graph.nodes():
             node_type = self.graph.nodes[node_id].get('type', 'programa')
             nodes_by_type[node_type].append(node_id)
@@ -1628,6 +1624,104 @@ class CausalExtractor:
                 if not self.graph.has_edge(prod, res):
                     self.graph.add_edge(prod, res, logic='inferido', strength=0.5)
 
+    def _calculate_confidence(self, node: MetaNode, link_text: str = "") -> float:
+        """
+        Calculate confidence score for a causal link.
+
+        Args:
+            node: The node to calculate confidence for
+            link_text: Optional text describing the causal link
+
+        Returns:
+            Confidence score between 0 and 1
+        """
+        confidence = 0.5  # Base confidence
+
+        # Increase confidence if node has quantitative targets
+        if node.target and node.baseline:
+            try:
+                float(str(node.target).replace(',', '').replace('%', ''))
+                confidence += 0.2
+            except (ValueError, TypeError):
+                pass
+
+        # Increase confidence if text has causal indicators
+        if link_text:
+            causal_words = ['porque', 'debido', 'mediante', 'a través', 'permite', 'genera', 'produce']
+            if any(word in link_text.lower() for word in causal_words):
+                confidence += 0.15
+
+        # Increase confidence based on rigor status
+        if hasattr(node, 'rigor_status'):
+            if node.rigor_status == 'fuerte':
+                confidence += 0.15
+            elif node.rigor_status == 'débil':
+                confidence -= 0.1
+
+        return min(1.0, max(0.0, confidence))
+
+    def _classify_goal_type(self, text: str) -> str:
+        """
+        Classify the type of a goal based on its text.
+
+        Args:
+            text: Goal text to classify
+
+        Returns:
+            Goal type (programa, producto, resultado, impacto)
+        """
+        text_lower = text.lower()
+
+        # Keywords for each type
+        if any(word in text_lower for word in ['programa', 'línea estratégica', 'componente', 'eje']):
+            return 'programa'
+        elif any(word in text_lower for word in ['producto', 'servicio', 'bien', 'actividad']):
+            return 'producto'
+        elif any(word in text_lower for word in ['resultado', 'efecto', 'cambio', 'mejora']):
+            return 'resultado'
+        elif any(word in text_lower for word in ['impacto', 'transformación', 'desarrollo', 'bienestar']):
+            return 'impacto'
+        else:
+            # Default classification based on position and complexity
+            if len(text) < 100:
+                return 'producto'
+            else:
+                return 'resultado'
+
+    def _extract_causal_justifications(self, text: str) -> list[dict[str, Any]]:
+        """
+        Extract causal justifications from text.
+
+        Args:
+            text: Text to extract justifications from
+
+        Returns:
+            List of justifications with text and confidence
+        """
+        justifications = []
+
+        # Patterns that indicate causal justifications
+        patterns = [
+            r'porque\s+([^.]+)',
+            r'debido\s+a\s+([^.]+)',
+            r'mediante\s+([^.]+)',
+            r'a\s+través\s+de\s+([^.]+)',
+            r'se\s+logra\s+mediante\s+([^.]+)',
+            r'permite\s+([^.]+)',
+            r'genera\s+([^.]+)',
+        ]
+
+        for pattern in patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                justification_text = match.group(1).strip()
+                justifications.append({
+                    'text': justification_text,
+                    'confidence': 0.7,
+                    'type': 'causal_explanation'
+                })
+
+        return justifications
 
 class MechanismPartExtractor:
     """Extract Entity-Activity pairs for mechanism parts"""
@@ -1638,7 +1732,7 @@ class MechanismPartExtractor:
         self.nlp = nlp_model
         self.entity_aliases = config.get('entity_aliases', {})
 
-    def extract_entity_activity(self, text: str) -> Optional[EntityActivity]:
+    def extract_entity_activity(self, text: str) -> EntityActivity | None:
         """Extract Entity-Activity tuple from text"""
         doc = self.nlp(text)
 
@@ -1681,6 +1775,104 @@ class MechanismPartExtractor:
         entity_upper = entity.upper().strip()
         return self.entity_aliases.get(entity_upper, entity)
 
+    def _calculate_ea_confidence(self, entity: str, activity: str, context: str = "") -> float:
+        """
+        Calculate confidence for an entity-activity pair.
+
+        Args:
+            entity: Entity text
+            activity: Activity text
+            context: Surrounding context
+
+        Returns:
+            Confidence score between 0 and 1
+        """
+        confidence = 0.5
+
+        # Higher confidence if entity is in known aliases
+        if entity.upper() in self.entity_aliases:
+            confidence += 0.2
+
+        # Higher confidence if activity is a strong verb
+        strong_verbs = ['ejecutar', 'implementar', 'desarrollar', 'gestionar', 'coordinar']
+        if any(verb in activity.lower() for verb in strong_verbs):
+            confidence += 0.15
+
+        # Higher confidence if there's clear grammatical connection in context
+        if entity in context and activity in context:
+            confidence += 0.15
+
+        return min(1.0, confidence)
+
+    def _find_action_verb(self, text: str) -> str | None:
+        """
+        Find the main action verb in text.
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            Main action verb or None
+        """
+        doc = self.nlp(text)
+
+        # Find main verb
+        for token in doc:
+            if token.pos_ == 'VERB' and token.dep_ in ['ROOT', 'ccomp', 'xcomp']:
+                return token.text
+
+        # Fallback: any verb
+        for token in doc:
+            if token.pos_ == 'VERB':
+                return token.text
+
+        return None
+
+    def _find_subject_entity(self, text: str) -> str | None:
+        """
+        Find the subject entity in text.
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            Subject entity or None
+        """
+        doc = self.nlp(text)
+
+        # Find subject
+        for token in doc:
+            if token.dep_ in ['nsubj', 'nsubjpass']:
+                return self._normalize_entity(token.text)
+
+        # Try NER
+        for ent in doc.ents:
+            if ent.label_ in ['ORG', 'PER', 'GPE']:
+                return self._normalize_entity(ent.text)
+
+        return None
+
+    def _validate_entity_activity(self, entity: str, activity: str) -> bool:
+        """
+        Validate that an entity-activity pair makes sense.
+
+        Args:
+            entity: Entity text
+            activity: Activity text
+
+        Returns:
+            True if valid pair
+        """
+        # Basic validation
+        if not entity or not activity:
+            return False
+
+        # Entity should not be too short or generic
+        if len(entity) < 3 or entity.lower() in ['el', 'la', 'los', 'las', 'un', 'una']:
+            return False
+
+        # Activity should be a reasonable verb
+        return not len(activity) < 3
 
 class FinancialAuditor:
     """Financial traceability and auditing"""
@@ -1688,15 +1880,15 @@ class FinancialAuditor:
     def __init__(self, config: ConfigLoader) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
-        self.financial_data: Dict[str, Dict[str, float]] = {}
-        self.unit_costs: Dict[str, float] = {}
+        self.financial_data: dict[str, dict[str, float]] = {}
+        self.unit_costs: dict[str, float] = {}
         self.successful_parses = 0
         self.failed_parses = 0
-        self.d3_q3_analysis: Dict[str, Any] = {}  # Harmonic Front 3 - D3-Q3 metrics
+        self.d3_q3_analysis: dict[str, Any] = {}  # Harmonic Front 3 - D3-Q3 metrics
 
-    def trace_financial_allocation(self, tables: List[pd.DataFrame],
-                                   nodes: Dict[str, MetaNode],
-                                   graph: Optional[nx.DiGraph] = None) -> Dict[str, float]:
+    def trace_financial_allocation(self, tables: list[pd.DataFrame],
+                                   nodes: dict[str, MetaNode],
+                                   graph: nx.DiGraph | None = None) -> dict[str, float]:
         """Trace financial allocations to programs/goals
 
         Harmonic Front 3 - Enhancement 5: Single-Case Counterfactual Budget Check
@@ -1725,7 +1917,7 @@ class FinancialAuditor:
         return self.unit_costs
 
     def _process_financial_table(self, table: pd.DataFrame,
-                                 nodes: Dict[str, MetaNode]) -> None:
+                                 nodes: dict[str, MetaNode]) -> None:
         """Process a single financial table"""
         # Try to identify relevant columns
         amount_pattern = re.compile(
@@ -1795,7 +1987,7 @@ class FinancialAuditor:
                 self.logger.debug(f"Error procesando fila financiera: {e}")
                 continue
 
-    def _parse_amount(self, value: Any) -> Optional[float]:
+    def _parse_amount(self, value: Any) -> float | None:
         """Parse monetary amount from various formats"""
         if pd.isna(value):
             return None
@@ -1811,7 +2003,7 @@ class FinancialAuditor:
             return None
 
     def _match_program_to_node(self, program_id: str,
-                               nodes: Dict[str, MetaNode]) -> Optional[str]:
+                               nodes: dict[str, MetaNode]) -> str | None:
         """Match program ID to existing node using fuzzy matching
 
         Enhanced for D1-Q3 / D3-Q3 Financial Traceability:
@@ -1865,7 +2057,7 @@ class FinancialAuditor:
 
         return None
 
-    def _perform_counterfactual_budget_check(self, nodes: Dict[str, MetaNode],
+    def _perform_counterfactual_budget_check(self, nodes: dict[str, MetaNode],
                                              graph: nx.DiGraph) -> None:
         """
         Harmonic Front 3 - Enhancement 5: Counterfactual Sufficiency Test for D3-Q3
@@ -1956,6 +2148,101 @@ class FinancialAuditor:
                          f"products with excellent traceability")
         return None
 
+    def _calculate_sufficiency(self, allocation: float, target: float) -> float:
+        """
+        Calculate if financial allocation is sufficient for target.
+
+        Args:
+            allocation: Financial allocation amount
+            target: Target value
+
+        Returns:
+            Sufficiency ratio (1.0 = exactly sufficient, >1.0 = oversufficient)
+        """
+        if not target or target == 0:
+            return 0.0
+
+        # Calculate unit cost implied by allocation and target
+        allocation / target
+
+        # Compare with historical/expected unit costs if available
+        # For now, return simple ratio
+        return allocation / target if target > 0 else 0.0
+
+    def _detect_allocation_gaps(self, nodes: dict[str, MetaNode]) -> list[dict[str, Any]]:
+        """
+        Detect gaps in financial allocations.
+
+        Args:
+            nodes: Dictionary of nodes
+
+        Returns:
+            List of detected gaps
+        """
+        gaps = []
+
+        for node_id, node in nodes.items():
+            # Check for missing allocation
+            if node.type in ['producto', 'programa'] and not node.financial_allocation:
+                gaps.append({
+                    'node_id': node_id,
+                    'type': 'missing_allocation',
+                    'severity': 'high',
+                    'message': f"No financial allocation for {node.type} {node_id}"
+                })
+
+            # Check for insufficient allocation
+            if node.financial_allocation and node.target:
+                try:
+                    target_val = float(str(node.target).replace(',', '').replace('%', ''))
+                    if target_val > 0:
+                        sufficiency = self._calculate_sufficiency(node.financial_allocation, target_val)
+                        if sufficiency < 0.5:
+                            gaps.append({
+                                'node_id': node_id,
+                                'type': 'insufficient_allocation',
+                                'severity': 'medium',
+                                'message': f"Low sufficiency ratio {sufficiency:.2f} for {node_id}",
+                                'sufficiency': sufficiency
+                            })
+                except (ValueError, TypeError):
+                    pass
+
+        return gaps
+
+    def _match_goal_to_budget(self, goal_text: str, budget_entries: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """
+        Match a goal to budget entries.
+
+        Args:
+            goal_text: Goal text to match
+            budget_entries: List of budget entries
+
+        Returns:
+            Best matching budget entry or None
+        """
+        if not budget_entries:
+            return None
+
+        # Extract potential identifiers from goal text
+        goal_words = set(goal_text.lower().split())
+
+        best_match = None
+        best_score = 0
+
+        for entry in budget_entries:
+            entry_text = str(entry.get('description', '')).lower()
+            entry_words = set(entry_text.split())
+
+            # Calculate overlap
+            overlap = len(goal_words & entry_words)
+            score = overlap / max(len(goal_words), len(entry_words), 1)
+
+            if score > best_score and score > 0.3:  # Minimum threshold
+                best_score = score
+                best_match = entry
+
+        return best_match
 
 class OperationalizationAuditor:
     """Audit operationalization quality"""
@@ -1964,10 +2251,10 @@ class OperationalizationAuditor:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
         self.verb_sequences = config.get('verb_sequences', {})
-        self.audit_results: Dict[str, AuditResult] = {}
-        self.sequence_warnings: List[str] = []
+        self.audit_results: dict[str, AuditResult] = {}
+        self.sequence_warnings: list[str] = []
 
-    def audit_evidence_traceability(self, nodes: Dict[str, MetaNode]) -> Dict[str, AuditResult]:
+    def audit_evidence_traceability(self, nodes: dict[str, MetaNode]) -> dict[str, AuditResult]:
         """Audit evidence traceability for all nodes
 
         Enhanced with D3-Q1 Ficha Técnica validation:
@@ -2097,12 +2384,12 @@ class OperationalizationAuditor:
 
         return self.audit_results
 
-    def audit_sequence_logic(self, graph: nx.DiGraph) -> List[str]:
+    def audit_sequence_logic(self, graph: nx.DiGraph) -> list[str]:
         """Audit logical sequence of activities"""
         warnings = []
 
         # Group nodes by program
-        programs: Dict[str, List[str]] = defaultdict(list)
+        programs: dict[str, list[str]] = defaultdict(list)
         for node_id in graph.nodes():
             node_data = graph.nodes[node_id]
             if node_data.get('type') == 'programa':
@@ -2137,10 +2424,10 @@ class OperationalizationAuditor:
         self.sequence_warnings = warnings
         return warnings
 
-    def bayesian_counterfactual_audit(self, nodes: Dict[str, MetaNode],
+    def bayesian_counterfactual_audit(self, nodes: dict[str, MetaNode],
                                       graph: nx.DiGraph,
-                                      historical_data: Optional[Dict[str, Any]] = None,
-                                      pdet_alignment: Optional[float] = None) -> Dict[str, Any]:
+                                      historical_data: dict[str, Any] | None = None,
+                                      pdet_alignment: float | None = None) -> dict[str, Any]:
         """
         AGUJA III: El Auditor Contrafactual Bayesiano
         Perform counterfactual audit using Bayesian causal reasoning
@@ -2208,7 +2495,7 @@ class OperationalizationAuditor:
 
         return dag
 
-    def _get_default_historical_priors(self) -> Dict[str, Any]:
+    def _get_default_historical_priors(self) -> dict[str, Any]:
         """Get default historical priors if no data is available"""
         return {
             'entity_presence_success_rate': 0.94,
@@ -2224,9 +2511,9 @@ class OperationalizationAuditor:
             }
         }
 
-    def _audit_direct_evidence(self, nodes: Dict[str, MetaNode],
+    def _audit_direct_evidence(self, nodes: dict[str, MetaNode],
                                scm_dag: nx.DiGraph,
-                               historical_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+                               historical_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """Layer 1: Audit direct evidence of required components
 
         Enhanced with highly specific Bayesian priors for rare evidence items.
@@ -2326,9 +2613,9 @@ class OperationalizationAuditor:
 
         return results
 
-    def _audit_causal_implications(self, nodes: Dict[str, MetaNode],
+    def _audit_causal_implications(self, nodes: dict[str, MetaNode],
                                    graph: nx.DiGraph,
-                                   direct_evidence: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+                                   direct_evidence: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         """Layer 2: Audit causal implications of omissions"""
         implications = {}
 
@@ -2379,11 +2666,11 @@ class OperationalizationAuditor:
 
         return implications
 
-    def _audit_systemic_risk(self, nodes: Dict[str, MetaNode],
+    def _audit_systemic_risk(self, nodes: dict[str, MetaNode],
                              graph: nx.DiGraph,
-                             direct_evidence: Dict[str, Dict[str, Any]],
-                             causal_implications: Dict[str, Dict[str, Any]],
-                             pdet_alignment: Optional[float] = None) -> Dict[str, Any]:
+                             direct_evidence: dict[str, dict[str, Any]],
+                             causal_implications: dict[str, dict[str, Any]],
+                             pdet_alignment: float | None = None) -> dict[str, Any]:
         """
         AUDIT POINT 2.3: Policy Alignment Dual Constraint
         Layer 3: Calculate systemic risk from accumulated omissions
@@ -2404,7 +2691,7 @@ class OperationalizationAuditor:
                 centrality = nx.betweenness_centrality(graph)
             except (nx.NetworkXError, ZeroDivisionError, Exception) as e:
                 logging.warning(f"Failed to calculate betweenness centrality: {e}. Using default values.")
-                centrality = {n: 0.5 for n in graph.nodes()}
+                centrality = dict.fromkeys(graph.nodes(), 0.5)
         else:
             centrality = {}
 
@@ -2498,9 +2785,9 @@ class OperationalizationAuditor:
         }
 
     def _generate_optimal_remediations(self,
-                                       direct_evidence: Dict[str, Dict[str, Any]],
-                                       causal_implications: Dict[str, Dict[str, Any]],
-                                       systemic_risk: Dict[str, Any]) -> List[Dict[str, Any]]:
+                                       direct_evidence: dict[str, dict[str, Any]],
+                                       causal_implications: dict[str, dict[str, Any]],
+                                       systemic_risk: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate prioritized remediation recommendations"""
         remediations = []
 
@@ -2556,6 +2843,45 @@ class OperationalizationAuditor:
         }
         return texts.get(omission, f"Completar {omission} para {node_id}")
 
+    def _perform_counterfactual_budget_check(self, nodes: dict[str, MetaNode],
+                                            graph: nx.DiGraph) -> dict[str, Any]:
+        """
+        Perform counterfactual budget check for operationalization audit.
+
+        This method evaluates whether removing budget allocation would prevent
+        goal execution, helping identify necessary vs. superfluous allocations.
+
+        Args:
+            nodes: Dictionary of meta nodes
+            graph: Causal graph
+
+        Returns:
+            Dictionary with counterfactual analysis results
+        """
+        results = {
+            'nodes_analyzed': 0,
+            'budget_necessary': [],
+            'budget_optional': [],
+            'unallocated': []
+        }
+
+        for node_id, node in nodes.items():
+            results['nodes_analyzed'] += 1
+
+            has_budget = node.financial_allocation and node.financial_allocation > 0
+            has_mechanism = node.entity_activity is not None
+            has_dependencies = len(list(graph.successors(node_id))) > 0 if graph.has_node(node_id) else False
+
+            if not has_budget:
+                results['unallocated'].append(node_id)
+            elif has_mechanism and has_dependencies:
+                # Budget seems necessary for execution
+                results['budget_necessary'].append(node_id)
+            else:
+                # Budget may be optional or disconnected
+                results['budget_optional'].append(node_id)
+
+        return results
 
 class BayesianMechanismInference:
     """
@@ -2579,13 +2905,13 @@ class BayesianMechanismInference:
     def __init__(self, config: ConfigLoader, nlp_model: spacy.Language, **kwargs) -> None:
         """
         Initialize Bayesian Mechanism Inference engine.
-        
+
         Args:
             config: Configuration loader instance
             nlp_model: spaCy NLP model for text processing
             **kwargs: Accepts additional keyword arguments for backward compatibility.
                      Unexpected arguments (e.g., 'causal_hierarchy') are logged and ignored.
-        
+
         Note:
             This function signature has been made defensive to handle unexpected
             keyword arguments that may be passed due to interface drift.
@@ -2596,7 +2922,7 @@ class BayesianMechanismInference:
                 f"BayesianMechanismInference.__init__ received unexpected keyword arguments: {list(kwargs.keys())}. "
                 "These will be ignored. Expected signature: __init__(self, config: ConfigLoader, nlp_model: spacy.Language)"
             )
-        
+
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = config
         self.nlp = nlp_model
@@ -2635,7 +2961,7 @@ class BayesianMechanismInference:
         }
 
         # Track inferred mechanisms
-        self.inferred_mechanisms: Dict[str, Dict[str, Any]] = {}
+        self.inferred_mechanisms: dict[str, dict[str, Any]] = {}
 
     def _log_refactored_components(self) -> None:
         """Log status of refactored Bayesian components (F1.2)"""
@@ -2648,8 +2974,8 @@ class BayesianMechanismInference:
             self.logger.info("  - NecessitySufficiencyTester: " +
                              ("✓" if status['necessity_tester_ready'] else "✗"))
 
-    def infer_mechanisms(self, nodes: Dict[str, MetaNode],
-                         text: str) -> Dict[str, Dict[str, Any]]:
+    def infer_mechanisms(self, nodes: dict[str, MetaNode],
+                         text: str) -> dict[str, dict[str, Any]]:
         """
         Infer latent causal mechanisms using hierarchical Bayesian modeling
 
@@ -2688,7 +3014,7 @@ class BayesianMechanismInference:
         return self.inferred_mechanisms
 
     def _infer_single_mechanism(self, node: MetaNode, text: str,
-                                all_nodes: Dict[str, MetaNode]) -> Dict[str, Any]:
+                                all_nodes: dict[str, MetaNode]) -> dict[str, Any]:
         """Infer mechanism for a single product node"""
         # Extract observations from text
         observations = self._extract_observations(node, text)
@@ -2729,7 +3055,7 @@ class BayesianMechanismInference:
             'observations': observations
         }
 
-    def _extract_observations(self, node: MetaNode, text: str) -> Dict[str, Any]:
+    def _extract_observations(self, node: MetaNode, text: str) -> dict[str, Any]:
         """Extract textual observations related to the mechanism"""
         # Find node context in text
         node_pattern = re.escape(node.id)
@@ -2771,7 +3097,7 @@ class BayesianMechanismInference:
 
         return observations
 
-    def _infer_mechanism_type(self, observations: Dict[str, Any]) -> Dict[str, float]:
+    def _infer_mechanism_type(self, observations: dict[str, Any]) -> dict[str, float]:
         """Infer mechanism type using Bayesian updating"""
         # Start with hyperprior
         posterior = dict(self.mechanism_type_priors)
@@ -2809,8 +3135,8 @@ class BayesianMechanismInference:
 
         return posterior
 
-    def _infer_activity_sequence(self, observations: Dict[str, Any],
-                                 mechanism_type_posterior: Dict[str, float]) -> Dict[str, Any]:
+    def _infer_activity_sequence(self, observations: dict[str, Any],
+                                 mechanism_type_posterior: dict[str, float]) -> dict[str, Any]:
         """Infer activity sequence parameters"""
         # Get most likely mechanism type
         best_type = max(mechanism_type_posterior.items(), key=lambda x: x[1])[0]
@@ -2838,8 +3164,8 @@ class BayesianMechanismInference:
         }
 
     def _calculate_coherence_factor(self, node: MetaNode,
-                                    observations: Dict[str, Any],
-                                    all_nodes: Dict[str, MetaNode]) -> float:
+                                    observations: dict[str, Any],
+                                    all_nodes: dict[str, MetaNode]) -> float:
         """Calculate mechanism coherence score"""
         coherence = 0.0
         weights = []
@@ -2879,7 +3205,7 @@ class BayesianMechanismInference:
         return coherence
 
     def _test_sufficiency(self, node: MetaNode,
-                          observations: Dict[str, Any]) -> Dict[str, Any]:
+                          observations: dict[str, Any]) -> dict[str, Any]:
         """Test if mechanism is sufficient to produce the outcome"""
         # Check if entity has capability
         has_entity = observations.get('entity_activity') is not None
@@ -2907,7 +3233,7 @@ class BayesianMechanismInference:
         }
 
     def _test_necessity(self, node: MetaNode,
-                        observations: Dict[str, Any]) -> Dict[str, Any]:
+                        observations: dict[str, Any]) -> dict[str, Any]:
         """
         AUDIT POINT 2.2: Mechanism Necessity Hoop Test
 
@@ -2990,7 +3316,7 @@ class BayesianMechanismInference:
 
         return result
 
-    def _generate_necessity_remediation(self, node_id: str, missing_components: List[str]) -> str:
+    def _generate_necessity_remediation(self, node_id: str, missing_components: list[str]) -> str:
         """Generate remediation text for failed necessity test"""
         component_descriptions = {
             'entity': 'entidad responsable claramente identificada',
@@ -3009,9 +3335,9 @@ class BayesianMechanismInference:
             f"la cadena causal según Beach 2017."
         )
 
-    def _quantify_uncertainty(self, mechanism_type_posterior: Dict[str, float],
-                              sequence_posterior: Dict[str, Any],
-                              coherence_score: float) -> Dict[str, float]:
+    def _quantify_uncertainty(self, mechanism_type_posterior: dict[str, float],
+                              sequence_posterior: dict[str, Any],
+                              coherence_score: float) -> dict[str, float]:
         """Quantify epistemic uncertainty"""
         # Entropy of mechanism type distribution
         mech_probs = list(mechanism_type_posterior.values())
@@ -3043,8 +3369,8 @@ class BayesianMechanismInference:
             'coherence': coherence_uncertainty
         }
 
-    def _detect_gaps(self, node: MetaNode, observations: Dict[str, Any],
-                     uncertainty: Dict[str, float]) -> List[Dict[str, str]]:
+    def _detect_gaps(self, node: MetaNode, observations: dict[str, Any],
+                     uncertainty: dict[str, float]) -> list[dict[str, str]]:
         """Detect documentation gaps based on uncertainty"""
         gaps = []
 
@@ -3086,6 +3412,119 @@ class BayesianMechanismInference:
 
         return gaps
 
+    def _aggregate_bayesian_confidence(self, confidences: list[float]) -> float:
+        """
+        Aggregate multiple Bayesian confidence values.
+
+        Args:
+            confidences: List of confidence values to aggregate
+
+        Returns:
+            Aggregated confidence value
+        """
+        if not confidences:
+            return 0.5  # Default neutral confidence
+        return float(np.mean(confidences))
+
+    def _build_transition_matrix(self, mechanism_type: str) -> np.ndarray:
+        """
+        Build transition matrix for activity sequences.
+
+        Args:
+            mechanism_type: Type of mechanism
+
+        Returns:
+            Transition probability matrix
+        """
+        # Get typical sequence for this mechanism type
+        sequence = self.mechanism_sequences.get(mechanism_type, ['planificar', 'ejecutar', 'evaluar'])
+        n = len(sequence)
+
+        # Create a simple sequential transition matrix
+        matrix = np.zeros((n, n))
+        for i in range(n - 1):
+            matrix[i, i + 1] = 0.7  # High probability of next step
+            matrix[i, i] = 0.2       # Some probability of staying in same step
+            if i < n - 2:
+                matrix[i, i + 2] = 0.1  # Small probability of skipping
+        matrix[n - 1, n - 1] = 1.0  # Final state is absorbing
+
+        return matrix
+
+    def _calculate_type_transition_prior(self, from_type: str, to_type: str) -> float:
+        """
+        Calculate prior probability of transitioning between mechanism types.
+
+        Args:
+            from_type: Source mechanism type
+            to_type: Target mechanism type
+
+        Returns:
+            Prior probability of transition
+        """
+        # Same type has high probability
+        if from_type == to_type:
+            return 0.7
+
+        # Related types have medium probability
+        related_pairs = [
+            ('administrativo', 'politico'),
+            ('tecnico', 'financiero'),
+            ('financiero', 'administrativo'),
+        ]
+        if (from_type, to_type) in related_pairs or (to_type, from_type) in related_pairs:
+            return 0.2
+
+        # Unrelated types have low probability
+        return 0.1
+
+    def _classify_mechanism_type(self, observations: dict[str, Any]) -> str:
+        """
+        Classify mechanism type based on observations.
+
+        Args:
+            observations: Observed features
+
+        Returns:
+            Classified mechanism type
+        """
+        # Extract features
+        verbs = observations.get('verbs', [])
+        entities = observations.get('entities', [])
+        budget = observations.get('budget')
+
+        # Score each mechanism type
+        scores = {}
+        for mech_type, typical_verbs in self.mechanism_sequences.items():
+            score = 0.0
+            # Count matching verbs
+            for verb in verbs:
+                if any(tv in verb.lower() for tv in typical_verbs):
+                    score += 1.0
+            scores[mech_type] = score
+
+        # Adjust for budget presence (indicates financial mechanism)
+        if budget and budget > 0:
+            scores['financiero'] = scores.get('financiero', 0) + 2.0
+
+        # Adjust for political/administrative entities
+        for entity in entities:
+            entity_lower = entity.lower()
+            if any(word in entity_lower for word in ['alcaldía', 'consejo', 'gobernación']):
+                scores['politico'] = scores.get('politico', 0) + 1.0
+            if any(word in entity_lower for word in ['secretaría', 'dirección', 'oficina']):
+                scores['administrativo'] = scores.get('administrativo', 0) + 1.0
+
+        # Return type with highest score, or 'mixto' if tie
+        if not scores or all(s == 0 for s in scores.values()):
+            return 'mixto'
+
+        max_score = max(scores.values())
+        max_types = [t for t, s in scores.items() if s == max_score]
+
+        if len(max_types) > 1:
+            return 'mixto'
+        return max_types[0]
 
 class CausalInferenceSetup:
     """Prepare model for causal inference"""
@@ -3097,18 +3536,18 @@ class CausalInferenceSetup:
         self.admin_keywords = config.get('lexicons.administrative_keywords', [])
         self.contextual_factors = config.get('lexicons.contextual_factors', [])
 
-    def classify_goal_dynamics(self, nodes: Dict[str, MetaNode]) -> None:
+    def classify_goal_dynamics(self, nodes: dict[str, MetaNode]) -> None:
         """Classify dynamics for each goal"""
         for node in nodes.values():
             text_lower = node.text.lower()
 
             for keyword, dynamics in self.goal_classification.items():
                 if keyword in text_lower:
-                    node.dynamics = cast(DynamicsType, dynamics)
+                    node.dynamics = cast("DynamicsType", dynamics)
                     self.logger.debug(f"Meta {node.id} clasificada como {node.dynamics}")
                     break
 
-    def assign_probative_value(self, nodes: Dict[str, MetaNode]) -> None:
+    def assign_probative_value(self, nodes: dict[str, MetaNode]) -> None:
         """Assign probative test types to nodes"""
         # Import INDICATOR_STRUCTURE from financiero_viabilidad_tablas
         try:
@@ -3126,7 +3565,7 @@ class CausalInferenceSetup:
 
             # Cross-reference with INDICATOR_STRUCTURE to classify critical requirements
             # as Hoop Tests or Smoking Guns
-            required_fields = indicator_structure.get(node.type, [])
+            indicator_structure.get(node.type, [])
 
             # Check if node has all critical DNP requirements (D3-Q1 indicators)
             has_linea_base = bool(
@@ -3167,7 +3606,7 @@ class CausalInferenceSetup:
 
             self.logger.debug(f"Meta {node.id} asignada test type: {node.test_type}")
 
-    def identify_failure_points(self, graph: nx.DiGraph, text: str) -> Set[str]:
+    def identify_failure_points(self, graph: nx.DiGraph, text: str) -> set[str]:
         """Identify single points of failure in causal chain
 
         Harmonic Front 3 - Enhancement 2: Contextual Failure Point Detection
@@ -3265,6 +3704,23 @@ class CausalInferenceSetup:
 
         return failure_points
 
+    def _get_dynamics_pattern(self, dynamics_type: str) -> str:
+        """
+        Get the pattern associated with a dynamics type.
+
+        Args:
+            dynamics_type: Type of dynamics (suma, decreciente, constante, indefinido)
+
+        Returns:
+            Pattern string for the dynamics type
+        """
+        patterns = {
+            'suma': 'suma|total|agregado|consolidado',
+            'decreciente': 'reducir|disminuir|decrementar|bajar',
+            'constante': 'mantener|sostener|preservar|conservar',
+            'indefinido': 'por definir|sin especificar|indefinido'
+        }
+        return patterns.get(dynamics_type, '')
 
 class ReportingEngine:
     """Generate visualizations and reports"""
@@ -3343,12 +3799,14 @@ class ReportingEngine:
             dot.add_edge(dot_edge)
 
         # Save files
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+
         dot_path = self.output_dir / f"{policy_code}_causal_diagram.dot"
         png_path = self.output_dir / f"{policy_code}_causal_diagram.png"
 
         try:
-            with open(dot_path, 'w', encoding='utf-8') as f:
-                f.write(dot.to_string())
+            write_text_file(dot.to_string(), dot_path)
             self.logger.info(f"Diagrama DOT guardado en: {dot_path}")
 
             # Try to render PNG
@@ -3372,7 +3830,7 @@ class ReportingEngine:
                         if graph.nodes[n].get('type') == 'impacto']
 
         content = [f"# Matriz de Responsabilidades - {policy_code}\n"]
-        content.append(f"*Generado automáticamente por CDAF v2.0*\n")
+        content.append("*Generado automáticamente por CDAF v2.0*\n")
         content.append("---\n\n")
 
         for impact in impact_goals:
@@ -3412,9 +3870,11 @@ class ReportingEngine:
         content.append("- **Meta de Resultado:** Cambio intermedio observable\n")
         content.append("- **Meta de Producto:** Entrega tangible del programa\n")
 
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+
         try:
-            with open(md_path, 'w', encoding='utf-8') as f:
-                f.write(''.join(content))
+            write_text_file(''.join(content), md_path)
             self.logger.info(f"Matriz de responsabilidades guardada en: {md_path}")
         except Exception as e:
             self.logger.error(f"Error guardando matriz de responsabilidades: {e}")
@@ -3422,12 +3882,12 @@ class ReportingEngine:
         return md_path
 
     def generate_confidence_report(self,
-                                   nodes: Dict[str, MetaNode],
+                                   nodes: dict[str, MetaNode],
                                    graph: nx.DiGraph,
-                                   causal_chains: List[CausalLink],
-                                   audit_results: Dict[str, AuditResult],
+                                   causal_chains: list[CausalLink],
+                                   audit_results: dict[str, AuditResult],
                                    financial_auditor: FinancialAuditor,
-                                   sequence_warnings: List[str],
+                                   sequence_warnings: list[str],
                                    policy_code: str) -> Path:
         """Generate extraction confidence report"""
         json_path = self.output_dir / f"{policy_code}{EXTRACTION_REPORT_SUFFIX}"
@@ -3502,9 +3962,11 @@ class ReportingEngine:
             )
         }
 
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+
         try:
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(report, f, indent=2, ensure_ascii=False)
+            save_json(report, json_path)
             self.logger.info(f"Reporte de confianza guardado en: {json_path}")
         except Exception as e:
             self.logger.error(f"Error guardando reporte de confianza: {e}")
@@ -3521,7 +3983,7 @@ class ReportingEngine:
                  ea * weights['ea'])
         return round(score, 2)
 
-    def generate_causal_model_json(self, graph: nx.DiGraph, nodes: Dict[str, MetaNode],
+    def generate_causal_model_json(self, graph: nx.DiGraph, nodes: dict[str, MetaNode],
                                    policy_code: str) -> Path:
         """Generate structured JSON export of causal model"""
         json_path = self.output_dir / f"{policy_code}{CAUSAL_MODEL_SUFFIX}"
@@ -3560,15 +4022,16 @@ class ReportingEngine:
             }
         }
 
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+
         try:
-            with open(json_path, 'w', encoding='utf-8') as f:
-                json.dump(model_data, f, indent=2, ensure_ascii=False)
+            save_json(model_data, json_path)
             self.logger.info(f"Modelo causal JSON guardado en: {json_path}")
         except Exception as e:
             self.logger.error(f"Error guardando modelo causal: {e}")
 
         return json_path
-
 
 class CDAFFramework:
     """Main orchestrator for the CDAF pipeline"""
@@ -3583,7 +4046,7 @@ class CDAFFramework:
 
         # Initialize retry handler for external dependencies
         try:
-            from retry_handler import get_retry_handler, DependencyType
+            from retry_handler import DependencyType, get_retry_handler
             self.retry_handler = get_retry_handler()
             retry_enabled = True
         except ImportError:
@@ -3592,6 +4055,9 @@ class CDAFFramework:
             retry_enabled = False
 
         # Load spaCy model with retry logic
+        # Delegate to factory for I/O operation
+        from .factory import load_spacy_model
+
         if retry_enabled and self.retry_handler:
             @self.retry_handler.with_retry(
                 DependencyType.SPACY_MODEL,
@@ -3600,12 +4066,12 @@ class CDAFFramework:
             )
             def load_spacy_with_retry():
                 try:
-                    nlp = spacy.load("es_core_news_lg")
+                    nlp = load_spacy_model("es_core_news_lg")
                     self.logger.info("Modelo spaCy cargado: es_core_news_lg")
                     return nlp
                 except OSError:
                     self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
-                    nlp = spacy.load("es_core_news_sm")
+                    nlp = load_spacy_model("es_core_news_sm")
                     return nlp
 
             try:
@@ -3617,12 +4083,12 @@ class CDAFFramework:
         else:
             # Fallback to original logic without retry
             try:
-                self.nlp = spacy.load("es_core_news_lg")
+                self.nlp = load_spacy_model("es_core_news_lg")
                 self.logger.info("Modelo spaCy cargado: es_core_news_lg")
             except OSError:
                 self.logger.warning("Modelo es_core_news_lg no encontrado. Intentando es_core_news_sm...")
                 try:
-                    self.nlp = spacy.load("es_core_news_sm")
+                    self.nlp = load_spacy_model("es_core_news_sm")
                 except OSError:
                     self.logger.error("No se encontró ningún modelo de spaCy en español. "
                                       "Ejecute: python -m spacy download es_core_news_lg")
@@ -3655,7 +4121,7 @@ class CDAFFramework:
 
             text = self.pdf_processor.extract_text()
             tables = self.pdf_processor.extract_tables()
-            sections = self.pdf_processor.extract_sections()
+            self.pdf_processor.extract_sections()
 
             # Step 2: Extract causal hierarchy
             self.logger.info("Extrayendo jerarquía causal...")
@@ -3694,7 +4160,7 @@ class CDAFFramework:
             self.logger.info("Preparando para inferencia causal...")
             self.inference_setup.classify_goal_dynamics(nodes)
             self.inference_setup.assign_probative_value(nodes)
-            failure_points = self.inference_setup.identify_failure_points(graph, text)
+            self.inference_setup.identify_failure_points(graph, text)
 
             # Step 7: DNP Standards Validation (if available)
             if self.dnp_validator:
@@ -3755,9 +4221,9 @@ class CDAFFramework:
                 recoverable=False
             ) from e
 
-    def _extract_feedback_from_audit(self, inferred_mechanisms: Dict[str, Dict[str, Any]],
-                                     counterfactual_audit: Dict[str, Any],
-                                     audit_results: Dict[str, AuditResult]) -> Dict[str, Any]:
+    def _extract_feedback_from_audit(self, inferred_mechanisms: dict[str, dict[str, Any]],
+                                     counterfactual_audit: dict[str, Any],
+                                     audit_results: dict[str, AuditResult]) -> dict[str, Any]:
         """
         Extract feedback data from audit results for self-reflective prior updating
 
@@ -3853,7 +4319,7 @@ class CDAFFramework:
 
         return feedback
 
-    def _validate_dnp_compliance(self, nodes: Dict[str, MetaNode],
+    def _validate_dnp_compliance(self, nodes: dict[str, MetaNode],
                                  graph: nx.DiGraph, policy_code: str) -> None:
         """
         Validate DNP compliance for all nodes/projects
@@ -3929,7 +4395,7 @@ class CDAFFramework:
         # Generate DNP compliance report
         self._generate_dnp_report(dnp_results, policy_code)
 
-    def _generate_dnp_report(self, dnp_results: List[Dict], policy_code: str) -> None:
+    def _generate_dnp_report(self, dnp_results: list[dict], policy_code: str) -> None:
         """Generate comprehensive DNP compliance report"""
         report_path = self.output_dir / f"{policy_code}{DNP_REPORT_SUFFIX}"
 
@@ -4010,13 +4476,13 @@ class CDAFFramework:
 
             # Critical alerts
             if resultado.alertas_criticas:
-                lines.append(f"   ⚠ ALERTAS CRÍTICAS:")
+                lines.append("   ⚠ ALERTAS CRÍTICAS:")
                 for alerta in resultado.alertas_criticas:
                     lines.append(f"     - {alerta}")
 
             # Recommendations
             if resultado.recomendaciones:
-                lines.append(f"   📋 RECOMENDACIONES:")
+                lines.append("   📋 RECOMENDACIONES:")
                 for rec in resultado.recomendaciones[:3]:  # Top 3
                     lines.append(f"     - {rec}")
 
@@ -4030,13 +4496,200 @@ class CDAFFramework:
         lines.append("=" * 100)
 
         # Write report
+        # Delegate to factory for I/O operation
+        from .factory import write_text_file
+
         try:
-            with open(report_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(lines))
+            write_text_file('\n'.join(lines), report_path)
             self.logger.info(f"Reporte de cumplimiento DNP guardado en: {report_path}")
         except Exception as e:
             self.logger.error(f"Error guardando reporte DNP: {e}")
 
+    def _audit_causal_coherence(self, graph: nx.DiGraph, nodes: dict[str, MetaNode]) -> dict[str, Any]:
+        """
+        Audit causal coherence of the extracted model.
+
+        Args:
+            graph: Causal graph
+            nodes: Dictionary of nodes
+
+        Returns:
+            Dictionary with coherence audit results
+        """
+        audit = {
+            'total_nodes': len(nodes),
+            'total_edges': graph.number_of_edges(),
+            'disconnected_nodes': [],
+            'cycles': [],
+            'coherence_score': 0.0
+        }
+
+        # Check for disconnected nodes
+        for node_id in nodes:
+            if graph.has_node(node_id) and graph.degree(node_id) == 0:
+                audit['disconnected_nodes'].append(node_id)
+
+        # Check for cycles (should not exist in causal DAG)
+        try:
+            cycles = list(nx.simple_cycles(graph))
+            audit['cycles'] = cycles
+        except:
+            pass
+
+        # Calculate coherence score
+        connected_ratio = 1.0 - (len(audit['disconnected_nodes']) / max(len(nodes), 1))
+        acyclic_score = 1.0 if len(audit['cycles']) == 0 else 0.5
+        audit['coherence_score'] = (connected_ratio + acyclic_score) / 2.0
+
+        return audit
+
+    def _generate_causal_model_json(self, graph: nx.DiGraph, nodes: dict[str, MetaNode],
+                                   policy_code: str) -> None:
+        """
+        Generate JSON representation of causal model.
+
+        Args:
+            graph: Causal graph
+            nodes: Dictionary of nodes
+            policy_code: Policy code for filename
+        """
+        model = {
+            'policy_code': policy_code,
+            'nodes': [],
+            'edges': []
+        }
+
+        # Add nodes
+        for node_id, node in nodes.items():
+            model['nodes'].append({
+                'id': node_id,
+                'text': node.text,
+                'type': node.type,
+                'baseline': str(node.baseline) if node.baseline else None,
+                'target': str(node.target) if node.target else None
+            })
+
+        # Add edges
+        for source, target in graph.edges():
+            edge_data = graph.get_edge_data(source, target)
+            model['edges'].append({
+                'source': source,
+                'target': target,
+                'logic': edge_data.get('logic', 'unknown'),
+                'strength': edge_data.get('strength', 0.5)
+            })
+
+        # Write to file
+        output_path = self.output_dir / f"{policy_code}{CAUSAL_MODEL_SUFFIX}"
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(model, f, indent=2, ensure_ascii=False)
+            self.logger.info(f"Causal model JSON saved to: {output_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving causal model JSON: {e}")
+
+    def _generate_dnp_compliance_report(self, nodes: dict[str, MetaNode],
+                                       policy_code: str) -> dict[str, Any]:
+        """
+        Generate DNP compliance report.
+
+        Args:
+            nodes: Dictionary of nodes
+            policy_code: Policy code
+
+        Returns:
+            Compliance report dictionary
+        """
+        report = {
+            'policy_code': policy_code,
+            'total_products': 0,
+            'compliant_products': 0,
+            'compliance_rate': 0.0,
+            'gaps': []
+        }
+
+        # Check products for DNP compliance
+        for node_id, node in nodes.items():
+            if node.type == 'producto':
+                report['total_products'] += 1
+
+                # Check required fields
+                has_baseline = node.baseline is not None
+                has_target = node.target is not None
+                has_indicator = len(node.text) > 10  # Simple check
+
+                is_compliant = has_baseline and has_target and has_indicator
+
+                if is_compliant:
+                    report['compliant_products'] += 1
+                else:
+                    gaps = []
+                    if not has_baseline:
+                        gaps.append('missing_baseline')
+                    if not has_target:
+                        gaps.append('missing_target')
+                    if not has_indicator:
+                        gaps.append('missing_indicator')
+
+                    report['gaps'].append({
+                        'node_id': node_id,
+                        'issues': gaps
+                    })
+
+        if report['total_products'] > 0:
+            report['compliance_rate'] = report['compliant_products'] / report['total_products']
+
+        return report
+
+    def _generate_extraction_report(self, nodes: dict[str, MetaNode],
+                                   graph: nx.DiGraph,
+                                   policy_code: str) -> None:
+        """
+        Generate extraction confidence report.
+
+        Args:
+            nodes: Dictionary of nodes
+            graph: Causal graph
+            policy_code: Policy code
+        """
+        report = {
+            'policy_code': policy_code,
+            'extraction_summary': {
+                'total_nodes': len(nodes),
+                'total_edges': graph.number_of_edges(),
+                'nodes_by_type': {}
+            },
+            'node_confidence': []
+        }
+
+        # Count nodes by type
+        for node in nodes.values():
+            node_type = node.type
+            report['extraction_summary']['nodes_by_type'][node_type] = \
+                report['extraction_summary']['nodes_by_type'].get(node_type, 0) + 1
+
+        # Add confidence scores
+        for node_id, node in nodes.items():
+            confidence = 0.8  # Default
+            if hasattr(node, 'rigor_status'):
+                if node.rigor_status == 'fuerte':
+                    confidence = 0.9
+                elif node.rigor_status == 'débil':
+                    confidence = 0.6
+
+            report['node_confidence'].append({
+                'node_id': node_id,
+                'confidence': confidence
+            })
+
+        # Write report
+        output_path = self.output_dir / f"{policy_code}{EXTRACTION_REPORT_SUFFIX}"
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+            self.logger.info(f"Extraction report saved to: {output_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving extraction report: {e}")
 
 # ============================================================================
 # AGUJA I: PRIOR ADAPTATIVO (EVIDENCIA → BAYES)
@@ -4050,7 +4703,7 @@ class BayesFactorTable:
         'smoking': (10.0, 30.0),  # SMOKING GUN: Sufficient but not necessary
         'doubly': (50.0, 100.0)   # DOUBLY DECISIVE: Necessary AND sufficient
     }
-    
+
     @classmethod
     def get_bayes_factor(cls, test_type: str) -> float:
         """Obtiene BF medio para tipo de test"""
@@ -4058,44 +4711,43 @@ class BayesFactorTable:
             return 1.5  # Default straw-in-wind
         min_bf, max_bf = cls.FACTORS[test_type]
         return (min_bf + max_bf) / 2.0
-    
+
     @classmethod
     def get_version(cls) -> str:
         """Version de tabla BF para trazabilidad"""
         return "Beach2019_v1.0"
 
-
 class AdaptivePriorCalculator:
     """
     AGUJA I - Prior Adaptativo con Bayes Factor y calibración
-    
+
     PROMPT I-1: Ponderación evidencial con BF y calibración
-    Mapea test_type→BayesFactor, calcula likelihood adaptativo combinando 
+    Mapea test_type→BayesFactor, calcula likelihood adaptativo combinando
     dominios {semantic, temporal, financial, structural} con pesos normalizados.
-    
+
     PROMPT I-2: Sensibilidad, OOD y ablation evidencial
     Perturba cada componente ±10% y reporta ∂p/∂component top-3.
-    
+
     PROMPT I-3: Trazabilidad y reproducibilidad
     Con semilla fija, guarda bf_table_version, weights_version, snippets.
-    
+
     QUALITY CRITERIA:
     - BrierScore ≤ 0.20 en validación sintética
     - ACE ∈ [−0.02, 0.02] (Average Calibration Error)
     - Cobertura CI95% ∈ [92%, 98%]
     - Monotonicidad: ↑ señales → ¬↓ p_mechanism
     """
-    
-    def __init__(self, calibration_params: Optional[Dict[str, float]] = None):
+
+    def __init__(self, calibration_params: dict[str, float] | None = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.bf_table = BayesFactorTable()
-        
+
         # Calibration params: logit⁻¹(α + β·score)
         self.calibration = calibration_params or {
             'alpha': -2.0,  # Intercept
             'beta': 4.0     # Slope
         }
-        
+
         # Domain weights (normalized)
         self.default_domain_weights = {
             'semantic': 0.35,
@@ -4103,25 +4755,25 @@ class AdaptivePriorCalculator:
             'financial': 0.25,
             'structural': 0.15
         }
-    
+
     def calculate_likelihood_adaptativo(
         self,
-        evidence_dict: Dict[str, Any],
+        evidence_dict: dict[str, Any],
         test_type: str = 'hoop'
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         PROMPT I-1: Calcula likelihood adaptativo con BF y dominios
-        
+
         Args:
             evidence_dict: Evidencia por caso {semantic, temporal, financial, structural}
             test_type: Tipo de test evidencial (straw, hoop, smoking, doubly)
-        
+
         Returns:
             Dict con p_mechanism, BF_used, domain_weights, triangulation_bonus, etc.
         """
         # 1. Obtener Bayes Factor para test_type
         bf_used = self.bf_table.get_bayes_factor(test_type)
-        
+
         # 2. Extraer scores por dominio
         domain_scores = {
             'semantic': evidence_dict.get('semantic', {}).get('score', 0.0),
@@ -4129,37 +4781,37 @@ class AdaptivePriorCalculator:
             'financial': evidence_dict.get('financial', {}).get('score', 0.0),
             'structural': evidence_dict.get('structural', {}).get('score', 0.0)
         }
-        
+
         # 3. Ajustar pesos si falta dominio (baja peso a 0, reparte)
         adjusted_weights = self._adjust_domain_weights(domain_scores)
-        
+
         # 4. Calcular score combinado normalizado
         combined_score = sum(
             domain_scores[domain] * adjusted_weights[domain]
-            for domain in domain_scores.keys()
+            for domain in domain_scores
         )
-        
+
         # 5. Aplicar multiplicador BF normalizado
         all_bfs = [np.mean(bf_range) for bf_range in self.bf_table.FACTORS.values()]
         mean_bf = np.mean(all_bfs)
         bf_multiplier = bf_used / mean_bf
         adapted_score = combined_score * bf_multiplier
-        
+
         # 6. Bonus de triangulación si ≥3 dominios activos
         active_domains = sum(1 for s in domain_scores.values() if s > 0.1)
         triangulation_bonus = 0.05 if active_domains >= 3 else 0.0
-        
+
         final_score = min(1.0, adapted_score + triangulation_bonus)
-        
+
         # 7. Transformar a probabilidad con logit inverso: p = 1/(1+exp(-(α+β·score)))
         alpha = self.calibration['alpha']
         beta = self.calibration['beta']
         logit_value = alpha + beta * final_score
         p_mechanism = 1.0 / (1.0 + np.exp(-logit_value))
-        
+
         # 8. Clip [1e-6, 1-1e-6]
         p_mechanism = np.clip(p_mechanism, 1e-6, 1 - 1e-6)
-        
+
         return {
             'p_mechanism': float(p_mechanism),
             'BF_used': bf_used,
@@ -4170,46 +4822,46 @@ class AdaptivePriorCalculator:
             'combined_score': combined_score,
             'active_domains': active_domains
         }
-    
-    def _adjust_domain_weights(self, domain_scores: Dict[str, float]) -> Dict[str, float]:
+
+    def _adjust_domain_weights(self, domain_scores: dict[str, float]) -> dict[str, float]:
         """Ajusta pesos si falta dominio: baja a 0 y reparte"""
         adjusted = self.default_domain_weights.copy()
-        
+
         # Identificar dominios faltantes (score ≤ 0)
         missing_domains = [d for d, s in domain_scores.items() if s <= 0]
-        
+
         if missing_domains:
             # Bajar peso a 0 para dominios faltantes
             total_missing_weight = sum(adjusted[d] for d in missing_domains)
             for d in missing_domains:
                 adjusted[d] = 0.0
-            
+
             # Repartir peso entre dominios activos
-            active_domains = [d for d in adjusted.keys() if adjusted[d] > 0]
+            active_domains = [d for d in adjusted if adjusted[d] > 0]
             if active_domains:
                 bonus_per_domain = total_missing_weight / len(active_domains)
                 for d in active_domains:
                     adjusted[d] += bonus_per_domain
-        
+
         # Renormalizar para asegurar suma = 1.0
         total = sum(adjusted.values())
         if total > 0:
             adjusted = {k: v / total for k, v in adjusted.items()}
-        
+
         return adjusted
-    
+
     def sensitivity_analysis(
         self,
-        evidence_dict: Dict[str, Any],
+        evidence_dict: dict[str, Any],
         test_type: str = 'hoop',
         perturbation: float = 0.10
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         PROMPT I-2: Sensibilidad, OOD y ablation evidencial
-        
+
         Perturba cada componente ±10% y reporta ∂p/∂component top-3.
         Ejecuta ablaciones: sólo textual, sólo financiero, sólo estructural.
-        
+
         CRITERIA:
         - |delta_p_sensitivity|_max ≤ 0.15
         - sign_concordance ≥ 2/3
@@ -4218,7 +4870,7 @@ class AdaptivePriorCalculator:
         # Baseline
         baseline_result = self.calculate_likelihood_adaptativo(evidence_dict, test_type)
         baseline_p = baseline_result['p_mechanism']
-        
+
         # 1. Sensibilidad por componente
         sensitivity_map = {}
         for domain in ['semantic', 'temporal', 'financial', 'structural']:
@@ -4227,19 +4879,19 @@ class AdaptivePriorCalculator:
                 perturbed_evidence = self._perturb_evidence(evidence_dict, domain, perturbation)
                 perturbed_result = self.calculate_likelihood_adaptativo(perturbed_evidence, test_type)
                 delta_p = perturbed_result['p_mechanism'] - baseline_p
-                
+
                 sensitivity_map[domain] = {
                     'delta_p': delta_p,
                     'relative_change': delta_p / max(baseline_p, 1e-6)
                 }
-        
+
         # Top-3 por magnitud
         top_3 = sorted(
             sensitivity_map.items(),
             key=lambda x: abs(x[1]['delta_p']),
             reverse=True
         )[:3]
-        
+
         # 2. Ablaciones: sólo un dominio
         ablation_results = {}
         for domain in ['semantic', 'financial', 'structural']:
@@ -4252,17 +4904,17 @@ class AdaptivePriorCalculator:
                     'p_mechanism': abl_result['p_mechanism'],
                     'sign_match': (abl_result['p_mechanism'] > 0.5) == (baseline_p > 0.5)
                 }
-        
+
         # Sign concordance
         sign_concordance = sum(
             1 for r in ablation_results.values() if r['sign_match']
         ) / max(len(ablation_results), 1)
-        
+
         # 3. OOD con ruido
         ood_evidence = self._add_ood_noise(evidence_dict)
         ood_result = self.calculate_likelihood_adaptativo(ood_evidence, test_type)
         ood_drop = abs(baseline_p - ood_result['p_mechanism'])
-        
+
         # 4. Evaluación de criterios
         max_sensitivity = max((abs(item[1]['delta_p']) for item in top_3), default=0.0)
         criteria_met = {
@@ -4270,10 +4922,10 @@ class AdaptivePriorCalculator:
             'sign_concordance_ok': sign_concordance >= 2/3,
             'ood_drop_ok': ood_drop <= 0.10
         }
-        
+
         # Determinar si caso es frágil
         is_fragile = not all(criteria_met.values())
-        
+
         return {
             'influence_top3': [(domain, data['delta_p']) for domain, data in top_3],
             'delta_p_sensitivity': max_sensitivity,
@@ -4284,13 +4936,13 @@ class AdaptivePriorCalculator:
             'is_fragile': is_fragile,
             'recommendation': 'downgrade' if is_fragile else 'accept'
         }
-    
+
     def _perturb_evidence(
         self,
-        evidence_dict: Dict[str, Any],
+        evidence_dict: dict[str, Any],
         domain: str,
         perturbation: float
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Perturba un dominio específico"""
         import copy
         perturbed = copy.deepcopy(evidence_dict)
@@ -4298,40 +4950,40 @@ class AdaptivePriorCalculator:
             perturbed[domain]['score'] *= (1.0 + perturbation)
             perturbed[domain]['score'] = min(1.0, perturbed[domain]['score'])
         return perturbed
-    
-    def _add_ood_noise(self, evidence_dict: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _add_ood_noise(self, evidence_dict: dict[str, Any]) -> dict[str, Any]:
         """Genera set OOD con ruido semántico y tablas malformadas"""
         import copy
         ood = copy.deepcopy(evidence_dict)
-        
+
         # Agregar ruido gaussiano a todos los scores
-        for domain in ood.keys():
+        for domain in ood:
             if isinstance(ood[domain], dict) and 'score' in ood[domain]:
                 noise = np.random.normal(0, 0.05)  # 5% noise
                 ood[domain]['score'] = np.clip(ood[domain]['score'] + noise, 0.0, 1.0)
-        
+
         return ood
-    
+
     def generate_traceability_record(
         self,
-        evidence_dict: Dict[str, Any],
+        evidence_dict: dict[str, Any],
         test_type: str,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         seed: int = 42
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         PROMPT I-3: Trazabilidad y reproducibilidad
-        
+
         Con semilla fija, guarda bf_table_version, weights_version,
         snippets textuales con offsets, campos financieros usados.
-        
+
         METRICS:
         - Re-ejecución con misma semilla produce hash_result idéntico
         - trace_completeness ≥ 0.95
         """
         # Fijar semilla para reproducibilidad
         np.random.seed(seed)
-        
+
         # Construir evidence trace
         evidence_trace = []
         for domain, data in evidence_dict.items():
@@ -4344,7 +4996,7 @@ class AdaptivePriorCalculator:
                     'snippet': data.get('snippet', '')[:100]  # Primeros 100 chars
                 }
                 evidence_trace.append(trace_item)
-        
+
         # Config hash
         config_str = json.dumps({
             'bf_table_version': self.bf_table.get_version(),
@@ -4353,18 +5005,18 @@ class AdaptivePriorCalculator:
             'test_type': test_type,
             'seed': seed
         }, sort_keys=True)
-        
+
         config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
-        
+
         # Result hash
         result_str = json.dumps(result, sort_keys=True)
         result_hash = hashlib.sha256(result_str.encode()).hexdigest()[:16]
-        
+
         # Trace completeness
         factors_in_trace = len(evidence_trace)
-        total_factors = len([d for d in evidence_dict.keys() if isinstance(evidence_dict.get(d), dict)])
+        total_factors = len([d for d in evidence_dict if isinstance(evidence_dict.get(d), dict)])
         trace_completeness = factors_in_trace / max(total_factors, 1)
-        
+
         return {
             'evidence_trace': evidence_trace,
             'hash_config': config_hash,
@@ -4375,11 +5027,11 @@ class AdaptivePriorCalculator:
             'trace_completeness': trace_completeness,
             'reproducibility_guaranteed': trace_completeness >= 0.95
         }
-    
-    def validate_quality_criteria(self, validation_samples: List[Dict[str, Any]]) -> Dict[str, Any]:
+
+    def validate_quality_criteria(self, validation_samples: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Valida criterios de calidad en conjunto de validación sintética
-        
+
         QUALITY CRITERIA:
         - BrierScore ≤ 0.20
         - ACE ∈ [−0.02, 0.02]
@@ -4388,63 +5040,63 @@ class AdaptivePriorCalculator:
         """
         predictions = []
         actuals = []
-        
+
         for sample in validation_samples:
             evidence = sample.get('evidence', {})
             actual_label = sample.get('actual_label', 0.5)
             test_type = sample.get('test_type', 'hoop')
-            
+
             result = self.calculate_likelihood_adaptativo(evidence, test_type)
             predictions.append(result['p_mechanism'])
             actuals.append(actual_label)
-        
+
         predictions = np.array(predictions)
         actuals = np.array(actuals)
-        
+
         # 1. Brier Score
         brier_score = np.mean((predictions - actuals) ** 2)
         brier_ok = brier_score <= 0.20
-        
+
         # 2. ACE (Average Calibration Error)
         # Dividir en bins
         n_bins = 10
         bin_boundaries = np.linspace(0, 1, n_bins + 1)
         ace = 0.0
-        
+
         for i in range(n_bins):
             bin_mask = (predictions >= bin_boundaries[i]) & (predictions < bin_boundaries[i + 1])
             if bin_mask.sum() > 0:
                 bin_accuracy = actuals[bin_mask].mean()
                 bin_confidence = predictions[bin_mask].mean()
                 ace += abs(bin_accuracy - bin_confidence) / n_bins
-        
+
         ace_ok = -0.02 <= ace <= 0.02
-        
+
         # 3. Cobertura CI95%
         # Simular con bootstrap
         n_bootstrap = 100
         coverage_count = 0
-        
+
         for _ in range(n_bootstrap):
             idx = np.random.choice(len(predictions), size=len(predictions), replace=True)
             boot_preds = predictions[idx]
             boot_actuals = actuals[idx]
-            
+
             # Calcular CI95%
             ci_low = np.percentile(boot_preds, 2.5)
             ci_high = np.percentile(boot_preds, 97.5)
-            
+
             # Verificar si mean actual está dentro
             actual_mean = boot_actuals.mean()
             if ci_low <= actual_mean <= ci_high:
                 coverage_count += 1
-        
+
         coverage = coverage_count / n_bootstrap
         coverage_ok = 0.92 <= coverage <= 0.98
-        
+
         # 4. Monotonicidad: verificar que ↑ señales → ¬↓ p_mechanism
         monotonicity_violations = 0
-        
+
         for i in range(len(validation_samples) - 1):
             current_total = sum(
                 validation_samples[i]['evidence'].get(d, {}).get('score', 0)
@@ -4454,12 +5106,12 @@ class AdaptivePriorCalculator:
                 validation_samples[i + 1]['evidence'].get(d, {}).get('score', 0)
                 for d in ['semantic', 'temporal', 'financial', 'structural']
             )
-            
+
             if next_total > current_total and predictions[i + 1] < predictions[i]:
                 monotonicity_violations += 1
-        
+
         monotonicity_ok = monotonicity_violations == 0
-        
+
         return {
             'brier_score': float(brier_score),
             'brier_ok': brier_ok,
@@ -4473,7 +5125,6 @@ class AdaptivePriorCalculator:
             'quality_grade': 'EXCELLENT' if (brier_ok and ace_ok and coverage_ok and monotonicity_ok) else 'NEEDS_IMPROVEMENT'
         }
 
-
 # ============================================================================
 # AGUJA II: MODELO GENERATIVO JERÁRQUICO
 # ============================================================================
@@ -4481,16 +5132,16 @@ class AdaptivePriorCalculator:
 class HierarchicalGenerativeModel:
     """
     AGUJA II - Modelo Generativo Jerárquico con inferencia MCMC
-    
+
     PROMPT II-1: Inferencia jerárquica con incertidumbre
     Estima posterior(mechanism_type, activity_sequence | obs) con MCMC.
-    
+
     PROMPT II-2: Posterior Predictive Checks + Ablation
     Genera datos simulados desde posterior y compara con observados.
-    
+
     PROMPT II-3: Independencias y parsimonia
     Verifica d-separaciones y calcula ΔWAIC.
-    
+
     QUALITY CRITERIA:
     - R-hat ≤ 1.10
     - ESS ≥ 200
@@ -4498,10 +5149,10 @@ class HierarchicalGenerativeModel:
     - ppd_p_value ∈ [0.1, 0.9]
     - ΔWAIC ≤ −2 para preferir jerárquico
     """
-    
-    def __init__(self, mechanism_priors: Optional[Dict[str, float]] = None):
+
+    def __init__(self, mechanism_priors: dict[str, float] | None = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
-        
+
         # Priors débiles para mechanism_type si no se proveen
         self.mechanism_priors = mechanism_priors or {
             'administrativo': 0.30,
@@ -4510,7 +5161,7 @@ class HierarchicalGenerativeModel:
             'politico': 0.15,
             'mixto': 0.10
         }
-        
+
         # Validar que suman ~1.0
         prior_sum = sum(self.mechanism_priors.values())
         if abs(prior_sum - 1.0) > 0.01:
@@ -4518,36 +5169,36 @@ class HierarchicalGenerativeModel:
             self.mechanism_priors = {
                 k: v / prior_sum for k, v in self.mechanism_priors.items()
             }
-    
+
     def infer_mechanism_posterior(
         self,
-        observations: Dict[str, Any],
+        observations: dict[str, Any],
         n_iter: int = 500,
         burn_in: int = 100,
         n_chains: int = 2
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         PROMPT II-1: Inferencia jerárquica con MCMC
-        
+
         Estima posterior(mechanism_type, activity_sequence | obs) usando MCMC.
-        
+
         Args:
             observations: Dict con {verbos, co_ocurrencias, coherence, structural_signals}
             n_iter: Iteraciones MCMC (≥500)
             burn_in: Burn-in iterations (≥100)
             n_chains: Número de cadenas para R-hat (≥2)
-        
+
         Returns:
             Dict con type_posterior, sequence_mode, coherence_score, entropy, CI95, R-hat, ESS
         """
         self.logger.info(f"Starting MCMC inference: {n_iter} iter, {burn_in} burn-in, {n_chains} chains")
-        
+
         # Validar observaciones mínimas
         if not observations or 'coherence' not in observations:
             self.logger.warning("Missing observations, using weak priors")
             observations = observations or {}
             observations.setdefault('coherence', 0.5)
-        
+
         # Ejecutar múltiples cadenas para diagnóstico
         chains = []
         for chain_idx in range(n_chains):
@@ -4556,49 +5207,49 @@ class HierarchicalGenerativeModel:
             )
             chains.append(chain_samples)
             self.logger.debug(f"Chain {chain_idx + 1}/{n_chains} completed: {len(chain_samples)} samples")
-        
+
         # Agregar samples de todas las cadenas
         all_samples = []
         for chain in chains:
             all_samples.extend(chain)
-        
+
         # 1. Type posterior (frecuencias de mechanism_type)
-        type_counts = {mtype: 0 for mtype in self.mechanism_priors.keys()}
+        type_counts = dict.fromkeys(self.mechanism_priors.keys(), 0)
         for sample in all_samples:
             mtype = sample.get('mechanism_type', 'mixto')
             if mtype in type_counts:
                 type_counts[mtype] += 1
-        
+
         total_samples = len(all_samples)
         type_posterior = {
             mtype: count / max(total_samples, 1)
             for mtype, count in type_counts.items()
         }
-        
+
         # 2. Sequence mode (secuencia más frecuente)
         sequence_mode = self._get_mode_sequence(all_samples)
-        
+
         # 3. Coherence score (estadísticas)
         coherence_scores = [s.get('coherence', 0.5) for s in all_samples]
         coherence_mean = float(np.mean(coherence_scores))
         coherence_std = float(np.std(coherence_scores))
-        
+
         # 4. Entropy del posterior
         posterior_probs = list(type_posterior.values())
         entropy_posterior = -sum(p * np.log(p + 1e-10) for p in posterior_probs if p > 0)
         max_entropy = np.log(len(self.mechanism_priors))
         normalized_entropy = entropy_posterior / max_entropy if max_entropy > 0 else 0.0
-        
+
         # 5. CI95 para coherence
         ci95_low = float(np.percentile(coherence_scores, 2.5))
         ci95_high = float(np.percentile(coherence_scores, 97.5))
-        
+
         # 6. R-hat aproximado (between-chain variance / within-chain variance)
         r_hat = self._calculate_r_hat(chains)
-        
+
         # 7. ESS (Effective Sample Size)
         ess = self._calculate_ess(all_samples)
-        
+
         # 8. Verificar criterios de calidad
         is_uncertain = normalized_entropy > 0.7
         criteria_met = {
@@ -4606,13 +5257,13 @@ class HierarchicalGenerativeModel:
             'ess_ok': ess >= 200,
             'entropy_ok': not is_uncertain
         }
-        
+
         # Warning si alta incertidumbre
         warning = None
         if is_uncertain:
             warning = f"HIGH_UNCERTAINTY: entropy/entropy_max = {normalized_entropy:.3f} > 0.7"
             self.logger.warning(warning)
-        
+
         return {
             'type_posterior': type_posterior,
             'sequence_mode': sequence_mode,
@@ -4629,48 +5280,48 @@ class HierarchicalGenerativeModel:
             'criteria_met': criteria_met,
             'warning': warning
         }
-    
+
     def _run_mcmc_chain(
         self,
-        observations: Dict[str, Any],
+        observations: dict[str, Any],
         n_iter: int,
         burn_in: int,
         seed: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Ejecuta una cadena MCMC con Metropolis-Hastings"""
         np.random.seed(seed)
         samples = []
-        
+
         # Estado inicial: sample desde prior
         current_type = np.random.choice(
             list(self.mechanism_priors.keys()),
             p=list(self.mechanism_priors.values())
         )
         current_coherence = observations.get('coherence', 0.5)
-        
+
         for i in range(n_iter):
             # Proponer nuevo mechanism_type
             proposed_type = np.random.choice(list(self.mechanism_priors.keys()))
-            
+
             # Calcular likelihood ratio
             current_likelihood = self._calculate_likelihood(current_type, observations)
             proposed_likelihood = self._calculate_likelihood(proposed_type, observations)
-            
+
             # Prior ratio
             prior_ratio = self.mechanism_priors[proposed_type] / max(self.mechanism_priors[current_type], 1e-10)
-            
+
             # Acceptance probability (Metropolis-Hastings)
             likelihood_ratio = proposed_likelihood / max(current_likelihood, 1e-10)
             acceptance_prob = min(1.0, likelihood_ratio * prior_ratio)
-            
+
             # Accept/reject
             if np.random.random() < acceptance_prob:
                 current_type = proposed_type
-            
+
             # Simular coherence con ruido
             simulated_coherence = current_coherence + np.random.normal(0, 0.05)
             simulated_coherence = np.clip(simulated_coherence, 0.0, 1.0)
-            
+
             # Almacenar sample (después de burn-in)
             if i >= burn_in:
                 sample = {
@@ -4680,25 +5331,25 @@ class HierarchicalGenerativeModel:
                     'chain_seed': seed
                 }
                 samples.append(sample)
-        
+
         return samples
-    
+
     def _calculate_likelihood(
         self,
         mechanism_type: str,
-        observations: Dict[str, Any]
+        observations: dict[str, Any]
     ) -> float:
         """Calcula likelihood de observations dado mechanism_type"""
         # Likelihood basado en coherence y structural signals
         coherence = observations.get('coherence', 0.5)
         structural_signals = observations.get('structural_signals', {})
-        
+
         # Base likelihood desde prior
         prior = self.mechanism_priors.get(mechanism_type, 0.1)
-        
+
         # Ajuste por coherence (mayor coherence → mayor likelihood)
         coherence_factor = 1.0 + coherence
-        
+
         # Ajuste por señales estructurales específicas del tipo
         structural_match = 0.0
         if mechanism_type == 'administrativo' and structural_signals.get('admin_keywords', 0) > 0:
@@ -4707,142 +5358,142 @@ class HierarchicalGenerativeModel:
             structural_match = 0.3
         elif mechanism_type == 'tecnico' and structural_signals.get('technical_terms', 0) > 0:
             structural_match = 0.25
-        
+
         likelihood = prior * coherence_factor * (1.0 + structural_match)
         return likelihood
-    
-    def _get_mode_sequence(self, samples: List[Dict[str, Any]]) -> str:
+
+    def _get_mode_sequence(self, samples: list[dict[str, Any]]) -> str:
         """Obtiene secuencia modal (tipo más frecuente)"""
         type_counts = {}
         for s in samples:
             mtype = s.get('mechanism_type', 'mixto')
             type_counts[mtype] = type_counts.get(mtype, 0) + 1
-        
+
         if type_counts:
             return max(type_counts.items(), key=lambda x: x[1])[0]
         return 'mixto'
-    
-    def _calculate_r_hat(self, chains: List[List[Dict[str, Any]]]) -> float:
+
+    def _calculate_r_hat(self, chains: list[list[dict[str, Any]]]) -> float:
         """Calcula Gelman-Rubin R-hat para diagnóstico de convergencia"""
         if len(chains) < 2:
             return 1.0
-        
+
         # Extraer coherence de cada cadena
         chain_means = []
         chain_vars = []
-        
+
         for chain in chains:
             coherences = [s.get('coherence', 0.5) for s in chain]
             if len(coherences) > 0:
                 chain_means.append(np.mean(coherences))
                 chain_vars.append(np.var(coherences, ddof=1))
-        
+
         if len(chain_means) < 2:
             return 1.0
-        
+
         # Between-chain variance (B)
         n = len(chains[0])  # samples per chain
         B = np.var(chain_means, ddof=1) * n
-        
+
         # Within-chain variance (W)
         W = np.mean(chain_vars)
-        
+
         # R-hat estimator
         if W > 0:
             var_plus = ((n - 1) / n) * W + (1 / n) * B
             r_hat = np.sqrt(var_plus / W)
         else:
             r_hat = 1.0
-        
+
         return float(r_hat)
-    
-    def _calculate_ess(self, samples: List[Dict[str, Any]]) -> float:
+
+    def _calculate_ess(self, samples: list[dict[str, Any]]) -> float:
         """Calcula Effective Sample Size (simplificado)"""
         n = len(samples)
-        
+
         # Estimar autocorrelación
         coherences = np.array([s.get('coherence', 0.5) for s in samples])
-        
+
         if len(coherences) < 2:
             return n
-        
+
         # Lag-1 autocorrelation
         mean_coh = np.mean(coherences)
         var_coh = np.var(coherences)
-        
+
         if var_coh > 0:
             lag1_autocorr = np.mean(
                 (coherences[:-1] - mean_coh) * (coherences[1:] - mean_coh)
             ) / var_coh
         else:
             lag1_autocorr = 0.0
-        
+
         # ESS approximation
         ess = n / (1 + 2 * max(0, lag1_autocorr))
         return float(ess)
-    
+
     def posterior_predictive_check(
         self,
-        posterior_samples: List[Dict[str, Any]],
-        observed_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        posterior_samples: list[dict[str, Any]],
+        observed_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         PROMPT II-2: Posterior Predictive Checks + Ablation
-        
+
         Genera datos simulados desde posterior y compara con observados.
         Realiza ablation de pasos de secuencia.
-        
+
         Args:
             posterior_samples: Samples del posterior MCMC
             observed_data: Datos observados reales
-        
+
         Returns:
             Dict con ppd_p_value, distance_metric, ablation_curve, criteria_met
         """
         self.logger.info("Running posterior predictive checks...")
-        
+
         # 1. Generar datos predictivos desde posterior
         n_ppd_samples = min(100, len(posterior_samples))
         ppd_samples = []
-        
-        for i in range(n_ppd_samples):
+
+        for _i in range(n_ppd_samples):
             sample_idx = np.random.randint(0, len(posterior_samples))
             posterior_sample = posterior_samples[sample_idx]
-            
+
             # Simular coherence desde distribución posterior
             simulated_coherence = posterior_sample.get('coherence', 0.5) + np.random.normal(0, 0.05)
             simulated_coherence = np.clip(simulated_coherence, 0.0, 1.0)
             ppd_samples.append(simulated_coherence)
-        
+
         ppd_samples = np.array(ppd_samples)
-        
+
         # 2. Comparar con observado usando KS test
         observed_coherence = observed_data.get('coherence', 0.5)
-        
+
         # KS test: comparar distribución PPD con punto observado
         from scipy.stats import kstest
         ks_stat, ppd_p_value = kstest(ppd_samples, lambda x: 0 if x < observed_coherence else 1)
         ppd_p_value = float(ppd_p_value)
-        
+
         # 3. Ablation de secuencia
         ablation_curve = self._ablation_analysis(posterior_samples, observed_data)
-        
+
         # 4. Verificar criterios
         ppd_ok = 0.1 <= ppd_p_value <= 0.9
         ablation_ok = all(delta >= -0.05 for delta in ablation_curve.values())  # Tolerancia -5%
-        
+
         criteria_met = {
             'ppd_p_value_ok': ppd_ok,
             'ablation_ok': ablation_ok
         }
-        
+
         # Recomendación
         if ppd_ok and ablation_ok:
             recommendation = 'accept'
         else:
             recommendation = 'rebaja_posterior'
             self.logger.warning(f"PPC failed: ppd_p={ppd_p_value:.3f}, ablation_ok={ablation_ok}")
-        
+
         return {
             'ppd_p_value': ppd_p_value,
             'ppd_samples_mean': float(np.mean(ppd_samples)),
@@ -4853,15 +5504,15 @@ class HierarchicalGenerativeModel:
             'criteria_met': criteria_met,
             'recommendation': recommendation
         }
-    
+
     def _ablation_analysis(
         self,
-        posterior_samples: List[Dict[str, Any]],
-        observed_data: Dict[str, Any]
-    ) -> Dict[str, float]:
+        posterior_samples: list[dict[str, Any]],
+        observed_data: dict[str, Any]
+    ) -> dict[str, float]:
         """Mide caída en coherence al quitar pasos de secuencia"""
         baseline_coherence = np.mean([s.get('coherence', 0.5) for s in posterior_samples])
-        
+
         # Simular ablación de pasos clave
         # En práctica real, esto requeriría re-ejecutar modelo sin ciertos steps
         ablation_deltas = {
@@ -4870,36 +5521,36 @@ class HierarchicalGenerativeModel:
             'remove_step_execution': baseline_coherence - (baseline_coherence * 0.90),   # -10%
             'remove_step_monitoring': baseline_coherence - (baseline_coherence * 0.97)   # -3%
         }
-        
+
         return ablation_deltas
-    
+
     def verify_conditional_independence(
         self,
         dag: nx.DiGraph,
-        independence_tests: Optional[List[Tuple[str, str, List[str]]]] = None
-    ) -> Dict[str, Any]:
+        independence_tests: list[tuple[str, str, list[str]]] | None = None
+    ) -> dict[str, Any]:
         """
         PROMPT II-3: Independencias y parsimonia
-        
+
         Verifica d-separaciones implicadas por el DAG.
         Calcula ΔWAIC entre modelo jerárquico vs. nulo.
-        
+
         Args:
             dag: NetworkX DiGraph del modelo causal
             independence_tests: Lista de tuplas (X, Y, Z) para test X ⊥ Y | Z
-        
+
         Returns:
             Dict con independence_tests, delta_waic, model_preference, criteria_met
         """
         self.logger.info("Verifying conditional independencies...")
-        
+
         # 1. Tests de independencia (d-separación)
         test_results = []
-        
+
         if independence_tests is None:
             # Generar tests automáticamente si no se proveen
             independence_tests = self._generate_independence_tests(dag)
-        
+
         for x, y, z_set in independence_tests:
             try:
                 # Verificar d-separación en DAG
@@ -4921,17 +5572,17 @@ class HierarchicalGenerativeModel:
                     'passed': False,
                     'error': str(e)
                 })
-        
+
         tests_passed = sum(1 for t in test_results if t['passed'])
-        
+
         # 2. Calcular ΔWAIC (simplificado)
         # En práctica real: usar librería como arviz para WAIC calculation
         delta_waic = self._calculate_waic_difference(dag)
-        
+
         # 3. Verificar criterios
         independence_ok = tests_passed >= 2
         waic_ok = delta_waic <= -2.0
-        
+
         # 4. Preferencia de modelo
         if independence_ok and waic_ok:
             model_preference = 'hierarchical'
@@ -4939,12 +5590,12 @@ class HierarchicalGenerativeModel:
             model_preference = 'inconclusive'
         else:
             model_preference = 'null'
-        
+
         criteria_met = {
             'independence_ok': independence_ok,
             'waic_ok': waic_ok
         }
-        
+
         return {
             'independence_tests': test_results,
             'tests_passed': tests_passed,
@@ -4953,54 +5604,53 @@ class HierarchicalGenerativeModel:
             'model_preference': model_preference,
             'criteria_met': criteria_met
         }
-    
+
     def _generate_independence_tests(
         self,
         dag: nx.DiGraph,
         n_tests: int = 3
-    ) -> List[Tuple[str, str, List[str]]]:
+    ) -> list[tuple[str, str, list[str]]]:
         """Genera tests de independencia automáticamente desde DAG"""
         tests = []
         nodes = list(dag.nodes())
-        
+
         if len(nodes) < 3:
             return tests
-        
+
         # Generar tests de forma heurística
         for _ in range(min(n_tests, len(nodes) - 2)):
             # Seleccionar nodos aleatorios
             x, y = np.random.choice(nodes, size=2, replace=False)
-            
+
             # Z: padres comunes o mediadores
             z_candidates = set(dag.predecessors(x)) | set(dag.predecessors(y))
             z_set = list(z_candidates)[:2]  # Máximo 2 nodos en conditioning set
-            
+
             if x != y:
                 tests.append((x, y, z_set))
-        
+
         return tests
-    
+
     def _calculate_waic_difference(self, dag: nx.DiGraph) -> float:
         """
         Calcula ΔWAIC = WAIC_hierarchical - WAIC_null (simplificado)
-        
+
         En producción: usar arviz.waic() con trace real de PyMC/Stan
         """
         # Heurística: modelos jerárquicos con más estructura (edges) son preferidos
         n_edges = dag.number_of_edges()
-        n_nodes = dag.number_of_nodes()
-        
+        dag.number_of_nodes()
+
         # Penalización por complejidad
         complexity_penalty = n_edges * 0.5
-        
+
         # WAIC aproximado
         waic_hierarchical = -50.0 - n_edges * 2  # Mejor fit con más estructura
         waic_null = -45.0  # Modelo nulo sin estructura
-        
-        delta_waic = waic_hierarchical - waic_null + complexity_penalty
-        
-        return delta_waic
 
+        delta_waic = waic_hierarchical - waic_null + complexity_penalty
+
+        return delta_waic
 
 # ============================================================================
 # AGUJA III: AUDITOR CONTRAFACTUAL BAYESIANO
@@ -5009,58 +5659,58 @@ class HierarchicalGenerativeModel:
 class BayesianCounterfactualAuditor:
     """
     AGUJA III - Auditor Contrafactual con SCM y do-calculus
-    
+
     PROMPT III-1: Construcción de SCM y queries gemelas
     Construye SCM={DAG, f_i} y responde omission_impact, sufficiency_test, necessity_test.
-    
+
     PROMPT III-2: Riesgo sistémico y priorización
     Agrega riesgos, propaga incertidumbre, calcula priority.
-    
+
     PROMPT III-3: Refutación, negativos y cordura do(.)
     Ejecuta controles negativos, pruebas placebo, sanity checks.
-    
+
     QUALITY CRITERIA:
     - Consistencia de signos factual/contrafactual
     - effect_stability: Δeffect ≤ 0.15 al variar priors ±10%
     - negative_controls: mediana |efecto| ≤ 0.05
     - sanity_violations: 0
     """
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.scm: Optional[Dict[str, Any]] = None
-    
+        self.scm: dict[str, Any] | None = None
+
     def construct_scm(
         self,
         dag: nx.DiGraph,
-        structural_equations: Optional[Dict[str, callable]] = None
-    ) -> Dict[str, Any]:
+        structural_equations: dict[str, callable] | None = None
+    ) -> dict[str, Any]:
         """
         PROMPT III-1: Construcción de SCM
-        
+
         Construye SCM = {DAG, f_i} desde grafo y ecuaciones estructurales.
-        
+
         Args:
             dag: NetworkX DiGraph (debe ser acíclico)
             structural_equations: Dict {node: function} para f_i
-        
+
         Returns:
             SCM con DAG validado y funciones estructurales
-        
+
         Raises:
             ValueError: Si DAG no es acíclico
         """
         self.logger.info(f"Constructing SCM with {dag.number_of_nodes()} nodes, {dag.number_of_edges()} edges")
-        
+
         # 1. Validar que DAG es acíclico
         if not nx.is_directed_acyclic_graph(dag):
             raise ValueError("DAG must be acyclic for SCM construction. Use cycle detection first.")
-        
+
         # 2. Crear ecuaciones por defecto si no se proveen
         if structural_equations is None:
             structural_equations = self._create_default_equations(dag)
             self.logger.info(f"Created {len(structural_equations)} default structural equations")
-        
+
         # 3. Construir SCM
         scm = {
             'dag': dag,
@@ -5069,18 +5719,18 @@ class BayesianCounterfactualAuditor:
             'edges': list(dag.edges()),
             'topological_order': list(nx.topological_sort(dag))
         }
-        
+
         self.scm = scm
         self.logger.info("✓ SCM constructed successfully")
         return scm
-    
-    def _create_default_equations(self, dag: nx.DiGraph) -> Dict[str, callable]:
+
+    def _create_default_equations(self, dag: nx.DiGraph) -> dict[str, callable]:
         """Crea ecuaciones estructurales lineales por defecto"""
         equations = {}
-        
+
         for node in dag.nodes():
             parents = list(dag.predecessors(node))
-            
+
             if not parents:
                 # Nodo raíz: variable exógena U
                 def root_eq(noise=0.0, node_name=node):
@@ -5093,47 +5743,47 @@ class BayesianCounterfactualAuditor:
                         return sum(parent_values.values()) / max(n_parents, 1) + noise
                     return 0.5 + noise
                 equations[node] = child_eq
-        
+
         return equations
-    
+
     def counterfactual_query(
         self,
-        intervention: Dict[str, float],
+        intervention: dict[str, float],
         target: str,
-        evidence: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+        evidence: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         """
         PROMPT III-1: Queries gemelas (omission, sufficiency, necessity)
-        
+
         Evalúa:
         - Factual: P(Y | evidence)
         - Counterfactual: P(Y | do(X=x), evidence)
         - Causal effect, sufficiency, necessity
-        
+
         Args:
             intervention: {nodo: valor} para do(.) operation
             target: Nodo objetivo Y
             evidence: Evidencia observada (opcional)
-        
+
         Returns:
             Dict con p_factual, p_counterfactual, causal_effect, is_sufficient, is_necessary
         """
         if self.scm is None:
             raise ValueError("SCM must be constructed first. Call construct_scm().")
-        
+
         evidence = evidence or {}
-        
+
         self.logger.debug(f"Counterfactual query: intervention={intervention}, target={target}")
-        
+
         # 1. Factual: P(Y | evidence)
         p_factual = self._evaluate_factual(target, evidence)
-        
+
         # 2. Counterfactual: P(Y | do(X=x), evidence)
         p_counterfactual = self._evaluate_counterfactual(target, intervention, evidence)
-        
+
         # 3. Causal effect
         causal_effect = p_counterfactual - p_factual
-        
+
         # 4. Sufficiency test: ¿do(X=1) → Y=1?
         intervention_node = list(intervention.keys())[0] if intervention else None
         if intervention_node:
@@ -5141,23 +5791,23 @@ class BayesianCounterfactualAuditor:
             is_sufficient = p_y_given_do_x1 > 0.7
         else:
             is_sufficient = False
-        
+
         # 5. Necessity test: ¿do(X=0) → Y=0?
         if intervention_node:
             p_y_given_do_x0 = self._evaluate_counterfactual(target, {intervention_node: 0.0}, {})
             is_necessary = p_y_given_do_x0 < 0.3
         else:
             is_necessary = False
-        
+
         # 6. Consistencia de signos
         signs_consistent = (
             (causal_effect >= 0 and p_counterfactual >= p_factual) or
             (causal_effect < 0 and p_counterfactual < p_factual)
         )
-        
+
         # 7. Effect stability
         stability = self._test_effect_stability(intervention, target, evidence)
-        
+
         return {
             'p_factual': float(np.clip(p_factual, 0.0, 1.0)),
             'p_counterfactual': float(np.clip(p_counterfactual, 0.0, 1.0)),
@@ -5168,29 +5818,29 @@ class BayesianCounterfactualAuditor:
             'effect_stability': float(stability),
             'effect_stable': stability <= 0.15
         }
-    
+
     def _evaluate_factual(
         self,
         target: str,
-        evidence: Dict[str, float]
+        evidence: dict[str, float]
     ) -> float:
         """Evalúa P(target | evidence) propagando hacia adelante en DAG"""
         if target in evidence:
             return evidence[target]
-        
+
         dag = self.scm['dag']
         equations = self.scm['equations']
         topological_order = self.scm['topological_order']
-        
+
         # Evaluar nodos en orden topológico
         computed_values = evidence.copy()
-        
+
         for node in topological_order:
             if node in computed_values:
                 continue
-            
+
             parents = list(dag.predecessors(node))
-            
+
             if not parents:
                 # Nodo raíz
                 computed_values[node] = equations[node](noise=0.0)
@@ -5201,33 +5851,33 @@ class BayesianCounterfactualAuditor:
                     if parent not in computed_values:
                         computed_values[parent] = self._evaluate_factual(parent, evidence)
                     parent_values[parent] = computed_values[parent]
-                
+
                 # Aplicar ecuación estructural
                 try:
                     computed_values[node] = equations[node](parent_values, noise=0.0)
                 except:
                     # Fallback
                     computed_values[node] = sum(parent_values.values()) / max(len(parent_values), 1)
-        
+
         return float(np.clip(computed_values.get(target, 0.5), 0.0, 1.0))
-    
+
     def _evaluate_counterfactual(
         self,
         target: str,
-        intervention: Dict[str, float],
-        evidence: Dict[str, float]
+        intervention: dict[str, float],
+        evidence: dict[str, float]
     ) -> float:
         """Evalúa P(target | do(intervention), evidence) con DAG mutilado"""
         # Crear DAG mutilado: quitar aristas hacia nodos intervenidos
         dag_mutilated = self.scm['dag'].copy()
-        
-        for node in intervention.keys():
+
+        for node in intervention:
             in_edges = list(dag_mutilated.in_edges(node))
             dag_mutilated.remove_edges_from(in_edges)
-        
+
         # Guardar SCM original
         original_scm = self.scm.copy()
-        
+
         # Crear SCM mutilado temporalmente
         self.scm = {
             'dag': dag_mutilated,
@@ -5236,55 +5886,55 @@ class BayesianCounterfactualAuditor:
             'edges': list(dag_mutilated.edges()),
             'topological_order': list(nx.topological_sort(dag_mutilated))
         }
-        
+
         # Combinar evidence con intervention (intervention tiene prioridad)
         combined_evidence = {**evidence, **intervention}
-        
+
         # Evaluar en SCM mutilado
         result = self._evaluate_factual(target, combined_evidence)
-        
+
         # Restaurar SCM original
         self.scm = original_scm
-        
+
         return result
-    
+
     def _test_effect_stability(
         self,
-        intervention: Dict[str, float],
+        intervention: dict[str, float],
         target: str,
-        evidence: Optional[Dict[str, float]],
+        evidence: dict[str, float] | None,
         n_perturbations: int = 5
     ) -> float:
         """Testa estabilidad al variar priors/ecuaciones ±10%"""
         evidence = evidence or {}
-        
+
         # Efecto baseline
         baseline_result = self.counterfactual_query(intervention, target, evidence)
         baseline_effect = baseline_result['causal_effect']
-        
+
         # Perturbar y medir variación
         perturbed_effects = []
-        
+
         for _ in range(n_perturbations):
             perturbation_factor = np.random.uniform(0.9, 1.1)  # ±10%
-            
+
             # Perturbar valores de evidencia
             perturbed_evidence = {
                 k: v * perturbation_factor for k, v in evidence.items()
             }
-            
+
             # Re-evaluar
             try:
                 result = self.counterfactual_query(intervention, target, perturbed_evidence)
                 perturbed_effects.append(result['causal_effect'])
             except:
                 perturbed_effects.append(baseline_effect)
-        
+
         # Máxima variación
         max_variation = max(abs(e - baseline_effect) for e in perturbed_effects) if perturbed_effects else 0.0
-        
+
         return max_variation
-    
+
     def aggregate_risk_and_prioritize(
         self,
         omission_score: float,
@@ -5293,14 +5943,14 @@ class BayesianCounterfactualAuditor:
         causal_effect: float,
         feasibility: float = 0.8,
         cost: float = 1.0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         PROMPT III-2: Riesgo sistémico y priorización con incertidumbre
-        
+
         Fórmulas:
         - risk = 0.50·omission + 0.35·insufficiency + 0.15·unnecessity
         - priority = |effect|·feasibility/(cost+ε)·(1−uncertainty)
-        
+
         Args:
             omission_score: Riesgo de omisión de mecanismo [0,1]
             insufficiency_score: Insuficiencia del mecanismo [0,1]
@@ -5308,7 +5958,7 @@ class BayesianCounterfactualAuditor:
             causal_effect: Efecto causal estimado
             feasibility: Factibilidad de intervención [0,1]
             cost: Costo relativo (>0)
-        
+
         Returns:
             Dict con risk_score, success_probability, priority, recommendations
         """
@@ -5318,7 +5968,7 @@ class BayesianCounterfactualAuditor:
             'insufficiency': float(np.clip(insufficiency_score, 0.0, 1.0)),
             'unnecessity': float(np.clip(unnecessity_score, 0.0, 1.0))
         }
-        
+
         # 2. Riesgo agregado
         risk_score = (
             0.50 * risk_components['omission'] +
@@ -5326,27 +5976,27 @@ class BayesianCounterfactualAuditor:
             0.15 * risk_components['unnecessity']
         )
         risk_score = float(np.clip(risk_score, 0.0, 1.0))
-        
+
         # 3. Success probability con incertidumbre
         success_mean = 1.0 - risk_score
-        
+
         # Incertidumbre: mayor riesgo → mayor uncertainty
         success_std = 0.05 + 0.10 * risk_score  # Entre 5% y 15%
-        
+
         # CI95 para success
         ci95_low = max(0.0, success_mean - 1.96 * success_std)
         ci95_high = min(1.0, success_mean + 1.96 * success_std)
-        
+
         success_probability = {
             'mean': float(success_mean),
             'std': float(success_std),
             'CI95': (float(ci95_low), float(ci95_high))
         }
-        
+
         # 4. Prioridad
         uncertainty = success_std
         epsilon = 1e-6
-        
+
         priority = (
             abs(causal_effect) *
             feasibility /
@@ -5354,39 +6004,39 @@ class BayesianCounterfactualAuditor:
             (1.0 - uncertainty)
         )
         priority = float(priority)
-        
+
         # 5. Recomendaciones ordenadas
         recommendations = []
-        
+
         if risk_score > 0.7:
             recommendations.append("CRITICAL_RISK: Immediate intervention required")
         elif risk_score > 0.4:
             recommendations.append("MEDIUM_RISK: Close monitoring required")
         else:
             recommendations.append("LOW_RISK: Routine surveillance")
-        
+
         if risk_components['omission'] > 0.6:
             recommendations.append("HIGH_OMISSION_RISK: Key mechanism may be missing")
-        
+
         if risk_components['insufficiency'] > 0.5:
             recommendations.append("INSUFFICIENCY_DETECTED: Mechanism alone insufficient")
-        
+
         if priority > 0.5:
             recommendations.append("HIGH_PRIORITY: Optimal intervention candidate")
         elif priority < 0.2:
             recommendations.append("LOW_PRIORITY: Consider alternative interventions")
-        
+
         # 6. Verificar criterios de calidad
         ci95_valid = 0.0 <= ci95_low <= ci95_high <= 1.0
         priority_monotonic = priority >= 0
         risk_in_range = 0.0 <= risk_score <= 1.0
-        
+
         criteria_met = {
             'ci95_valid': ci95_valid,
             'priority_monotonic': priority_monotonic,
             'risk_in_range': risk_in_range
         }
-        
+
         return {
             'risk_components': risk_components,
             'risk_score': risk_score,
@@ -5395,42 +6045,42 @@ class BayesianCounterfactualAuditor:
             'recommendations': sorted(recommendations, reverse=True),
             'criteria_met': criteria_met
         }
-    
+
     def refutation_and_sanity_checks(
         self,
         dag: nx.DiGraph,
         target: str,
         treatment: str,
-        confounders: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        confounders: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         PROMPT III-3: Refutación, negativos y cordura do(.)
-        
+
         Ejecuta:
         1. Controles negativos: nodos irrelevantes → |efecto| ≤ 0.05
         2. Pruebas placebo: permuta edges no causales
         3. Sanity checks: añadir cofactores no reduce P(Y|do(X=1))
-        
+
         Args:
             dag: Grafo causal
             target: Nodo objetivo Y
             treatment: Nodo de tratamiento X
             confounders: Lista de cofactores
-        
+
         Returns:
             Dict con negative_controls, placebo_effect, sanity_violations, recommendation
         """
         confounders = confounders or []
-        
+
         self.logger.info("Running refutation and sanity checks...")
-        
+
         # 1. CONTROLES NEGATIVOS: nodos irrelevantes
         irrelevant_nodes = [
             n for n in dag.nodes()
             if n != target and n != treatment
             and not nx.has_path(dag, n, target)
         ]
-        
+
         negative_effects = []
         for node in irrelevant_nodes[:5]:  # Máximo 5 controles
             try:
@@ -5440,23 +6090,23 @@ class BayesianCounterfactualAuditor:
                 negative_effects.append(effect)
             except Exception as e:
                 self.logger.warning(f"Negative control failed for {node}: {e}")
-        
+
         median_negative_effect = float(np.median(negative_effects)) if negative_effects else 0.0
         negative_controls_ok = median_negative_effect <= 0.05
-        
+
         # 2. PRUEBA PLACEBO: permuta edges no causales
         placebo_dag = dag.copy()
         non_causal_edges = [
             (u, v) for u, v in dag.edges()
             if u != treatment and v != target
         ]
-        
+
         placebo_effect = 0.0
         if non_causal_edges:
             # Permutar una arista
             edge_to_remove = non_causal_edges[0]
             placebo_dag.remove_edge(*edge_to_remove)
-            
+
             # Medir efecto en DAG permutado
             scm_backup = self.scm
             try:
@@ -5467,17 +6117,17 @@ class BayesianCounterfactualAuditor:
                 self.logger.warning(f"Placebo test failed: {e}")
             finally:
                 self.scm = scm_backup
-        
+
         placebo_ok = placebo_effect <= 0.05
-        
+
         # 3. SANITY CHECKS: añadir cofactores activos no debe reducir P(Y|do(X=1))
         sanity_violations = []
-        
+
         # Baseline: do(X=1)
         try:
             baseline_result = self.counterfactual_query({treatment: 1.0}, target, {})
             baseline_p = baseline_result['p_counterfactual']
-            
+
             # Con cofactores
             for confounder in confounders[:2]:  # Máximo 2
                 if confounder in dag.nodes():
@@ -5487,7 +6137,7 @@ class BayesianCounterfactualAuditor:
                         {confounder: 1.0}
                     )
                     p_with_conf = result_with_conf['p_counterfactual']
-                    
+
                     # Verificar que no reduce significativamente
                     if p_with_conf < baseline_p - 0.10:
                         sanity_violations.append({
@@ -5498,19 +6148,19 @@ class BayesianCounterfactualAuditor:
                         })
         except Exception as e:
             self.logger.error(f"Sanity checks failed: {e}")
-        
+
         sanity_ok = len(sanity_violations) == 0
-        
+
         # 4. DECISIÓN FINAL
         all_checks_passed = negative_controls_ok and placebo_ok and sanity_ok
-        
+
         if not all_checks_passed:
             recommendation = "DEGRADE_ALL: Require DAG revision - observación prioritaria"
             self.logger.error(recommendation)
         else:
             recommendation = "ACCEPT: All refutation tests passed"
             self.logger.info(recommendation)
-        
+
         return {
             'negative_controls': {
                 'effects': [float(e) for e in negative_effects],
@@ -5528,7 +6178,6 @@ class BayesianCounterfactualAuditor:
             'all_checks_passed': all_checks_passed,
             'recommendation': recommendation
         }
-
 
 def main() -> int:
     """CLI entry point"""
@@ -5609,209 +6258,207 @@ Configuración:
 
     return 0 if success else 1
 
-
 # ============================================================================
 # PRODUCER CLASS - Registry Exposure
 # ============================================================================
 
-
 class DerekBeachProducer:
     """
     Producer wrapper for Derek Beach causal analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Causal Mechanism Analysis
     """
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         """Initialize producer"""
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info("DerekBeachProducer initialized")
-    
+
     # ========================================================================
     # EVIDENTIAL TESTS API
     # ========================================================================
-    
+
     def classify_test_type(self, necessity: float, sufficiency: float) -> TestType:
         """Classify evidential test type based on necessity and sufficiency"""
         return BeachEvidentialTest.classify_test(necessity, sufficiency)
-    
+
     def apply_test_logic(
         self,
         test_type: TestType,
         evidence_found: bool,
         prior: float,
         bayes_factor: float
-    ) -> Tuple[float, str]:
+    ) -> tuple[float, str]:
         """Apply Beach test-specific logic to Bayesian updating"""
         return BeachEvidentialTest.apply_test_logic(
             test_type, evidence_found, prior, bayes_factor
         )
-    
+
     def is_hoop_test(self, test_type: TestType) -> bool:
         """Check if test is hoop test"""
         return test_type == "hoop_test"
-    
+
     def is_smoking_gun(self, test_type: TestType) -> bool:
         """Check if test is smoking gun"""
         return test_type == "smoking_gun"
-    
+
     def is_doubly_decisive(self, test_type: TestType) -> bool:
         """Check if test is doubly decisive"""
         return test_type == "doubly_decisive"
-    
+
     def is_straw_in_wind(self, test_type: TestType) -> bool:
         """Check if test is straw in wind"""
         return test_type == "straw_in_wind"
-    
+
     # ========================================================================
     # HIERARCHICAL GENERATIVE MODEL API
     # ========================================================================
-    
+
     def create_hierarchical_model(
         self,
-        mechanism_priors: Optional[Dict[str, float]] = None
+        mechanism_priors: dict[str, float] | None = None
     ) -> HierarchicalGenerativeModel:
         """Create hierarchical generative model"""
         return HierarchicalGenerativeModel(mechanism_priors)
-    
+
     def infer_mechanism_posterior(
         self,
         model: HierarchicalGenerativeModel,
-        observations: Dict[str, Any],
+        observations: dict[str, Any],
         n_iter: int = 500,
         burn_in: int = 100,
         n_chains: int = 2
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Infer mechanism posterior using MCMC"""
         return model.infer_mechanism_posterior(
             observations, n_iter, burn_in, n_chains
         )
-    
-    def get_type_posterior(self, inference: Dict[str, Any]) -> Dict[str, float]:
+
+    def get_type_posterior(self, inference: dict[str, Any]) -> dict[str, float]:
         """Extract type posterior from inference"""
         return inference.get("type_posterior", {})
-    
-    def get_sequence_mode(self, inference: Dict[str, Any]) -> str:
+
+    def get_sequence_mode(self, inference: dict[str, Any]) -> str:
         """Extract sequence mode from inference"""
         return inference.get("sequence_mode", "")
-    
-    def get_coherence_score(self, inference: Dict[str, Any]) -> float:
+
+    def get_coherence_score(self, inference: dict[str, Any]) -> float:
         """Extract coherence score from inference"""
         return inference.get("coherence_score", 0.0)
-    
-    def get_r_hat(self, inference: Dict[str, Any]) -> float:
+
+    def get_r_hat(self, inference: dict[str, Any]) -> float:
         """Extract R-hat convergence diagnostic"""
         return inference.get("R_hat", 1.0)
-    
-    def get_ess(self, inference: Dict[str, Any]) -> float:
+
+    def get_ess(self, inference: dict[str, Any]) -> float:
         """Extract effective sample size"""
         return inference.get("ESS", 0.0)
-    
-    def is_inference_uncertain(self, inference: Dict[str, Any]) -> bool:
+
+    def is_inference_uncertain(self, inference: dict[str, Any]) -> bool:
         """Check if inference has high uncertainty"""
         return inference.get("is_uncertain", False)
-    
+
     # ========================================================================
     # POSTERIOR PREDICTIVE CHECKS API
     # ========================================================================
-    
+
     def posterior_predictive_check(
         self,
         model: HierarchicalGenerativeModel,
-        posterior_samples: List[Dict[str, Any]],
-        observed_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        posterior_samples: list[dict[str, Any]],
+        observed_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Run posterior predictive checks"""
         return model.posterior_predictive_check(posterior_samples, observed_data)
-    
-    def get_ppd_p_value(self, ppc: Dict[str, Any]) -> float:
+
+    def get_ppd_p_value(self, ppc: dict[str, Any]) -> float:
         """Extract posterior predictive p-value"""
         return ppc.get("ppd_p_value", 0.0)
-    
-    def get_ablation_curve(self, ppc: Dict[str, Any]) -> Dict[str, float]:
+
+    def get_ablation_curve(self, ppc: dict[str, Any]) -> dict[str, float]:
         """Extract ablation curve from PPC"""
         return ppc.get("ablation_curve", {})
-    
-    def get_ppc_recommendation(self, ppc: Dict[str, Any]) -> str:
+
+    def get_ppc_recommendation(self, ppc: dict[str, Any]) -> str:
         """Extract recommendation from PPC"""
         return ppc.get("recommendation", "")
-    
+
     # ========================================================================
     # CONDITIONAL INDEPENDENCE API
     # ========================================================================
-    
+
     def verify_conditional_independence(
         self,
         model: HierarchicalGenerativeModel,
         dag: nx.DiGraph,
-        independence_tests: Optional[List[Tuple[str, str, List[str]]]] = None
-    ) -> Dict[str, Any]:
+        independence_tests: list[tuple[str, str, list[str]]] | None = None
+    ) -> dict[str, Any]:
         """Verify conditional independencies in DAG"""
         return model.verify_conditional_independence(dag, independence_tests)
-    
-    def get_independence_tests(self, verification: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def get_independence_tests(self, verification: dict[str, Any]) -> list[dict[str, Any]]:
         """Extract independence tests from verification"""
         return verification.get("independence_tests", [])
-    
-    def get_delta_waic(self, verification: Dict[str, Any]) -> float:
+
+    def get_delta_waic(self, verification: dict[str, Any]) -> float:
         """Extract delta WAIC from verification"""
         return verification.get("delta_waic", 0.0)
-    
-    def get_model_preference(self, verification: Dict[str, Any]) -> str:
+
+    def get_model_preference(self, verification: dict[str, Any]) -> str:
         """Extract model preference from verification"""
         return verification.get("model_preference", "inconclusive")
-    
+
     # ========================================================================
     # COUNTERFACTUAL AUDITOR API
     # ========================================================================
-    
+
     def create_auditor(self) -> BayesianCounterfactualAuditor:
         """Create Bayesian counterfactual auditor"""
         return BayesianCounterfactualAuditor()
-    
+
     def construct_scm(
         self,
         auditor: BayesianCounterfactualAuditor,
         dag: nx.DiGraph,
-        structural_equations: Optional[Dict[str, callable]] = None
-    ) -> Dict[str, Any]:
+        structural_equations: dict[str, callable] | None = None
+    ) -> dict[str, Any]:
         """Construct structural causal model"""
         return auditor.construct_scm(dag, structural_equations)
-    
+
     def counterfactual_query(
         self,
         auditor: BayesianCounterfactualAuditor,
-        intervention: Dict[str, float],
+        intervention: dict[str, float],
         target: str,
-        evidence: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+        evidence: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         """Execute counterfactual query"""
         return auditor.counterfactual_query(intervention, target, evidence)
-    
-    def get_causal_effect(self, query: Dict[str, Any]) -> float:
+
+    def get_causal_effect(self, query: dict[str, Any]) -> float:
         """Extract causal effect from query"""
         return query.get("causal_effect", 0.0)
-    
-    def is_sufficient(self, query: Dict[str, Any]) -> bool:
+
+    def is_sufficient(self, query: dict[str, Any]) -> bool:
         """Check if mechanism is sufficient"""
         return query.get("is_sufficient", False)
-    
-    def is_necessary(self, query: Dict[str, Any]) -> bool:
+
+    def is_necessary(self, query: dict[str, Any]) -> bool:
         """Check if mechanism is necessary"""
         return query.get("is_necessary", False)
-    
-    def is_effect_stable(self, query: Dict[str, Any]) -> bool:
+
+    def is_effect_stable(self, query: dict[str, Any]) -> bool:
         """Check if effect is stable"""
         return query.get("effect_stable", False)
-    
+
     # ========================================================================
     # RISK AGGREGATION API
     # ========================================================================
-    
+
     def aggregate_risk(
         self,
         auditor: BayesianCounterfactualAuditor,
@@ -5821,7 +6468,7 @@ class DerekBeachProducer:
         causal_effect: float,
         feasibility: float = 0.8,
         cost: float = 1.0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Aggregate risk and calculate priority"""
         return auditor.aggregate_risk_and_prioritize(
             omission_score,
@@ -5831,56 +6478,56 @@ class DerekBeachProducer:
             feasibility,
             cost
         )
-    
-    def get_risk_score(self, aggregation: Dict[str, Any]) -> float:
+
+    def get_risk_score(self, aggregation: dict[str, Any]) -> float:
         """Extract risk score from aggregation"""
         return aggregation.get("risk_score", 0.0)
-    
-    def get_success_probability(self, aggregation: Dict[str, Any]) -> Dict[str, float]:
+
+    def get_success_probability(self, aggregation: dict[str, Any]) -> dict[str, float]:
         """Extract success probability from aggregation"""
         return aggregation.get("success_probability", {})
-    
-    def get_priority(self, aggregation: Dict[str, Any]) -> float:
+
+    def get_priority(self, aggregation: dict[str, Any]) -> float:
         """Extract priority from aggregation"""
         return aggregation.get("priority", 0.0)
-    
-    def get_recommendations(self, aggregation: Dict[str, Any]) -> List[str]:
+
+    def get_recommendations(self, aggregation: dict[str, Any]) -> list[str]:
         """Extract recommendations from aggregation"""
         return aggregation.get("recommendations", [])
-    
+
     # ========================================================================
     # REFUTATION API
     # ========================================================================
-    
+
     def refutation_checks(
         self,
         auditor: BayesianCounterfactualAuditor,
         dag: nx.DiGraph,
         target: str,
         treatment: str,
-        confounders: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        confounders: list[str] | None = None
+    ) -> dict[str, Any]:
         """Execute refutation and sanity checks"""
         return auditor.refutation_and_sanity_checks(
             dag, target, treatment, confounders
         )
-    
-    def get_negative_controls(self, refutation: Dict[str, Any]) -> Dict[str, Any]:
+
+    def get_negative_controls(self, refutation: dict[str, Any]) -> dict[str, Any]:
         """Extract negative controls from refutation"""
         return refutation.get("negative_controls", {})
-    
-    def get_placebo_effect(self, refutation: Dict[str, Any]) -> Dict[str, Any]:
+
+    def get_placebo_effect(self, refutation: dict[str, Any]) -> dict[str, Any]:
         """Extract placebo effect from refutation"""
         return refutation.get("placebo_effect", {})
-    
-    def get_sanity_violations(self, refutation: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def get_sanity_violations(self, refutation: dict[str, Any]) -> list[dict[str, Any]]:
         """Extract sanity violations from refutation"""
         return refutation.get("sanity_violations", [])
-    
-    def all_checks_passed(self, refutation: Dict[str, Any]) -> bool:
+
+    def all_checks_passed(self, refutation: dict[str, Any]) -> bool:
         """Check if all refutation checks passed"""
         return refutation.get("all_checks_passed", False)
-    
-    def get_refutation_recommendation(self, refutation: Dict[str, Any]) -> str:
+
+    def get_refutation_recommendation(self, refutation: dict[str, Any]) -> str:
         """Extract recommendation from refutation"""
         return refutation.get("recommendation", "")

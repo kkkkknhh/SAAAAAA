@@ -1,5 +1,8 @@
 """Compatibility wrapper for the refactored contracts module."""
-from saaaaaa.utils.contracts import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.utils.contracts import (  # noqa: F401, E402
     AnalysisInputV1,
     AnalysisInputV1Optional,
     AnalysisOutputV1,
@@ -11,7 +14,6 @@ from saaaaaa.utils.contracts import (  # noqa: F401
     DocumentMetadataV1Optional,
     ExecutionContextV1,
     ExecutionContextV1Optional,
-    MISSING,
     ProcessedTextV1,
     ProcessedTextV1Optional,
     SentenceCollection,
@@ -22,7 +24,7 @@ from saaaaaa.utils.contracts import (  # noqa: F401
     validate_contract,
     validate_mapping_keys,
 )
-from saaaaaa.utils.seed_factory import SeedFactory  # noqa: F401
+from saaaaaa.utils.seed_factory import SeedFactory  # noqa: F401, E402
 
 __all__ = [
     "AnalysisInputV1",
