@@ -68,12 +68,16 @@ class MonolithForge:
         'INSUFICIENTE': 0.0
     }
 
+    # Method sampling configuration
+    METHODS_PER_BASE_SLOT = 2  # Number of methods to sample from catalog per base_slot
+
     def __init__(self):
         self.legacy_data = {}
         self.monolith = {}
         self.indices = {}
         self.stats = defaultdict(int)
         self.canonical_clusters = None  # Will be loaded from legacy data
+        self.repo_root = Path(__file__).resolve().parents[1]  # Repository root
 
     def abort(self, code: str, message: str, phase: str):
         """Trigger immediate abort with error code."""
@@ -93,14 +97,11 @@ class MonolithForge:
         phase = "LoadLegacyPhase"
         logger.info(f"=== {phase} START ===")
 
-        # Get repository root dynamically
-        repo_root = Path(__file__).resolve().parents[1]
-        
         # Whitelist of allowed files (relative to repo root)
         allowed_files = {
-            'questionnaire.json': repo_root / 'questionnaire.json',
-            'rubric_scoring.json': repo_root / 'rubric_scoring.json',
-            'COMPLETE_METHOD_CLASS_MAP.json': repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'
+            'questionnaire.json': self.repo_root / 'questionnaire.json',
+            'rubric_scoring.json': self.repo_root / 'rubric_scoring.json',
+            'COMPLETE_METHOD_CLASS_MAP.json': self.repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'
         }
 
         for name, path in allowed_files.items():
@@ -380,41 +381,25 @@ class MonolithForge:
         # Load real method catalog from canonical source
         from saaaaaa.core.orchestrator.factory import load_catalog
         
+        catalog_path = self.repo_root / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
         try:
             catalog = load_catalog()
             logger.info(f"Loaded method catalog with {catalog.get('summary', {}).get('total_methods', 0)} methods")
         except FileNotFoundError as e:
-            self.abort('A050', f'Method catalog not found: {e}', phase)
+            self.abort('A050', f'Method catalog not found at {catalog_path}: {e}', phase)
         except Exception as e:
-            self.abort('A050', f'Failed to load method catalog: {e}', phase)
+            self.abort(
+                'A050',
+                f'Failed to load method catalog: {e}\n'
+                f'Check that the catalog file exists at {catalog_path} and is in the expected format.',
+                phase
+            )
 
         # Extract methods from catalog and organize by base_slot
         base_slot_methods = {}
         
         # The catalog structure has files with methods
         files_data = catalog.get('files', {})
-        
-        # Create a mapping of methods to base_slots
-        # For now, we'll create a placeholder mapping structure based on the catalog
-        # The exact mapping from methods to base_slots will depend on the catalog structure
-        for file_name, file_data in files_data.items():
-            methods = file_data.get('methods', [])
-            
-            # Extract method information and create base_slot assignments
-            # This is a simplified mapping - actual implementation may need more sophisticated logic
-            for method_info in methods:
-                method_entry = {
-                    'class': method_info.get('class', 'Unknown'),
-                    'function': method_info.get('method_name', 'unknown'),
-                    'module': file_name,
-                    'method_type': 'analysis',
-                    'priority': self._map_priority(method_info.get('priority', 'MEDIUM')),
-                    'description': method_info.get('description', f"Method {method_info.get('method_name', '')}")
-                }
-                
-                # Note: The exact mapping of methods to base_slots should be defined
-                # in the catalog or configuration. For now, we store all methods
-                # and can assign them to base_slots as needed.
         
         # Create method sets per base_slot
         # Since the catalog doesn't directly map to base_slots, we create a
@@ -892,8 +877,8 @@ class MonolithForge:
         for file_name, file_data in files_data.items():
             file_methods = file_data.get('methods', [])
             
-            # Take first 2-3 methods as a representative sample
-            for method_info in file_methods[:2]:
+            # Take first METHODS_PER_BASE_SLOT methods as a representative sample
+            for method_info in file_methods[:self.METHODS_PER_BASE_SLOT]:
                 methods.append({
                     'class': method_info.get('class', 'UnknownClass'),
                     'function': method_info.get('method_name', 'unknown_method'),
@@ -904,11 +889,15 @@ class MonolithForge:
                 })
             
             # Only need a few methods per base_slot
-            if len(methods) >= 2:
+            if len(methods) >= self.METHODS_PER_BASE_SLOT:
                 break
         
         # Ensure we have at least one method
         if not methods:
+            logger.warning(
+                f"No analysis methods found in catalog for base_slot '{base_slot}'. "
+                f"Using synthetic DefaultAnalyzer fallback. This may indicate a configuration issue."
+            )
             methods.append({
                 'class': 'DefaultAnalyzer',
                 'function': 'analyze',
