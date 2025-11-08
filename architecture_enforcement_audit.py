@@ -171,8 +171,24 @@ class QuestionnaireArchitectureAuditor(ast.NodeVisitor):
         self.generic_visit(node)
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        """Check for functions that look like pattern extraction"""
+        """Check for functions that look like pattern extraction or monolith loaders"""
         func_name = node.name.lower()
+        
+        # Check for functions that load from monolith
+        if 'monolith' in func_name and ('load' in func_name or 'from' in func_name or 'read' in func_name):
+            if self.file_name not in ALLOWED_MONOLITH_READERS:
+                # Check if function actually reads files
+                body_text = ast.get_source_segment(self.source_code, node) or ''
+                if 'open(' in body_text or 'json.load' in body_text or 'read(' in body_text:
+                    self.violations.append(Violation(
+                        file_path=self.relative_path,
+                        line_number=node.lineno,
+                        violation_type="ILLEGAL_DATA_ACCESS",
+                        code_snippet=f"def {node.name}(...)",
+                        explanation=f"Function {node.name} loads questionnaire monolith data. "
+                                    f"Only factory.py is allowed to perform questionnaire I/O. "
+                                    f"Use factory.load_questionnaire_monolith() instead."
+                    ))
         
         # Pattern extraction indicators
         pattern_keywords = ['extract_pattern', 'derive_pattern', 'build_pattern', 'compile_pattern',
