@@ -247,7 +247,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None, use_cpp_ingestion: bool = False
+        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = False
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
         # Reject class types - only accept instances
@@ -261,20 +261,20 @@ class PreprocessedDocument:
         if isinstance(document, cls):
             return document
 
-        # Check for CPP (Canon Policy Package) ingestion
-        if use_cpp_ingestion or hasattr(document, "chunk_graph"):
+        # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
+        if use_spc_ingestion or hasattr(document, "chunk_graph"):
             try:
                 from saaaaaa.utils.cpp_adapter import CPPAdapter
                 adapter = CPPAdapter()
                 return adapter.to_preprocessed_document(document, document_id=document_id)
             except ImportError as e:
                 raise ImportError(
-                    "CPP ingestion requires cpp_adapter module. "
+                    "SPC ingestion requires cpp_adapter module. "
                     "Ensure saaaaaa.utils.cpp_adapter is available."
                 ) from e
             except Exception as e:
                 raise TypeError(
-                    f"Failed to adapt CPP document: {e}. "
+                    f"Failed to adapt SPC document: {e}. "
                     "Ensure document is a valid CanonPolicyPackage instance."
                 ) from e
 

@@ -171,31 +171,31 @@ class VerifiedPipelineRunner:
             self.errors.append(error_msg)
             return False
     
-    async def run_cpp_ingestion(self) -> Optional[Any]:
+    async def run_spc_ingestion(self) -> Optional[Any]:
         """
-        Run CPP ingestion phase.
+        Run SPC (Smart Policy Chunks) ingestion phase - canonical phase-one.
         
         Returns:
-            CPP object if successful, None otherwise
+            SPC object if successful, None otherwise
         """
-        self.log_claim("start", "cpp_ingestion", "Starting CPP ingestion")
+        self.log_claim("start", "spc_ingestion", "Starting SPC ingestion (phase-one)")
         
         try:
-            from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+            from saaaaaa.processing.spc_ingestion import CPPIngestionPipeline
             
             pipeline = CPPIngestionPipeline()
             cpp = await pipeline.process(self.plan_pdf_path)
             
             self.phases_completed += 1
-            self.log_claim("complete", "cpp_ingestion", 
-                          "CPP ingestion completed successfully",
+            self.log_claim("complete", "spc_ingestion", 
+                          "SPC ingestion (phase-one) completed successfully",
                           {"phases_completed": self.phases_completed})
             return cpp
             
         except Exception as e:
             self.phases_failed += 1
-            error_msg = f"CPP ingestion failed: {str(e)}"
-            self.log_claim("error", "cpp_ingestion", error_msg,
+            error_msg = f"SPC ingestion failed: {str(e)}"
+            self.log_claim("error", "spc_ingestion", error_msg,
                           {"traceback": traceback.format_exc()})
             self.errors.append(error_msg)
             return None
@@ -427,8 +427,8 @@ class VerifiedPipelineRunner:
             self.generate_verification_manifest([], {})
             return False
         
-        # Step 2: Run CPP ingestion
-        cpp = await self.run_cpp_ingestion()
+        # Step 2: Run SPC ingestion (canonical phase-one)
+        cpp = await self.run_spc_ingestion()
         if cpp is None:
             self.generate_verification_manifest([], {})
             return False
