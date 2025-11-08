@@ -663,7 +663,7 @@ class RecommendationEngine:
         clusters = when.get('clusters_below_target')
         if clusters is not None:
             if not isinstance(clusters, list) or not clusters:
-                raise ValueError(f"Rule {rule_id} must declare non empty clusters_below_target")
+                raise ValueError(f"Rule {rule_id} must declare non-empty clusters_below_target")
             if not all(isinstance(item, str) and item.strip() for item in clusters):
                 raise ValueError(f"Rule {rule_id} has invalid cluster identifiers")
             discriminants += 1
