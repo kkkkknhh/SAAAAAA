@@ -5,13 +5,15 @@ import json
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')
+# Add src to path using portable path utilities
+_script_dir = Path(__file__).parent
+_proj_root = _script_dir.parent
+sys.path.insert(0, str(_proj_root / 'src'))
 
 from saaaaaa.core.orchestrator.calibration_registry import CALIBRATIONS
 
 # Load catalog
-catalog_path = Path('/home/runner/work/SAAAAAA/SAAAAAA/config/rules/METODOS/catalogo_completo_canonico.json')
+catalog_path = _proj_root / 'config' / 'rules' / 'METODOS' / 'catalogo_completo_canonico.json'
 catalog = json.load(open(catalog_path))
 
 print("=" * 80)
