@@ -612,7 +612,7 @@ class RecommendationEngine:
 
         score_lt = when['score_lt']
         if not self._is_number(score_lt):
-            raise ValueError(f"Rule {rule_id} has non numeric MICRO threshold")
+            raise ValueError(f"Rule {rule_id} has non-numeric MICRO threshold")
         if not 0 <= float(score_lt) <= 3:
             raise ValueError(f"Rule {rule_id} MICRO threshold must be between 0 and 3")
 
