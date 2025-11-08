@@ -98,24 +98,67 @@ class CircuitBreakerState:
         self.failures = 0
         self.open = False
         self._lock = asyncio.Lock()
+        self._state_changes: list[dict[str, Any]] = []
+        self._max_history = 100
 
     async def increment_failures(self):
         """Increment failure count and potentially open circuit."""
         async with self._lock:
+            old_open = self.open
             self.failures += 1
             if self.failures >= 3:
                 self.open = True
+            
+            # Record state change
+            if old_open != self.open:
+                self._state_changes.append({
+                    'timestamp': time.time(),
+                    'from_open': old_open,
+                    'to_open': self.open,
+                    'failures': self.failures,
+                })
+                
+                # Trim history
+                if len(self._state_changes) > self._max_history:
+                    self._state_changes = self._state_changes[-self._max_history:]
+                
+                logger.warning(
+                    "circuit_breaker_state_change",
+                    extra={
+                        "old_open": old_open,
+                        "new_open": self.open,
+                        "failures": self.failures,
+                    }
+                )
     
     async def reset(self):
         """Reset circuit breaker state."""
         async with self._lock:
+            old_open = self.open
             self.failures = 0
             self.open = False
+            
+            # Record state change if circuit was open
+            if old_open:
+                self._state_changes.append({
+                    'timestamp': time.time(),
+                    'from_open': old_open,
+                    'to_open': False,
+                    'failures': 0,
+                })
+                
+                # Trim history
+                if len(self._state_changes) > self._max_history:
+                    self._state_changes = self._state_changes[-self._max_history:]
     
     async def is_open(self) -> bool:
         """Check if circuit is open."""
         async with self._lock:
             return self.open
+    
+    def get_state_history(self) -> list[dict[str, Any]]:
+        """Get history of state changes for monitoring."""
+        return list(self._state_changes)
 
 
 @dataclass

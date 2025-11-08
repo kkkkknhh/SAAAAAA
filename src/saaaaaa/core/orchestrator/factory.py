@@ -67,30 +67,90 @@ class ProcessorBundle:
 # ============================================================================
 
 def validate_questionnaire_structure(data: dict[str, object]) -> None:
-    """Validate questionnaire structure for required fields.
+    """Validate questionnaire structure for required fields and types.
     
     Args:
         data: Questionnaire data to validate
         
     Raises:
         ValueError: If required fields are missing or invalid
+        TypeError: If data is not a dictionary
     """
+    if not isinstance(data, dict):
+        raise ValueError("Questionnaire must be a dictionary")
+    
+    # Check top-level keys
     required_keys = ["version", "blocks", "schema_version"]
     missing = [k for k in required_keys if k not in data]
     if missing:
         raise ValueError(f"Questionnaire missing keys: {missing}")
+    
+    # Validate blocks structure
     blocks = data["blocks"]  # type: ignore[index]
-    if not isinstance(blocks, dict) or "micro_questions" not in blocks:
-        raise ValueError("blocks.micro_questions is required and must exist")
-    if not isinstance(blocks["micro_questions"], list):
+    if not isinstance(blocks, dict):
+        raise ValueError("blocks must be a dict")
+    
+    if "micro_questions" not in blocks:
+        raise ValueError("blocks.micro_questions is required")
+    
+    micro_questions = blocks["micro_questions"]
+    if not isinstance(micro_questions, list):
         raise ValueError("blocks.micro_questions must be a list")
-    for i, q in enumerate(blocks["micro_questions"]):
+    
+    # Track for duplicate detection
+    seen_question_ids = set()
+    seen_question_globals = set()
+    
+    # Validate each question
+    required_q_keys = ["question_id", "question_global", "base_slot"]
+    
+    for i, q in enumerate(micro_questions):
         if not isinstance(q, dict):
-            raise ValueError(f"Question {i} must be a dict")
-        required_q = ["question_id", "question_global", "base_slot"]
-        miss_q = [k for k in required_q if k not in q]
-        if miss_q:
-            raise ValueError(f"Question {i} missing keys: {miss_q}")
+            raise ValueError(f"Question {i} must be a dict, got {type(q).__name__}")
+        
+        # Check required keys
+        missing_q = [k for k in required_q_keys if k not in q]
+        if missing_q:
+            raise ValueError(f"Question {i} missing keys: {missing_q}")
+        
+        # Check for None values
+        for key in required_q_keys:
+            if q[key] is None:
+                raise ValueError(f"Question {i}: {key} cannot be None")
+        
+        # Type validation
+        question_id = q["question_id"]
+        if not isinstance(question_id, str):
+            raise ValueError(
+                f"Question {i}: question_id must be string, got {type(question_id).__name__}"
+            )
+        
+        question_global = q["question_global"]
+        if not isinstance(question_global, int):
+            raise ValueError(
+                f"Question {i}: question_global must be an integer, got {type(question_global).__name__}"
+            )
+        
+        base_slot = q["base_slot"]
+        if not isinstance(base_slot, str):
+            raise ValueError(
+                f"Question {i}: base_slot must be string, got {type(base_slot).__name__}"
+            )
+        
+        # Duplicate detection
+        if question_id in seen_question_ids:
+            raise ValueError(f"Duplicate question_id: {question_id} at index {i}")
+        seen_question_ids.add(question_id)
+        
+        if question_global in seen_question_globals:
+            raise ValueError(
+                f"Duplicate question_global: {question_global} at index {i}"
+            )
+        seen_question_globals.add(question_global)
+    
+    logger.info(
+        f"questionnaire_validation_passed: {len(micro_questions)} questions validated"
+    )
 
 
 def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:

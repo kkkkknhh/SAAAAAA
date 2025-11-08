@@ -126,6 +126,8 @@ async def execute_phase_with_timeout(
                 "phase_id": phase_id,
                 "phase_name": phase_name,
                 "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "time_remaining_s": timeout_s - elapsed,
             },
         )
         return result
@@ -138,9 +140,21 @@ async def execute_phase_with_timeout(
                 "phase_name": phase_name,
                 "elapsed_s": elapsed,
                 "timeout_s": timeout_s,
+                "exceeded_by_s": elapsed - timeout_s,
             },
         )
         raise PhaseTimeoutError(phase_id, phase_name, timeout_s) from exc
+    except asyncio.CancelledError:
+        elapsed = time.perf_counter() - start
+        logger.warning(
+            "phase_execution_cancelled",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+            },
+        )
+        raise  # Re-raise to propagate cancellation
     except Exception as exc:
         elapsed = time.perf_counter() - start
         logger.error(
