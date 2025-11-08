@@ -3,6 +3,34 @@
 from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
 
+# Calibration version for tracking changes
+CALIBRATION_VERSION = "1.0.0"
+
+
+class MissingCalibrationError(Exception):
+    """Raised when a method lacks explicit calibration for its execution context.
+    
+    This error enforces the policy that no method may execute without a rigorously
+    defined calibration profile. Silent fallbacks to generic defaults are prohibited.
+    
+    Attributes:
+        method_fqn: Fully qualified name of the method (ClassName.method_name)
+        context: Execution context dict with question_id, document_type, etc.
+    """
+    
+    def __init__(self, method_fqn: str, context: Optional[Dict] = None):
+        self.method_fqn = method_fqn
+        self.context = context or {}
+        
+        context_str = ", ".join(f"{k}={v}" for k, v in self.context.items() if v)
+        msg = f"Missing calibration for method '{method_fqn}'"
+        if context_str:
+            msg += f" in context [{context_str}]"
+        msg += ". Execution blocked - explicit calibration required."
+        
+        super().__init__(msg)
+
+
 @dataclass(frozen=True)
 class MethodCalibration:
     score_min: float
@@ -16,6 +44,10 @@ class MethodCalibration:
     requires_numeric_support: bool
     requires_temporal_support: bool
     requires_source_provenance: bool
+    
+    # Additional metadata for calibration tracking
+    safe_default_allowed: bool = False  # Must be explicitly True to allow fallback
+    document_type: Optional[str] = None  # "plan_desarrollo_municipal", "politica_publica", etc.
 
     def is_default_like(self) -> bool:
         if self.score_min == 0 and self.score_max == 1 and self.aggregation_weight == 1.0:
@@ -2018,14 +2050,95 @@ CALIBRATIONS: Dict[Tuple[str, str], MethodCalibration] = {
     ),
 }
 
-def resolve_calibration(class_name: str, method_name: str) -> Optional[MethodCalibration]:
+def get_calibration_hash() -> str:
+    """Compute deterministic hash of all calibrations for versioning.
+    
+    Returns:
+        SHA256 hex digest of calibration registry
+    """
+    import hashlib
+    import json
+    
+    # Serialize all calibrations to stable JSON
+    calib_data = {}
+    for (class_name, method_name), calib in sorted(CALIBRATIONS.items()):
+        key = f"{class_name}.{method_name}"
+        calib_data[key] = {
+            "score_min": calib.score_min,
+            "score_max": calib.score_max,
+            "min_evidence_snippets": calib.min_evidence_snippets,
+            "max_evidence_snippets": calib.max_evidence_snippets,
+            "contradiction_tolerance": calib.contradiction_tolerance,
+            "uncertainty_penalty": calib.uncertainty_penalty,
+            "aggregation_weight": calib.aggregation_weight,
+            "sensitivity": calib.sensitivity,
+            "requires_numeric_support": calib.requires_numeric_support,
+            "requires_temporal_support": calib.requires_temporal_support,
+            "requires_source_provenance": calib.requires_source_provenance,
+            "safe_default_allowed": calib.safe_default_allowed,
+        }
+    
+    calib_json = json.dumps(calib_data, sort_keys=True)
+    return hashlib.sha256(calib_json.encode("utf-8")).hexdigest()
+
+
+def resolve_calibration(class_name: str, method_name: str, strict: bool = True) -> Optional[MethodCalibration]:
     """Resolve base calibration for a method.
     
     This returns the base calibration. For context-aware calibration,
     use resolve_contextual_calibration from calibration_context module.
+    
+    Args:
+        class_name: Class containing the method
+        method_name: Method name  
+        strict: If True, raise MissingCalibrationError when calibration not found
+        
+    Returns:
+        MethodCalibration or None (if strict=False and not found)
+        
+    Raises:
+        MissingCalibrationError: If strict=True and calibration not found
     """
     key = (class_name, method_name)
-    return CALIBRATIONS.get(key)
+    calib = CALIBRATIONS.get(key)
+    
+    if calib is None and strict:
+        method_fqn = f"{class_name}.{method_name}"
+        raise MissingCalibrationError(method_fqn, {"resolution": "base"})
+    
+    return calib
+
+
+def get_calibration_hash() -> str:
+    """Compute deterministic hash of all calibrations for versioning.
+    
+    Returns:
+        SHA256 hex digest of calibration registry
+    """
+    import hashlib
+    import json
+    
+    # Serialize all calibrations to stable JSON
+    calib_data = {}
+    for (class_name, method_name), calib in sorted(CALIBRATIONS.items()):
+        key = f"{class_name}.{method_name}"
+        calib_data[key] = {
+            "score_min": calib.score_min,
+            "score_max": calib.score_max,
+            "min_evidence_snippets": calib.min_evidence_snippets,
+            "max_evidence_snippets": calib.max_evidence_snippets,
+            "contradiction_tolerance": calib.contradiction_tolerance,
+            "uncertainty_penalty": calib.uncertainty_penalty,
+            "aggregation_weight": calib.aggregation_weight,
+            "sensitivity": calib.sensitivity,
+            "requires_numeric_support": calib.requires_numeric_support,
+            "requires_temporal_support": calib.requires_temporal_support,
+            "requires_source_provenance": calib.requires_source_provenance,
+            "safe_default_allowed": calib.safe_default_allowed,
+        }
+    
+    calib_json = json.dumps(calib_data, sort_keys=True)
+    return hashlib.sha256(calib_json.encode("utf-8")).hexdigest()
 
 
 def resolve_calibration_with_context(

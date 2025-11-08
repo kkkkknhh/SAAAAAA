@@ -47,6 +47,21 @@ class UnitOfAnalysis(str, Enum):
     UNKNOWN = "unknown"
 
 
+class DocumentType(str, Enum):
+    """Document type classification for policy analysis.
+    
+    Different document types require different calibration approaches:
+    - Plan de desarrollo municipal: Comprehensive, multi-sector, long-term planning
+    - Política pública: Focused intervention, specific sector
+    - Plan sectorial: Sector-specific planning
+    """
+    PLAN_DESARROLLO_MUNICIPAL = "plan_desarrollo_municipal"
+    POLITICA_PUBLICA = "politica_publica"
+    PLAN_SECTORIAL = "plan_sectorial"
+    PLAN_ESTRATEGICO = "plan_estrategico"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class CalibrationContext:
     """Complete context for calibration resolution.
@@ -57,6 +72,7 @@ class CalibrationContext:
         question_num: Question number within dimension
         policy_area: Policy domain being analyzed
         unit_of_analysis: Type of analysis unit
+        document_type: Type of policy document being analyzed
         method_position: Position in method sequence (0-indexed)
         total_methods: Total methods in sequence
     """
@@ -65,6 +81,7 @@ class CalibrationContext:
     question_num: int
     policy_area: PolicyArea = PolicyArea.UNKNOWN
     unit_of_analysis: UnitOfAnalysis = UnitOfAnalysis.UNKNOWN
+    document_type: DocumentType = DocumentType.UNKNOWN
     method_position: int = 0
     total_methods: int = 1
     
@@ -95,6 +112,10 @@ class CalibrationContext:
         """Create new context with specified unit of analysis."""
         return replace(self, unit_of_analysis=unit)
     
+    def with_document_type(self, doc_type: DocumentType) -> "CalibrationContext":
+        """Create new context with specified document type."""
+        return replace(self, document_type=doc_type)
+    
     def with_method_position(self, position: int, total: int) -> "CalibrationContext":
         """Create new context with method sequence position."""
         return replace(self, method_position=position, total_methods=total)
@@ -114,12 +135,9 @@ class CalibrationModifier:
     sensitivity_multiplier: float = 1.0
     
     def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
-        """Apply multiplier to evidence snippet count with minimum bound."""
+        """Apply multiplier to evidence snippet count with minimum bound (round up)."""
         import math
-
-        def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
-            """Apply multiplier to evidence snippet count with minimum bound (round up)."""
-            return max(1, int(math.ceil(value * multiplier)))
+        return max(1, int(math.ceil(value * multiplier)))
     
     def apply(self, base: MethodCalibration) -> MethodCalibration:
         """Apply modifiers to base calibration."""
@@ -349,6 +367,44 @@ _UNIT_OF_ANALYSIS_MODIFIERS = {
 
 
 # =============================================================================
+# DOCUMENT-TYPE-SPECIFIC MODIFIERS
+# =============================================================================
+
+_DOCUMENT_TYPE_MODIFIERS = {
+    DocumentType.PLAN_DESARROLLO_MUNICIPAL: CalibrationModifier(
+        min_evidence_multiplier=1.4,  # Municipal plans are extensive, need more evidence
+        contradiction_tolerance_multiplier=0.6,  # Less tolerance due to multi-sector complexity
+        uncertainty_penalty_multiplier=1.1,  # Higher penalty for vague statements
+        sensitivity_multiplier=1.25,  # High sensitivity to detect cross-sector issues
+        aggregation_weight_multiplier=1.15,  # Higher weight due to strategic importance
+    ),
+    
+    DocumentType.POLITICA_PUBLICA: CalibrationModifier(
+        min_evidence_multiplier=1.25,  # Focused intervention needs clear evidence
+        contradiction_tolerance_multiplier=0.7,
+        uncertainty_penalty_multiplier=1.05,
+        sensitivity_multiplier=1.15,
+        aggregation_weight_multiplier=1.1,
+    ),
+    
+    DocumentType.PLAN_SECTORIAL: CalibrationModifier(
+        min_evidence_multiplier=1.3,  # Sector-specific needs domain evidence
+        contradiction_tolerance_multiplier=0.65,
+        sensitivity_multiplier=1.2,
+        aggregation_weight_multiplier=1.05,
+    ),
+    
+    DocumentType.PLAN_ESTRATEGICO: CalibrationModifier(
+        min_evidence_multiplier=1.35,  # Strategic plans need high-level evidence
+        contradiction_tolerance_multiplier=0.6,
+        uncertainty_penalty_multiplier=1.15,
+        sensitivity_multiplier=1.3,  # Very sensitive to strategic gaps
+        aggregation_weight_multiplier=1.2,
+    ),
+}
+
+
+# =============================================================================
 # METHOD-POSITION-SPECIFIC MODIFIERS
 # =============================================================================
 
@@ -404,7 +460,8 @@ def resolve_contextual_calibration(
     2. Apply dimension-specific modifier (if dimension known)
     3. Apply policy-area modifier (if area known)
     4. Apply unit-of-analysis modifier (if unit known)
-    5. Apply method-position modifier (if position known)
+    5. Apply document-type modifier (if document type known)
+    6. Apply method-position modifier (if position known)
     
     All modifiers are multiplicative and cumulative.
     """
@@ -426,6 +483,11 @@ def resolve_contextual_calibration(
     # Apply unit of analysis modifier
     if context.unit_of_analysis in _UNIT_OF_ANALYSIS_MODIFIERS:
         modifier = _UNIT_OF_ANALYSIS_MODIFIERS[context.unit_of_analysis]
+        calibration = modifier.apply(calibration)
+    
+    # Apply document type modifier
+    if context.document_type in _DOCUMENT_TYPE_MODIFIERS:
+        modifier = _DOCUMENT_TYPE_MODIFIERS[context.document_type]
         calibration = modifier.apply(calibration)
     
     # Apply method position modifier
