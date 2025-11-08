@@ -696,16 +696,6 @@ CALIBRATIONS: Dict[Tuple[str, str], MethodCalibration] = {
         safe_default_allowed=True,
         document_type="plan_desarrollo_municipal"
     ),
-        min_evidence_snippets=4,
-        max_evidence_snippets=25,
-        contradiction_tolerance=0.0,
-        uncertainty_penalty=0.35,
-        aggregation_weight=1.2,
-        sensitivity=0.95,
-        requires_numeric_support=True,
-        requires_temporal_support=False,
-        requires_source_provenance=True,
-    ),
     ("IndustrialPolicyProcessor", "_analyze_causal_dimensions"): MethodCalibration(
         score_min=0.0, score_max=1.0,
         min_evidence_snippets=3,
