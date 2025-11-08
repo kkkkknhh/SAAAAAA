@@ -1,0 +1,623 @@
+{
+  "metadata": {
+    "generated_at": "2025-11-08",
+    "audit_version": "1.0.0"
+  },
+  "inventory": {
+    "catalog_methods": 590,
+    "registry_methods": 180,
+    "used_methods": 22
+  },
+  "alignment": {
+    "catalog_and_registry": 137,
+    "catalog_not_registry": 453,
+    "registry_not_catalog": 43,
+    "used_not_catalog": 22,
+    "catalog_not_used": 590,
+    "used_not_registry": 22
+  },
+  "defects": [
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "ArgumentAnalyzer.analyze_arguments",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "BayesianMechanismInference._aggregate_bayesian_confidence",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "BayesianMechanismInference._build_transition_matrix",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "BayesianMechanismInference._calculate_type_transition_prior",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "BayesianMechanismInference._classify_mechanism_type",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CDAFFramework._audit_causal_coherence",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CDAFFramework._generate_causal_model_json",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CDAFFramework._generate_dnp_compliance_report",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CDAFFramework._generate_extraction_report",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalChainAnalyzer.extract_causal_chains",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalExtractor._calculate_confidence",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalExtractor._classify_goal_type",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalExtractor._extract_causal_justifications",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalExtractor._extract_goal_text",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "CausalInferenceSetup._get_dynamics_pattern",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "DiscourseAnalyzer.analyze_discourse",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "FinancialAuditor._calculate_sufficiency",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "FinancialAuditor._detect_allocation_gaps",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "FinancialAuditor._match_goal_to_budget",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "KnowledgeGraphBuilder.build_graph",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "MechanismPartExtractor._calculate_ea_confidence",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "MechanismPartExtractor._find_action_verb",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "MechanismPartExtractor._find_subject_entity",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "MechanismPartExtractor._validate_entity_activity",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "OperationalizationAuditor._perform_counterfactual_budget_check",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer._find_product_mentions",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer._generate_optimal_remediations",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer.analyze_municipal_plan",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer.extract_tables",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "PDETMunicipalPlanAnalyzer.generate_recommendations",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "SemanticProcessor._detect_table",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem._attach_canonical_evidence",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem._intelligent_deduplication",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem._validate_strategic_integrity",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem.evaluate_numerical_consistency",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem.generate_smart_chunks",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem.process_document",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicChunkingSystem.semantic_search_with_rerank",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "StrategicIntegrator.integrate_analyses",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "TemporalAnalyzer.analyze_temporal_dynamics",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "TeoriaCambio._execute_generar_sugerencias_internas",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "REGISTRY_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "TopicModeler.infer_topics",
+      "description": "Method has calibration but is not in canonical catalog",
+      "action": "Either add to catalog or remove from registry"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "DBSCAN.fit",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.exists",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.mkdir",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.read_bytes",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.read_text",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.resolve",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.write_bytes",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "Path.write_text",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "_canonical_dump.encode",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "_canonical_json.encode",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "blake3.hexdigest",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "cosine_similarity.max",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "cosine_similarity.ravel",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "get_questionnaire_provider.set_data",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "safe_text_extract.lower",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "str.lower",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "str.lstrip",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "str.replace",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "str.strip",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "str.upper",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "super.__init__",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    },
+    {
+      "type": "USED_NOT_IN_CATALOG",
+      "severity": "HIGH",
+      "method": "super.route",
+      "description": "Method is used in codebase but not in canonical catalog",
+      "action": "Add to catalog"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "AdvancedDAGValidator._generate_subgraph",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "BayesianCounterfactualAuditor.counterfactual_query",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "BeachEvidentialTest.apply_test_logic",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "BeachEvidentialTest.classify_test",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "DocumentProcessor.segment_text",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "FinancialAuditor.trace_financial_allocation",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "HierarchicalGenerativeModel.verify_conditional_independence",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PDETMunicipalPlanAnalyzer._compute_robustness_value",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PDETMunicipalPlanAnalyzer._deduplicate_tables",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PDETMunicipalPlanAnalyzer._estimate_effect_bayesian",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PDETMunicipalPlanAnalyzer._indicator_to_dict",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PDETMunicipalPlanAnalyzer._score_indicators",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PolicyAnalysisEmbedder.generate_pdq_report",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PolicyContradictionDetector._detect_resource_conflicts",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "PolicyContradictionDetector._generate_embeddings",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "ProcessorConfig.from_legacy",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "ReportAssemblyProducer.count_meso_strengths",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "ReportAssemblyProducer.get_macro_classification",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "ReportAssemblyProducer.get_rubric_threshold",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    },
+    {
+      "type": "CATALOGUED_NOT_USED",
+      "severity": "LOW",
+      "method": "ReportingEngine.generate_causal_model_json",
+      "description": "Method in catalog but never used in codebase",
+      "action": "Consider if method is obsolete"
+    }
+  ],
+  "alignment_score": {
+    "catalog_registry_alignment": 23.22,
+    "catalog_usage_alignment": 0.0,
+    "overall_integrity": "FAIL"
+  }
+}
