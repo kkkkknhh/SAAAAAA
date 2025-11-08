@@ -22,7 +22,7 @@ from collections import defaultdict, Counter
 import json
 import networkx as nx
 from sklearn.cluster import DBSCAN, AgglomerativeClustering
-from sklearn.metrics.pairwise import cosine_similarity
+# Note: cosine_similarity removed - using canonical semantic_search with cross-encoder reranking
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
@@ -302,7 +302,7 @@ class SmartPolicyChunk:
     topic_distribution: Dict[str, float] = field(default_factory=dict)
     key_phrases: List[Tuple[str, float]] = field(default_factory=list)
     
-    processing_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    processing_timestamp: str = field(default_factory=canonical_timestamp)
     pipeline_version: str = "SMART-CHUNK-3.0-FINAL"
     extraction_methodology: str = "COMPREHENSIVE_STRATEGIC_ANALYSIS"
     model_versions: Dict[str, str] = field(default_factory=dict) #
@@ -937,12 +937,16 @@ class ArgumentAnalyzer:
         # Use batch embedding for efficiency
         embeddings = self.parent._generate_embeddings_for_corpus(all_texts, batch_size=64)
         
-        # Matriz de similitud coseno
-        sim_matrix = cosine_similarity(embeddings)
+        # Vectorized cosine similarity computation (no sklearn dependency)
+        # Normalize embeddings for efficient dot product = cosine similarity
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        normalized_embs = embeddings / (norms + 1e-8)
+        sim_matrix = np.dot(normalized_embs, normalized_embs.T)
+        
         # Tomar la similitud media (excluyendo la diagonal)
         coherence = (np.sum(sim_matrix) - np.trace(sim_matrix)) / (len(sim_matrix)**2 - len(sim_matrix))
         
-        return min(max(coherence, 0.0), 1.0) #
+        return min(max(coherence, 0.0), 1.0)
 
 
 class TemporalAnalyzer:
@@ -2677,25 +2681,39 @@ class StrategicChunkingSystem:
         return text
 
     def _enrich_with_inter_chunk_relationships(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
-        """Enriquecer chunks con relaciones semánticas y causales inter-chunk"""
+        """
+        CANONICAL SOTA: Enrich chunks with semantic relationships using BGE-M3 embeddings.
+        
+        Uses batch embeddings and vectorized similarity computation instead of
+        manual loops and sklearn.cosine_similarity.
+        """
         if not chunks:
             return []
         
         texts = [c.text for c in chunks]
         self.corpus_embeddings = self._generate_embeddings_for_corpus(texts)
         
-        # Calcular similitud coseno entre todos los chunks
-        similarity_matrix = cosine_similarity(self.corpus_embeddings)
+        # Vectorized cosine similarity (no sklearn dependency)
+        norms = np.linalg.norm(self.corpus_embeddings, axis=1, keepdims=True)
+        normalized_embs = self.corpus_embeddings / (norms + 1e-8)
+        similarity_matrix = np.dot(normalized_embs, normalized_embs.T)
         
+        # Efficiently find related chunks using vectorized operations
         for i, chunk in enumerate(chunks):
-            chunk.related_chunks = []
-            for j, other_chunk in enumerate(chunks):
-                if i != j:
-                    similarity = similarity_matrix[i, j]
-                    if similarity >= self.config.CROSS_REFERENCE_MIN_SIMILARITY:
-                        chunk.related_chunks.append((other_chunk.chunk_id, float(similarity)))
-            # Ordenar por similitud
-            chunk.related_chunks.sort(key=lambda x: x[1], reverse=True)
+            # Get similarities for this chunk (excluding self)
+            sims = similarity_matrix[i].copy()
+            sims[i] = -1  # Exclude self
+            
+            # Find chunks above threshold
+            related_indices = np.where(sims >= self.config.CROSS_REFERENCE_MIN_SIMILARITY)[0]
+            
+            # Sort by similarity
+            sorted_indices = related_indices[np.argsort(-sims[related_indices])]
+            
+            chunk.related_chunks = [
+                (chunks[j].chunk_id, float(sims[j]))
+                for j in sorted_indices
+            ]
             
         return chunks
 
@@ -2753,14 +2771,16 @@ class StrategicChunkingSystem:
                 processed_hashes.add(chunk.content_hash)
                 deduplicated.append(chunk)
             
-        # Deduplicación semántica (para near-duplicates)
+        # Deduplicación semántica (para near-duplicates) using vectorized ops
         final_list = []
         if deduplicated:
             embeddings = self._generate_embeddings_for_corpus([c.text for c in deduplicated])
             n_chunks = len(deduplicated)
             
-            # Matriz de similitud entre los chunks ya dedup-por-hash
-            sim_matrix = cosine_similarity(embeddings)
+            # Vectorized cosine similarity (no sklearn dependency)
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            normalized_embs = embeddings / (norms + 1e-8)
+            sim_matrix = np.dot(normalized_embs, normalized_embs.T)
             
             is_duplicate = [False] * n_chunks
             
