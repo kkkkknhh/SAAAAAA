@@ -52,6 +52,14 @@ except ImportError:
     IndustrialPolicyProcessor = None
     PolicyTextProcessor = None
 
+# Optional language detection for multi-language support
+try:
+    from langdetect import detect
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    logger.warning("langdetect not available - defaulting to Spanish models")
+
 # =============================================================================
 # LOGGING CONFIGURADO
 # =============================================================================
@@ -899,12 +907,13 @@ class ArgumentAnalyzer:
         if not claims or not evidence: 
             return 0.0
             
-        # Simplificación: coherencia basada en similitud semántica entre claims y evidencia
+        # Coherencia basada en similitud semántica entre claims y evidencia
         all_texts = [c for c, _ in claims] + [e for e, _ in evidence]
         if len(all_texts) < 2: 
             return 0.5
             
-        embeddings = [self.parent._generate_embedding(text, 'semantic') for text in all_texts]
+        # Use batch embedding for efficiency
+        embeddings = self.parent._generate_embeddings_for_corpus(all_texts, batch_size=64)
         
         # Matriz de similitud coseno
         sim_matrix = cosine_similarity(embeddings)
@@ -1329,6 +1338,48 @@ class StrategicChunkingSystem:
         if self._strategic_integrator is None:
             self._strategic_integrator = StrategicIntegrator(self)
         return self._strategic_integrator
+    
+    def detect_language(self, text: str) -> str:
+        """
+        Detect the primary language of a text document.
+        
+        Inputs:
+            text (str): Text to analyze
+        Outputs:
+            str: ISO 639-1 language code (e.g., 'es', 'en', 'pt')
+        """
+        if not LANGDETECT_AVAILABLE:
+            # Default to Spanish for Colombian policy documents
+            return 'es'
+        
+        try:
+            # Sample first 2000 characters for language detection
+            sample = safe_utf8_truncate(text, 2000)
+            detected_lang = detect(sample)
+            self.logger.info(f"Detected language: {detected_lang}")
+            return detected_lang
+        except Exception as e:
+            self.logger.warning(f"Language detection failed: {e}, defaulting to Spanish")
+            return 'es'
+    
+    def select_embedding_model_for_language(self, language: str) -> None:
+        """
+        Select appropriate embedding model based on detected language.
+        
+        Inputs:
+            language (str): ISO 639-1 language code
+        Outputs:
+            None - updates model selection
+        """
+        # For now, multilingual-e5-large handles multiple languages well
+        # Could be extended with language-specific models if needed
+        if language in ['es', 'pt', 'ca']:  # Spanish, Portuguese, Catalan
+            self.logger.info(f"Using multilingual model for {language} (optimal for Romance languages)")
+        else:
+            self.logger.info(f"Using multilingual model for {language}")
+        
+        # Model is already multilingual, no change needed
+        # This method provides extension point for future language-specific optimization
         
     # --- Métodos de la clase principal (Continuación de smart_policy_chunks_industrial_v3_complete_Version2.py) ---
     
@@ -2426,9 +2477,20 @@ class StrategicChunkingSystem:
 
     def generate_smart_chunks(self, document_text: str, document_metadata: Dict) -> List[SmartPolicyChunk]:
         """
-        FASE PRINCIPAL: Generación de Smart Policy Chunks
+        Main pipeline phase: Generate Smart Policy Chunks with full analysis.
+        
+        Inputs:
+            document_text (str): Raw policy document text
+            document_metadata (Dict): Document metadata (ID, title, etc.)
+        Outputs:
+            List[SmartPolicyChunk]: Validated, deduplicated, and ranked chunks
         """
-        self.logger.info("Iniciando pipeline de generación de Smart Chunks v3.0")
+        self.logger.info("Starting Smart Chunks v3.0 pipeline")
+        
+        # FASE 0: Language detection and model selection
+        detected_lang = self.detect_language(document_text)
+        self.select_embedding_model_for_language(detected_lang)
+        document_metadata['detected_language'] = detected_lang
         
         # FASE 1: Preprocesamiento avanzado
         normalized_text = self._advanced_preprocessing(document_text)
@@ -2529,12 +2591,19 @@ class StrategicChunkingSystem:
         return ranked_chunks
 
     def _advanced_preprocessing(self, text: str) -> str:
-        """Preprocesamiento avanzado del texto"""
+        """
+        Advanced text preprocessing with normalization and encoding fixes.
+        
+        Inputs:
+            text (str): Raw input text
+        Outputs:
+            str: Normalized and cleaned text
+        """
         # Normalización de espacios y saltos de línea
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'\n+', '\n', text)
         
-        # Corrección de encodings problemáticos
+        # Corrección de encodings problemáticos (common UTF-8 mojibake)
         encoding_fixes = {
             'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú',
             'Ã±': 'ñ', 'Ã': 'Ñ', 'Ã ': 'à', 'Ã¨': 'è', 'Ã¬': 'ì',
@@ -2569,9 +2638,26 @@ class StrategicChunkingSystem:
             
         return chunks
 
-    def _generate_embeddings_for_corpus(self, texts: List[str]) -> np.ndarray:
-        """Generar embeddings para un corpus de textos"""
-        return self.semantic_model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+    def _generate_embeddings_for_corpus(self, texts: List[str], batch_size: int = 128) -> np.ndarray:
+        """
+        Generate embeddings for a corpus of texts with batching for efficiency.
+        
+        Inputs:
+            texts (List[str]): List of text strings to embed
+            batch_size (int): Batch size for encoding (default: 128)
+        Outputs:
+            np.ndarray: Array of embeddings, shape (n_texts, embedding_dim)
+        """
+        if not texts:
+            return np.array([])
+        
+        # Use model's batch encoding with configurable batch size
+        return self.semantic_model.encode(
+            texts, 
+            convert_to_numpy=True, 
+            show_progress_bar=False,
+            batch_size=batch_size
+        )
 
     def _validate_strategic_integrity(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
         """Validar que los chunks cumplan con umbrales mínimos de calidad y completitud"""
