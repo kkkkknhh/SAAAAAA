@@ -10,6 +10,7 @@ from typing import Any
 
 from saaaaaa.core.seed_factory import DeterministicContext  # noqa: E402
 
+REPO_ROOT = Path(__file__).parent.parent.parent
 CHECKSUM_PATH = REPO_ROOT / "config" / "metadata_checksums.json"
 
 def load_checksums() -> dict[str, str]:

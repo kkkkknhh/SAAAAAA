@@ -431,12 +431,6 @@ class TextExtractor:
             self.logger.error(f"Error abriendo PDF con pdfplumber: {e}")
             raise
 
-        full_text = "\n".join(all_text)
-
-        self.logger.info(f"✓ Texto extraído: {len(full_text)} caracteres")
-
-        return full_text
-
     def extract_by_page(self, *, raw_doc: RawDocument, page: int) -> str:
         """
         MÉTODO 5: Extrae texto de una página específica.

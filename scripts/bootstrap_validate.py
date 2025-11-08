@@ -24,6 +24,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from textwrap import dedent
 
+# Define repository root
+repo_root = Path(__file__).parent.parent
+
 def create_virtualenv(venv_path: Path, python_executable: str) -> Path:
     """Create the virtual environment if it does not yet exist."""
     if venv_path.exists():

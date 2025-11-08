@@ -8,6 +8,7 @@ Tests that all import paths work correctly from different locations:
 3. Root-level .py file imports
 """
 
+import sys
 from pathlib import Path
 
 # Add parent directory to path for root-level imports

@@ -15,11 +15,12 @@ Requirements:
     - All dependencies installed (pdfplumber, pyarrow, etc.)
 
 Note: Run this script after installing the package with: pip install -e .
-
-import sys
 """
 
 import asyncio
+import sys
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 from saaaaaa.utils.paths import data_dir

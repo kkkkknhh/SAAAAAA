@@ -5,6 +5,7 @@ Tests all 7 enhanced features across MICRO, MESO, and MACRO levels.
 """
 
 import json
+import sys
 from pathlib import Path
 
 # Add parent directory to path

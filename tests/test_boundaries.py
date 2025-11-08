@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 # Define the package root directory
+REPO_ROOT = Path(__file__).parent.parent
 PACKAGE_ROOT = Path(__file__).parent.parent / "src" / "saaaaaa"
 
 # Modules that must stay pure (no __main__ and no direct I/O).
