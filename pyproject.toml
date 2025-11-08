@@ -7,7 +7,7 @@ name = "saaaaaa"
 version = "0.1.0"
 description = "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A mechanistic policy pipeline for Colombian development plan analysis"
 readme = "README.md"
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.10,<3.13"
 authors = [
     {name = "F.A.R.F.A.N Development Team"}
 ]
@@ -27,6 +27,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 # NOTE: Full dependency list in requirements.txt (80+ packages)
