@@ -29,8 +29,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install mypy pyright ruff hypothesis pytest
-          # Install minimal runtime dependencies
-          pip install jsonschema || true
+          # Install minimal runtime dependencies for type checking
+          pip install jsonschema pydantic numpy scipy torch transformers || true
       
       - name: Run Ruff linter
         run: |
