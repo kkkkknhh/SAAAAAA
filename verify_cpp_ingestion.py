@@ -7,13 +7,13 @@ requiring the full orchestrator dependencies (torch, transformers, etc.).
 
 Usage:
     python verify_cpp_ingestion.py
-"""
+
+Note: Run this script after installing the package with: pip install -e .
 
 import sys
-from pathlib import Path
+"""
 
-# Ensure src/ is in Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+from pathlib import Path
 
 from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline

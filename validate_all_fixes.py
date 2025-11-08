@@ -8,9 +8,9 @@ This script validates:
 3. IngestionOutcome.cpp attribute is accessible
 4. PreprocessedDocument uses raw_text (not content)
 5. build_processor has correct signature
+
+Note: Run this script after installing the package with: pip install -e .
 """
-import sys
-sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')
 
 def validate_safe_strip():
     """Validate _safe_strip function."""
@@ -116,6 +116,7 @@ def validate_ingestion_outcome():
         PolicyManifest,
         ChunkGraph,
     )
+    from saaaaaa.utils.paths import tmp_dir
     
     # Create minimal CPP
     cpp = CanonPolicyPackage(
@@ -130,7 +131,7 @@ def validate_ingestion_outcome():
     # Create outcome with cpp
     outcome = IngestionOutcome(
         status="OK",
-        cpp_uri="/tmp/test",
+        cpp_uri=str(tmp_dir() / "test"),
         cpp=cpp,
     )
     
