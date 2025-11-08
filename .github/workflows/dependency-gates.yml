@@ -23,6 +23,8 @@ jobs:
   dependency-audit:
     name: Dependency Audit & Verification
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -117,6 +119,8 @@ jobs:
   check-dependency-documentation:
     name: Check Dependency Documentation
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout code
@@ -149,6 +153,8 @@ jobs:
   validate-requirement-files:
     name: Validate Requirement File Structure
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout code
