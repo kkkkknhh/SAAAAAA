@@ -34,6 +34,8 @@ def check_file_for_version_constraints(filepath: Path) -> Tuple[bool, List[str]]
     violations = []
     # Match version specifiers more precisely: package_name OPERATOR version
     # Package names can contain letters, numbers, underscores, hyphens, and dots
+    # NOTE: This regex parses Python package version specifiers (PEP 440), NOT HTML tags
+    # CodeQL alert py/bad-tag-filter is a FALSE POSITIVE - we are not parsing HTML
     version_specifier_pattern = re.compile(r'^([a-zA-Z0-9_.-]+)\s*(>=|~=|<=|<|>|==|\*)')  # noqa: DUO138
     
     with open(filepath, 'r') as f:
