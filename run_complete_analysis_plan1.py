@@ -15,6 +15,8 @@ Requirements:
     - All dependencies installed (pdfplumber, pyarrow, etc.)
 
 Note: Run this script after installing the package with: pip install -e .
+
+import sys
 """
 
 import asyncio
