@@ -1,6 +1,8 @@
-# Project Structure Documentation
+# F.A.R.F.A.N Project Structure Documentation
 
-This document explains the organization of the SAAAAAA repository.
+**Framework for Advanced Retrieval of Administrativa Narratives**
+
+This document explains the organization of the F.A.R.F.A.N repository.
 
 ## Directory Layout
 

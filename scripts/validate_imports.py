@@ -16,18 +16,12 @@ Exit codes:
     1 - Core import failures detected
 """
 
-import sys
-import os
-import importlib
 import argparse
+import importlib
+import sys
 from pathlib import Path
-from typing import List, Tuple, Dict
 
 # Add project paths
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
-sys.path.insert(0, str(PROJECT_ROOT))
-
 
 class Color:
     """ANSI color codes for terminal output"""
@@ -38,21 +32,20 @@ class Color:
     BOLD = '\033[1m'
     END = '\033[0m'
 
-
 class ImportValidator:
     """Validates all imports in the SAAAAAA system"""
-    
+
     def __init__(self, verbose: bool = False, fail_on_dependencies: bool = False):
         self.verbose = verbose
         self.fail_on_dependencies = fail_on_dependencies
-        self.results: Dict[str, List] = {
+        self.results: dict[str, list] = {
             "core_success": [],
             "core_failed": [],
             "dependency_success": [],
             "dependency_failed": []
         }
-    
-    def test_import(self, module_name: str) -> Tuple[bool, str]:
+
+    def test_import(self, module_name: str) -> tuple[bool, str]:
         """Test a single import and return success status and error message"""
         try:
             if self.verbose:
@@ -66,16 +59,16 @@ class ImportValidator:
                 print(f"{Color.RED}✗{Color.END}")
                 print(f"    Error: {e}")
             return False, str(e)
-    
+
     def validate_all(self) -> int:
         """
         Run comprehensive import validation
-        
+
         Returns:
             Exit code (0 for success, 1 for failure)
         """
         self._print_header()
-        
+
         # Define test groups
         core_shims = [
             "aggregation",
@@ -91,7 +84,7 @@ class ImportValidator:
             "seed_factory",
             "signature_validator",
         ]
-        
+
         core_packages = [
             "saaaaaa",
             "saaaaaa.core",
@@ -103,7 +96,7 @@ class ImportValidator:
             "saaaaaa.infrastructure",
             "saaaaaa.controls",
         ]
-        
+
         dependency_modules = [
             ("document_ingestion", "pdfplumber"),
             ("embedding_policy", "numpy"),
@@ -112,7 +105,7 @@ class ImportValidator:
             ("schema_validator", "pydantic"),
             ("validation_engine", "pydantic"),
         ]
-        
+
         # Test core shims
         self._print_section("Core Compatibility Shims")
         for module in core_shims:
@@ -125,7 +118,7 @@ class ImportValidator:
                 self.results["core_failed"].append((module, error))
                 if not self.verbose:
                     print(f"{Color.RED}✗{Color.END} {module}: {error}")
-        
+
         # Test core packages
         self._print_section("Core Packages")
         for module in core_packages:
@@ -138,7 +131,7 @@ class ImportValidator:
                 self.results["core_failed"].append((module, error))
                 if not self.verbose:
                     print(f"{Color.RED}✗{Color.END} {module}: {error}")
-        
+
         # Test dependency modules
         self._print_section("Dependency-Heavy Modules")
         for module, dep in dependency_modules:
@@ -151,32 +144,32 @@ class ImportValidator:
                 self.results["dependency_failed"].append((module, error, dep))
                 if not self.verbose:
                     print(f"{Color.YELLOW}⚠{Color.END} {module} (requires {dep})")
-        
+
         return self._print_summary()
-    
+
     def _print_header(self):
         """Print validation header"""
         print(f"\n{Color.BOLD}{'='*70}{Color.END}")
         print(f"{Color.BOLD}SAAAAAA IMPORT VALIDATION{Color.END}")
         print(f"{Color.BOLD}{'='*70}{Color.END}\n")
-    
+
     def _print_section(self, title: str):
         """Print section header"""
         print(f"\n{Color.BLUE}{title}{Color.END}")
         print("-" * len(title))
-    
+
     def _print_summary(self) -> int:
         """Print validation summary and return exit code"""
         print(f"\n{Color.BOLD}{'='*70}{Color.END}")
         print(f"{Color.BOLD}VALIDATION SUMMARY{Color.END}")
         print(f"{Color.BOLD}{'='*70}{Color.END}\n")
-        
+
         total_core = len(self.results["core_success"]) + len(self.results["core_failed"])
         total_dep = len(self.results["dependency_success"]) + len(self.results["dependency_failed"])
-        
+
         print(f"Core Modules:        {Color.GREEN}{len(self.results['core_success'])}/{total_core}{Color.END} passed")
         print(f"Dependency Modules:  {Color.YELLOW}{len(self.results['dependency_success'])}/{total_dep}{Color.END} passed")
-        
+
         # Check for core failures
         if self.results["core_failed"]:
             print(f"\n{Color.RED}{Color.BOLD}{'!'*70}{Color.END}")
@@ -186,7 +179,7 @@ class ImportValidator:
                 print(f"{Color.RED}❌ {module}{Color.END}")
                 print(f"   {error}\n")
             return 1
-        
+
         # Check for dependency failures
         if self.results["dependency_failed"]:
             print(f"\n{Color.YELLOW}{'─'*70}{Color.END}")
@@ -196,21 +189,20 @@ class ImportValidator:
             for module, error, dep in self.results["dependency_failed"]:
                 print(f"{Color.YELLOW}⚠{Color.END} {module} requires {dep}")
                 deps_needed.add(dep)
-            
+
             print(f"\n{Color.BLUE}To install missing dependencies:{Color.END}")
             print(f"  pip install {' '.join(deps_needed)}")
-            
+
             if self.fail_on_dependencies:
                 print(f"\n{Color.RED}Failing due to --fail-on-dependencies flag{Color.END}")
                 return 1
-        
+
         # Success!
         print(f"\n{Color.GREEN}{Color.BOLD}{'='*70}{Color.END}")
         print(f"{Color.GREEN}{Color.BOLD}✅ ALL CORE IMPORTS VALIDATED SUCCESSFULLY{Color.END}")
         print(f"{Color.GREEN}{Color.BOLD}{'='*70}{Color.END}\n")
-        
-        return 0
 
+        return 0
 
 def main():
     """Main entry point"""
@@ -234,16 +226,15 @@ Examples:
         action="store_true",
         help="Fail validation if dependency modules can't be imported"
     )
-    
+
     args = parser.parse_args()
-    
+
     validator = ImportValidator(
         verbose=args.verbose,
         fail_on_dependencies=args.fail_on_dependencies
     )
     exit_code = validator.validate_all()
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

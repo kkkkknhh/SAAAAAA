@@ -23,6 +23,10 @@ NC='\033[0m' # No Color
 # Track overall status
 FAILED=0
 
+# Create unique temporary file
+TMP_OUTPUT=$(mktemp)
+trap "rm -f $TMP_OUTPUT" EXIT
+
 # Function to run a check
 run_check() {
     local name="$1"
@@ -30,13 +34,13 @@ run_check() {
     
     echo -n "Running: $name ... "
     
-    if eval "$command" > /tmp/check_output.log 2>&1; then
+    if eval "$command" > "$TMP_OUTPUT" 2>&1; then
         echo -e "${GREEN}✓ PASSED${NC}"
         return 0
     else
         echo -e "${RED}✗ FAILED${NC}"
         echo "Error output:"
-        cat /tmp/check_output.log | head -20
+        cat "$TMP_OUTPUT" | head -20
         echo ""
         FAILED=$((FAILED + 1))
         return 1
@@ -59,7 +63,7 @@ fi
 
 # Check 3: Questionnaire linting
 if [ -f tools/lint/json_lint.py ] && [ -f questionnaire.json ]; then
-    run_check "Questionnaire lint" "python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire.schema.json"
+run_check "Questionnaire lint" "python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire_monolith.schema.json"
 else
     echo -e "${YELLOW}⚠ Skipping: questionnaire linting tools not found${NC}"
 fi

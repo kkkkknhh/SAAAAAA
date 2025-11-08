@@ -1,7 +1,10 @@
 """Compatibility wrapper for the recommendation engine."""
 from __future__ import annotations
 
-from saaaaaa.analysis.recommendation_engine import (
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.analysis.recommendation_engine import (  # noqa: E402
     Recommendation,
     RecommendationEngine,
     RecommendationSet,

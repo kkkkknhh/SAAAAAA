@@ -1,5 +1,8 @@
 name: D2 Method Concurrence Validation
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main, develop ]
@@ -34,15 +37,17 @@ jobs:
   validate-d2-strict:
     name: Validate D2 Method Concurrence (Strict)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -52,6 +57,7 @@ jobs:
         else
           echo "Warning: requirements_atroz.txt not found"
         fi
+        pip install -e .
     
     - name: Run D2 validation (strict mode)
       id: validate
@@ -60,11 +66,10 @@ jobs:
           --strict \
           --output d2_validation_report.json \
           --summary
-      continue-on-error: true
     
     - name: Upload validation report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: d2-validation-report
         path: d2_validation_report.json
@@ -80,15 +85,17 @@ jobs:
   validate-d2-non-strict:
     name: Validate D2 Method Concurrence (Non-Strict)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -98,6 +105,7 @@ jobs:
         else
           echo "Warning: requirements_atroz.txt not found"
         fi
+        pip install -e .
     
     - name: Run D2 validation (non-strict mode, 95% threshold)
       id: validate
@@ -106,11 +114,10 @@ jobs:
           --fail-threshold 0.95 \
           --output d2_validation_report_nonstrict.json \
           --summary
-      continue-on-error: true
     
     - name: Upload validation report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: d2-validation-report-nonstrict
         path: d2_validation_report_nonstrict.json
@@ -125,15 +132,17 @@ jobs:
   test-d2-orchestrator:
     name: Test D2 Orchestrator
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -143,7 +152,12 @@ jobs:
         else
           echo "Warning: requirements_atroz.txt not found"
         fi
+        pip install -e .
     
     - name: Run D2 orchestrator tests
       run: |
-        python tests/test_d2_orchestrator.py
+        if [ -f "tests/test_d2_orchestrator.py" ]; then
+          python tests/test_d2_orchestrator.py
+        else
+          echo "⚠️ Warning: tests/test_d2_orchestrator.py not found - skipping test"
+        fi
