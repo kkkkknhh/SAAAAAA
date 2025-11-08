@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Verified Policy Pipeline Runner
-================================
+F.A.R.F.A.N Verified Pipeline Runner
+=====================================
 
-Canonical entrypoint for executing the policy analysis pipeline with cryptographic
-verification and structured claim logging. This script is designed to be machine-auditable
-and produces verifiable artifacts at every step.
+Framework for Advanced Retrieval of Administrativa Narratives
+
+Canonical entrypoint for executing the F.A.R.F.A.N policy analysis pipeline with 
+cryptographic verification and structured claim logging. This script is designed 
+to be machine-auditable and produces verifiable artifacts at every step.
 
 Key Features:
 - Computes SHA256 hashes of all inputs and outputs
