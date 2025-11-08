@@ -69,7 +69,7 @@ def validate_bootstrap() -> bool:
     
     try:
         flags = WiringFeatureFlags(
-            use_cpp_ingestion=True,
+            use_spc_ingestion=True,  # Use canonical SPC (Smart Policy Chunks) phase-one
             enable_http_signals=False,  # Memory mode for CI
             deterministic_mode=True,
         )
