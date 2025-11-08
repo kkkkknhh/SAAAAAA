@@ -222,6 +222,8 @@ jobs:
     needs: shadow-oracle-differential
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout repository

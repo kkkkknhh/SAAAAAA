@@ -109,6 +109,8 @@ jobs:
     name: Runtime Contract Validation Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - name: Checkout repository
@@ -152,6 +154,8 @@ jobs:
     name: Run Boundary Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - name: Checkout repository
