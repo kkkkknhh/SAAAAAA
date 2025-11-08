@@ -29,8 +29,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install mypy pyright ruff hypothesis pytest
-          # Install minimal runtime dependencies for type checking
-          pip install jsonschema pydantic numpy scipy torch transformers || true
+          # Install minimal runtime dependencies
+          pip install jsonschema pydantic || echo "⚠️ Optional runtime dependencies failed (non-blocking)"
+          # Install project in editable mode
+          pip install -e . || echo "⚠️ Project install failed (non-blocking)"
       
       - name: Run Ruff linter
         run: |
