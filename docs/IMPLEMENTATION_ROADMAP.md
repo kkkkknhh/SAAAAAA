@@ -6,8 +6,8 @@
 - Catalog renamed to `catalogo_completo_canonico.json`
 - All references updated (5 files)
 - Exhaustive search conducted and documented
-- 593 methods in catalog
-- 166 methods with calibration (28% coverage)
+- 590 methods in catalog
+- 137 methods with calibration (23.2% coverage)
 
 ## Analysis Results
 

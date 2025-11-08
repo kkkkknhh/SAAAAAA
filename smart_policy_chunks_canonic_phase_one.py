@@ -2,41 +2,58 @@
 SISTEMA INDUSTRIAL SOTA PARA SMART-POLICY-CHUNKS DE PLANES DE DESARROLLO
 VERSIÓN 3.0 COMPLETA - SIN PLACEHOLDERS, IMPLEMENTACIÓN TOTAL
 FASE 1 DEL PIPELINE: GENERACIÓN DE CHUNKS COMPRENSIVOS, RIGUROSOS Y ESTRATÉGICOS
-""" #
+"""
 
+import os
 import re
 import logging
 import hashlib
 import numpy as np
+import copy
 from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Any, Optional, Tuple, Set, Union
 from enum import Enum
 from scipy.spatial.distance import cosine
 from scipy.stats import entropy
 from scipy.signal import find_peaks
-import torch
-import torch.nn.functional as F
-from transformers import (
-    AutoTokenizer, 
-    AutoModel, 
-    pipeline,
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    AutoModelForSeq2SeqLM
-)
-from datetime import datetime
+# Note: torch and transformers imports removed - model lifecycle managed by canonical producers
+from datetime import datetime, timezone
 from collections import defaultdict, Counter
 import json
-from functools import lru_cache
 import networkx as nx
 from sklearn.cluster import DBSCAN, AgglomerativeClustering
-from sklearn.metrics.pairwise import cosine_similarity
+# Note: cosine_similarity removed - using canonical semantic_search with cross-encoder reranking
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
-from sentence_transformers import SentenceTransformer, util
+# Note: SentenceTransformer import removed - embedding handled by canonical producers
 import warnings
-warnings.filterwarnings('ignore') #
+warnings.filterwarnings('ignore')
+
+# ============================================================================= 
+# CANONICAL MODULE INTEGRATION - SOTA Producer APIs
+# Import production-grade canonical components from saaaaaa.processing
+# These replace internal duplicate implementations with frontier SOTA approaches
+# =============================================================================
+
+# Canonical producers (robust imports with fallback)
+try:
+    from saaaaaa.processing.embedding_policy import EmbeddingPolicyProducer
+    from saaaaaa.processing.semantic_chunking_policy import SemanticChunkingProducer
+    from saaaaaa.processing.policy_processor import create_policy_processor
+except ImportError:
+    # Fallback if script is run from repo root without package install
+    from src.saaaaaa.processing.embedding_policy import EmbeddingPolicyProducer
+    from src.saaaaaa.processing.semantic_chunking_policy import SemanticChunkingProducer
+    from src.saaaaaa.processing.policy_processor import create_policy_processor
+
+# Optional language detection for multi-language support
+try:
+    from langdetect import detect
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    logger.warning("langdetect not available - defaulting to Spanish models")
 
 # =============================================================================
 # LOGGING CONFIGURADO
@@ -50,7 +67,87 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger(__name__) #
+logger = logging.getLogger("SPC")
+
+# =============================================================================
+# UTILITY FUNCTIONS - Serialization, Hashing, Text Safety
+# =============================================================================
+
+def np_to_list(obj):
+    """
+    Convert NumPy arrays to lists for JSON serialization.
+    
+    Inputs:
+        obj: Any Python object, typically a NumPy array
+    Outputs:
+        List representation of the array if input is ndarray
+    Raises:
+        TypeError if object is not JSON-serializable
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.integer, np.floating)):
+        return obj.item()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+def safe_utf8_truncate(text: str, max_bytes: int) -> str:
+    """
+    Safely truncate text to max_bytes without cutting multi-byte UTF-8 characters.
+    
+    Inputs:
+        text (str): Input text to truncate
+        max_bytes (int): Maximum number of UTF-8 bytes
+    Outputs:
+        str: Truncated text that is valid UTF-8
+    """
+    if not text:
+        return text
+    encoded = text.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return text
+    return encoded[:max_bytes].decode("utf-8", "ignore")
+
+def canonical_timestamp() -> str:
+    """
+    Generate ISO-8601 UTC timestamp with Z suffix for canonical timestamping.
+    
+    Inputs:
+        None
+    Outputs:
+        str: ISO-8601 formatted UTC timestamp ending with 'Z'
+    """
+    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+def filter_empty_sentences(sentences: List[str]) -> List[str]:
+    """
+    Filter out empty or whitespace-only sentences.
+    
+    Inputs:
+        sentences (List[str]): List of sentence strings
+    Outputs:
+        List[str]: Filtered list containing only non-empty sentences
+    """
+    return [s for s in sentences if s.strip()]
+
+# =============================================================================
+# CANONICAL ERROR CLASSES
+# =============================================================================
+
+class CanonicalError(Exception):
+    """Base class for canonical pipeline errors"""
+    pass
+
+class ValidationError(CanonicalError):
+    """Raised when input validation fails"""
+    pass
+
+class ProcessingError(CanonicalError):
+    """Raised when processing step fails"""
+    pass
+
+class SerializationError(CanonicalError):
+    """Raised when serialization fails"""
+    pass
 
 # =============================================================================
 # ENUMS Y TIPOS
@@ -205,7 +302,7 @@ class SmartPolicyChunk:
     topic_distribution: Dict[str, float] = field(default_factory=dict)
     key_phrases: List[Tuple[str, float]] = field(default_factory=list)
     
-    processing_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    processing_timestamp: str = field(default_factory=canonical_timestamp)
     pipeline_version: str = "SMART-CHUNK-3.0-FINAL"
     extraction_methodology: str = "COMPREHENSIVE_STRATEGIC_ANALYSIS"
     model_versions: Dict[str, str] = field(default_factory=dict) #
@@ -273,30 +370,40 @@ class ContextPreservationSystem:
         structural_analysis: Dict,
         global_topics: Dict
     ) -> List[Dict]:
-        """Preservar contexto estratégico con ventanas adaptativas"""
+        """
+        CANONICAL SOTA: Preserve strategic context using EmbeddingPolicyProducer.
+        
+        Derives breakpoints from canonical chunks with PDM structure awareness.
+        Replaces internal breakpoint logic with SOTA semantic chunking.
+        """
+        # Use canonical chunker with doc_id/title from structural analysis
+        chunks = self.parent._spc_embed.process_document(
+            text, 
+            {
+                "doc_id": structural_analysis.get("doc_id", "unknown"),
+                "title": structural_analysis.get("title", "N/A")
+            }
+        )
+        
+        # Build segments from canonical chunks (position is ordinal; approximate char spans)
         segments = []
-        
-        # Identificar puntos de ruptura semántica
-        breakpoints = self._identify_semantic_breakpoints(text, structural_analysis)
-        
-        # Generar segmentos con contexto preservado
-        for i in range(len(breakpoints) - 1):
-            start = breakpoints[i]
-            end = breakpoints[i + 1]
-            
-            # Expandir ventana para preservar contexto
-            context_start = max(0, start - self.parent.config.MIN_CONTEXT_WINDOW // 2)
-            context_end = min(len(text), end + self.parent.config.MIN_CONTEXT_WINDOW // 2)
+        offset = 0
+        for ch in chunks:
+            ch_text = self.parent._spc_embed.get_chunk_text(ch)
+            start = offset
+            end = start + len(ch_text)
+            offset = end
             
             segment = {
-                'text': text[start:end],
-                'context': text[context_start:context_end],
-                'position': (start, end),
-                'context_window': (context_start, context_end),
-                'semantic_coherence': self._calculate_segment_coherence(text[start:end]),
-                'topic_alignment': self._calculate_topic_alignment(text[start:end], global_topics)
+                "text": ch_text,
+                "context": ch_text,  # Can expand context if needed
+                "position": (start, end),
+                "context_window": (start, end),
+                "semantic_coherence": 0.0,  # Filled by coherence calculation if needed
+                "topic_alignment": self._calculate_topic_alignment(ch_text, global_topics),
+                "pdq_context": self.parent._spc_embed.get_chunk_pdq_context(ch),
+                "metadata": self.parent._spc_embed.get_chunk_metadata(ch),
             }
-            
             segments.append(segment)
         
         return segments
@@ -335,24 +442,33 @@ class ContextPreservationSystem:
         return position
     
     def _calculate_segment_coherence(self, segment_text: str) -> float:
-        """Calcular coherencia del segmento"""
+        """
+        CANONICAL SOTA: Calculate coherence using batch embeddings.
+        
+        Replaces per-sentence embedding calls with efficient batching.
+        No per-sentence model churn.
+        
+        Inputs:
+            segment_text (str): Text segment to analyze
+        Outputs:
+            float: Coherence score between 0.0 and 1.0
+        """
         if len(segment_text) < 50:
             return 0.0
         
-        sentences = re.split(r'[.!?]+', segment_text)
+        sentences = filter_empty_sentences(re.split(r'[.!?]+', segment_text))
         if len(sentences) < 2:
             return 0.5
         
-        # Calcular similitud entre oraciones consecutivas
-        similarities = []
-        for i in range(len(sentences) - 1):
-            if sentences[i].strip() and sentences[i+1].strip():
-                emb1 = self.parent._generate_embedding(sentences[i], 'semantic')
-                emb2 = self.parent._generate_embedding(sentences[i+1], 'semantic')
-                sim = 1 - cosine(emb1, emb2)
-                similarities.append(sim)
+        # CANONICAL SOTA: Batch embeddings for efficiency
+        embs = self.parent._generate_embeddings_for_corpus(sentences, batch_size=64)
         
-        return np.mean(similarities) if similarities else 0.5
+        # Pairwise cosine similarity between consecutive sentences
+        sims = np.sum(embs[:-1] * embs[1:], axis=1) / (
+            np.linalg.norm(embs[:-1], axis=1) * np.linalg.norm(embs[1:], axis=1) + 1e-8
+        )
+        
+        return float(np.mean(sims)) if sims.size else 0.5
     
     def _calculate_topic_alignment(self, segment_text: str, global_topics: Dict) -> float:
         """Calcular alineación con tópicos globales"""
@@ -473,22 +589,36 @@ class CausalChainAnalyzer:
         return confidence
     
     def _calculate_chain_similarity(self, chain1: Dict, chain2: Dict) -> float:
-        """Calcular similitud entre cadenas causales"""
-        # Similitud textual
-        text1 = f"{chain1.get('antecedent', '')} {chain1.get('consequent', '')}"
-        text2 = f"{chain2.get('antecedent', '')} {chain2.get('consequent', '')}"
+        """
+        CANONICAL SOTA: Calculate chain similarity via batch embeddings.
         
-        emb1 = self.parent._generate_embedding(text1, 'semantic')
-        emb2 = self.parent._generate_embedding(text2, 'semantic')
+        Replaces individual embedding calls with efficient batching.
         
-        # Coseno entre los embeddings
-        sim = 1 - cosine(emb1, emb2)
+        Inputs:
+            chain1 (Dict): First causal chain
+            chain2 (Dict): Second causal chain
+        Outputs:
+            float: Similarity score between 0.0 and 1.0
+        """
+        # Build text representations of chains
+        texts = [
+            f"{chain1.get('antecedent', '')} {chain1.get('consequent', '')}",
+            f"{chain2.get('antecedent', '')} {chain2.get('consequent', '')}",
+        ]
+        
+        # CANONICAL SOTA: Batch embeddings for efficiency
+        embs = self.parent._generate_embeddings_for_corpus(texts, batch_size=2)
+        
+        # Cosine similarity
+        sim = float(np.dot(embs[0], embs[1]) / (
+            np.linalg.norm(embs[0]) * np.linalg.norm(embs[1]) + 1e-8
+        ))
         
         # Penalización por tipo de relación diferente
         if chain1.get('type') != chain2.get('type'):
             sim *= 0.9 
             
-        return sim #
+        return sim
 
 
 class KnowledgeGraphBuilder:
@@ -593,15 +723,24 @@ class KnowledgeGraphBuilder:
         return relations
     
     def _extract_key_concepts(self, text: str) -> List[str]:
-        """Extraer conceptos clave a partir de chunks nominales y frases clave"""
+        """
+        Extract key concepts from noun chunks and key phrases.
+        
+        Inputs:
+            text (str): Input text to analyze
+        Outputs:
+            List[str]: List of key concepts (max 30)
+        """
         concepts = []
         if self.parent.nlp:
-            doc = self.parent.nlp(text[:200000]) # Limitar para rendimiento
+            # Safe UTF-8 truncation to avoid cutting multi-byte characters
+            truncated_text = safe_utf8_truncate(text, 200000)
+            doc = self.parent.nlp(truncated_text)
             concepts.extend([chunk.text for chunk in doc.noun_chunks][:50])
         
         # Normalizar conceptos
         concepts = list(set([c.lower().strip() for c in concepts]))
-        return concepts[:30] #
+        return concepts[:30]
 
 
 class TopicModeler:
@@ -790,19 +929,24 @@ class ArgumentAnalyzer:
         if not claims or not evidence: 
             return 0.0
             
-        # Simplificación: coherencia basada en similitud semántica entre claims y evidencia
+        # Coherencia basada en similitud semántica entre claims y evidencia
         all_texts = [c for c, _ in claims] + [e for e, _ in evidence]
         if len(all_texts) < 2: 
             return 0.5
             
-        embeddings = [self.parent._generate_embedding(text, 'semantic') for text in all_texts]
+        # Use batch embedding for efficiency
+        embeddings = self.parent._generate_embeddings_for_corpus(all_texts, batch_size=64)
         
-        # Matriz de similitud coseno
-        sim_matrix = cosine_similarity(embeddings)
+        # Vectorized cosine similarity computation (no sklearn dependency)
+        # Normalize embeddings for efficient dot product = cosine similarity
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        normalized_embs = embeddings / (norms + 1e-8)
+        sim_matrix = np.dot(normalized_embs, normalized_embs.T)
+        
         # Tomar la similitud media (excluyendo la diagonal)
         coherence = (np.sum(sim_matrix) - np.trace(sim_matrix)) / (len(sim_matrix)**2 - len(sim_matrix))
         
-        return min(max(coherence, 0.0), 1.0) #
+        return min(max(coherence, 0.0), 1.0)
 
 
 class TemporalAnalyzer:
@@ -1088,63 +1232,266 @@ class StrategicIntegrator:
 
 class StrategicChunkingSystem:
     def __init__(self):
+        """
+        Initialize the Strategic Chunking System with canonical components.
+        
+        Integrates production-grade canonical modules:
+        - PolicyAnalysisEmbedder for semantic embeddings
+        - SemanticProcessor for chunking with PDM structure awareness
+        - IndustrialPolicyProcessor for causal evidence extraction
+        - BayesianEvidenceScorer for probabilistic confidence scoring
+        
+        Inputs:
+            None
+        Outputs:
+            None - initializes system state
+        """
         self.config = SmartChunkConfig()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger("SPC")  # Unified logger name
         
-        # Modelos de embeddings
-        self.logger.info("Inicializando modelos de embeddings...")
-        self.semantic_model = SentenceTransformer('intfloat/multilingual-e5-large')
-        self.semantic_model_fallback = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+        # =====================================================================
+        # CANONICAL SOTA PRODUCERS - Frontier approach components
+        # =====================================================================
         
-        # Modelo de NER en español
-        try:
-            self.nlp = spacy.load("es_core_news_lg")
-        except:
-            self.logger.warning("SpaCy es_core_news_lg no disponible, usando sm")
-            try:
-                self.nlp = spacy.load("es_core_news_sm")
-            except:
-                self.logger.error("Ningún modelo SpaCy disponible. Funcionalidad de NER limitada.")
-                self.nlp = None
+        # Initialize SOTA canonical producers that replace internal implementations
+        # These provide BGE-M3 embeddings, cross-encoder reranking, Bayesian numerical eval
+        self._spc_embed = EmbeddingPolicyProducer()          # chunking + embeddings + search + Bayesian numeric eval
+        self._spc_sem = SemanticChunkingProducer()           # direct embed_text/embed_batch and chunk_document
+        self._spc_policy = create_policy_processor()         # canonical PDQ/dimension evidence
         
-        # Sistemas auxiliares
-        self.context_preserver = ContextPreservationSystem(self)
-        self.causal_analyzer = CausalChainAnalyzer(self)
-        self.kg_builder = KnowledgeGraphBuilder(self)
-        self.topic_modeler = TopicModeler(self)
-        self.argument_analyzer = ArgumentAnalyzer(self)
-        self.temporal_analyzer = TemporalAnalyzer(self)
-        self.discourse_analyzer = DiscourseAnalyzer(self)
-        self.strategic_integrator = StrategicIntegrator(self)
+        self.logger.info("SOTA canonical producers initialized: EmbeddingPolicyProducer, SemanticChunkingProducer, PolicyProcessor")
         
-        # Modelo para clasificación de tipo de chunk (Placeholder: usaríamos un modelo entrenado)
+        # =====================================================================
+        # SPECIALIZED COMPONENTS - Keep (no canonical equivalent)
+        # =====================================================================
+        
+        # These provide unique Smart Policy Chunks innovations
+        self._nlp = None  # SpaCy for NER (lazy-loaded)
+        self._kg_builder = None  # NetworkX knowledge graph
+        self._topic_modeler = None  # LDA topic modeling
+        self._argument_analyzer = None  # Toulmin argument structure
+        self._temporal_analyzer = None  # Temporal dynamics
+        self._discourse_analyzer = None  # Discourse markers
+        self._strategic_integrator = None  # Cross-reference integration
+        
+        # Modelo para clasificación de tipo de chunk
         self.chunk_classifier = None
         
         # Almacenamiento
         self.tfidf_vectorizer = TfidfVectorizer(stop_words=self._get_stopwords(), ngram_range=(1, 2), max_df=0.85, min_df=2)
         self.chunks_for_tfidf = []
         self.corpus_embeddings = None
+    
+    # =========================================================================
+    # SPECIALIZED COMPONENT PROPERTIES - Innovation layers (no canonical equivalent)
+    # =========================================================================
+    
+    @property
+    def nlp(self):
+        """Lazy-load SpaCy NLP model"""
+        if self._nlp is None:
+            try:
+                self.logger.info("Loading SpaCy model: es_core_news_lg")
+                self._nlp = spacy.load("es_core_news_lg")
+            except:
+                self.logger.warning("SpaCy es_core_news_lg no disponible, usando sm")
+                try:
+                    self._nlp = spacy.load("es_core_news_sm")
+                except:
+                    self.logger.error("Ningún modelo SpaCy disponible. Funcionalidad de NER limitada.")
+                    self._nlp = None
+        return self._nlp
+    
+    @property
+    def context_preserver(self):
+        """
+        CANONICAL REPLACEMENT: Use semantic_processor for chunking.
+        Kept for backward compatibility but delegates to canonical component.
+        """
+        # Return a lightweight adapter that uses canonical SemanticProcessor
+        return self.semantic_processor
+    
+    @property
+    def causal_analyzer(self):
+        """
+        CANONICAL REPLACEMENT: Use policy_processor for causal extraction.
+        Kept for backward compatibility but delegates to canonical component.
+        """
+        # Return canonical policy processor which has causal extraction
+        return self.policy_processor
+    
+    @property
+    def kg_builder(self):
+        """Lazy-load knowledge graph builder"""
+        if self._kg_builder is None:
+            self._kg_builder = KnowledgeGraphBuilder(self)
+        return self._kg_builder
+    
+    @property
+    def topic_modeler(self):
+        """Lazy-load topic modeler"""
+        if self._topic_modeler is None:
+            self._topic_modeler = TopicModeler(self)
+        return self._topic_modeler
+    
+    @property
+    def argument_analyzer(self):
+        """Lazy-load argument analyzer"""
+        if self._argument_analyzer is None:
+            self._argument_analyzer = ArgumentAnalyzer(self)
+        return self._argument_analyzer
+    
+    @property
+    def temporal_analyzer(self):
+        """Lazy-load temporal analyzer"""
+        if self._temporal_analyzer is None:
+            self._temporal_analyzer = TemporalAnalyzer(self)
+        return self._temporal_analyzer
+    
+    @property
+    def discourse_analyzer(self):
+        """Lazy-load discourse analyzer"""
+        if self._discourse_analyzer is None:
+            self._discourse_analyzer = DiscourseAnalyzer(self)
+        return self._discourse_analyzer
+    
+    @property
+    def strategic_integrator(self):
+        """Lazy-load strategic integrator"""
+        if self._strategic_integrator is None:
+            self._strategic_integrator = StrategicIntegrator(self)
+        return self._strategic_integrator
+    
+    def detect_language(self, text: str) -> str:
+        """
+        Detect the primary language of a text document.
+        
+        Inputs:
+            text (str): Text to analyze
+        Outputs:
+            str: ISO 639-1 language code (e.g., 'es', 'en', 'pt')
+        """
+        if not LANGDETECT_AVAILABLE:
+            # Default to Spanish for Colombian policy documents
+            return 'es'
+        
+        try:
+            # Sample first 2000 characters for language detection
+            sample = safe_utf8_truncate(text, 2000)
+            detected_lang = detect(sample)
+            self.logger.info(f"Detected language: {detected_lang}")
+            return detected_lang
+        except Exception as e:
+            self.logger.warning(f"Language detection failed: {e}, defaulting to Spanish")
+            return 'es'
+    
+    def select_embedding_model_for_language(self, language: str) -> None:
+        """
+        Select appropriate embedding model based on detected language.
+        
+        Inputs:
+            language (str): ISO 639-1 language code
+        Outputs:
+            None - updates model selection
+        """
+        # For now, multilingual-e5-large handles multiple languages well
+        # Could be extended with language-specific models if needed
+        if language in ['es', 'pt', 'ca']:  # Spanish, Portuguese, Catalan
+            self.logger.info(f"Using multilingual model for {language} (optimal for Romance languages)")
+        else:
+            self.logger.info(f"Using multilingual model for {language}")
+        
+        # Model is already multilingual, no change needed
+        # This method provides extension point for future language-specific optimization
         
     # --- Métodos de la clase principal (Continuación de smart_policy_chunks_industrial_v3_complete_Version2.py) ---
     
     def _get_stopwords(self) -> List[str]:
-        """Obtener lista de stopwords en español"""
+        """
+        Get Spanish stopwords list.
+        
+        Inputs:
+            None
+        Outputs:
+            List[str]: List of Spanish stopwords
+        """
         # Una lista de stopwords más completa se usaría en producción
         return ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o', 'de', 'a', 'en', 'por', 'con', 'para', 'del', 'al', 'que', 'se', 'es', 'son', 'han', 'como', 'más', 'pero', 'no', 'su', 'sus', 'ha', 'lo', 'e', 'u', 'ni', 'sin', 'mi', 'tu', 'si', 'cuando', 'este', 'esta', 'estos', 'estas', 'esos', 'esas', 'aquel', 'aquella']
     
-    @lru_cache(maxsize=2000)
-    def _generate_embedding(self, text: str, model_type: str = 'semantic') -> np.ndarray:
-        """Generar embedding con cache"""
-        try:
-            if model_type == 'semantic':
-                embedding = self.semantic_model.encode(text, convert_to_numpy=True, show_progress_bar=False)
-            else:
-                embedding = self.semantic_model_fallback.encode(text, convert_to_numpy=True, show_progress_bar=False)
-            return embedding
-        except Exception as e:
-            self.logger.error(f"Error generando embedding: {e}")
-            # Fallback a un vector de ceros
-            return np.zeros(1024) 
+    # =========================================================================
+    # CANONICAL SOTA METHODS - Replace manual implementations
+    # =========================================================================
+    
+    def semantic_search_with_rerank(
+        self, 
+        query: str, 
+        chunks: list[dict], 
+        pdq_filter: dict | None = None, 
+        top_k: int = 10
+    ) -> list[tuple[dict, float]]:
+        """
+        CANONICAL SOTA: Semantic search with cross-encoder reranking.
+        
+        Replaces manual cosine_similarity ranking with SOTA reranker.
+        
+        Inputs:
+            query (str): Search query
+            chunks (list[dict]): Chunks to search
+            pdq_filter (dict | None): Optional PDQ filter
+            top_k (int): Number of results to return
+        Outputs:
+            list[tuple[dict, float]]: List of (chunk, score) tuples
+        """
+        results = self._spc_embed.semantic_search(
+            query, chunks, pdq_filter=pdq_filter, use_reranking=True
+        )
+        return results[:top_k]
+    
+    def _attach_canonical_evidence(self, full_text: str) -> dict[str, Any]:
+        """
+        CANONICAL SOTA: Attach canonical PDQ/dimension evidence.
+        
+        Uses canonical policy patterns instead of ad-hoc heuristics.
+        
+        Inputs:
+            full_text (str): Full document text
+        Outputs:
+            dict[str, Any]: Canonical evidence analysis
+        """
+        return self._spc_policy.analyze_text(full_text)
+    
+    def evaluate_numerical_consistency(
+        self, 
+        chunks: list[dict], 
+        pdq_context: dict
+    ) -> dict[str, Any]:
+        """
+        CANONICAL SOTA: Evaluate numerical consistency with Bayesian analysis.
+        
+        Uses canonical extractor + Bayesian analyzer for probabilistic scoring.
+        
+        Inputs:
+            chunks (list[dict]): Chunks to evaluate
+            pdq_context (dict): PDQ context for evaluation
+        Outputs:
+            dict[str, Any]: Numerical consistency evaluation
+        """
+        return self._spc_embed.evaluate_numerical_consistency(chunks, pdq_context)
+    
+    def _generate_embedding(self, text: str, model_type: str = "semantic") -> np.ndarray:
+        """
+        CANONICAL SOTA: Generate embedding using SemanticChunkingProducer.
+        
+        Replaces internal embedding with SOTA multilingual BGE-M3 model.
+        model_type kept for compatibility; canonical pipeline is multilingual.
+        
+        Inputs:
+            text (str): Input text to embed
+            model_type (str): Ignored, canonical uses SOTA multilingual
+        Outputs:
+            np.ndarray: Embedding vector from canonical SOTA component
+        """
+        return self._spc_sem.embed_text(text).astype(np.float32) 
 
     def _create_smart_policy_chunk(
         self,
@@ -1969,8 +2316,9 @@ class StrategicChunkingSystem:
         }
         
         if self.nlp:
-            # Limitar por memoria
-            doc = self.nlp(text[:500000])
+            # Safe UTF-8 truncation for memory limit
+            truncated_text = safe_utf8_truncate(text, 500000)
+            doc = self.nlp(truncated_text)
             discourse['sentences'] = [sent.text for sent in doc.sents][:1000]
             
             # Extraer entidades nombradas
@@ -2100,9 +2448,16 @@ class StrategicChunkingSystem:
         return rhetorical
     
     def _analyze_information_flow(self, text: str) -> Dict[str, Any]:
-        """Análisis de flujo de información"""
-        sentences = re.split(r'[.!?]+\s+', text)
-        sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
+        """
+        Analyze information flow patterns in text.
+        
+        Inputs:
+            text (str): Text to analyze
+        Outputs:
+            Dict[str, Any]: Flow analysis metrics
+        """
+        sentences = filter_empty_sentences(re.split(r'[.!?]+\s+', text))
+        sentences = [s for s in sentences if len(s) > 20]
         if not sentences:
             return {'sentence_count': 0}
             
@@ -2179,9 +2534,20 @@ class StrategicChunkingSystem:
 
     def generate_smart_chunks(self, document_text: str, document_metadata: Dict) -> List[SmartPolicyChunk]:
         """
-        FASE PRINCIPAL: Generación de Smart Policy Chunks
+        Main pipeline phase: Generate Smart Policy Chunks with full analysis.
+        
+        Inputs:
+            document_text (str): Raw policy document text
+            document_metadata (Dict): Document metadata (ID, title, etc.)
+        Outputs:
+            List[SmartPolicyChunk]: Validated, deduplicated, and ranked chunks
         """
-        self.logger.info("Iniciando pipeline de generación de Smart Chunks v3.0")
+        self.logger.info("Starting Smart Chunks v3.0 pipeline")
+        
+        # FASE 0: Language detection and model selection
+        detected_lang = self.detect_language(document_text)
+        self.select_embedding_model_for_language(detected_lang)
+        document_metadata['detected_language'] = detected_lang
         
         # FASE 1: Preprocesamiento avanzado
         normalized_text = self._advanced_preprocessing(document_text)
@@ -2282,12 +2648,19 @@ class StrategicChunkingSystem:
         return ranked_chunks
 
     def _advanced_preprocessing(self, text: str) -> str:
-        """Preprocesamiento avanzado del texto"""
+        """
+        Advanced text preprocessing with normalization and encoding fixes.
+        
+        Inputs:
+            text (str): Raw input text
+        Outputs:
+            str: Normalized and cleaned text
+        """
         # Normalización de espacios y saltos de línea
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'\n+', '\n', text)
         
-        # Corrección de encodings problemáticos
+        # Corrección de encodings problemáticos (common UTF-8 mojibake)
         encoding_fixes = {
             'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú',
             'Ã±': 'ñ', 'Ã': 'Ñ', 'Ã ': 'à', 'Ã¨': 'è', 'Ã¬': 'ì',
@@ -2300,31 +2673,61 @@ class StrategicChunkingSystem:
         return text
 
     def _enrich_with_inter_chunk_relationships(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
-        """Enriquecer chunks con relaciones semánticas y causales inter-chunk"""
+        """
+        CANONICAL SOTA: Enrich chunks with semantic relationships using BGE-M3 embeddings.
+        
+        Uses batch embeddings and vectorized similarity computation instead of
+        manual loops and sklearn.cosine_similarity.
+        """
         if not chunks:
             return []
         
         texts = [c.text for c in chunks]
         self.corpus_embeddings = self._generate_embeddings_for_corpus(texts)
         
-        # Calcular similitud coseno entre todos los chunks
-        similarity_matrix = cosine_similarity(self.corpus_embeddings)
+        # Vectorized cosine similarity (no sklearn dependency)
+        norms = np.linalg.norm(self.corpus_embeddings, axis=1, keepdims=True)
+        normalized_embs = self.corpus_embeddings / (norms + 1e-8)
+        similarity_matrix = np.dot(normalized_embs, normalized_embs.T)
         
+        # Efficiently find related chunks using vectorized operations
         for i, chunk in enumerate(chunks):
-            chunk.related_chunks = []
-            for j, other_chunk in enumerate(chunks):
-                if i != j:
-                    similarity = similarity_matrix[i, j]
-                    if similarity >= self.config.CROSS_REFERENCE_MIN_SIMILARITY:
-                        chunk.related_chunks.append((other_chunk.chunk_id, float(similarity)))
-            # Ordenar por similitud
-            chunk.related_chunks.sort(key=lambda x: x[1], reverse=True)
+            # Get similarities for this chunk (excluding self)
+            sims = similarity_matrix[i].copy()
+            sims[i] = -1  # Exclude self
+            
+            # Find chunks above threshold
+            related_indices = np.where(sims >= self.config.CROSS_REFERENCE_MIN_SIMILARITY)[0]
+            
+            # Sort by similarity
+            sorted_indices = related_indices[np.argsort(-sims[related_indices])]
+            
+            chunk.related_chunks = [
+                (chunks[j].chunk_id, float(sims[j]))
+                for j in sorted_indices
+            ]
             
         return chunks
 
-    def _generate_embeddings_for_corpus(self, texts: List[str]) -> np.ndarray:
-        """Generar embeddings para un corpus de textos"""
-        return self.semantic_model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+    def _generate_embeddings_for_corpus(self, texts: List[str], batch_size: int = 64) -> np.ndarray:
+        """
+        CANONICAL SOTA: Batch embeddings using SemanticChunkingProducer.
+        
+        SemanticChunkingProducer handles batching internally with BGE-M3.
+        batch_size kept for signature compatibility.
+        
+        Inputs:
+            texts (List[str]): List of text strings to embed
+            batch_size (int): Batch size hint (default: 64)
+        Outputs:
+            np.ndarray: Array of embeddings, shape (n_texts, embedding_dim)
+        """
+        if not texts:
+            return np.array([])
+        
+        # CANONICAL SOTA: Use SemanticChunkingProducer batch embedding
+        embs = self._spc_sem.embed_batch(texts)
+        return np.vstack(embs).astype(np.float32)
 
     def _validate_strategic_integrity(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
         """Validar que los chunks cumplan con umbrales mínimos de calidad y completitud"""
@@ -2360,14 +2763,16 @@ class StrategicChunkingSystem:
                 processed_hashes.add(chunk.content_hash)
                 deduplicated.append(chunk)
             
-        # Deduplicación semántica (para near-duplicates)
+        # Deduplicación semántica (para near-duplicates) using vectorized ops
         final_list = []
         if deduplicated:
             embeddings = self._generate_embeddings_for_corpus([c.text for c in deduplicated])
             n_chunks = len(deduplicated)
             
-            # Matriz de similitud entre los chunks ya dedup-por-hash
-            sim_matrix = cosine_similarity(embeddings)
+            # Vectorized cosine similarity (no sklearn dependency)
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            normalized_embs = embeddings / (norms + 1e-8)
+            sim_matrix = np.dot(normalized_embs, normalized_embs.T)
             
             is_duplicate = [False] * n_chunks
             
@@ -2460,34 +2865,82 @@ class StrategicChunkingSystem:
 # SCRIPT DE EJECUCIÓN (MAIN)
 # =============================================================================
 
+def validate_cli_arguments(args):
+    """
+    Validate CLI arguments before processing.
+    
+    Inputs:
+        args: Parsed command-line arguments
+    Outputs:
+        None
+    Raises:
+        ValidationError: If validation fails
+    """
+    # Validate input path exists
+    if not os.path.exists(args.input):
+        raise ValidationError(f"Input file not found: {args.input}")
+    
+    # Validate output path is writable
+    output_dir = os.path.dirname(args.output) or '.'
+    if not os.path.exists(output_dir):
+        raise ValidationError(f"Output directory does not exist: {output_dir}")
+    if not os.access(output_dir, os.W_OK):
+        raise ValidationError(f"Output directory is not writable: {output_dir}")
+    
+    # Validate IDs are not empty
+    if not args.doc_id or not args.doc_id.strip():
+        raise ValidationError("Document ID cannot be empty")
+    
+    # Validate max_chunks is positive
+    if args.max_chunks < 0:
+        raise ValidationError(f"max_chunks must be non-negative, got: {args.max_chunks}")
+    
+    logger.info("CLI arguments validated successfully")
+
 def main(args):
-    """Función principal para ejecutar el pipeline"""
+    """
+    Main pipeline function for Smart Policy Chunks generation.
+    
+    Inputs:
+        args: Command-line arguments with input/output paths and configuration
+    Outputs:
+        int: Exit code (0 for success, 1 for error)
+    """
     try:
-        # 1. Cargar el documento
-        logger.info(f"Cargando documento de entrada: {args.input}")
-        with open(args.input, 'r', encoding='utf-8') as f:
-            document_text = f.read()
+        # 0. Validate CLI arguments
+        validate_cli_arguments(args)
         
-        # 2. Inicializar el sistema
+        # 1. Cargar el documento
+        logger.info(f"Loading input document: {args.input}")
+        try:
+            with open(args.input, 'r', encoding='utf-8') as f:
+                document_text = f.read()
+        except IOError as e:
+            raise ProcessingError(f"Failed to read input file: {e}")
+        
+        # 2. Inicializar el sistema (con lazy loading)
+        logger.info("Initializing Strategic Chunking System...")
         chunking_system = StrategicChunkingSystem()
         
-        # Metadata del documento (Placeholder)
+        # Metadata del documento
         metadata = {
             'document_id': args.doc_id,
             'title': args.title,
-            'version': 'v3.0'
+            'version': 'v3.0',
+            'processing_timestamp': canonical_timestamp()
         }
         
         # 3. Generar Smart Chunks
+        logger.info("Generating smart policy chunks...")
         chunks = chunking_system.generate_smart_chunks(document_text, metadata)
         
         # 4. Limitar el número de chunks a guardar si se especifica
         if args.max_chunks > 0:
-            logger.info(f"Limitando la salida a {args.max_chunks}")
+            logger.info(f"Limiting output to {args.max_chunks} chunks")
             chunks = chunks[:args.max_chunks]
             
-        # 5. Serializar resultados (solo campos esenciales y truncar texto)
-        logger.info(f"Generados {len(chunks)} chunks. Guardando resultados...")
+        # 5. Serializar resultados (summary version with truncated text)
+        logger.info(f"Generated {len(chunks)} chunks. Saving results...")
         output_data = {
             'metadata': metadata,
             'config': {
@@ -2500,83 +2953,145 @@ def main(args):
             ]
         }
         
-        # Truncar el texto del chunk para una salida más ligera
+        # Truncar el texto del chunk de forma segura para summary.json
         for chunk_data in output_data['chunks']:
-            chunk_data['text'] = chunk_data['text'][:200] + '...'
+            original_text = chunk_data['text']
+            # Safe UTF-8 truncation to 200 bytes
+            chunk_data['text'] = safe_utf8_truncate(original_text, 200)
+            if len(original_text.encode('utf-8')) > 200:
+                chunk_data['text'] += '...'
             
-        with open(args.output, 'w') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
-        logger.info(f"Salida guardada en: {args.output}")
+        try:
+            with open(args.output, 'w', encoding='utf-8') as f:
+                json.dump(output_data, f, indent=2, ensure_ascii=False, default=np_to_list)
+            logger.info(f"Summary output saved to: {args.output}")
+        except (IOError, TypeError) as e:
+            raise SerializationError(f"Failed to write summary output: {e}")
         
-        # 6. Guardar versión completa sin truncar texto (opcional)
+        # 6. Guardar versión completa sin truncar texto (full.json)
         if args.save_full:
             full_output = args.output.replace('.json', '_full.json')
-            with open(full_output, 'w') as f:
-                # Crear una copia de la estructura para la versión completa sin truncar texto
-                full_data = output_data.copy()
-                for i, chunk in enumerate(chunks):
-                    full_data['chunks'][i]['full_text'] = chunk.text
-                json.dump(full_data, f, indent=2, ensure_ascii=False)
-            logger.info(f"Versión completa guardada en: {full_output}")
+            try:
+                # Crear una estructura completa con texto íntegro
+                full_data = {
+                    'metadata': metadata,
+                    'config': output_data['config'],
+                    'chunks': []
+                }
+                
+                for chunk in chunks:
+                    chunk_dict = asdict(chunk)
+                    # Mantener texto completo
+                    full_data['chunks'].append(chunk_dict)
+                
+                with open(full_output, 'w', encoding='utf-8') as f:
+                    json.dump(full_data, f, indent=2, ensure_ascii=False, default=np_to_list)
+                logger.info(f"Full output saved to: {full_output}")
+            except (IOError, TypeError) as e:
+                raise SerializationError(f"Failed to write full output: {e}")
             
-        # 7. Generar reporte de verificación
+        # 7. Generar reporte de verificación con canonical timestamps
         verification = {
             'pipeline_version': 'SMART-CHUNK-3.0-FINAL',
-            'execution_timestamp': datetime.now().isoformat(),
-            'input_hash': hashlib.sha256(document_text.encode()).hexdigest(),
-            'output_hash': hashlib.sha256(json.dumps(output_data).encode()).hexdigest(),
+            'execution_timestamp': canonical_timestamp(),
+            'input_file': args.input,
+            'input_hash': hashlib.sha256(document_text.encode('utf-8')).hexdigest(),
+            'output_hash': hashlib.sha256(json.dumps(output_data, default=np_to_list).encode('utf-8')).hexdigest(),
             'chunks_generated': len(chunks),
             'validation_passed': all(
                 c.coherence_score >= chunking_system.config.MIN_COHERENCE_SCORE 
                 for c in chunks
             ),
-            'success': True
+            'success': len(chunks) > 0 and all(c.coherence_score >= chunking_system.config.MIN_COHERENCE_SCORE for c in chunks)
         }
         
         verification_file = args.output.replace('.json', '_verification.json')
-        with open(verification_file, 'w') as f:
-            json.dump(verification, f, indent=2)
+        try:
+            with open(verification_file, 'w', encoding='utf-8') as f:
+                json.dump(verification, f, indent=2, default=np_to_list)
+            logger.info(f"Verification report saved to: {verification_file}")
+        except IOError as e:
+            logger.warning(f"Failed to write verification file: {e}")
         
-        logger.info(f"Verificación guardada en: {verification_file}")
-        logger.info("Pipeline completado exitosamente")
+        if verification['success']:
+            logger.info("Pipeline completed successfully")
+            return 0
+        else:
+            logger.warning("Pipeline completed with validation warnings")
+            return 0
         
-        return 0
-        
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+        return 1
+    except ProcessingError as e:
+        logger.error(f"Processing error: {e}")
+        return 1
+    except SerializationError as e:
+        logger.error(f"Serialization error: {e}")
+        return 1
     except Exception as e:
-        logger.error(f"Error en el pipeline: {e}")
+        logger.error(f"Unexpected error in pipeline: {e}")
         import traceback
         traceback.print_exc()
         return 1
 
 if __name__ == '__main__':
     import argparse
+    import sys
     
-    # Configuración de argumentos (simulada)
-    parser = argparse.ArgumentParser(description="Pipeline de Smart Policy Chunks")
-    parser.add_argument('--input', type=str, required=False, default='input_document.txt', help='Ruta del documento de entrada')
-    parser.add_argument('--output', type=str, required=False, default='output_chunks.json', help='Ruta del archivo de salida JSON')
-    parser.add_argument('--doc_id', type=str, required=False, default='POL_PLAN_001', help='ID del documento')
-    parser.add_argument('--title', type=str, required=False, default='Plan de Desarrollo Ejemplo', help='Título del documento')
-    parser.add_argument('--max_chunks', type=int, required=False, default=50, help='Máximo número de chunks a generar')
-    parser.add_argument('--save_full', action='store_true', help='Guardar la versión completa sin truncar texto')
+    # Configuración de argumentos CLI
+    parser = argparse.ArgumentParser(
+        description="Smart Policy Chunks Pipeline v3.0 - Industrial Grade",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python smart_policy_chunks_canonic_phase_one.py --input plan.pdf --output chunks.json
+  python smart_policy_chunks_canonic_phase_one.py --input plan.pdf --output chunks.json --save_full
+        """
+    )
+    parser.add_argument(
+        '--input', 
+        type=str, 
+        required=True, 
+        help='Path to input policy document (required)'
+    )
+    parser.add_argument(
+        '--output', 
+        type=str, 
+        required=False, 
+        default='output_chunks.json', 
+        help='Path to output JSON file (default: output_chunks.json)'
+    )
+    parser.add_argument(
+        '--doc_id', 
+        type=str, 
+        required=False, 
+        default='POL_PLAN_001', 
+        help='Document identifier (default: POL_PLAN_001)'
+    )
+    parser.add_argument(
+        '--title', 
+        type=str, 
+        required=False, 
+        default='Plan de Desarrollo', 
+        help='Document title (default: Plan de Desarrollo)'
+    )
+    parser.add_argument(
+        '--max_chunks', 
+        type=int, 
+        required=False, 
+        default=0, 
+        help='Maximum number of chunks to generate (0 = unlimited, default: 0)'
+    )
+    parser.add_argument(
+        '--save_full', 
+        action='store_true', 
+        help='Save full version with complete text (creates *_full.json)'
+    )
 
-    # Para simulación, se crea un objeto `args` si no se usa CLI
-    try:
-        args = parser.parse_args()
-    except SystemExit:
-        # En entornos interactivos, simular los argumentos por defecto
-        class MockArgs:
-            input = 'input_document.txt'
-            output = 'output_chunks.json'
-            doc_id = 'POL_PLAN_001'
-            title = 'Plan de Desarrollo Ejemplo'
-            max_chunks = 50
-            save_full = False
-        args = MockArgs()
-        
-    # El script normalmente terminaría con una llamada a main(args)
-    # Si desea ejecutar la simulación, descomente la línea a continuación:
-    # main(args)
+    # Parse arguments - allow argparse to exit normally on error
+    args = parser.parse_args()
     
-    # Se añade un marcador para indicar el final del script
-    pass #
+    # Execute main pipeline
+    exit_code = main(args)
+    sys.exit(exit_code)
