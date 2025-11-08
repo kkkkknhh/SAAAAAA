@@ -1,5 +1,8 @@
 """Compatibility wrapper for the refactored aggregation module."""
-from saaaaaa.processing.aggregation import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.processing.aggregation import (  # noqa: F401, E402
     AggregationError,
     AreaPolicyAggregator,
     AreaScore,

@@ -23,12 +23,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import reduce
 from statistics import fmean, pstdev
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
-def _to_float_sequence(values: Iterable[float]) -> List[float]:
+def _to_float_sequence(values: Iterable[float]) -> list[float]:
     return [float(v) for v in values]
-
 
 def _safe_mean(values: Iterable[float]) -> float:
     seq = _to_float_sequence(values)
@@ -36,13 +37,11 @@ def _safe_mean(values: Iterable[float]) -> float:
         return 0.0
     return float(fmean(seq))
 
-
 def _safe_std(values: Iterable[float]) -> float:
     seq = _to_float_sequence(values)
     if len(seq) <= 1:
         return 0.0
     return float(pstdev(seq))
-
 
 def _percentile(values: Sequence[float], percent: float) -> float:
     seq = sorted(_to_float_sequence(values))
@@ -57,7 +56,6 @@ def _percentile(values: Sequence[float], percent: float) -> float:
     upper_index = min(lower_index + 1, len(seq) - 1)
     weight = k - lower_index
     return seq[lower_index] + weight * (seq[upper_index] - seq[lower_index])
-
 
 def _gini(values: Iterable[float]) -> float:
     """Compute the Gini coefficient for a sequence of non-negative values."""
@@ -82,18 +80,16 @@ def _gini(values: Iterable[float]) -> float:
     gini = (2 * weighted_sum) / (n * total) - (n + 1) / n
     return float(gini)
 
-
-def _tukey_bounds(p25: float, p75: float) -> Tuple[float, float]:
+def _tukey_bounds(p25: float, p75: float) -> tuple[float, float]:
     lower_quartile, upper_quartile = sorted((float(p25), float(p75)))
     iqr = upper_quartile - lower_quartile
     return (lower_quartile - 1.5 * iqr, upper_quartile + 1.5 * iqr)
-
 
 def analyze_policy_dispersion(
     policy_area_scores: Mapping[str, float],
     peer_dispersion_stats: Mapping[str, float],
     thresholds: Mapping[str, float],
-) -> Tuple[Dict[str, object], str]:
+) -> tuple[dict[str, object], str]:
     """Evaluate intra-cluster dispersion and recommend a penalty.
 
     Parameters
@@ -144,12 +140,12 @@ def analyze_policy_dispersion(
         3: "Crítico",
     }[severity]
 
-    penalty_components: List[float] = []
+    penalty_components: list[float] = []
     if cv_fail:
         penalty_components.append(min(cv / cv_fail, 1.5))
     if gap_fail:
         penalty_components.append(min(max_gap / gap_fail, 1.5))
-    peer_signal: List[float] = []
+    peer_signal: list[float] = []
     if peer_cv:
         peer_signal.append(min(cv / peer_cv, 2.0))
     if peer_gap:
@@ -199,7 +195,6 @@ def analyze_policy_dispersion(
 
     return json_payload, narrative
 
-
 @dataclass
 class MetricViolation:
     metric_id: str
@@ -208,7 +203,7 @@ class MetricViolation:
     entity_misalignment: bool = False
     out_of_range: bool = False
 
-    def to_flag_dict(self) -> Dict[str, object]:
+    def to_flag_dict(self) -> dict[str, object]:
         return {
             "metric_id": self.metric_id,
             "unit_mismatch": self.unit_mismatch,
@@ -217,13 +212,12 @@ class MetricViolation:
             "out_of_range": self.out_of_range,
         }
 
-
 def _convert_unit(
     value: float,
     from_unit: str,
     to_unit: str,
     crosswalk: Mapping[str, Mapping[str, float]],
-) -> Tuple[float, str]:
+) -> tuple[float, str]:
     if from_unit == to_unit:
         return value, to_unit
     conversions = crosswalk.get(from_unit, {})
@@ -232,18 +226,17 @@ def _convert_unit(
         raise ValueError("Units are not convertible with provided crosswalk")
     return value * factor, to_unit
 
-
 def reconcile_cross_metrics(
     aggregated_metrics: Iterable[Mapping[str, object]],
     macro_json: Mapping[str, object],
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Validate heterogeneous metrics against an authoritative macro source."""
 
     reference: Mapping[str, Mapping[str, object]] = macro_json.get("metrics", {})  # type: ignore[assignment]
     crosswalk: Mapping[str, Mapping[str, float]] = macro_json.get("unit_crosswalk", {})  # type: ignore[assignment]
 
-    validated_metrics: List[Dict[str, object]] = []
-    violations: List[Dict[str, object]] = []
+    validated_metrics: list[dict[str, object]] = []
+    violations: list[dict[str, object]] = []
 
     for metric in aggregated_metrics:
         metric_id = str(metric.get("metric_id"))
@@ -315,12 +308,11 @@ def reconcile_cross_metrics(
         "reconciled_confidence": reconciled_confidence,
     }
 
-
 def compose_cluster_posterior(
     micro_posteriors: Iterable[float],
-    weighting_trace: Optional[Iterable[float]] = None,
-    reconciliation_penalties: Optional[Mapping[str, float]] = None,
-) -> Tuple[Dict[str, object], str]:
+    weighting_trace: Iterable[float] | None = None,
+    reconciliation_penalties: Mapping[str, float] | None = None,
+) -> tuple[dict[str, object], str]:
     """Combine micro posteriors and reconciliation penalties into a cluster view."""
 
     posts = _to_float_sequence(micro_posteriors)
@@ -385,15 +377,14 @@ def compose_cluster_posterior(
 
     return json_payload, "\n".join(explanation_lines)
 
-
 def calibrate_against_peers(
     policy_area_scores: Mapping[str, float],
     peer_context: Mapping[str, Mapping[str, float]],
-) -> Tuple[Dict[str, object], str]:
+) -> tuple[dict[str, object], str]:
     """Compare cluster scores against peer medians and inter-quartile ranges."""
 
-    area_positions: Dict[str, str] = {}
-    outliers: Dict[str, bool] = {}
+    area_positions: dict[str, str] = {}
+    outliers: dict[str, bool] = {}
     dispersion_values = _to_float_sequence(policy_area_scores.values())
     if dispersion_values:
         cluster_mean = _safe_mean(dispersion_values)
@@ -407,7 +398,7 @@ def calibrate_against_peers(
         median = float(peers.get("median", score))
         p25 = float(peers.get("p25", median))
         p75 = float(peers.get("p75", median))
-        iqr = p75 - p25
+        p75 - p25
 
         if score < p25:
             area_positions[area] = "below"

@@ -8,24 +8,24 @@ and empty/None cases for producer→consumer paths.
 Shrinking hands us minimal counterexamples that we staple to bug fixes.
 """
 
-import pytest
-from hypothesis import given, strategies as st, assume
-from typing import Any, Dict, List, Mapping
+from typing import Any
 
-from contracts import (
+import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
+
+from saaaaaa.contracts import (
+    SentenceCollection,
+    TextDocument,
+    ensure_hashable,
+    ensure_iterable_not_string,
     validate_contract,
     validate_mapping_keys,
-    ensure_iterable_not_string,
-    ensure_hashable,
-    TextDocument,
-    SentenceCollection,
 )
-
 
 # ============================================================================
 # STRATEGIES - Generate Test Data
 # ============================================================================
-
 
 @st.composite
 def valid_text_strategy(draw: Any) -> str:
@@ -34,9 +34,8 @@ def valid_text_strategy(draw: Any) -> str:
     assume(text.strip())  # Must have non-whitespace content
     return text
 
-
 @st.composite
-def metadata_dict_strategy(draw: Any) -> Dict[str, Any]:
+def metadata_dict_strategy(draw: Any) -> dict[str, Any]:
     """Generate metadata dictionaries with various shapes."""
     return draw(st.dictionaries(
         keys=st.text(min_size=1, max_size=20),
@@ -51,9 +50,8 @@ def metadata_dict_strategy(draw: Any) -> Dict[str, Any]:
         max_size=10,
     ))
 
-
 @st.composite
-def malformed_mapping_strategy(draw: Any) -> Dict[str, Any]:
+def malformed_mapping_strategy(draw: Any) -> dict[str, Any]:
     """Generate mappings that might be missing required keys."""
     base_keys = ["text", "document_id", "metadata"]
     # Randomly drop keys
@@ -63,22 +61,20 @@ def malformed_mapping_strategy(draw: Any) -> Dict[str, Any]:
         max_size=len(base_keys),
         unique=True,
     ))
-    
+
     return {
         key: draw(st.text())
         for key in available_keys
     }
 
-
 # ============================================================================
 # PROPERTY TESTS - TextDocument
 # ============================================================================
 
-
 @pytest.mark.property
 class TestTextDocumentProperties:
     """Property-based tests for TextDocument value object."""
-    
+
     @given(
         text=valid_text_strategy(),
         document_id=st.text(min_size=1, max_size=100),
@@ -88,16 +84,16 @@ class TestTextDocumentProperties:
         self,
         text: str,
         document_id: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """TextDocument preserves all input data."""
         doc = TextDocument(text=text, document_id=document_id, metadata=metadata)
-        
+
         assert doc.text == text
         assert doc.document_id == document_id
         # metadata is converted to immutable but content preserved
         assert dict(doc.metadata) == metadata
-    
+
     @given(
         text=st.one_of(st.integers(), st.lists(st.text()), st.none()),
         document_id=st.text(min_size=1),
@@ -107,12 +103,12 @@ class TestTextDocumentProperties:
         self,
         text: Any,
         document_id: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """TextDocument rejects non-string text."""
         with pytest.raises(TypeError):
             TextDocument(text=text, document_id=document_id, metadata=metadata)
-    
+
     @given(
         document_id=st.text(min_size=1),
         metadata=metadata_dict_strategy(),
@@ -120,50 +116,48 @@ class TestTextDocumentProperties:
     def test_text_document_rejects_empty_text(
         self,
         document_id: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """TextDocument rejects empty text."""
         with pytest.raises(ValueError):
             TextDocument(text="", document_id=document_id, metadata=metadata)
 
-
 # ============================================================================
 # PROPERTY TESTS - SentenceCollection
 # ============================================================================
 
-
 @pytest.mark.property
 class TestSentenceCollectionProperties:
     """Property-based tests for SentenceCollection."""
-    
+
     @given(
         sentences=st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=50),
     )
-    def test_sentence_collection_iteration(self, sentences: List[str]) -> None:
+    def test_sentence_collection_iteration(self, sentences: list[str]) -> None:
         """SentenceCollection iteration matches input order."""
         collection = SentenceCollection(sentences=tuple(sentences))
-        
+
         assert list(collection) == sentences
         assert len(collection) == len(sentences)
-    
+
     @given(
         sentences1=st.lists(st.text(min_size=1), min_size=1, max_size=10, unique=True),
         sentences2=st.lists(st.text(min_size=1), min_size=1, max_size=10, unique=True),
     )
     def test_sentence_collection_equality(
         self,
-        sentences1: List[str],
-        sentences2: List[str],
+        sentences1: list[str],
+        sentences2: list[str],
     ) -> None:
         """SentenceCollections with same sentences are equal."""
         c1 = SentenceCollection(sentences=tuple(sentences1))
         c2 = SentenceCollection(sentences=tuple(sentences1))
         c3 = SentenceCollection(sentences=tuple(sentences2))
-        
+
         assert c1 == c2
         if sentences1 != sentences2:
             assert c1 != c3
-    
+
     @given(
         sentences=st.lists(
             st.one_of(st.integers(), st.booleans(), st.none()),
@@ -173,22 +167,20 @@ class TestSentenceCollectionProperties:
     )
     def test_sentence_collection_rejects_non_strings(
         self,
-        sentences: List[Any],
+        sentences: list[Any],
     ) -> None:
         """SentenceCollection rejects non-string items."""
         with pytest.raises(TypeError):
             SentenceCollection(sentences=tuple(sentences))
 
-
 # ============================================================================
 # PROPERTY TESTS - Contract Validation
 # ============================================================================
 
-
 @pytest.mark.property
 class TestContractValidationProperties:
     """Property-based tests for runtime contract validation."""
-    
+
     @given(
         value=st.text(),
     )
@@ -201,7 +193,7 @@ class TestContractValidationProperties:
             producer="hypothesis",
             consumer="validator",
         )
-    
+
     @given(
         value=st.one_of(st.integers(), st.lists(st.text()), st.booleans()),
     )
@@ -215,17 +207,17 @@ class TestContractValidationProperties:
                 producer="hypothesis",
                 consumer="validator",
             )
-    
+
     @given(
         mapping=malformed_mapping_strategy(),
     )
     def test_validate_mapping_keys_finds_missing(
         self,
-        mapping: Dict[str, Any],
+        mapping: dict[str, Any],
     ) -> None:
         """validate_mapping_keys detects missing required keys."""
         required = ["text", "document_id", "metadata"]
-        
+
         if all(key in mapping for key in required):
             # Should pass
             validate_mapping_keys(
@@ -243,11 +235,11 @@ class TestContractValidationProperties:
                     producer="hypothesis",
                     consumer="validator",
                 )
-    
+
     @given(
         value=st.lists(st.integers(), min_size=0, max_size=100),
     )
-    def test_ensure_iterable_accepts_lists(self, value: List[int]) -> None:
+    def test_ensure_iterable_accepts_lists(self, value: list[int]) -> None:
         """ensure_iterable_not_string accepts list iterables."""
         ensure_iterable_not_string(
             value,
@@ -255,7 +247,7 @@ class TestContractValidationProperties:
             producer="hypothesis",
             consumer="validator",
         )
-    
+
     @given(
         value=st.text(min_size=0, max_size=100),
     )
@@ -268,7 +260,7 @@ class TestContractValidationProperties:
                 producer="hypothesis",
                 consumer="validator",
             )
-    
+
     @given(
         value=st.one_of(st.booleans(), st.integers(), st.floats()),
     )
@@ -281,7 +273,7 @@ class TestContractValidationProperties:
                 producer="hypothesis",
                 consumer="validator",
             )
-    
+
     @given(
         value=st.one_of(
             st.text(),
@@ -298,7 +290,7 @@ class TestContractValidationProperties:
             producer="hypothesis",
             consumer="validator",
         )
-    
+
     @given(
         value=st.one_of(
             st.lists(st.integers()),
@@ -315,16 +307,14 @@ class TestContractValidationProperties:
                 consumer="validator",
             )
 
-
 # ============================================================================
 # PROPERTY TESTS - Edge Cases
 # ============================================================================
 
-
 @pytest.mark.property
 class TestEdgeCases:
     """Property-based tests for edge cases and boundary conditions."""
-    
+
     @given(
         mapping=st.dictionaries(
             keys=st.text(),
@@ -333,11 +323,11 @@ class TestEdgeCases:
             max_size=100,
         ),
     )
-    def test_empty_and_large_mappings(self, mapping: Dict[str, Any]) -> None:
+    def test_empty_and_large_mappings(self, mapping: dict[str, Any]) -> None:
         """Contract validation works with empty and large mappings."""
         # Should not crash
         keys = list(mapping.keys())[:3]  # Take up to 3 keys
-        
+
         if all(k in mapping for k in keys):
             validate_mapping_keys(
                 mapping,
@@ -345,7 +335,7 @@ class TestEdgeCases:
                 producer="hypothesis",
                 consumer="test",
             )
-    
+
     @given(
         sentences=st.lists(
             st.text(min_size=0, max_size=1000),
@@ -355,16 +345,15 @@ class TestEdgeCases:
     )
     def test_empty_and_large_sentence_collections(
         self,
-        sentences: List[str],
+        sentences: list[str],
     ) -> None:
         """SentenceCollection handles empty and large inputs."""
         # Filter to valid strings only
         valid_sentences = [s for s in sentences if isinstance(s, str)]
         collection = SentenceCollection(sentences=tuple(valid_sentences))
-        
+
         assert len(collection) == len(valid_sentences)
         assert list(collection) == valid_sentences
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--hypothesis-show-statistics"])

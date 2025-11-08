@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Iterable, List, Optional, Set
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 class GoldenRuleViolation(Exception):
     """Raised when a Golden Rule assertion is violated."""
 
-
 class GoldenRuleValidator:
     """Enforces the Golden Rules across orchestrated execution phases."""
 
-    def __init__(self, questionnaire_hash: str, step_catalog: Iterable[str]):
+    def __init__(self, questionnaire_hash: str, step_catalog: Iterable[str]) -> None:
         self._baseline_questionnaire_hash = questionnaire_hash
         self._baseline_step_signature = self._hash_sequence(step_catalog)
         self._baseline_step_catalog = list(step_catalog)
-        self._state_ids: Set[int] = set()
-        self._predicate_signature: Optional[Set[str]] = None
+        self._state_ids: set[int] = set()
+        self._predicate_signature: set[str] | None = None
 
     @staticmethod
     def _hash_sequence(sequence: Iterable[str]) -> str:
@@ -53,7 +54,7 @@ class GoldenRuleValidator:
 
         self._state_ids.add(obj_id)
 
-    def assert_deterministic_dag(self, step_ids: List[str]) -> None:
+    def assert_deterministic_dag(self, step_ids: list[str]) -> None:
         """Validate deterministic ordering and absence of cycles."""
 
         if len(step_ids) != len(set(step_ids)):
@@ -81,7 +82,7 @@ class GoldenRuleValidator:
             raise GoldenRuleViolation("Predicate set mismatch detected")
 
     @property
-    def baseline_step_catalog(self) -> List[str]:
+    def baseline_step_catalog(self) -> list[str]:
         """Expose the baseline step catalog for downstream validation."""
 
         return list(self._baseline_step_catalog)

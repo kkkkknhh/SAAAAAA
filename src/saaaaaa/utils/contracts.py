@@ -15,28 +15,22 @@ Purpose: Replace ad-hoc dicts with typed structures to prevent:
 
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Mapping,
-    Optional,
-    Protocol,
-    Sequence,
-    TypedDict,
-    Union,
-)
 from dataclasses import dataclass
-from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    TypedDict,
+)
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
+    from pathlib import Path
 
 # ============================================================================
 # DOCUMENT CONTRACTS - V1
 # ============================================================================
-
 
 class DocumentMetadataV1(TypedDict, total=True):
     """Document metadata shape - all fields required."""
@@ -46,14 +40,12 @@ class DocumentMetadataV1(TypedDict, total=True):
     file_size_bytes: int
     file_hash: str
 
-
 class DocumentMetadataV1Optional(TypedDict, total=False):
     """Optional document metadata fields."""
-    pdf_metadata: Dict[str, Any]
+    pdf_metadata: dict[str, Any]
     author: str
     title: str
     creation_date: str
-
 
 class ProcessedTextV1(TypedDict, total=True):
     """Shape for processed text output."""
@@ -62,31 +54,26 @@ class ProcessedTextV1(TypedDict, total=True):
     language: str
     encoding: str
 
-
 class ProcessedTextV1Optional(TypedDict, total=False):
     """Optional processed text fields."""
-    sentences: List[str]
-    sections: List[Dict[str, Any]]
+    sentences: list[str]
+    sections: list[dict[str, Any]]
     tables: Mapping[str, Any]
-
 
 # ============================================================================
 # ANALYSIS CONTRACTS - V1
 # ============================================================================
-
 
 class AnalysisInputV1(TypedDict, total=True):
     """Required fields for analysis input - keyword-only."""
     text: str
     document_id: str
 
-
 class AnalysisInputV1Optional(TypedDict, total=False):
     """Optional fields for analysis input."""
     metadata: Mapping[str, Any]
     context: Mapping[str, Any]
     sentences: Sequence[str]
-
 
 class AnalysisOutputV1(TypedDict, total=True):
     """Shape for analysis output."""
@@ -95,25 +82,21 @@ class AnalysisOutputV1(TypedDict, total=True):
     confidence: float
     matches: Sequence[str]
 
-
 class AnalysisOutputV1Optional(TypedDict, total=False):
     """Optional analysis output fields."""
     positions: Sequence[int]
     evidence: Sequence[str]
     warnings: Sequence[str]
 
-
 # ============================================================================
 # EXECUTION CONTRACTS - V1
 # ============================================================================
-
 
 class ExecutionContextV1(TypedDict, total=True):
     """Execution context for method invocation."""
     class_name: str
     method_name: str
     document_id: str
-
 
 class ExecutionContextV1Optional(TypedDict, total=False):
     """Optional execution context fields."""
@@ -123,11 +106,9 @@ class ExecutionContextV1Optional(TypedDict, total=False):
     tables: Mapping[str, Any]
     sentences: Sequence[str]
 
-
 # ============================================================================
 # ERROR REPORTING CONTRACTS
 # ============================================================================
-
 
 class ContractMismatchError(TypedDict, total=True):
     """Standard error shape for contract mismatches."""
@@ -140,54 +121,48 @@ class ContractMismatchError(TypedDict, total=True):
     producer: str
     consumer: str
 
-
 # ============================================================================
 # PROTOCOLS FOR PLUGGABLE BEHAVIOR
 # ============================================================================
 
-
 class TextProcessorProtocol(Protocol):
     """Protocol for text processing components."""
-    
+
     def normalize_unicode(self, text: str) -> str:
         """Normalize unicode characters in text."""
         ...
-    
+
     def segment_into_sentences(self, text: str) -> Sequence[str]:
         """Segment text into sentences."""
         ...
 
-
 class DocumentLoaderProtocol(Protocol):
     """Protocol for document loading components."""
-    
+
     def load_pdf(self, *, pdf_path: Path) -> DocumentMetadataV1:
         """Load PDF and return metadata - keyword-only params."""
         ...
-    
+
     def validate_pdf(self, *, pdf_path: Path) -> bool:
         """Validate PDF file - keyword-only params."""
         ...
 
-
 class AnalyzerProtocol(Protocol):
     """Protocol for analysis components."""
-    
+
     def analyze(
         self,
         *,
         text: str,
         document_id: str,
-        metadata: Optional[Mapping[str, Any]] = None,
+        metadata: Mapping[str, Any] | None = None,
     ) -> AnalysisOutputV1:
         """Analyze text and return structured output - keyword-only params."""
         ...
 
-
 # ============================================================================
 # VALUE OBJECTS (prevent .text on strings)
 # ============================================================================
-
 
 @dataclass(frozen=True, slots=True)
 class TextDocument:
@@ -195,7 +170,7 @@ class TextDocument:
     text: str
     document_id: str
     metadata: Mapping[str, Any]
-    
+
     def __post_init__(self) -> None:
         """Validate that text is non-empty."""
         if not isinstance(self.text, str):
@@ -205,47 +180,41 @@ class TextDocument:
         if not self.text:
             raise ValueError("ERR_CONTRACT_MISMATCH: text cannot be empty")
 
-
 @dataclass(frozen=True, slots=True)
 class SentenceCollection:
     """Type-safe collection of sentences (prevents iteration bugs)."""
     sentences: tuple[str, ...]  # Immutable and hashable
-    
+
     def __post_init__(self) -> None:
         """Validate sentences are strings."""
         if not all(isinstance(s, str) for s in self.sentences):
             raise TypeError(
                 "ERR_CONTRACT_MISMATCH: All sentences must be strings"
             )
-    
+
     def __iter__(self) -> Iterable[str]:
         """Make iterable."""
         return iter(self.sentences)
-    
+
     def __len__(self) -> int:
         """Return count."""
         return len(self.sentences)
-
 
 # ============================================================================
 # SENTINEL VALUES (avoid None ambiguity)
 # ============================================================================
 
-
 class _MissingSentinel:
     """Sentinel type for missing optional parameters."""
-    
+
     def __repr__(self) -> str:
         return "<MISSING>"
 
-
 MISSING: _MissingSentinel = _MissingSentinel()
-
 
 # ============================================================================
 # RUNTIME VALIDATION HELPERS
 # ============================================================================
-
 
 def validate_contract(
     value: Any,
@@ -257,7 +226,7 @@ def validate_contract(
 ) -> None:
     """
     Validate value matches expected contract at runtime.
-    
+
     Raises TypeError with structured error message on mismatch.
     """
     if not isinstance(value, expected_type):
@@ -272,7 +241,6 @@ def validate_contract(
         )
         raise TypeError(error_msg)
 
-
 def validate_mapping_keys(
     mapping: Mapping[str, Any],
     required_keys: Sequence[str],
@@ -282,7 +250,7 @@ def validate_mapping_keys(
 ) -> None:
     """
     Validate mapping contains required keys.
-    
+
     Raises KeyError with structured message on missing keys.
     """
     missing = [key for key in required_keys if key not in mapping]
@@ -296,7 +264,6 @@ def validate_mapping_keys(
         )
         raise KeyError(error_msg)
 
-
 def ensure_iterable_not_string(
     value: Any,
     *,
@@ -306,7 +273,7 @@ def ensure_iterable_not_string(
 ) -> None:
     """
     Validate value is iterable but NOT a string or bytes.
-    
+
     Prevents "'bool' object is not iterable" and "iterate string as tokens" bugs.
     """
     if isinstance(value, (str, bytes)):
@@ -319,7 +286,7 @@ def ensure_iterable_not_string(
             f"consumer={consumer}"
             f"]"
         )
-    
+
     try:
         iter(value)
     except TypeError as e:
@@ -333,7 +300,6 @@ def ensure_iterable_not_string(
             f"]"
         ) from e
 
-
 def ensure_hashable(
     value: Any,
     *,
@@ -343,7 +309,7 @@ def ensure_hashable(
 ) -> None:
     """
     Validate value is hashable (can be added to set or used as dict key).
-    
+
     Prevents "unhashable type: 'dict'" errors.
     """
     try:

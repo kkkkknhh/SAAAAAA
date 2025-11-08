@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Causal Policy Analysis Framework - State-of-the-Art Edition
 Specialized for Colombian Municipal Development Plans (PDM)
@@ -14,25 +13,32 @@ Design Principles:
 - Lazy loading for resource efficiency
 """
 from __future__ import annotations
-import re
-import torch
-from transformers import AutoTokenizer, AutoModel
-import logging
+
 import json
+import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 import scipy.stats as stats
+import torch
 from scipy.spatial.distance import cosine
 from scipy.special import rel_entr
+
+# Check dependency lockdown before importing transformers
+from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
+_lockdown = get_dependency_lockdown()
+
+from transformers import AutoModel, AutoTokenizer
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 # Note: logging.basicConfig should be called by the application entry point,
 # not at module import time to avoid side effects
 logger = logging.getLogger("policy_framework")
-
 
 def _get_chunk_content(chunk: dict[str, Any]) -> str:
     """Compatibility helper returning the canonical chunk content field."""
@@ -40,7 +46,6 @@ def _get_chunk_content(chunk: dict[str, Any]) -> str:
     if "content" in chunk:
         return chunk["content"]
     return chunk.get("text", "")
-
 
 def _upgrade_chunk_schema(chunk: dict[str, Any]) -> dict[str, Any]:
     """Return a chunk dict that guarantees ``content`` availability."""
@@ -65,11 +70,9 @@ RENYI_CURVATURE_GAIN: float = 0.85  # Amplifies curvature impact without destabi
 RENYI_FLUX_TEMPERATURE: float = 0.65  # Controls saturation of Renyi coherence flux
 RENYI_STABILITY_EPSILON: float = 1e-9  # Numerical guard-rail for degenerative posteriors
 
-
 # ========================
 # DOMAIN ONTOLOGY
 # ========================
-
 
 class CausalDimension(Enum):
     """Marco Lógico standard (DNP Colombia)"""
@@ -79,7 +82,6 @@ class CausalDimension(Enum):
     RESULTADOS = "resultados"  # Efectos mediano plazo
     IMPACTOS = "impactos"  # Transformación estructural largo plazo
     SUPUESTOS = "supuestos"  # Condiciones habilitantes
-
 
 class PDMSection(Enum):
     """
@@ -93,7 +95,6 @@ class PDMSection(Enum):
     PLAN_INVERSIONES = "plan_inversiones"
     MARCO_FISCAL = "marco_fiscal"
     SEGUIMIENTO = "seguimiento_evaluacion"
-
 
 @dataclass(frozen=True, slots=True)
 class SemanticConfig:
@@ -109,11 +110,9 @@ class SemanticConfig:
     batch_size: int = 32
     fp16: bool = True  # Memory optimization
 
-
 # ========================
 # SEMANTIC PROCESSOR (SOTA)
 # ========================
-
 
 class SemanticProcessor:
     """
@@ -123,7 +122,7 @@ class SemanticProcessor:
     - Efficient batching with FP16
     """
 
-    def __init__(self, config: SemanticConfig):
+    def __init__(self, config: SemanticConfig) -> None:
         self.config = config
         self._model = None
         self._tokenizer = None
@@ -193,7 +192,7 @@ class SemanticProcessor:
                 })
         # Batch embed all chunks
         embeddings = self._embed_batch([c["content"] for c in chunks])
-        for chunk, emb in zip(chunks, embeddings):
+        for chunk, emb in zip(chunks, embeddings, strict=False):
             chunk["embedding"] = emb
         logger.info(f"Generated {len(chunks)} policy-aware chunks")
         return [_upgrade_chunk_schema(chunk) for chunk in chunks]
@@ -273,11 +272,9 @@ class SemanticProcessor:
         """Single text embedding"""
         return self._embed_batch([text])[0]
 
-
 # ========================
 # MATHEMATICAL ENHANCER (RIGOROUS)
 # ========================
-
 
 class BayesianEvidenceIntegrator:
     """
@@ -288,7 +285,7 @@ class BayesianEvidenceIntegrator:
     - No simplifications or heuristics
     """
 
-    def __init__(self, prior_concentration: float = 0.5):
+    def __init__(self, prior_concentration: float = 0.5) -> None:
         """
         Args:
             prior_concentration: Dirichlet concentration (α).
@@ -431,11 +428,9 @@ class BayesianEvidenceIntegrator:
         strength = ((sim_ce + 1) / 2) * cond_indep
         return float(np.clip(strength, 0.0, 1.0))
 
-
 # ========================
 # POLICY ANALYZER (INTEGRATED)
 # ========================
-
 
 class PolicyDocumentAnalyzer:
     """
@@ -446,7 +441,7 @@ class PolicyDocumentAnalyzer:
     - Causal dimension analysis per Marco Lógico
     """
 
-    def __init__(self, config: SemanticConfig | None = None):
+    def __init__(self, config: SemanticConfig | None = None) -> None:
         self.config = config or SemanticConfig()
         self.semantic = SemanticProcessor(self.config)
         self.bayesian = BayesianEvidenceIntegrator(
@@ -508,7 +503,7 @@ class PolicyDocumentAnalyzer:
             # Filter by threshold
             relevant_mask = similarities >= self.config.similarity_threshold
             relevant_sims = similarities[relevant_mask]
-            relevant_chunks = [c for c, m in zip(chunks, relevant_mask) if m]
+            relevant_chunks = [c for c, m in zip(chunks, relevant_mask, strict=False) if m]
             # Bayesian integration
             if len(relevant_sims) >= self.config.min_evidence_chunks:
                 evidence = self.bayesian.integrate_evidence(
@@ -528,7 +523,7 @@ class PolicyDocumentAnalyzer:
         return {
             "summary": {
                 "total_chunks": len(chunks),
-                "sections_detected": len(set(c["section_type"] for c in chunks)),
+                "sections_detected": len({c["section_type"] for c in chunks}),
                 "has_tables": sum(1 for c in chunks if c["has_table"]),
                 "has_numerical": sum(1 for c in chunks if c["has_numerical"])
             },
@@ -560,24 +555,22 @@ class PolicyDocumentAnalyzer:
             ]
         return excerpts
 
-
 # ========================
 # PRODUCER CLASS - Registry Exposure
 # ========================
 
-
 class SemanticChunkingProducer:
     """
     Producer wrapper for semantic chunking and policy analysis with registry exposure
-    
+
     Provides public API methods for orchestrator integration without exposing
     internal implementation details or summarization logic.
-    
+
     Version: 1.0.0
     Producer Type: Semantic Analysis / Chunking
     """
-    
-    def __init__(self, config: SemanticConfig | None = None):
+
+    def __init__(self, config: SemanticConfig | None = None) -> None:
         """Initialize producer with optional configuration"""
         self.config = config or SemanticConfig()
         self.semantic = SemanticProcessor(self.config)
@@ -586,27 +579,27 @@ class SemanticChunkingProducer:
         )
         self.analyzer = PolicyDocumentAnalyzer(self.config)
         logger.info("SemanticChunkingProducer initialized")
-    
+
     # ========================================================================
     # CHUNKING API
     # ========================================================================
-    
+
     def chunk_document(self, text: str, preserve_structure: bool = True) -> list[dict[str, Any]]:
         """Chunk document into semantic units with embeddings"""
         return self.semantic.chunk_text(text, preserve_structure)
-    
+
     def get_chunk_count(self, chunks: list[dict[str, Any]]) -> int:
         """Get number of chunks"""
         return len(chunks)
-    
+
     def get_chunk_text(self, chunk: dict[str, Any]) -> str:
         """Extract text from chunk"""
         return _get_chunk_content(chunk)
-    
+
     def get_chunk_embedding(self, chunk: dict[str, Any]) -> NDArray[np.floating[Any]]:
         """Extract embedding from chunk"""
         return chunk.get("embedding", np.array([]))
-    
+
     def get_chunk_metadata(self, chunk: dict[str, Any]) -> dict[str, Any]:
         """Extract metadata from chunk"""
         return {
@@ -617,35 +610,35 @@ class SemanticChunkingProducer:
             "has_table": chunk.get("has_table"),
             "has_numerical": chunk.get("has_numerical")
         }
-    
+
     # ========================================================================
     # EMBEDDING API
     # ========================================================================
-    
+
     def embed_text(self, text: str) -> NDArray[np.floating[Any]]:
         """Generate single embedding for text"""
         return self.semantic.embed_single(text)
-    
+
     def embed_batch(self, texts: list[str]) -> list[NDArray[np.floating[Any]]]:
         """Generate embeddings for batch of texts"""
         return self.semantic._embed_batch(texts)
-    
+
     # ========================================================================
     # ANALYSIS API
     # ========================================================================
-    
+
     def analyze_document(self, text: str) -> dict[str, Any]:
         """Full pipeline analysis of document"""
         return self.analyzer.analyze(text)
-    
+
     def get_dimension_analysis(
-        self, 
-        analysis: dict[str, Any], 
+        self,
+        analysis: dict[str, Any],
         dimension: CausalDimension
     ) -> dict[str, Any]:
         """Extract specific dimension results from analysis"""
         return analysis.get("causal_dimensions", {}).get(dimension.value, {})
-    
+
     def get_dimension_score(
         self,
         analysis: dict[str, Any],
@@ -654,7 +647,7 @@ class SemanticChunkingProducer:
         """Extract dimension evidence strength score"""
         dim_result = self.get_dimension_analysis(analysis, dimension)
         return dim_result.get("evidence_strength", 0.0)
-    
+
     def get_dimension_confidence(
         self,
         analysis: dict[str, Any],
@@ -663,7 +656,7 @@ class SemanticChunkingProducer:
         """Extract dimension confidence score"""
         dim_result = self.get_dimension_analysis(analysis, dimension)
         return dim_result.get("confidence", 0.0)
-    
+
     def get_dimension_excerpts(
         self,
         analysis: dict[str, Any],
@@ -671,11 +664,11 @@ class SemanticChunkingProducer:
     ) -> list[str]:
         """Extract key excerpts for dimension"""
         return analysis.get("key_excerpts", {}).get(dimension.value, [])
-    
+
     # ========================================================================
     # BAYESIAN EVIDENCE API
     # ========================================================================
-    
+
     def integrate_evidence(
         self,
         similarities: NDArray[np.float64],
@@ -683,7 +676,7 @@ class SemanticChunkingProducer:
     ) -> dict[str, float]:
         """Perform Bayesian evidence integration"""
         return self.bayesian.integrate_evidence(similarities, chunk_metadata)
-    
+
     def calculate_causal_strength(
         self,
         cause_emb: NDArray[np.floating[Any]],
@@ -692,27 +685,27 @@ class SemanticChunkingProducer:
     ) -> float:
         """Calculate causal strength between embeddings"""
         return self.bayesian.causal_strength(cause_emb, effect_emb, context_emb)
-    
+
     def get_posterior_mean(self, evidence: dict[str, float]) -> float:
         """Extract posterior mean from evidence integration"""
         return evidence.get("posterior_mean", 0.0)
-    
+
     def get_posterior_std(self, evidence: dict[str, float]) -> float:
         """Extract posterior standard deviation"""
         return evidence.get("posterior_std", 0.0)
-    
+
     def get_information_gain(self, evidence: dict[str, float]) -> float:
         """Extract information gain (KL divergence)"""
         return evidence.get("information_gain", 0.0)
-    
+
     def get_confidence(self, evidence: dict[str, float]) -> float:
         """Extract confidence score"""
         return evidence.get("confidence", 0.0)
-    
+
     # ========================================================================
     # SEMANTIC SEARCH API
     # ========================================================================
-    
+
     def semantic_search(
         self,
         query: str,
@@ -722,30 +715,30 @@ class SemanticChunkingProducer:
     ) -> list[tuple[dict[str, Any], float]]:
         """Search chunks semantically for query"""
         query_emb = self.semantic.embed_single(query)
-        
+
         results = []
         for chunk in chunks:
             chunk_emb = chunk.get("embedding")
             if chunk_emb is not None and len(chunk_emb) > 0:
                 similarity = 1.0 - cosine(query_emb, chunk_emb)
-                
+
                 # Filter by dimension if specified
                 if dimension is None or chunk.get("section_type") == dimension:
                     results.append((chunk, float(similarity)))
-        
+
         # Sort by similarity descending
         results.sort(key=lambda x: x[1], reverse=True)
-        
+
         return results[:top_k]
-    
+
     # ========================================================================
     # UTILITY API
     # ========================================================================
-    
+
     def list_dimensions(self) -> list[CausalDimension]:
         """List all causal dimensions"""
         return list(CausalDimension)
-    
+
     def get_dimension_description(self, dimension: CausalDimension) -> str:
         """Get description for dimension"""
         descriptions = {
@@ -757,11 +750,11 @@ class SemanticChunkingProducer:
             CausalDimension.SUPUESTOS: "Condiciones habilitantes"
         }
         return descriptions.get(dimension, "")
-    
+
     def get_config(self) -> SemanticConfig:
         """Get current configuration"""
         return self.config
-    
+
     def set_config(self, config: SemanticConfig) -> None:
         """Update configuration (requires reinitialization)"""
         self.config = config
@@ -771,13 +764,11 @@ class SemanticChunkingProducer:
         )
         self.analyzer = PolicyDocumentAnalyzer(self.config)
 
-
 # ========================
 # CLI INTERFACE
 # ========================
 
-
-def main():
+def main() -> None:
     """Example usage"""
     sample_pdm = """
 PLAN DE DESARROLLO MUNICIPAL 2024-2027

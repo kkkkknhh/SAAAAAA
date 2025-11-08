@@ -5,24 +5,19 @@ from __future__ import annotations
 
 import json
 import random
-import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from saaaaaa.core.seed_factory import DeterministicContext  # noqa: E402
 
-from seed_factory import DeterministicContext
+REPO_ROOT = Path(__file__).parent.parent.parent
 CHECKSUM_PATH = REPO_ROOT / "config" / "metadata_checksums.json"
 
-
-def load_checksums() -> Dict[str, str]:
+def load_checksums() -> dict[str, str]:
     with CHECKSUM_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
-
-def generate_payload(seed: int, checksums: Dict[str, str]) -> Dict[str, Any]:
+def generate_payload(seed: int, checksums: dict[str, str]) -> dict[str, Any]:
     rng = random.Random(seed)  # noqa: S311 – non-crypto, deterministic CI snapshot
     random_values = [rng.random() for _ in range(5)]
     return {
@@ -30,7 +25,6 @@ def generate_payload(seed: int, checksums: Dict[str, str]) -> Dict[str, Any]:
         "checksums": checksums,
         "random_probe": random_values,
     }
-
 
 def main(output_dir: Path) -> None:
     checksums = load_checksums()
@@ -46,7 +40,6 @@ def main(output_dir: Path) -> None:
     with target.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
-
 
 if __name__ == "__main__":
     import argparse

@@ -1,0 +1,235 @@
+name: sin-carreta-guardrails
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run sin-carreta guardrails
+        run: |
+          python << 'EOF'
+          import os
+          import sys
+          import re
+          from pathlib import Path
+
+          REPO_ROOT = Path(".")
+
+          # -------- Config: what we care about --------
+
+          CODE_EXT = {".py", ".sh", ".bash", ".ps1"}
+          TEXT_EXT = {".md", ".txt", ".rst", ".yml", ".yaml"}
+          SCAN_EXT = CODE_EXT | TEXT_EXT
+
+          # Phrases that MUST NOT appear as hard-coded "truth" in runners / core modules
+          # unless actually computed at runtime. These are based on prior abuses.
+          BANNED_SUCCESS_PHRASES = [
+              "COMPLETE SUCCESS - OBLIGATION OF RESULT DELIVERED",
+              "COMPLETE SUCCESS - OBLIGATION OF RESULT",
+              "✅ COMPLETE SYSTEM",
+              "✅✅✅ COMPLETE SYSTEM EXECUTION FINISHED ✅✅✅",
+              "ALL 11 PHASES COMPLETED",
+              "ALL 11 PHASES COMPLETE",
+              "305 questions answered",
+              "300 questions processed",
+              "HIGH-QUALITY ANALYSIS COMPLETE",
+              "ALL 305 questions answered",
+              "ALL 300 questions answered",
+          ]
+
+          # Where success claims are critical (runners / orchestrator glue)
+          RUNNER_PATTERNS = [
+              re.compile(r"^run_.*\.py$"),
+              re.compile(r"^scripts/.*\.py$"),
+          ]
+
+          # Helper name that was duplicated / abused
+          TIMEOUT_HELPER_NAME = "execute_phase_with_timeout"
+
+          VIOLATIONS = []
+
+          def is_ci_or_tooling_path(path: Path) -> bool:
+              # Allow strong language in CI/test/tooling; we care about user-facing pipeline claims.
+              p = str(path).replace("\\", "/")
+              return any([
+                  "/.github/" in p,
+                  "/tests/" in p,
+                  "/test_" in p,
+                  p.endswith("_test.py"),
+              ])
+
+          def is_runner_like(path: Path) -> bool:
+              p = str(path).replace("\\", "/")
+              filename = path.name
+              if any(rx.match(filename) for rx in RUNNER_PATTERNS):
+                  return True
+              if "orchestrator" in p and path.suffix == ".py":
+                  return True
+              return False
+
+          # -------- Rule H1/H4/H7: ban fake banners & scripted lies --------
+
+          def check_banned_success_phrases():
+              for root, _, files in os.walk(REPO_ROOT):
+                  # Skip obvious noise
+                  if ".git" in root:
+                      continue
+                  for fname in files:
+                      path = Path(root) / fname
+                      if path.suffix.lower() not in SCAN_EXT:
+                          continue
+                      rel = path.relative_to(REPO_ROOT)
+                      rel_s = str(rel).replace("\\", "/")
+
+                      # We are strict in runners/core. More lenient in docs/tests.
+                      hard_scope = is_runner_like(rel) or ("core/orchestrator" in rel_s)
+
+                      with path.open("r", encoding="utf-8", errors="ignore") as f:
+                          text = f.read()
+
+                      for phrase in BANNED_SUCCESS_PHRASES:
+                          if phrase in text:
+                              if hard_scope and not is_ci_or_tooling_path(rel):
+                                  VIOLATIONS.append(
+                                      f"[H1/H4] Hard-coded success phrase '{phrase}' in {rel_s}. "
+                                      f"Remove or gate it on real execution conditions."
+                                  )
+
+          # -------- Rule H5: single canonical execute_phase_with_timeout --------
+
+          def check_timeout_helper_uniqueness():
+              defs = []
+              pattern = re.compile(
+                  r"^\s*(async\s+def|def)\s+"
+                  + re.escape(TIMEOUT_HELPER_NAME)
+                  + r"\s*\(",
+                  re.MULTILINE,
+              )
+
+              for root, _, files in os.walk(REPO_ROOT):
+                  if ".git" in root:
+                      continue
+                  for fname in files:
+                      path = Path(root) / fname
+                      if path.suffix != ".py":
+                          continue
+                      rel = path.relative_to(REPO_ROOT)
+                      rel_s = str(rel).replace("\\", "/")
+
+                      with path.open("r", encoding="utf-8", errors="ignore") as f:
+                          text = f.read()
+
+                      for m in pattern.finditer(text):
+                          line_no = text[: m.start()].count("\n") + 1
+                          defs.append((rel_s, line_no))
+
+              if len(defs) > 1:
+                  detail = "; ".join(f"{f}@{ln}" for f, ln in defs)
+                  VIOLATIONS.append(
+                      f"[H5] Multiple '{TIMEOUT_HELPER_NAME}' definitions detected ({len(defs)}). "
+                      f"Keep exactly one canonical implementation. Found at: {detail}"
+                  )
+
+          # -------- Rule H2: no ghost COMPLETE_METHOD_CLASS_MAP etc. --------
+
+          def check_ghost_paths():
+              # Known sensitive configs that must exist if referenced
+              suspicious_patterns = [
+                  "COMPLETE_METHOD_CLASS_MAP.json",
+                  "metodos_completos_nivel3.json",
+                  "recommendation_rules.schema.json",
+                  "recommendation_rules_enhanced.schema.json",
+              ]
+
+              referenced = set()
+              for root, _, files in os.walk(REPO_ROOT):
+                  if ".git" in root:
+                      continue
+                  for fname in files:
+                      path = Path(root) / fname
+                      if path.suffix.lower() not in SCAN_EXT:
+                          continue
+                      rel = path.relative_to(REPO_ROOT)
+                      rel_s = str(rel).replace("\\", "/")
+                      # Ignore tests/docs for this rule
+                      if is_ci_or_tooling_path(rel):
+                          continue
+
+                      with path.open("r", encoding="utf-8", errors="ignore") as f:
+                          text = f.read()
+
+                      for pat in suspicious_patterns:
+                          if pat in text:
+                              referenced.add(pat)
+
+              for pat in referenced:
+                  exists = any(
+                      p.name == pat
+                      for p in REPO_ROOT.rglob(pat)
+                      if ".git" not in str(p)
+                  )
+                  if not exists:
+                      VIOLATIONS.append(
+                          f"[H2] File '{pat}' is referenced in code but does not exist in repo. "
+                          f"Either add it, guard the reference, or remove the claim."
+                      )
+
+          # -------- Rule H3/H8: enforce real blockers, not hand-waving --------
+          # Static heuristic: flag obviously useless \"just trust me\" comments in runners/core.
+
+          def check_handwave_comments():
+              patterns = [
+                  r"install .* and .*everything will work",
+                  r"just install .* and it will work",
+              ]
+              regexes = [re.compile(pat, re.IGNORECASE) for pat in patterns]
+
+              for root, _, files in os.walk(REPO_ROOT):
+                  if ".git" in root:
+                      continue
+                  for fname in files:
+                      path = Path(root) / fname
+                      if path.suffix.lower() not in SCAN_EXT:
+                          continue
+                      rel = path.relative_to(REPO_ROOT)
+                      rel_s = str(rel).replace("\\", "/")
+                      if not is_runner_like(rel):
+                          continue
+
+                      with path.open("r", encoding="utf-8", errors="ignore") as f:
+                          text = f.read()
+
+                      for rx in regexes:
+                          if rx.search(text):
+                              VIOLATIONS.append(
+                                  f"[H3/H8] Hand-wavy promise in {rel_s}: '{rx.pattern}'. "
+                                  f"Replace with precise, verified conditions + failure modes."
+                              )
+
+          # -------- Execute checks --------
+
+          check_banned_success_phrases()
+          check_timeout_helper_uniqueness()
+          check_ghost_paths()
+          check_handwave_comments()
+
+          if VIOLATIONS:
+              print("sin-carreta guardrails violations detected:\n")
+              for v in VIOLATIONS:
+                  print(" - " + v)
+              print(f"\nTOTAL VIOLATIONS: {len(VIOLATIONS)}")
+              sys.exit(1)
+
+          print("sin-carreta guardrails: PASSED (no execution fraud patterns detected).")
+          EOF

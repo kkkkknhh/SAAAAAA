@@ -1,5 +1,8 @@
 """Compatibility wrapper for JSON contract loader utilities."""
-from saaaaaa.utils.json_contract_loader import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.utils.json_contract_loader import (  # noqa: F401, E402
     ContractDocument,
     ContractLoadReport,
     JSONContractLoader,
