@@ -181,13 +181,14 @@ jobs:
           universe = "${{ matrix.universe }}"
           
           # Collect artifact hashes
-          artifacts_dir = Path("artifacts/plan1")
+          artifacts_dir = Path("artifacts/plan1").resolve()
           artifact_hashes = {}
+          cwd = Path.cwd()
           
           if artifacts_dir.exists():
               for artifact_file in artifacts_dir.rglob("*"):
                   if artifact_file.is_file():
-                      rel_path = str(artifact_file.relative_to(Path.cwd()))
+                      rel_path = str(artifact_file.relative_to(cwd))
                       artifact_hashes[rel_path] = compute_sha256(artifact_file)
           
           # Create snapshot
