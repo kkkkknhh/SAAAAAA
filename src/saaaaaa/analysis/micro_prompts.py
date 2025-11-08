@@ -56,8 +56,8 @@ class QMCMRecord:
     contribution_weight: float
     timestamp: float
     output_schema: dict[str, Any]
-    base_slot: str | None = None  # From questionnaire monolith
-    scoring_modality: str | None = None  # From questionnaire monolith
+    base_slot: str | None = field(default=None)  # From questionnaire monolith
+    scoring_modality: str | None = field(default=None)  # From questionnaire monolith
     metadata: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
