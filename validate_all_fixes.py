@@ -12,6 +12,8 @@ This script validates:
 Note: Run this script after installing the package with: pip install -e .
 """
 
+import sys
+
 def validate_safe_strip():
     """Validate _safe_strip function."""
     print("=" * 70)

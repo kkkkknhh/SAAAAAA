@@ -62,7 +62,7 @@ def test_core_packages():
 
 def test_qmcm_hooks_backward_compatibility():
     """Test that qmcm_hooks has backward-compatible aliases"""
-    import saaaaaa.core.qmcm_hooks
+    import saaaaaa.core.qmcm_hooks as qmcm_hooks
 
     # Check that both old and new names work
     assert hasattr(qmcm_hooks, 'qmcm_record')
@@ -75,7 +75,7 @@ def test_qmcm_hooks_backward_compatibility():
 
 def test_signature_validator_backward_compatibility():
     """Test that signature_validator has backward-compatible aliases"""
-    import saaaaaa.validation.signature_validator
+    import saaaaaa.validation.signature_validator as signature_validator
 
     # Check that both old and new names work
     assert hasattr(signature_validator, 'SignatureMismatch')
@@ -90,7 +90,7 @@ def test_signature_validator_backward_compatibility():
 
 def test_contracts_exports():
     """Test that contracts module exports expected symbols"""
-    import saaaaaa.contracts
+    import saaaaaa.contracts as contracts
 
     expected_exports = [
         "AnalysisInputV1",
@@ -105,7 +105,7 @@ def test_contracts_exports():
 
 def test_aggregation_exports():
     """Test that aggregation module exports expected symbols"""
-    import saaaaaa.core.aggregation
+    import saaaaaa.core.aggregation as aggregation
 
     expected_exports = [
         "MacroAggregator",

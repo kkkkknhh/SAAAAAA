@@ -118,7 +118,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_validation_engine_imports(self):
         """Verify validation_engine.py imports correctly."""
         try:
-            import saaaaaa.validation.validation_engine
+            import saaaaaa.validation.validation_engine as validation_engine
             self.assertTrue(hasattr(validation_engine, 'ValidationEngine'))
             self.assertTrue(hasattr(validation_engine, 'ValidationReport'))
         except ImportError as e:
@@ -127,7 +127,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_seed_factory_imports(self):
         """Verify seed_factory.py imports correctly."""
         try:
-            import saaaaaa.core.seed_factory
+            import saaaaaa.core.seed_factory as seed_factory
             self.assertTrue(hasattr(seed_factory, 'SeedFactory'))
             self.assertTrue(hasattr(seed_factory, 'DeterministicContext'))
             self.assertTrue(hasattr(seed_factory, 'create_deterministic_seed'))
@@ -137,7 +137,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_qmcm_hooks_imports(self):
         """Verify qmcm_hooks.py imports correctly."""
         try:
-            import saaaaaa.core.qmcm_hooks
+            import saaaaaa.core.qmcm_hooks as qmcm_hooks
             self.assertTrue(hasattr(qmcm_hooks, 'QMCMRecorder'))
             self.assertTrue(hasattr(qmcm_hooks, 'get_global_recorder'))
             self.assertTrue(hasattr(qmcm_hooks, 'qmcm_record'))
@@ -147,7 +147,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_evidence_registry_imports(self):
         """Verify evidence_registry.py imports correctly."""
         try:
-            import saaaaaa.core.evidence_registry
+            import saaaaaa.core.evidence_registry as evidence_registry
             self.assertTrue(hasattr(evidence_registry, 'EvidenceRegistry'))
             self.assertTrue(hasattr(evidence_registry, 'EvidenceRecord'))
         except ImportError as e:
@@ -156,7 +156,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_json_contract_loader_imports(self):
         """Verify json_contract_loader.py imports correctly."""
         try:
-            import saaaaaa.core.json_contract_loader
+            import saaaaaa.core.json_contract_loader as json_contract_loader
             self.assertTrue(hasattr(json_contract_loader, 'JSONContractLoader'))
             self.assertTrue(hasattr(json_contract_loader, 'ContractDocument'))
             self.assertTrue(hasattr(json_contract_loader, 'ContractLoadReport'))
@@ -184,7 +184,7 @@ class TestStrategicWiring(unittest.TestCase):
     def test_meso_cluster_analysis_imports(self):
         """Verify meso_cluster_analysis.py imports correctly."""
         try:
-            import saaaaaa.analysis.meso_cluster_analysis
+            import saaaaaa.analysis.meso_cluster_analysis as meso_cluster_analysis
             self.assertTrue(hasattr(meso_cluster_analysis, 'analyze_policy_dispersion'))
             self.assertTrue(hasattr(meso_cluster_analysis, 'reconcile_cross_metrics'))
             self.assertTrue(hasattr(meso_cluster_analysis, 'compose_cluster_posterior'))
