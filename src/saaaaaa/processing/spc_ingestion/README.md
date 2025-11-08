@@ -1,6 +1,8 @@
-# Canon Policy Package (CPP) Ingestion System
+# SPC (Smart Policy Chunks) Ingestion - Canonical Phase-One
 
-Deterministic ingestion and policy-aware advanced chunking for Development Plans (Planes de Desarrollo).
+Canonical phase-one of the policy analysis pipeline: deterministic ingestion and smart chunking of Development Plans (Planes de Desarrollo) with comprehensive analysis.
+
+**Status**: This is the official phase-one entry point for the single deterministic flux from ingestion to reporting.
 
 ## Overview
 
