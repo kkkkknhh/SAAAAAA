@@ -5,18 +5,52 @@
 
 ## Executive Summary
 
-- **Files Scanned:** 321
-- **Total Findings:** 174
-- **Critical:** 0
-- **High:** 18
-- **Medium:** 155
+- **Files Scanned:** 351
+- **Total Findings:** 191
+- **Critical:** 4
+- **High:** 20
+- **Medium:** 166
 - **Low:** 1
 
 ## Findings by Severity
 
-### HIGH (18)
+### CRITICAL (4)
 
-#### absolute_path (18 occurrences)
+#### sys_path_manipulation (4 occurrences)
+
+- **semantic_chunking_policy.py:8**
+  - sys.path manipulation detected outside scripts/tests/examples
+  - Code: `sys.path.insert(0, str(_root / "src"))`
+  - Fix: Use proper package imports instead of sys.path
+
+- **verify_cpp_ingestion.py:16**
+  - sys.path manipulation detected outside scripts/tests/examples
+  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
+  - Fix: Use proper package imports instead of sys.path
+
+- **validate_all_fixes.py:13**
+  - sys.path manipulation detected outside scripts/tests/examples
+  - Code: `sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')`
+  - Fix: Use proper package imports instead of sys.path
+
+- **run_complete_analysis_plan1.py:25**
+  - sys.path manipulation detected outside scripts/tests/examples
+  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
+  - Fix: Use proper package imports instead of sys.path
+
+### HIGH (20)
+
+#### absolute_path (20 occurrences)
+
+- **validate_all_fixes.py:13**
+  - Absolute Unix path detected
+  - Code: `sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+
+- **validate_all_fixes.py:133**
+  - Absolute Unix path detected
+  - Code: `cpp_uri="/tmp/test",`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
 - **tests/test_enhanced_recommendations.py:148**
   - Absolute Unix path detected
@@ -58,19 +92,9 @@
   - Code: `outside = Path("/tmp/other")`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **tests/paths/test_paths_utils.py:166**
-  - Absolute Unix path detected
-  - Code: `result = safe_join(base, "/tmp/other")`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+  ... and 10 more occurrences
 
-- **tests/paths/test_paths_utils.py:233**
-  - Absolute Unix path detected
-  - Code: `outside = Path("/tmp/outside_workspace.txt")`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
-
-  ... and 8 more occurrences
-
-### MEDIUM (155)
+### MEDIUM (166)
 
 #### cwd_usage (3 occurrences)
 
@@ -79,26 +103,31 @@
   - Code: `# os.getcwd() or Path.cwd()`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-- **src/saaaaaa/core/orchestrator/core.py:1179**
+- **src/saaaaaa/core/orchestrator/core.py:1278**
   - Current working directory usage - fragile in different execution contexts
   - Code: `candidates.append(os.path.join(os.getcwd(), path))`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-- **src/saaaaaa/core/orchestrator/core.py:1181**
+- **src/saaaaaa/core/orchestrator/core.py:1280**
   - Current working directory usage - fragile in different execution contexts
   - Code: `candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-#### file_usage (49 occurrences)
+#### file_usage (60 occurrences)
+
+- **semantic_chunking_policy.py:6**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `_root = Path(__file__).parent`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
 - **setup.py:22**
   - __file__ usage detected - may break in packaged distributions
   - Code: `readme_file = Path(__file__).parent / "README.md"`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-- **setup.py:29**
+- **verify_cpp_ingestion.py:16**
   - __file__ usage detected - may break in packaged distributions
-  - Code: `requirements_file = Path(__file__).parent / "requirements.txt"`
+  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
 - **runtime_audit.py:662**
@@ -111,6 +140,21 @@
   - Code: `root = Path(__file__).parent`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
+- **run_complete_analysis_plan1.py:25**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `sys.path.insert(0, str(Path(__file__).parent / "src"))`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+- **run_complete_analysis_plan1.py:364**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `src_root = Path(__file__).parent / "src" / "saaaaaa"`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+- **examples/demo_dependency_lockdown.py:21**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
 - **examples/flux_demo.py:20**
   - __file__ usage detected - may break in packaged distributions
   - Code: `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))`
@@ -121,46 +165,26 @@
   - Code: `source_paths=[Path(__file__).parent.parent / "src" / "saaaaaa" / "flux"],`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-- **concurrency/concurrency.py:7**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **concurrency/__init__.py:14**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **executors/__init__.py:14**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **scoring/__init__.py:7**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-  ... and 39 more occurrences
+  ... and 50 more occurrences
 
 #### hardcoded_separator (98 occurrences)
 
-- **setup.py:46**
+- **setup.py:66**
   - Potential hardcoded path separator detected
   - Code: `url="https://github.com/kkkkknhh/SAAAAAA",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:48**
+- **setup.py:68**
   - Potential hardcoded path separator detected
   - Code: `"Bug Tracker": "https://github.com/kkkkknhh/SAAAAAA/issues",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:49**
+- **setup.py:69**
   - Potential hardcoded path separator detected
   - Code: `"Documentation": "https://github.com/kkkkknhh/SAAAAAA#readme",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:50**
+- **setup.py:70**
   - Potential hardcoded path separator detected
   - Code: `"Source Code": "https://github.com/kkkkknhh/SAAAAAA",`
   - Fix: Use Path.joinpath() or / operator
@@ -204,22 +228,22 @@
   - Code: `dll_path = os.path.join(path_dir, f"{libname}.dll")`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1177**
+- **src/saaaaaa/core/orchestrator/core.py:1276**
   - os.path usage detected
   - Code: `base_dir = os.path.dirname(__file__)`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1178**
+- **src/saaaaaa/core/orchestrator/core.py:1277**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(base_dir, path))`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1179**
+- **src/saaaaaa/core/orchestrator/core.py:1278**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(os.getcwd(), path))`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1181**
+- **src/saaaaaa/core/orchestrator/core.py:1280**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))`
   - Fix: Use pathlib.Path instead of os.path
@@ -237,11 +261,13 @@
 
 ### hardcoded_separator: 98 occurrences
 
-### file_usage: 49 occurrences
+### file_usage: 60 occurrences
 
-### absolute_path: 18 occurrences
+### absolute_path: 20 occurrences
 
 ### os_path_usage: 5 occurrences
+
+### sys_path_manipulation: 4 occurrences
 
 ### cwd_usage: 3 occurrences
 
