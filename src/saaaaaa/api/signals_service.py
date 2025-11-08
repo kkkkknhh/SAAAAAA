@@ -31,6 +31,7 @@ from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from saaaaaa.core.orchestrator.signals import SignalPack, PolicyArea
+from saaaaaa.core.orchestrator.factory import load_questionnaire_monolith
 
 
 logger = structlog.get_logger(__name__)
@@ -42,7 +43,10 @@ _signal_store: dict[str, SignalPack] = {}
 
 def load_signals_from_monolith(monolith_path: str | Path) -> dict[str, SignalPack]:
     """
-    Load signal packs from questionnaire monolith JSON.
+    Load signal packs from questionnaire monolith using factory (architecture-compliant).
+    
+    This function now uses factory.load_questionnaire_monolith() instead of direct
+    file I/O, ensuring compliance with the questionnaire access architecture.
     
     This extracts policy-aware patterns, indicators, and thresholds from the
     questionnaire monolith and converts them into SignalPack format.
@@ -66,8 +70,8 @@ def load_signals_from_monolith(monolith_path: str | Path) -> dict[str, SignalPac
         return _create_stub_signal_packs()
     
     try:
-        with open(monolith_path, "r", encoding="utf-8") as f:
-            monolith_data = json.load(f)
+        # Use factory for I/O (architecture-compliant)
+        monolith_data = load_questionnaire_monolith(monolith_path)
         
         # TODO: Implement extraction logic
         # For now, create stub packs

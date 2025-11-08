@@ -23,14 +23,19 @@ from validation.schema_validator import MonolithSchemaValidator, SchemaInitializ
 
 # Try to import orchestrator, but make it optional
 try:
+    from saaaaaa.core.orchestrator.factory import load_questionnaire_monolith
     from saaaaaa.core.orchestrator import get_questionnaire_provider
     HAS_ORCHESTRATOR = True
 except ImportError:
     HAS_ORCHESTRATOR = False
+    load_questionnaire_monolith = None
 
 def load_monolith(monolith_path: str = None):
     """
-    Load monolith from file or orchestrator.
+    Load monolith via factory (architecture-compliant).
+
+    This function now uses factory.load_questionnaire_monolith() instead of
+    direct file I/O, ensuring compliance with the questionnaire access architecture.
 
     Args:
         monolith_path: Optional path to monolith file
@@ -39,8 +44,12 @@ def load_monolith(monolith_path: str = None):
         dict: Monolith configuration
     """
     if monolith_path:
-        with open(monolith_path, encoding='utf-8') as f:
-            return json.load(f)
+        # Use factory for I/O-based loading (architecture-compliant)
+        if not HAS_ORCHESTRATOR or load_questionnaire_monolith is None:
+            raise ImportError(
+                "Orchestrator module not available. Cannot load questionnaire monolith."
+            )
+        return load_questionnaire_monolith(Path(monolith_path))
     else:
         # Use orchestrator provider if available
         if not HAS_ORCHESTRATOR:
