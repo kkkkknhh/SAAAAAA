@@ -1,4 +1,6 @@
-# Quick Start: Run Complete Analysis
+# F.A.R.F.A.N Quick Start: Run Complete Analysis
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## TL;DR - Fastest Way to Test
 

@@ -145,50 +145,60 @@ def list_calibration_files() -> dict[str, Path]:
     return files
 
 def load_calibration(name: str) -> dict[str, Any]:
-    """Load a single calibration YAML by name (stem or filename)."""
-    candidates = list_calibration_files()
-    normalized = name
-    normalized = normalized.removesuffix('.yaml').removesuffix('.yml')
+    """Load a single calibration YAML by name (stem or filename).
+    
+    DEPRECATED: External YAML calibration loading is deprecated.
+    Use internal calibration_registry.py for all calibrations.
+    This function is maintained only for backwards compatibility.
+    """
+    import warnings
+    warnings.warn(
+        "load_calibration() is deprecated. Use calibration_registry.py for internal calibrations.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    # Raise error to block usage - deprecated path
+    raise RuntimeError(
+        "Deprecated calibration path: External YAML calibration loading is no longer supported. "
+        "All calibrations must be defined in calibration_registry.py. "
+        f"Attempted to load: {name}"
+    )
 
-    path = candidates.get(normalized)
-    if path is None:
-        # Fall back to direct path resolution if caller supplied relative path
-        direct = Path(name)
-        if direct.suffix in {'.yaml', '.yml'} and direct.exists():
-            path = direct
-        else:
-            raise FileNotFoundError(f"Calibration '{name}' not found in {', '.join(str(p) for p in _CALIBRATION_SEARCH_PATHS)}")
-
-    return load_yaml(path)
 
 def load_all_calibrations(include_metadata: bool = True) -> dict[str, dict[str, Any]]:
     """Load all detected calibration YAML files.
+    
+    DEPRECATED: External YAML calibration loading is deprecated.
+    Use internal calibration_registry.py for all calibrations.
+    This function is maintained only for backwards compatibility.
 
     Args:
         include_metadata: When True, attach helper metadata (path, targets) to each calibration entry.
 
     Returns:
-        Dictionary keyed by file stem with parsed YAML contents.
+        Empty dictionary - YAML calibrations no longer supported
     """
-    calibrations: dict[str, dict[str, Any]] = {}
-    for name, path in list_calibration_files().items():
-        try:
-            payload = load_yaml(path)
-        except Exception as exc:  # pragma: no cover - defensive I/O
-            logger.warning("Failed to load calibration %s: %s", path, exc)
-            continue
-
-        if include_metadata:
-            payload = dict(payload)
-            payload.setdefault("__meta", {})
-            payload["__meta"].update({
-                "path": str(path),
-                "file_name": path.name,
-                "targets": payload.get("targets"),
-            })
-        calibrations[name] = payload
-
-    return calibrations
+    import warnings
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    warnings.warn(
+        "load_all_calibrations() is deprecated. Use calibration_registry.CALIBRATIONS for internal calibrations.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    logger.warning(
+        "DEPRECATED: load_all_calibrations() called. "
+        "External YAML calibration loading is no longer supported. "
+        "Use calibration_registry.CALIBRATIONS instead. "
+        "Returning empty dict."
+    )
+    
+    # Return empty dict - no YAML calibrations loaded
+    return {}
 
 # ============================================================================
 # TEXT FILE I/O OPERATIONS

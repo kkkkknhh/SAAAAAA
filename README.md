@@ -1,6 +1,23 @@
-# SAAAAAA: A Deterministic Pipeline for Multi-Method Policy Analysis with Complete Provenance Tracking
+# F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives
+
+## A Mechanistic Policy Pipeline for Colombian Development Plan Analysis
+
+**F.A.R.F.A.N** (Framework for Advanced Retrieval of Administrativa Narratives) is the official and canonical name for this digital-nodal-substantive policy tool. F.A.R.F.A.N is a *parte aguas* in the way Colombian municipal development plans are analyzed, interpreted, and discussed by policy communities and citizenship.
 
 **Sistema de Análisis Estratégico de Políticas Públicas con Arquitectura de Alta Fidelidad**
+
+---
+
+## ⚠️ PYTHON 3.12 COMPATIBILITY NOTICE
+
+This repository is configured for **Python 3.12** with **NumPy 1.26.4** (NOT a downgrade - this is a binary compatibility requirement).
+
+**Critical Information:**
+- **NumPy 2.0 breaks PyMC/PyTensor** - we use NumPy 1.26.4 (latest 1.x)
+- **PyMC must build from source** on Python 3.12 (no pre-built wheels)
+- **All dependencies are exactly pinned** in `constraints-complete.txt`
+
+**📖 See [PYTHON_312_COMPATIBILITY.md](PYTHON_312_COMPATIBILITY.md) for complete details**
 
 ---
 
@@ -8,22 +25,39 @@
 
 ### Quick Installation
 
-**For development (recommended):**
+**Option 1: Package Installation (Recommended)**
 ```bash
-make setup    # Installs requirements.txt + requirements-dev.txt + package in editable mode
+# Basic installation (core features)
+pip install -e .
+
+# With Bayesian analysis (PyMC, PyTensor, arviz)
+pip install -e ".[bayesian]"
+
+# With ML/DL support (torch, tensorflow)
+pip install -e ".[ml]"
+
+# Complete installation (all features)
+pip install -e ".[all]"
 ```
 
-**Or manually:**
+**Option 2: Pinned Requirements (Development/Production)**
 ```bash
-pip install -r requirements-dev.txt
+# Install with exact version pins from requirements.txt
+pip install -c constraints-complete.txt -r requirements.txt
+
+# Or use the automated script
+./install_fixed.sh
 ```
 
-**For production:**
-```bash
-pip install -r requirements-core.txt
-```
+**Why two installation methods?**
+- `pip install -e .` uses flexible version ranges - **recommended for most users**
+- `requirements.txt` has exact pins - for reproducible development/production environments
+- Heavy packages (PyMC, torch, tensorflow) are optional extras to avoid conflicts
 
-**Complete documentation:** See [DEPENDENCIES_QUICKSTART.md](DEPENDENCIES_QUICKSTART.md)
+**Complete documentation:** 
+- [INSTALLATION_SOLVED.md](INSTALLATION_SOLVED.md) - Installation guide and troubleshooting
+- [PYTHON_312_COMPATIBILITY.md](PYTHON_312_COMPATIBILITY.md) - Python 3.12 specific info
+- [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md) - Complete dependency documentation
 
 ### Dependency Management System
 
@@ -60,7 +94,44 @@ make help
 
 **For detailed dependency information:** See [DEPENDENCIES_AUDIT.md](DEPENDENCIES_AUDIT.md)
 
-SAAAAAA (Strategic Analysis Architecture for Administrative Accountability and Audit Assurance) es un sistema de análisis de políticas públicas que integra 584 métodos analíticos distribuidos en 7 productores especializados y 1 agregador, orientado al procesamiento determinista de planes de desarrollo municipales y departamentales en Colombia. La contribución técnica principal radica en: (1) un pipeline de ingesta con 9 fases deterministas que garantiza trazabilidad completa desde token hasta coordenadas de página (provenance_completeness = 1.0), (2) un sistema de señales transversales (cross-cut signals) con transporte memory:// y HTTP opcional, incluyendo circuit breakers para resiliencia, (3) un mecanismo de enrutamiento extendido (ArgRouter) con 30+ rutas especiales que elimina caídas silenciosas de parámetros, y (4) contratos explícitos de entrada/salida con validación en fronteras de proveedor. El sistema procesa 300 preguntas de evaluación organizadas en 6 dimensiones (D1-D6: Insumos, Actividades, Productos, Resultados, Impactos, Causalidad) sobre 10 áreas de política (P1-P10), generando reportes en tres niveles de agregación: MICRO (respuestas atómicas por pregunta, 150-300 palabras), MESO (análisis de clusters por dimensión-área), y MACRO (clasificación y recomendaciones). La arquitectura sigue el patrón "Chess Strategy": apertura paralela con 7 productores independientes, medio juego de triangulación multi-fuente, y final de síntesis doctoral. El alcance excluye procesamiento en tiempo real (modo batch únicamente), datos personales identificables (PII), y claims de precisión absoluta sin intervalos de confianza.
+---
+
+## 🔐 Cryptographic Proof of Execution
+
+Every successful pipeline execution now generates cryptographic proof files that allow anyone (even non-engineers) to verify that the execution was genuine and complete.
+
+### Generated Files
+
+When the pipeline completes successfully, two files are created:
+- **`proof.json`** - Execution metadata and cryptographic hashes
+- **`proof.hash`** - SHA-256 hash for tamper detection
+
+### Quick Verification
+
+```bash
+# View the proof
+cat data/output/cpp_plan_1/proof.json
+
+# Verify proof integrity (no dependencies required)
+python verify_proof.py data/output/cpp_plan_1
+```
+
+### What's Verified?
+
+- ✅ All phases completed successfully
+- ✅ No execution aborts
+- ✅ Complete question coverage
+- ✅ Code signatures (core.py, executors.py, factory.py)
+- ✅ Input PDF hash
+- ✅ All artifacts present and hashed
+
+**Proof is ONLY generated when ALL success conditions are met.**
+
+For detailed information, see [PROOF_VERIFICATION.md](PROOF_VERIFICATION.md)
+
+---
+
+**Technical Implementation:** F.A.R.F.A.N integra 584 métodos analíticos distribuidos en 7 productores especializados y 1 agregador, orientado al procesamiento determinista de planes de desarrollo municipales y departamentales en Colombia. La contribución técnica principal radica en: (1) un pipeline de ingesta con 9 fases deterministas que garantiza trazabilidad completa desde token hasta coordenadas de página (provenance_completeness = 1.0), (2) un sistema de señales transversales (cross-cut signals) con transporte memory:// y HTTP opcional, incluyendo circuit breakers para resiliencia, (3) un mecanismo de enrutamiento extendido (ArgRouter) con 30+ rutas especiales que elimina caídas silenciosas de parámetros, y (4) contratos explícitos de entrada/salida con validación en fronteras de proveedor. El sistema procesa 300 preguntas de evaluación organizadas en 6 dimensiones (D1-D6: Insumos, Actividades, Productos, Resultados, Impactos, Causalidad) sobre 10 áreas de política (P1-P10), generando reportes en tres niveles de agregación: MICRO (respuestas atómicas por pregunta, 150-300 palabras), MESO (análisis de clusters por dimensión-área), y MACRO (clasificación y recomendaciones). La arquitectura sigue el patrón "Chess Strategy": apertura paralela con 7 productores independientes, medio juego de triangulación multi-fuente, y final de síntesis doctoral. El alcance excluye procesamiento en tiempo real (modo batch únicamente), datos personales identificables (PII), y claims de precisión absoluta sin intervalos de confianza.
 
 ---
 
@@ -128,7 +199,13 @@ make audit-imports      # Check import health
 
 ## 1. Introducción
 
-### 1.1. Planteamiento del Problema
+### 1.1. What is F.A.R.F.A.N?
+
+F.A.R.F.A.N (Framework for Advanced Retrieval of Administrativa Narratives) is a mechanistic policy pipeline designed specifically for the rigorous, evidence-based, and comprehensive analysis of Colombian municipal development plans. Development plans are policy agenda-setting instruments that attribute political priority to policy issues for a medium-term period. F.A.R.F.A.N analyzes these plans through the lens of policy causal mechanisms, using the heuristic of the value chain—the formal schema for organizing policy interventions in Colombia.
+
+F.A.R.F.A.N delivers highly elaborate, sophisticated, and robust analysis that would traditionally take an incredible amount of time and result in lower quality when done manually. It provides policy communities and citizens the opportunity to have on hand a comprehensive understanding of development plans.
+
+### 1.2. Planteamiento del Problema
 
 La evaluación ex-ante de planes de desarrollo requiere procesamiento analítico de documentos semi-estructurados (100-300 páginas) bajo múltiples dimensiones: viabilidad financiera, coherencia lógica, causalidad explícita, trazabilidad presupuestal, alineación normativa, y evidencia empírica. Los enfoques tradicionales presentan tres deficiencias:
 
@@ -136,13 +213,13 @@ La evaluación ex-ante de planes de desarrollo requiere procesamiento analítico
 2. **Procesamiento No-Determinista**: Variaciones en chunking semántico y resolución de dependencias producen outputs no reproducibles.
 3. **Triangulación Manual**: Síntesis multi-método requiere integración manual, introduciendo sesgos de confirmación.
 
-### 1.2. Estado del Arte Mínimo
+### 1.3. Estado del Arte Mínimo
 
 Sistemas previos en evaluación de políticas (e.g., análisis ToC con DAG validation, scoring Bayesiano, extracción de KPIs) operan de forma aislada. Frameworks de NLP (spaCy, Transformers) proveen extracción pero no garantías de proveniencia. RAG (Retrieval-Augmented Generation) carece de contratos formales para composición multi-método. Import-linter y pycycle abordan higiene de dependencias pero no señales transversales runtime.
 
-### 1.3. Contribución y Enfoque
+### 1.4. Contribución y Enfoque
 
-SAAAAAA integra:
+F.A.R.F.A.N integra:
 
 1. **Determinismo de Pipeline**: 9 fases con postcondiciones verificables; fallo en cualquier fase → ABORT (no degradación gradual).
 2. **Señales Transversales**: Registro centralizado de patrones, indicadores, umbrales desde cuestionario monolito hacia todos los ejecutores, con transporte memory:// (in-process) o HTTP (con circuit breaker).
@@ -856,31 +933,33 @@ d2b5f4e  Add bandit security scan to CI
 ### Formato BibTeX
 
 ```bibtex
-@software{saaaaaa2025,
-  author       = {{SAAAAAA Development Team}},
-  title        = {{SAAAAAA: A Deterministic Pipeline for Multi-Method 
-                   Policy Analysis with Complete Provenance Tracking}},
+@software{farfan2025,
+  author       = {{F.A.R.F.A.N JUAN CAMILO RAVE RESTREPO}},
+  title        = {{F.A.R.F.A.N: Framework for Advanced Retrieval of 
+                   Administrativa Narratives - A Mechanistic Policy Pipeline 
+                   for Colombian Development Plan Analysis}},
   year         = {2025},
   version      = {0.1.0},
   publisher    = {GitHub},
   url          = {https://github.com/kkkkknhh/SAAAAAA},
   doi          = {10.5281/zenodo.XXXXXXX},  % Pending DOI registration
-  note         = {Strategic Analysis Architecture for Administrative 
-                  Accountability and Audit Assurance}
+  note         = {Digital-nodal-substantive policy tool for evidence-based 
+                  analysis of municipal development plans using value chain 
+                  heuristics and causal mechanisms}
 }
 ```
 
 ### Formato APA (7th Edition)
 
-SAAAAAA Development Team. (2025). *SAAAAAA: A Deterministic Pipeline for Multi-Method Policy Analysis with Complete Provenance Tracking* (Version 0.1.0) [Computer software]. GitHub. https://github.com/kkkkknhh/SAAAAAA
+F.A.R.F.A.N RAVE RESTREPO, JUAN CAMILO. (2025). *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis* (Version 0.1.0) [Computer software]. GitHub. https://github.com/kkkkknhh/SAAAAAA
 
 ### Formato Chicago (17th Edition)
 
-SAAAAAA Development Team. 2025. "SAAAAAA: A Deterministic Pipeline for Multi-Method Policy Analysis with Complete Provenance Tracking." Version 0.1.0. Computer software. GitHub. https://github.com/kkkkknhh/SAAAAAA.
+F.A.R.F.A.N RAVE RESTREPO, JUAN CAMILO. 2025. "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis." Version 0.1.0. Computer software. GitHub. https://github.com/kkkkknhh/SAAAAAA.
 
 ### Formato MLA (9th Edition)
 
-SAAAAAA Development Team. *SAAAAAA: A Deterministic Pipeline for Multi-Method Policy Analysis with Complete Provenance Tracking*. Version 0.1.0, GitHub, 2025, github.com/kkkkknhh/SAAAAAA.
+F.A.R.F.A.N. RAVE RESTREPO, JUAN CAMILO *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis*. Version 0.1.0, GitHub, 2025, github.com/kkkkknhh/SAAAAAA.
 
 ### DOI Registro (Pendiente)
 
@@ -892,7 +971,7 @@ Solicitamos DOI en Zenodo para persistencia de citación. Una vez asignado, actu
 
 **Tipo de Licencia**: MIT License (Pendiente de confirmación)
 
-**Copyright**: © 2025 SAAAAAA Development Team
+**Copyright**: © 2025 F.A.R.F.A.N Development Team
 
 **Permisos**:
 - ✅ Uso comercial

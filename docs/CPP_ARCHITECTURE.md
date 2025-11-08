@@ -1,4 +1,6 @@
-# Canon Policy Package (CPP) Ingestion System Architecture
+# F.A.R.F.A.N Canon Policy Package (CPP) Ingestion System Architecture
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 **Version:** CPP-2025.1  
 **Status:** ✅ Production Ready  
@@ -6,7 +8,7 @@
 
 ## Executive Summary
 
-The Canon Policy Package (CPP) Ingestion System is a deterministic document processing pipeline specifically designed for Development Plans (Planes de Desarrollo) from Colombian municipalities and departments. It transforms heterogeneous policy documents into structured, queryable packages with advanced chunking, complete provenance tracking, and cryptographic integrity verification.
+The Canon Policy Package (CPP) Ingestion System is the core deterministic document processing pipeline of F.A.R.F.A.N, specifically designed for Development Plans (Planes de Desarrollo) from Colombian municipalities and departments. It transforms heterogeneous policy documents into structured, queryable packages with advanced chunking, complete provenance tracking, and cryptographic integrity verification.
 
 ### Key Innovations
 

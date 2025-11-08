@@ -1,9 +1,14 @@
 """
-Setup configuration for SAAAAAA package.
+Setup configuration for F.A.R.F.A.N package.
 
-SAAAAAA is a Strategic Policy Analysis System that integrates 584 analytical
-methods across 300 policy evaluation questions using a chess-based orchestration
-strategy with 7 producer modules and 1 aggregator.
+F.A.R.F.A.N (Framework for Advanced Retrieval of Administrativa Narratives) is a 
+mechanistic policy pipeline for comprehensive analysis of Colombian municipal development 
+plans. It integrates 584 analytical methods across 300 policy evaluation questions using 
+a chess-based orchestration strategy with 7 producer modules and 1 aggregator.
+
+F.A.R.F.A.N is a digital-nodal-substantive policy tool that provides evidence-based, 
+rigorous analysis of development plans through the lens of policy causal mechanisms 
+and value chain heuristics.
 
 Installation:
     pip install -e .
@@ -25,16 +30,36 @@ if readme_file.exists():
     with open(readme_file, encoding="utf-8") as f:
         long_description = f.read()
 
-# Read requirements from requirements.txt
-requirements_file = Path(__file__).parent / "requirements.txt"
-install_requires = []
-if requirements_file.exists():
-    with open(requirements_file, encoding="utf-8") as f:
-        install_requires = [
-            line.strip()
-            for line in f
-            if line.strip() and not line.startswith("#")
-        ]
+# Use flexible dependency ranges instead of strict pins from requirements.txt
+# requirements.txt is for development/production pinning, not for package metadata
+install_requires = [
+    "numpy>=1.26.0,<2.0",
+    "pandas>=2.2.0",
+    "scipy>=1.14.0",
+    "scikit-learn>=1.6.0",
+    "networkx>=3.4.0",
+    "pydantic>=2.10.0",
+    "flask>=3.0.0",
+    "fastapi>=0.115.0",
+    "httpx>=0.28.0",
+    "pyyaml>=6.0.2",
+    "jsonschema>=4.23.0",
+    "langdetect>=1.0.9",
+    "blake3>=0.4.1",
+    "tenacity>=9.0.0",
+    "sse-starlette>=2.2.0",
+    "structlog>=24.4.0",
+    "opentelemetry-api>=1.29.0",
+    "opentelemetry-sdk>=1.29.0",
+    "huggingface-hub>=0.27.1",
+    "transformers>=4.48.0",
+    "sentence-transformers>=3.0.0",
+    "spacy>=3.8.0",
+    "nltk>=3.9.0",
+    "pdfplumber>=0.11.0",
+    "PyPDF2>=3.0.0",
+    "PyMuPDF>=1.25.0",
+]
 
 setup(
     name="saaaaaa",
@@ -51,7 +76,7 @@ setup(
     },
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    python_requires=">=3.10",
+    python_requires=">=3.10,<3.14",
     install_requires=install_requires,
     extras_require={
         "dev": [
@@ -66,6 +91,24 @@ setup(
         "docs": [
             "sphinx>=7.0.0",
             "sphinx-rtd-theme>=1.3.0",
+        ],
+        "ml": [
+            "torch>=2.0.0",
+            "tensorflow>=2.16.0",
+            "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
+        ],
+        "bayesian": [
+            "pytensor>=2.34.0,<2.35",
+            "pymc>=5.16.0",
+            "arviz>=0.20.0",
+        ],
+        "all": [
+            "torch>=2.0.0",
+            "tensorflow>=2.16.0",
+            "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
+            "pytensor>=2.34.0,<2.35",
+            "pymc>=5.16.2",
+            "arviz>=0.20.0",
         ],
     },
     entry_points={

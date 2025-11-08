@@ -324,7 +324,7 @@ def main() -> None:
 
     print("\n" + "="*70)
     print("Para más información, consultar:")
-    print("  - metodos_completos_nivel3.json (catálogo completo)")
+    print("  - catalogo_completo_canonico.json (catálogo completo)")
     print("  - CHEATSHEET_NIVEL3.txt (referencia rápida)")
     print("  - README_NIVEL3.md (análisis detallado)")
     print("="*70)

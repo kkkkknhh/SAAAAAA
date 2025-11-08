@@ -33,7 +33,7 @@ class TestChoreographer(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.monolith_provider = QUESTIONNAIRE_PROVIDER
-        self.catalog_path = Path("rules/METODOS/metodos_completos_nivel3.json")
+        self.catalog_path = Path("config/rules/METODOS/catalogo_completo_canonico.json")
 
         # Check if files exist
         self.files_exist = (
@@ -103,7 +103,7 @@ class TestChoreographer(unittest.TestCase):
 
         # Load config
         monolith = QUESTIONNAIRE_PROVIDER.load()
-        with open("rules/METODOS/metodos_completos_nivel3.json") as f:
+        with open("config/rules/METODOS/catalogo_completo_canonico.json") as f:
             method_catalog = json.load(f)
 
         # Test mapping for question 1

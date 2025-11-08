@@ -1,6 +1,8 @@
-# Import System - Paranoia Constructiva Edition
+# F.A.R.F.A.N Import System - Paranoia Constructiva Edition
 
-This document describes the deterministic, auditable, and portable import system for the SAAAAAA project.
+**Framework for Advanced Retrieval of Administrativa Narratives**
+
+This document describes the deterministic, auditable, and portable import system for the F.A.R.F.A.N project.
 
 ## 🎯 Design Principles
 

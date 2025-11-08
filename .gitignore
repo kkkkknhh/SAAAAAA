@@ -78,3 +78,14 @@ saaaaaa-deployment.txt
 
 # Generated CPP output files
 data/output/
+
+# Agent veracity workflow artifacts
+pre_execution_snapshot.json
+surveillance_log.json
+agent_stdout.log
+agent_stderr.log
+primary_universe.json
+shadow_universe.json
+primary_snapshot.json
+shadow_snapshot.json
+differential_report.json
