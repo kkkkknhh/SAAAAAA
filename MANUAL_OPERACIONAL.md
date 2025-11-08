@@ -1,4 +1,6 @@
-# MANUAL OPERACIONAL — SIN_CARRETA System
+# MANUAL OPERACIONAL — F.A.R.F.A.N System
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## Tabla de Contenidos
 
