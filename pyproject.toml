@@ -5,14 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "saaaaaa"
 version = "0.1.0"
-description = "Strategic Policy Analysis System - Doctoral-level integration of 584 methods across 300 questions"
+description = "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A mechanistic policy pipeline for Colombian development plan analysis"
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 authors = [
-    {name = "SAAAAAA Development Team"}
+    {name = "F.A.R.F.A.N Development Team"}
 ]
 keywords = [
     "policy analysis",
+    "development plans",
+    "Colombian policy",
+    "value chain analysis",
+    "causal mechanisms",
     "bayesian inference", 
     "causal inference",
     "natural language processing",

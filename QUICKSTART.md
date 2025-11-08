@@ -1,8 +1,10 @@
-# Quick Start Guide - Build Hygiene
+# F.A.R.F.A.N Quick Start Guide
 
-## TL;DR - For Developers
+## Framework for Advanced Retrieval of Administrativa Narratives
 
-This repository now follows strict build hygiene practices. Here's what you need to know:
+### TL;DR - For Developers
+
+F.A.R.F.A.N is a mechanistic policy pipeline for Colombian development plan analysis. This repository follows strict build hygiene practices. Here's what you need to know:
 
 ## Setup (First Time)
 

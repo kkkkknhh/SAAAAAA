@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Standalone proof verification script.
+"""F.A.R.F.A.N Standalone Proof Verification Script.
 
-This script can be run by anyone to verify a proof.json file without
-needing to understand the codebase or have the full environment set up.
+Framework for Advanced Retrieval of Administrativa Narratives
+
+This script can be run by anyone to verify a proof.json file from the 
+F.A.R.F.A.N pipeline without needing to understand the codebase or have 
+the full environment set up.
 
 Usage:
     python verify_proof.py <output_directory>
@@ -31,7 +34,7 @@ def verify_proof(output_dir: Path) -> int:
         0 if verification passes, 1 otherwise
     """
     print("=" * 80)
-    print("CRYPTOGRAPHIC PROOF VERIFICATION")
+    print("F.A.R.F.A.N CRYPTOGRAPHIC PROOF VERIFICATION")
     print("=" * 80)
     print()
     
