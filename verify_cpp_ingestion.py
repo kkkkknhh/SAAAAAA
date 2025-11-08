@@ -9,6 +9,8 @@ Usage:
     python verify_cpp_ingestion.py
 
 Note: Run this script after installing the package with: pip install -e .
+
+import sys
 """
 
 from pathlib import Path
