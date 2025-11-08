@@ -1,4 +1,15 @@
 # ===============================================================================
+# DEPRECATED - DO NOT USE
+# ===============================================================================
+# This YAML calibration file is DEPRECATED and no longer loaded by the pipeline.
+# All calibrations are now managed internally in:
+#   src/saaaaaa/core/orchestrator/calibration_registry.py
+#
+# Any references to this file will raise RuntimeError.
+# Migration date: 2025-11-07
+# ===============================================================================
+#
+# ===============================================================================
 # CALIBRACIÓN BAYESIANA ROBUSTA PARA MECANISMOS CAUSALES — V4.2 (MEGA-AMPLIADA)
 # Sistema CDAF — Beach & Pedersen Process Tracing
 # Fecha: 2025-11-03
