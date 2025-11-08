@@ -1,9 +1,14 @@
 """
-Setup configuration for SAAAAAA package.
+Setup configuration for F.A.R.F.A.N package.
 
-SAAAAAA is a Strategic Policy Analysis System that integrates 584 analytical
-methods across 300 policy evaluation questions using a chess-based orchestration
-strategy with 7 producer modules and 1 aggregator.
+F.A.R.F.A.N (Framework for Advanced Retrieval of Administrativa Narratives) is a 
+mechanistic policy pipeline for comprehensive analysis of Colombian municipal development 
+plans. It integrates 584 analytical methods across 300 policy evaluation questions using 
+a chess-based orchestration strategy with 7 producer modules and 1 aggregator.
+
+F.A.R.F.A.N is a digital-nodal-substantive policy tool that provides evidence-based, 
+rigorous analysis of development plans through the lens of policy causal mechanisms 
+and value chain heuristics.
 
 Installation:
     pip install -e .

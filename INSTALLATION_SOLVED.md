@@ -1,4 +1,6 @@
-# Installation Problem - SOLVED
+# F.A.R.F.A.N Installation Problem - SOLVED
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## Executive Summary
 
