@@ -10,7 +10,7 @@ from pathlib import Path
 def verify_implementation():
     """Verify complete implementation"""
     print("=" * 80)
-    print("BAYESIAN MULTI-LEVEL ANALYSIS SYSTEM - VERIFICATION")
+    print("QUESTIONNAIRE MONOLITH & BAYESIAN SYSTEM - VERIFICATION")
     print("=" * 80)
     print()
 
@@ -18,6 +18,41 @@ def verify_implementation():
         'passed': 0,
         'failed': 0
     }
+
+    # Check 0: Questionnaire monolith exists and is valid
+    print("[0] Questionnaire Monolith (data/questionnaire_monolith.json)")
+    monolith_path = Path('data/questionnaire_monolith.json')
+    if monolith_path.exists():
+        try:
+            import json
+            with open(monolith_path) as f:
+                monolith_data = json.load(f)
+            
+            # Validate structure
+            required_keys = ['version', 'blocks', 'schema_version']
+            missing = [k for k in required_keys if k not in monolith_data]
+            
+            if missing:
+                print(f"    ✗ Missing required keys: {missing}")
+                checks['failed'] += 1
+            else:
+                blocks = monolith_data.get('blocks', {})
+                micro_questions = blocks.get('micro_questions', [])
+                
+                # Compute hash
+                from src.saaaaaa.core.orchestrator.factory import compute_monolith_hash
+                monolith_hash = compute_monolith_hash(monolith_data)
+                
+                print(f"    ✓ Valid monolith: {len(micro_questions)} questions")
+                print(f"    ✓ Version: {monolith_data.get('version')}")
+                print(f"    ✓ Hash: {monolith_hash[:16]}...")
+                checks['passed'] += 1
+        except Exception as e:
+            print(f"    ✗ Error loading monolith: {e}")
+            checks['failed'] += 1
+    else:
+        print("    ✗ File not found")
+        checks['failed'] += 1
 
     # Check 1: Core module exists
     print("[1] Core Module (bayesian_multilevel_system.py)")
