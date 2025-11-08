@@ -19,28 +19,22 @@ The pipeline performs:
 """
 
 from pathlib import Path
-import sys
+import importlib.util
 
-# Add root to path for smart_policy_chunks_canonic_phase_one import
+# Load smart_policy_chunks_canonic_phase_one without sys.path manipulation
 _root = Path(__file__).parent.parent.parent.parent.parent
-if str(_root) not in sys.path:
-    sys.path.insert(0, str(_root))
+_module_path = _root / "smart_policy_chunks_canonic_phase_one.py"
 
-try:
-    from smart_policy_chunks_canonic_phase_one import StrategicChunkingSystem
-except ImportError:
-    # Fallback to relative import if needed
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "smart_policy_chunks",
-        _root / "smart_policy_chunks_canonic_phase_one.py"
-    )
-    if spec and spec.loader:
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        StrategicChunkingSystem = module.StrategicChunkingSystem
-    else:
-        raise ImportError("Cannot load smart_policy_chunks_canonic_phase_one module")
+spec = importlib.util.spec_from_file_location(
+    "smart_policy_chunks_canonic_phase_one",
+    _module_path
+)
+if spec and spec.loader:
+    _module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_module)
+    StrategicChunkingSystem = _module.StrategicChunkingSystem
+else:
+    raise ImportError(f"Cannot load smart_policy_chunks_canonic_phase_one from {_module_path}")
 
 
 class CPPIngestionPipeline:
