@@ -101,7 +101,9 @@ class RecommendationSet:
 
 class RecommendationEngine:
     """
-    Core recommendation engine that evaluates rules and generates recommendations
+    Core recommendation engine that evaluates rules and generates recommendations.
+    
+    Uses canonical notation for dimension and policy area validation.
     """
 
     def __init__(
@@ -125,6 +127,9 @@ class RecommendationEngine:
             'MESO': [],
             'MACRO': []
         }
+        
+        # Load canonical notation for validation
+        self._load_canonical_notation()
 
         # Load rules and schema
         self._load_schema()
@@ -136,6 +141,21 @@ class RecommendationEngine:
             f"{len(self.rules_by_level['MESO'])} MESO, "
             f"{len(self.rules_by_level['MACRO'])} MACRO rules"
         )
+    
+    def _load_canonical_notation(self) -> None:
+        """Load canonical notation for validation"""
+        try:
+            from saaaaaa.core.canonical_notation import get_all_dimensions, get_all_policy_areas
+            self.canonical_dimensions = get_all_dimensions()
+            self.canonical_policy_areas = get_all_policy_areas()
+            logger.info(
+                f"Canonical notation loaded: {len(self.canonical_dimensions)} dimensions, "
+                f"{len(self.canonical_policy_areas)} policy areas"
+            )
+        except Exception as e:
+            logger.warning(f"Could not load canonical notation: {e}")
+            self.canonical_dimensions = {}
+            self.canonical_policy_areas = {}
 
     def _load_schema(self) -> None:
         """Load JSON schema for rule validation"""

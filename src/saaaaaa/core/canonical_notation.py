@@ -8,7 +8,7 @@ use this module instead of hardcoding values.
 Architecture:
 - Dimensions (D1-D6) with codes, names, and labels
 - Policy Areas (PA01-PA10) with names and legacy IDs
-- Lazy loading from questionnaire_monolith.json
+- Lazy loading from questionnaire_monolith.json via factory
 - Type-safe access with enums
 
 Version: 1.0.0
@@ -16,19 +16,13 @@ Version: 1.0.0
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-# Canonical repository root
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_DEFAULT_MONOLITH_PATH = _REPO_ROOT / "data" / "questionnaire_monolith.json"
 
 
 @dataclass(frozen=True)
@@ -52,7 +46,7 @@ class PolicyAreaInfo:
 @lru_cache(maxsize=1)
 def _load_canonical_notation() -> dict[str, Any]:
     """
-    Load canonical notation from questionnaire_monolith.json.
+    Load canonical notation from questionnaire_monolith.json via factory.
     
     Cached to avoid repeated file I/O.
     
@@ -60,18 +54,18 @@ def _load_canonical_notation() -> dict[str, Any]:
         Canonical notation dictionary
         
     Raises:
-        FileNotFoundError: If questionnaire file doesn't exist
+        ImportError: If orchestrator factory is not available
         KeyError: If canonical_notation section is missing
     """
-    monolith_path = _DEFAULT_MONOLITH_PATH
+    try:
+        from saaaaaa.core.orchestrator.factory import load_questionnaire_monolith
+    except ImportError as e:
+        raise ImportError(
+            "Cannot import orchestrator factory. "
+            "Ensure saaaaaa.core.orchestrator is available."
+        ) from e
     
-    if not monolith_path.exists():
-        raise FileNotFoundError(
-            f"Questionnaire monolith not found at {monolith_path}"
-        )
-    
-    with open(monolith_path, encoding='utf-8') as f:
-        data = json.load(f)
+    data = load_questionnaire_monolith()
     
     if "canonical_notation" not in data:
         raise KeyError("canonical_notation section missing from questionnaire")
