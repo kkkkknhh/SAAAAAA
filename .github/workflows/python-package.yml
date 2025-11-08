@@ -37,6 +37,8 @@ jobs:
             pip install pydantic jsonschema numpy scipy pandas pyyaml
           }
         fi
+        # Install package in editable mode
+        pip install -e .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
