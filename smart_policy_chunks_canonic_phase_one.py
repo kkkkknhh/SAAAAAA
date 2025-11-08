@@ -16,16 +16,7 @@ from enum import Enum
 from scipy.spatial.distance import cosine
 from scipy.stats import entropy
 from scipy.signal import find_peaks
-import torch
-import torch.nn.functional as F
-from transformers import (
-    AutoTokenizer, 
-    AutoModel, 
-    pipeline,
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    AutoModelForSeq2SeqLM
-)
+# Note: torch and transformers imports removed - model lifecycle managed by canonical producers
 from datetime import datetime, timezone
 from collections import defaultdict, Counter
 import json
@@ -35,40 +26,26 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
-from sentence_transformers import SentenceTransformer, util
+# Note: SentenceTransformer import removed - embedding handled by canonical producers
 import warnings
 warnings.filterwarnings('ignore')
 
 # ============================================================================= 
-# CANONICAL MODULE INTEGRATION
+# CANONICAL MODULE INTEGRATION - SOTA Producer APIs
 # Import production-grade canonical components from saaaaaa.processing
-# These replace internal duplicate implementations
+# These replace internal duplicate implementations with frontier SOTA approaches
 # =============================================================================
-from saaaaaa.processing.embedding_policy import (
-    PolicyAnalysisEmbedder,
-    AdvancedSemanticChunker,
-    ChunkingConfig as EmbeddingChunkingConfig,
-    SemanticChunk as CanonicalSemanticChunk,
-    BayesianNumericalAnalyzer,
-    PolicyDomain,
-    AnalyticalDimension
-)
-from saaaaaa.processing.semantic_chunking_policy import (
-    SemanticProcessor,
-    SemanticChunkingProducer,
-    SemanticConfig,
-    BayesianEvidenceIntegrator,
-    CausalDimension as CanonicalCausalDimension,
-    PDMSection,
-    PolicyDocumentAnalyzer
-)
-from saaaaaa.processing.policy_processor import (
-    IndustrialPolicyProcessor,
-    BayesianEvidenceScorer,
-    PolicyTextProcessor,
-    CausalDimension as ProcessorCausalDimension,
-    CAUSAL_PATTERN_TAXONOMY
-)
+
+# Canonical producers (robust imports with fallback)
+try:
+    from saaaaaa.processing.embedding_policy import EmbeddingPolicyProducer
+    from saaaaaa.processing.semantic_chunking_policy import SemanticChunkingProducer
+    from saaaaaa.processing.policy_processor import create_policy_processor
+except ImportError:
+    # Fallback if script is run from repo root without package install
+    from src.saaaaaa.processing.embedding_policy import EmbeddingPolicyProducer
+    from src.saaaaaa.processing.semantic_chunking_policy import SemanticChunkingProducer
+    from src.saaaaaa.processing.policy_processor import create_policy_processor
 
 # Optional language detection for multi-language support
 try:
@@ -393,30 +370,40 @@ class ContextPreservationSystem:
         structural_analysis: Dict,
         global_topics: Dict
     ) -> List[Dict]:
-        """Preservar contexto estratégico con ventanas adaptativas"""
+        """
+        CANONICAL SOTA: Preserve strategic context using EmbeddingPolicyProducer.
+        
+        Derives breakpoints from canonical chunks with PDM structure awareness.
+        Replaces internal breakpoint logic with SOTA semantic chunking.
+        """
+        # Use canonical chunker with doc_id/title from structural analysis
+        chunks = self.parent._spc_embed.process_document(
+            text, 
+            {
+                "doc_id": structural_analysis.get("doc_id", "unknown"),
+                "title": structural_analysis.get("title", "N/A")
+            }
+        )
+        
+        # Build segments from canonical chunks (position is ordinal; approximate char spans)
         segments = []
-        
-        # Identificar puntos de ruptura semántica
-        breakpoints = self._identify_semantic_breakpoints(text, structural_analysis)
-        
-        # Generar segmentos con contexto preservado
-        for i in range(len(breakpoints) - 1):
-            start = breakpoints[i]
-            end = breakpoints[i + 1]
-            
-            # Expandir ventana para preservar contexto
-            context_start = max(0, start - self.parent.config.MIN_CONTEXT_WINDOW // 2)
-            context_end = min(len(text), end + self.parent.config.MIN_CONTEXT_WINDOW // 2)
+        offset = 0
+        for ch in chunks:
+            ch_text = self.parent._spc_embed.get_chunk_text(ch)
+            start = offset
+            end = start + len(ch_text)
+            offset = end
             
             segment = {
-                'text': text[start:end],
-                'context': text[context_start:context_end],
-                'position': (start, end),
-                'context_window': (context_start, context_end),
-                'semantic_coherence': self._calculate_segment_coherence(text[start:end]),
-                'topic_alignment': self._calculate_topic_alignment(text[start:end], global_topics)
+                "text": ch_text,
+                "context": ch_text,  # Can expand context if needed
+                "position": (start, end),
+                "context_window": (start, end),
+                "semantic_coherence": 0.0,  # Filled by coherence calculation if needed
+                "topic_alignment": self._calculate_topic_alignment(ch_text, global_topics),
+                "pdq_context": self.parent._spc_embed.get_chunk_pdq_context(ch),
+                "metadata": self.parent._spc_embed.get_chunk_metadata(ch),
             }
-            
             segments.append(segment)
         
         return segments
@@ -456,7 +443,10 @@ class ContextPreservationSystem:
     
     def _calculate_segment_coherence(self, segment_text: str) -> float:
         """
-        Calculate semantic coherence of a text segment.
+        CANONICAL SOTA: Calculate coherence using batch embeddings.
+        
+        Replaces per-sentence embedding calls with efficient batching.
+        No per-sentence model churn.
         
         Inputs:
             segment_text (str): Text segment to analyze
@@ -470,15 +460,15 @@ class ContextPreservationSystem:
         if len(sentences) < 2:
             return 0.5
         
-        # Calcular similitud entre oraciones consecutivas
-        similarities = []
-        for i in range(len(sentences) - 1):
-            emb1 = self.parent._generate_embedding(sentences[i], 'semantic')
-            emb2 = self.parent._generate_embedding(sentences[i+1], 'semantic')
-            sim = 1 - cosine(emb1, emb2)
-            similarities.append(sim)
+        # CANONICAL SOTA: Batch embeddings for efficiency
+        embs = self.parent._generate_embeddings_for_corpus(sentences, batch_size=64)
         
-        return np.mean(similarities) if similarities else 0.5
+        # Pairwise cosine similarity between consecutive sentences
+        sims = np.sum(embs[:-1] * embs[1:], axis=1) / (
+            np.linalg.norm(embs[:-1], axis=1) * np.linalg.norm(embs[1:], axis=1) + 1e-8
+        )
+        
+        return float(np.mean(sims)) if sims.size else 0.5
     
     def _calculate_topic_alignment(self, segment_text: str, global_topics: Dict) -> float:
         """Calcular alineación con tópicos globales"""
@@ -599,22 +589,36 @@ class CausalChainAnalyzer:
         return confidence
     
     def _calculate_chain_similarity(self, chain1: Dict, chain2: Dict) -> float:
-        """Calcular similitud entre cadenas causales"""
-        # Similitud textual
-        text1 = f"{chain1.get('antecedent', '')} {chain1.get('consequent', '')}"
-        text2 = f"{chain2.get('antecedent', '')} {chain2.get('consequent', '')}"
+        """
+        CANONICAL SOTA: Calculate chain similarity via batch embeddings.
         
-        emb1 = self.parent._generate_embedding(text1, 'semantic')
-        emb2 = self.parent._generate_embedding(text2, 'semantic')
+        Replaces individual embedding calls with efficient batching.
         
-        # Coseno entre los embeddings
-        sim = 1 - cosine(emb1, emb2)
+        Inputs:
+            chain1 (Dict): First causal chain
+            chain2 (Dict): Second causal chain
+        Outputs:
+            float: Similarity score between 0.0 and 1.0
+        """
+        # Build text representations of chains
+        texts = [
+            f"{chain1.get('antecedent', '')} {chain1.get('consequent', '')}",
+            f"{chain2.get('antecedent', '')} {chain2.get('consequent', '')}",
+        ]
+        
+        # CANONICAL SOTA: Batch embeddings for efficiency
+        embs = self.parent._generate_embeddings_for_corpus(texts, batch_size=2)
+        
+        # Cosine similarity
+        sim = float(np.dot(embs[0], embs[1]) / (
+            np.linalg.norm(embs[0]) * np.linalg.norm(embs[1]) + 1e-8
+        ))
         
         # Penalización por tipo de relación diferente
         if chain1.get('type') != chain2.get('type'):
             sim *= 0.9 
             
-        return sim #
+        return sim
 
 
 class KnowledgeGraphBuilder:
@@ -1247,30 +1251,25 @@ class StrategicChunkingSystem:
             None - initializes system state
         """
         self.config = SmartChunkConfig()
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger("SPC")  # Unified logger name
         
         # =====================================================================
-        # CANONICAL COMPONENTS - Replace internal implementations
+        # CANONICAL SOTA PRODUCERS - Frontier approach components
         # =====================================================================
         
-        # 1. Embedding & Semantic Analysis (from embedding_policy.py)
-        self._embedder = None  # Lazy-loaded PolicyAnalysisEmbedder
-        self._semantic_chunker = None  # Lazy-loaded AdvancedSemanticChunker
+        # Initialize SOTA canonical producers that replace internal implementations
+        # These provide BGE-M3 embeddings, cross-encoder reranking, Bayesian numerical eval
+        self._spc_embed = EmbeddingPolicyProducer()          # chunking + embeddings + search + Bayesian numeric eval
+        self._spc_sem = SemanticChunkingProducer()           # direct embed_text/embed_batch and chunk_document
+        self._spc_policy = create_policy_processor()         # canonical PDQ/dimension evidence
         
-        # 2. Semantic Processing (from semantic_chunking_policy.py)
-        self._semantic_processor = None  # Lazy-loaded SemanticProcessor
-        self._bayesian_integrator = None  # Lazy-loaded BayesianEvidenceIntegrator
-        
-        # 3. Policy Processing (from policy_processor.py)
-        self._policy_processor = None  # Lazy-loaded IndustrialPolicyProcessor
-        self._evidence_scorer = None  # Lazy-loaded BayesianEvidenceScorer
-        self._text_processor = None  # Lazy-loaded PolicyTextProcessor
+        self.logger.info("SOTA canonical producers initialized: EmbeddingPolicyProducer, SemanticChunkingProducer, PolicyProcessor")
         
         # =====================================================================
         # SPECIALIZED COMPONENTS - Keep (no canonical equivalent)
         # =====================================================================
         
-        # These provide unique Smart Policy Chunks functionality
+        # These provide unique Smart Policy Chunks innovations
         self._nlp = None  # SpaCy for NER (lazy-loaded)
         self._kg_builder = None  # NetworkX knowledge graph
         self._topic_modeler = None  # LDA topic modeling
@@ -1286,76 +1285,9 @@ class StrategicChunkingSystem:
         self.tfidf_vectorizer = TfidfVectorizer(stop_words=self._get_stopwords(), ngram_range=(1, 2), max_df=0.85, min_df=2)
         self.chunks_for_tfidf = []
         self.corpus_embeddings = None
-        
-        # Internal memoization cache for backward compatibility
-        self._embedding_cache: Dict[Tuple[str, str], bytes] = {}
     
     # =========================================================================
-    # CANONICAL COMPONENT PROPERTIES - Lazy-loaded adapters
-    # =========================================================================
-    
-    @property
-    def embedder(self):
-        """Lazy-load PolicyAnalysisEmbedder (canonical embedding component)"""
-        if self._embedder is None:
-            self.logger.info("Loading canonical PolicyAnalysisEmbedder...")
-            self._embedder = PolicyAnalysisEmbedder(
-                embedding_model="intfloat/multilingual-e5-large"
-            )
-        return self._embedder
-    
-    @property
-    def semantic_processor(self):
-        """Lazy-load SemanticProcessor (canonical semantic processing)"""
-        if self._semantic_processor is None:
-            self.logger.info("Loading canonical SemanticProcessor with BGE-M3...")
-            self._semantic_processor = SemanticProcessor(
-                config=SemanticConfig()
-            )
-        return self._semantic_processor
-    
-    @property
-    def policy_processor(self):
-        """Lazy-load IndustrialPolicyProcessor (canonical causal extraction)"""
-        if self._policy_processor is None:
-            self.logger.info("Loading canonical IndustrialPolicyProcessor...")
-            self._policy_processor = IndustrialPolicyProcessor()
-        return self._policy_processor
-    
-    @property
-    def evidence_scorer(self):
-        """Lazy-load BayesianEvidenceScorer (canonical probabilistic scoring)"""
-        if self._evidence_scorer is None:
-            self.logger.info("Loading canonical BayesianEvidenceScorer...")
-            self._evidence_scorer = BayesianEvidenceScorer()
-        return self._evidence_scorer
-    
-    @property
-    def text_processor(self):
-        """Lazy-load PolicyTextProcessor (canonical text sanitization)"""
-        if self._text_processor is None:
-            self.logger.info("Loading canonical PolicyTextProcessor...")
-            self._text_processor = PolicyTextProcessor()
-        return self._text_processor
-    
-    # =========================================================================
-    # BACKWARD COMPATIBILITY PROPERTIES - Deprecated, use canonical components
-    # =========================================================================
-    
-    @property
-    def semantic_model(self):
-        """DEPRECATED: Use self.embedder instead. Kept for backward compatibility."""
-        self.logger.warning("semantic_model is deprecated, use self.embedder")
-        return self.embedder
-    
-    @property
-    def semantic_model_fallback(self):
-        """DEPRECATED: Use self.embedder instead. Kept for backward compatibility."""
-        self.logger.warning("semantic_model_fallback is deprecated, use self.embedder")
-        return self.embedder
-    
-    # =========================================================================
-    # SPECIALIZED COMPONENT PROPERTIES - No canonical equivalent, keep as-is
+    # SPECIALIZED COMPONENT PROPERTIES - Innovation layers (no canonical equivalent)
     # =========================================================================
     
     @property
@@ -1490,47 +1422,80 @@ class StrategicChunkingSystem:
         # Una lista de stopwords más completa se usaría en producción
         return ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o', 'de', 'a', 'en', 'por', 'con', 'para', 'del', 'al', 'que', 'se', 'es', 'son', 'han', 'como', 'más', 'pero', 'no', 'su', 'sus', 'ha', 'lo', 'e', 'u', 'ni', 'sin', 'mi', 'tu', 'si', 'cuando', 'este', 'esta', 'estos', 'estas', 'esos', 'esas', 'aquel', 'aquella']
     
-    def _generate_embedding(self, text: str, model_type: str = 'semantic') -> np.ndarray:
+    # =========================================================================
+    # CANONICAL SOTA METHODS - Replace manual implementations
+    # =========================================================================
+    
+    def semantic_search_with_rerank(
+        self, 
+        query: str, 
+        chunks: list[dict], 
+        pdq_filter: dict | None = None, 
+        top_k: int = 10
+    ) -> list[tuple[dict, float]]:
         """
-        CANONICAL ADAPTER: Generate embedding using PolicyAnalysisEmbedder.
+        CANONICAL SOTA: Semantic search with cross-encoder reranking.
         
-        This method now delegates to the canonical embedding component,
-        maintaining backward compatibility with existing code.
+        Replaces manual cosine_similarity ranking with SOTA reranker.
+        
+        Inputs:
+            query (str): Search query
+            chunks (list[dict]): Chunks to search
+            pdq_filter (dict | None): Optional PDQ filter
+            top_k (int): Number of results to return
+        Outputs:
+            list[tuple[dict, float]]: List of (chunk, score) tuples
+        """
+        results = self._spc_embed.semantic_search(
+            query, chunks, pdq_filter=pdq_filter, use_reranking=True
+        )
+        return results[:top_k]
+    
+    def _attach_canonical_evidence(self, full_text: str) -> dict[str, Any]:
+        """
+        CANONICAL SOTA: Attach canonical PDQ/dimension evidence.
+        
+        Uses canonical policy patterns instead of ad-hoc heuristics.
+        
+        Inputs:
+            full_text (str): Full document text
+        Outputs:
+            dict[str, Any]: Canonical evidence analysis
+        """
+        return self._spc_policy.analyze_text(full_text)
+    
+    def evaluate_numerical_consistency(
+        self, 
+        chunks: list[dict], 
+        pdq_context: dict
+    ) -> dict[str, Any]:
+        """
+        CANONICAL SOTA: Evaluate numerical consistency with Bayesian analysis.
+        
+        Uses canonical extractor + Bayesian analyzer for probabilistic scoring.
+        
+        Inputs:
+            chunks (list[dict]): Chunks to evaluate
+            pdq_context (dict): PDQ context for evaluation
+        Outputs:
+            dict[str, Any]: Numerical consistency evaluation
+        """
+        return self._spc_embed.evaluate_numerical_consistency(chunks, pdq_context)
+    
+    def _generate_embedding(self, text: str, model_type: str = "semantic") -> np.ndarray:
+        """
+        CANONICAL SOTA: Generate embedding using SemanticChunkingProducer.
+        
+        Replaces internal embedding with SOTA multilingual BGE-M3 model.
+        model_type kept for compatibility; canonical pipeline is multilingual.
         
         Inputs:
             text (str): Input text to embed
-            model_type (str): Type of model (ignored, canonical uses multilingual)
+            model_type (str): Ignored, canonical uses SOTA multilingual
         Outputs:
-            np.ndarray: Embedding vector from canonical component
+            np.ndarray: Embedding vector from canonical SOTA component
         """
-        # Use immutable tuple as cache key for backward compatibility
-        cache_key = (text, model_type)
-        
-        # Check cache and return deep copy to avoid mutable reference issues
-        if cache_key in self._embedding_cache:
-            cached_bytes = self._embedding_cache[cache_key]
-            return np.frombuffer(cached_bytes, dtype=np.float32).copy()
-        
-        try:
-            # CANONICAL INTEGRATION: Use PolicyAnalysisEmbedder
-            embedding = self.embedder.embed_policy_text(text)
-            
-            # Store as immutable bytes
-            embedding = embedding.astype(np.float32)
-            self._embedding_cache[cache_key] = embedding.tobytes()
-            
-            # Limit cache size
-            if len(self._embedding_cache) > 2000:
-                # Remove oldest entries (simple FIFO)
-                keys_to_remove = list(self._embedding_cache.keys())[:200]
-                for key in keys_to_remove:
-                    del self._embedding_cache[key]
-            
-            return embedding
-        except Exception as e:
-            self.logger.error(f"Error generando embedding via canonical component: {e}")
-            # Fallback a un vector de ceros
-            return np.zeros(1024, dtype=np.float32) 
+        return self._spc_sem.embed_text(text).astype(np.float32) 
 
     def _create_smart_policy_chunk(
         self,
@@ -2734,24 +2699,25 @@ class StrategicChunkingSystem:
             
         return chunks
 
-    def _generate_embeddings_for_corpus(self, texts: List[str], batch_size: int = 128) -> np.ndarray:
+    def _generate_embeddings_for_corpus(self, texts: List[str], batch_size: int = 64) -> np.ndarray:
         """
-        CANONICAL ADAPTER: Generate corpus embeddings using PolicyAnalysisEmbedder.
+        CANONICAL SOTA: Batch embeddings using SemanticChunkingProducer.
         
-        This method now delegates to the canonical embedding component for
-        efficient batch processing with proper batching.
+        SemanticChunkingProducer handles batching internally with BGE-M3.
+        batch_size kept for signature compatibility.
         
         Inputs:
             texts (List[str]): List of text strings to embed
-            batch_size (int): Batch size for encoding (default: 128)
+            batch_size (int): Batch size hint (default: 64)
         Outputs:
             np.ndarray: Array of embeddings, shape (n_texts, embedding_dim)
         """
         if not texts:
             return np.array([])
         
-        # CANONICAL INTEGRATION: Use PolicyAnalysisEmbedder batch method
-        return self.embedder.batch_embed_texts(texts, batch_size=batch_size)
+        # CANONICAL SOTA: Use SemanticChunkingProducer batch embedding
+        embs = self._spc_sem.embed_batch(texts)
+        return np.vstack(embs).astype(np.float32)
 
     def _validate_strategic_integrity(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
         """Validar que los chunks cumplan con umbrales mínimos de calidad y completitud"""
