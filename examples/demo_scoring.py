@@ -3,21 +3,32 @@
 Demo script for the scoring module.
 
 Shows how to use TYPE_A through TYPE_F scoring modalities.
+
+REQUIREMENTS:
+    Install the package first: pip install -e .
+    Or set PYTHONPATH: export PYTHONPATH=/path/to/SAAAAAA/src
 """
 
-import sys
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Verify package is available
+try:
+    from saaaaaa.analysis.scoring.scoring import apply_scoring
+except ImportError as e:
+    print("❌ ERROR: Cannot import saaaaaa package")
+    print(f"   {e}")
+    print("\n📦 Please install the package first:")
+    print("   pip install -e .")
+    print("\nOr set PYTHONPATH:")
+    print("   export PYTHONPATH=/path/to/SAAAAAA/src")
+    exit(1)
 
-from scoring.scoring import apply_scoring, ScoringModality
-
+print("✓ Package imported successfully\n")
 
 def demo_type_a():
     """Demonstrate TYPE_A (Bayesian) scoring."""
     print("\n=== TYPE_A: Bayesian Numerical Claims ===")
-    
+
     evidence = {
         "elements": [
             "Baseline gap: 15% unemployment",
@@ -27,7 +38,7 @@ def demo_type_a():
         ],
         "confidence": 0.85
     }
-    
+
     result = apply_scoring(
         question_global=1,
         base_slot="PA01-DIM01-Q001",
@@ -36,17 +47,16 @@ def demo_type_a():
         evidence=evidence,
         modality="TYPE_A"
     )
-    
+
     print(f"Score: {result.score:.2f} / 4.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
     print(f"Evidence Hash: {result.evidence_hash[:16]}...")
 
-
 def demo_type_b():
     """Demonstrate TYPE_B (DAG) scoring."""
     print("\n=== TYPE_B: DAG Causal Chains ===")
-    
+
     evidence = {
         "elements": [
             "Input: Training programs → Activity: Skill development",
@@ -55,7 +65,7 @@ def demo_type_b():
         ],
         "completeness": 0.92
     }
-    
+
     result = apply_scoring(
         question_global=2,
         base_slot="PA01-DIM06-Q001",
@@ -64,16 +74,15 @@ def demo_type_b():
         evidence=evidence,
         modality="TYPE_B"
     )
-    
+
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_c():
     """Demonstrate TYPE_C (Coherence) scoring."""
     print("\n=== TYPE_C: Coherence Analysis ===")
-    
+
     evidence = {
         "elements": [
             "Policy states budget of $5M",
@@ -81,7 +90,7 @@ def demo_type_c():
         ],
         "coherence_score": 0.95
     }
-    
+
     result = apply_scoring(
         question_global=3,
         base_slot="PA02-DIM02-Q001",
@@ -90,16 +99,15 @@ def demo_type_c():
         evidence=evidence,
         modality="TYPE_C"
     )
-    
+
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_d():
     """Demonstrate TYPE_D (Pattern) scoring."""
     print("\n=== TYPE_D: Pattern Matching ===")
-    
+
     evidence = {
         "elements": [
             "Baseline: unemployment at 12% (matched)",
@@ -108,7 +116,7 @@ def demo_type_d():
         ],
         "pattern_matches": 2
     }
-    
+
     result = apply_scoring(
         question_global=4,
         base_slot="PA03-DIM01-Q001",
@@ -117,16 +125,15 @@ def demo_type_d():
         evidence=evidence,
         modality="TYPE_D"
     )
-    
+
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_e():
     """Demonstrate TYPE_E (Financial) scoring."""
     print("\n=== TYPE_E: Budget Traceability ===")
-    
+
     evidence = {
         "elements": [
             "Budget line item: Training - $1.2M",
@@ -134,7 +141,7 @@ def demo_type_e():
         ],
         "traceability": True
     }
-    
+
     result = apply_scoring(
         question_global=5,
         base_slot="PA04-DIM03-Q001",
@@ -143,16 +150,15 @@ def demo_type_e():
         evidence=evidence,
         modality="TYPE_E"
     )
-    
+
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_type_f():
     """Demonstrate TYPE_F (Beach) scoring."""
     print("\n=== TYPE_F: Mechanism Inference ===")
-    
+
     evidence = {
         "elements": [
             "Mechanism: Training increases skills",
@@ -160,7 +166,7 @@ def demo_type_f():
         ],
         "plausibility": 0.88
     }
-    
+
     result = apply_scoring(
         question_global=6,
         base_slot="PA05-DIM06-Q001",
@@ -169,21 +175,20 @@ def demo_type_f():
         evidence=evidence,
         modality="TYPE_F"
     )
-    
+
     print(f"Score: {result.score:.2f} / 3.0")
     print(f"Normalized: {result.normalized_score:.2f}")
     print(f"Quality: {result.quality_level}")
 
-
 def demo_error_handling():
     """Demonstrate error handling."""
     print("\n=== Error Handling Demo ===")
-    
+
     # Missing required key
     print("\n1. Missing required evidence key:")
     try:
         evidence = {"elements": [1, 2, 3]}  # Missing confidence
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",
@@ -193,12 +198,12 @@ def demo_error_handling():
         )
     except Exception as e:
         print(f"   ✗ Error caught: {type(e).__name__}: {e}")
-    
+
     # Invalid modality
     print("\n2. Invalid modality:")
     try:
         evidence = {"elements": [1, 2, 3], "confidence": 0.9}
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",
@@ -208,12 +213,12 @@ def demo_error_handling():
         )
     except Exception as e:
         print(f"   ✗ Error caught: {type(e).__name__}: {e}")
-    
+
     # Invalid confidence value
     print("\n3. Invalid confidence value:")
     try:
         evidence = {"elements": [1, 2, 3], "confidence": 1.5}  # > 1.0
-        result = apply_scoring(
+        apply_scoring(
             question_global=1,
             base_slot="PA01-DIM01-Q001",
             policy_area="PA01",
@@ -224,13 +229,12 @@ def demo_error_handling():
     except Exception as e:
         print(f"   ✗ Error caught: {type(e).__name__}: {e}")
 
-
 def main():
     """Run all demos."""
     print("=" * 60)
     print("SCORING MODULE DEMO")
     print("=" * 60)
-    
+
     demo_type_a()
     demo_type_b()
     demo_type_c()
@@ -238,11 +242,10 @@ def main():
     demo_type_e()
     demo_type_f()
     demo_error_handling()
-    
+
     print("\n" + "=" * 60)
     print("Demo complete!")
     print("=" * 60)
-
 
 if __name__ == "__main__":
     main()

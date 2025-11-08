@@ -11,6 +11,7 @@ jobs:
   boundary-check:
     name: Check Core Module Boundaries
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout repository
@@ -20,11 +21,13 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pydantic pytest pytest-cov
+        pip install -e .
     
     - name: Scan for __main__ blocks in core modules
       run: |
@@ -103,6 +106,7 @@ jobs:
   contract-runtime-tests:
     name: Runtime Contract Validation Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout repository
@@ -112,6 +116,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -144,6 +149,7 @@ jobs:
   boundary-enforcement-tests:
     name: Run Boundary Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout repository
@@ -153,6 +159,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+        cache: 'pip'
     
     - name: Install test dependencies
       run: |

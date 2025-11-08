@@ -13,18 +13,17 @@ New code should import directly from saaaaaa.core.orchestrator, not from this
 compatibility layer.
 """
 from __future__ import annotations
+
+import contextlib
+import sys
 from importlib import import_module
 from pathlib import Path
-import sys
-from typing import Any, Dict
+from typing import Any
 
 # Add src to path for development environments
 _SRC_PATH = Path(__file__).resolve().parent.parent / "src"
 if _SRC_PATH.exists():  # pragma: no cover - executed at import time
     src_str = str(_SRC_PATH)
-    if src_str not in sys.path:
-        sys.path.insert(0, src_str)
-
 # Import from unified orchestrator package (if available) or fall back to submodules
 try:
     from saaaaaa.core.orchestrator import (
@@ -52,6 +51,11 @@ try:
     )
 except ImportError:
     # Fall back to granular imports
+    from saaaaaa.core.orchestrator.contract_loader import (
+        JSONContractLoader,
+        LoadError,
+        LoadResult,
+    )
     from saaaaaa.core.orchestrator.core import (
         AbortRequested,
         AbortSignal,
@@ -72,18 +76,16 @@ except ImportError:
         ProvenanceNode,
         get_global_registry,
     )
-    from saaaaaa.core.orchestrator.contract_loader import (
-        JSONContractLoader,
-        LoadError,
-        LoadResult,
-    )
+
     from .provider import get_questionnaire_payload, get_questionnaire_provider
 
-from .factory import build_processor
+from .factory import build_processor  # noqa: E402
 
-# Import submodules for backwards compatibility
+# Import submodules for backwards compatibility (lazy loading to avoid dependency issues)
 core = import_module("saaaaaa.core.orchestrator.core")
-executors = import_module("saaaaaa.core.orchestrator.executors")
+# Note: executors module requires numpy and other heavy dependencies
+# Import it lazily only when needed via __getattr__
+_executors = None
 
 __all__ = [
     "AbortRequested",
@@ -112,22 +114,31 @@ __all__ = [
     "get_questionnaire_provider",
 ]
 
-# Register submodule aliases for backwards compatibility
-_SUBMODULE_ALIASES: Dict[str, str] = {
+# Register submodule aliases for backwards compatibility (lazy loading)
+_SUBMODULE_ALIASES: dict[str, str] = {
     "orchestrator.arg_router": "saaaaaa.core.orchestrator.arg_router",
     "orchestrator.class_registry": "saaaaaa.core.orchestrator.class_registry",
     "orchestrator.contract_loader": "saaaaaa.core.orchestrator.contract_loader",
     "orchestrator.core": "saaaaaa.core.orchestrator.core",
     "orchestrator.evidence_registry": "saaaaaa.core.orchestrator.evidence_registry",
-    "orchestrator.executors": "saaaaaa.core.orchestrator.executors",
+    # "orchestrator.executors": "saaaaaa.core.orchestrator.executors",  # Lazy load via __getattr__
     "orchestrator.factory": "saaaaaa.core.orchestrator.factory",
 }
 
 for alias, target in _SUBMODULE_ALIASES.items():
     if alias not in sys.modules:
-        sys.modules[alias] = import_module(target)
+        with contextlib.suppress(ImportError):
+            # Skip modules that have missing dependencies
+            sys.modules[alias] = import_module(target)
 
+def __getattr__(name: str) -> Any:  # noqa: ANN401  # pragma: no cover - delegation helper
+    """Delegate unknown attributes to the core module or lazily load executors."""
+    global _executors
 
-def __getattr__(name: str) -> Any:  # pragma: no cover - delegation helper
-    """Delegate unknown attributes to the core module."""
+    # Lazily import executors module only when accessed
+    if name == "executors":
+        if _executors is None:
+            _executors = import_module("saaaaaa.core.orchestrator.executors")
+        return _executors
+
     return getattr(core, name)

@@ -35,6 +35,11 @@ else
 fi
 
 echo ""
+echo "Installing saaaaaa package in editable mode..."
+pip install -e .
+echo "✓ Package installed"
+
+echo ""
 
 # Step 2: Install SpaCy models
 echo "======================================================================"

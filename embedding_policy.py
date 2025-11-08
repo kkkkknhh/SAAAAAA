@@ -1,5 +1,8 @@
 """Compatibility wrapper for embedding policy analyzers."""
-from saaaaaa.processing.embedding_policy import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.processing.embedding_policy import (  # noqa: F401, E402
     PolicyAnalysisEmbedder,
 )
 

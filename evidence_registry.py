@@ -1,5 +1,8 @@
 """Compatibility wrapper for orchestrator evidence registry."""
-from saaaaaa.core.orchestrator.evidence_registry import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.core.orchestrator.evidence_registry import (  # noqa: F401, E402
     EvidenceRecord,
     EvidenceRegistry,
     ProvenanceDAG,

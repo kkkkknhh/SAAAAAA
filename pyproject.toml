@@ -5,15 +5,107 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "saaaaaa"
 version = "0.1.0"
-description = "Municipal policy analysis system with strict type safety"
-requires-python = ">=3.10"
-dependencies = [
-    "hypothesis>=6",
-    "pandas>=2",
-    "pydantic>=1.10",
-    "scipy>=1.11",
-    "scikit-learn>=1.4",
+description = "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A mechanistic policy pipeline for Colombian development plan analysis"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+authors = [
+    {name = "F.A.R.F.A.N Development Team"}
 ]
+keywords = [
+    "policy analysis",
+    "development plans",
+    "Colombian policy",
+    "value chain analysis",
+    "causal mechanisms",
+    "bayesian inference", 
+    "causal inference",
+    "natural language processing",
+    "machine learning",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
+
+# NOTE: Full dependency list in requirements.txt (80+ packages)
+# Install with: pip install -r requirements.txt
+# Core dependencies listed here for metadata purposes only
+# Heavy ML/Bayesian packages (torch, tensorflow, pymc) are in optional extras
+dependencies = [
+    "numpy>=1.26.0,<2.0",
+    "pandas>=2.2.0",
+    "scipy>=1.14.0",
+    "scikit-learn>=1.6.0",
+    "transformers>=4.48.0",
+    "sentence-transformers>=3.0.0",
+    "spacy>=3.8.0",
+    "networkx>=3.4.0",
+    "nltk>=3.9.0",
+    "pdfplumber>=0.11.0",
+    "PyPDF2>=3.0.0",
+    "PyMuPDF>=1.25.0",
+    "flask>=3.0.0",
+    "fastapi>=0.115.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.10.0",
+    "pyyaml>=6.0.2",
+    "jsonschema>=4.23.0",
+    "langdetect>=1.0.9",
+    "blake3>=0.4.1",
+    "tenacity>=9.0.0",
+    "sse-starlette>=2.2.0",
+    "structlog>=24.4.0",
+    "opentelemetry-api>=1.29.0",
+    "opentelemetry-sdk>=1.29.0",
+    "huggingface-hub>=0.27.0",
+]
+
+[project.optional-dependencies]
+# Development tools
+dev = [
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
+    "black>=24.3.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "hypothesis>=6.92.2",
+]
+
+# Machine learning and deep learning (very heavy dependencies)
+ml = [
+    "torch>=2.0.0",
+    "tensorflow>=2.16.0",
+    "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
+]
+
+# Bayesian analysis (requires NumPy <2.0 for binary compatibility)
+bayesian = [
+    "pytensor>=2.34.0,<2.35",
+    "pymc>=5.16.0",
+    "arviz>=0.20.0",
+]
+
+# Complete installation (all optional dependencies)
+all = [
+    "torch>=2.0.0",
+    "tensorflow>=2.16.0",
+    "tf-keras>=2.16.0",  # Required for transformers compatibility with TensorFlow 2.16+
+    "pytensor>=2.34.0,<2.35",
+    "pymc>=5.16.0",
+    "arviz>=0.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kkkkknhh/SAAAAAA"
+Documentation = "https://github.com/kkkkknhh/SAAAAAA#readme"
+Repository = "https://github.com/kkkkknhh/SAAAAAA"
+Issues = "https://github.com/kkkkknhh/SAAAAAA/issues"
+
+[project.scripts]
+saaaaaa = "saaaaaa.core.orchestrator.ORCHESTRATOR_MONILITH:main"
+saaaaaa-api = "saaaaaa.api.api_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -21,7 +113,7 @@ where = ["src"]
 [tool.pyright]
 # Strict type checking configuration
 typeCheckingMode = "strict"
-pythonVersion = "3.11"
+pythonVersion = "3.10"
 pythonPlatform = "Linux"
 
 # Report missing imports
@@ -76,7 +168,7 @@ exclude = [
 
 [tool.mypy]
 # Strict type checking for mypy
-python_version = "3.11"
+python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -126,7 +218,7 @@ ignore_missing_imports = true
 [tool.ruff]
 # Linting rules
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
@@ -162,9 +254,17 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --strict-markers --tb=short"
 markers = [
+    "asyncio: Asyncio tests",
     "contract: Contract tests for API boundaries",
     "property: Property-based tests with Hypothesis",
     "integration: Integration tests",
+    "updated: Tests actualizados y compatibles con arquitectura actual",
+    "outdated: Tests obsoletos - no ejecutar",
+    "core: Tests críticos del núcleo",
+    "validation: Tests de validación y calidad",
+    "gold: Tests de estándares de oro",
+    "operational: Tests operacionales",
+    "regression: Tests de regresión",
 ]
 
 [tool.coverage.run]

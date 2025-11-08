@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Dict, Mapping, Type
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 class ClassRegistryError(RuntimeError):
     """Raised when one or more classes cannot be loaded."""
-
 
 # Map of orchestrator-facing class names to their import paths.
 _CLASS_PATHS: Mapping[str, str] = {
@@ -36,11 +37,16 @@ _CLASS_PATHS: Mapping[str, str] = {
     "AdvancedDAGValidator": "saaaaaa.analysis.teoria_cambio.AdvancedDAGValidator",
 }
 
-
-def build_class_registry() -> Dict[str, Type[object]]:
-    """Return a mapping of class names to loaded types, validating availability."""
-    resolved: Dict[str, Type[object]] = {}
-    missing: Dict[str, str] = {}
+def build_class_registry() -> dict[str, type[object]]:
+    """Return a mapping of class names to loaded types, validating availability.
+    
+    Classes that depend on optional dependencies (e.g., torch) are skipped
+    gracefully if those dependencies are not available.
+    """
+    resolved: dict[str, type[object]] = {}
+    missing: dict[str, str] = {}
+    skipped_optional: dict[str, str] = {}
+    
     for name, path in _CLASS_PATHS.items():
         module_name, _, class_name = path.rpartition(".")
         if not module_name:
@@ -49,7 +55,13 @@ def build_class_registry() -> Dict[str, Type[object]]:
         try:
             module = import_module(module_name)
         except ImportError as exc:
-            missing[name] = f"{path} (import error: {exc})"
+            exc_str = str(exc)
+            # Check if this is an optional dependency error
+            if any(opt_dep in exc_str for opt_dep in ["torch", "tensorflow", "pyarrow"]):
+                # Mark as skipped optional rather than missing
+                skipped_optional[name] = f"{path} (optional dependency: {exc})"
+            else:
+                missing[name] = f"{path} (import error: {exc})"
             continue
         try:
             attr = getattr(module, class_name)
@@ -60,11 +72,20 @@ def build_class_registry() -> Dict[str, Type[object]]:
                 missing[name] = f"{path} (attribute is not a class: {type(attr).__name__})"
             else:
                 resolved[name] = attr
+    
+    # Log skipped optional dependencies
+    if skipped_optional:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"Skipped {len(skipped_optional)} optional classes due to missing dependencies: "
+            f"{', '.join(skipped_optional.keys())}"
+        )
+    
     if missing:
         formatted = ", ".join(f"{name}: {reason}" for name, reason in missing.items())
         raise ClassRegistryError(f"Failed to load orchestrator classes: {formatted}")
     return resolved
-
 
 def get_class_paths() -> Mapping[str, str]:
     """Expose the raw class path mapping for diagnostics."""

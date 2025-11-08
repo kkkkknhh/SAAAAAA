@@ -14,34 +14,19 @@ Python 3.11+ Compatible Version
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-import math
-import statistics
 import re
-import hashlib
-from abc import ABC, abstractmethod
-from collections import defaultdict, Counter
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from functools import cached_property, wraps
+import time
+import warnings
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import (
-    Any, Dict, List, Tuple, Optional, Sequence, Mapping, Union,
-    Set, Callable, TypeVar, Generic, NamedTuple, Iterator, Protocol
+    Any,
 )
-import random
-import itertools
-import heapq
-import bisect
-import threading
-from contextlib import contextmanager
-import time
-import pickle
-import base64
-import zlib
-import warnings
 
 warnings.filterwarnings('ignore')
 
@@ -55,12 +40,12 @@ logger = logging.getLogger(__name__)
 
 # Missing imports for sklearn, nltk, numpy, pandas
 try:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.ensemble import IsolationForest
     import numpy as np
     import pandas as pd
-    from nltk.tokenize import sent_tokenize
     from nltk.corpus import stopwords
+    from nltk.tokenize import sent_tokenize
+    from sklearn.ensemble import IsolationForest
+    from sklearn.feature_extraction.text import TfidfVectorizer
 except ImportError as e:
     logger.warning(f"Missing dependency: {e}")
     # Provide fallbacks
@@ -79,20 +64,19 @@ except ImportError as e:
 class ValueChainLink:
     """Represents a link in the municipal development value chain."""
     name: str
-    instruments: List[str]
-    mediators: List[str]
-    outputs: List[str]
-    outcomes: List[str]
-    bottlenecks: List[str]
+    instruments: list[str]
+    mediators: list[str]
+    outputs: list[str]
+    outcomes: list[str]
+    bottlenecks: list[str]
     lead_time_days: float
-    conversion_rates: Dict[str, float]
-    capacity_constraints: Dict[str, float]
-
+    conversion_rates: dict[str, float]
+    capacity_constraints: dict[str, float]
 
 class MunicipalOntology:
     """Core ontology for municipal development domains."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.value_chain_links = {
             "diagnostic_planning": ValueChainLink(
                 name="diagnostic_planning",
@@ -143,7 +127,6 @@ class MunicipalOntology:
             "innovation": ["digital_transformation", "process_innovation"]
         }
 
-
 # ---------------------------------------------------------------------------
 # 2. SEMANTIC ANALYSIS ENGINE
 # ---------------------------------------------------------------------------
@@ -151,7 +134,7 @@ class MunicipalOntology:
 class SemanticAnalyzer:
     """Advanced semantic analysis for municipal documents."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
         if TfidfVectorizer is not None:
             self.vectorizer = TfidfVectorizer(
@@ -162,7 +145,7 @@ class SemanticAnalyzer:
         else:
             self.vectorizer = None
 
-    def extract_semantic_cube(self, document_segments: List[str]) -> Dict[str, Any]:
+    def extract_semantic_cube(self, document_segments: list[str]) -> dict[str, Any]:
         """Extract multidimensional semantic cube from document segments."""
 
         if not document_segments:
@@ -234,7 +217,7 @@ class SemanticAnalyzer:
         logger.info(f"Extracted semantic cube from {len(document_segments)} segments")
         return semantic_cube
 
-    def _empty_semantic_cube(self) -> Dict[str, Any]:
+    def _empty_semantic_cube(self) -> dict[str, Any]:
         """Return empty semantic cube structure."""
         return {
             "dimensions": {
@@ -255,14 +238,14 @@ class SemanticAnalyzer:
             }
         }
 
-    def _vectorize_segments(self, segments: List[str]) -> np.ndarray:
+    def _vectorize_segments(self, segments: list[str]) -> np.ndarray:
         """Vectorize document segments using TF-IDF."""
         if self.vectorizer is not None:
             try:
                 return self.vectorizer.fit_transform(segments).toarray()
             except Exception as e:
                 logger.warning(f"Vectorization failed: {e}")
-        
+
         # Fallback
         if np is not None:
             return np.zeros((len(segments), 100))
@@ -270,12 +253,12 @@ class SemanticAnalyzer:
             # Return list of lists if numpy is not available
             return [[0.0] * 100 for _ in range(len(segments))]
 
-    def _process_segment(self, segment: str, idx: int, vector) -> Dict[str, Any]:
+    def _process_segment(self, segment: str, idx: int, vector) -> dict[str, Any]:
         """Process individual segment and extract features."""
 
         # Basic text statistics
         words = segment.split()
-        
+
         # Calculate sentence count
         if sent_tokenize is not None:
             try:
@@ -307,7 +290,7 @@ class SemanticAnalyzer:
             "coherence_score": coherence_score
         }
 
-    def _classify_value_chain_link(self, segment: str) -> Dict[str, float]:
+    def _classify_value_chain_link(self, segment: str) -> dict[str, float]:
         """Classify segment by value chain link using keyword matching."""
         link_scores = {}
         segment_lower = segment.lower()
@@ -330,7 +313,7 @@ class SemanticAnalyzer:
 
         return link_scores
 
-    def _classify_policy_domain(self, segment: str) -> Dict[str, float]:
+    def _classify_policy_domain(self, segment: str) -> dict[str, float]:
         """Classify segment by policy domain using keyword matching."""
         domain_scores = {}
         segment_lower = segment.lower()
@@ -345,7 +328,7 @@ class SemanticAnalyzer:
 
         return domain_scores
 
-    def _classify_cross_cutting_themes(self, segment: str) -> Dict[str, float]:
+    def _classify_cross_cutting_themes(self, segment: str) -> dict[str, float]:
         """Classify segment by cross-cutting themes."""
         theme_scores = {}
         segment_lower = segment.lower()
@@ -360,19 +343,18 @@ class SemanticAnalyzer:
 
         return theme_scores
 
-    def _calculate_semantic_complexity(self, semantic_cube: Dict[str, Any]) -> float:
+    def _calculate_semantic_complexity(self, semantic_cube: dict[str, Any]) -> float:
         """Calculate semantic complexity of the cube."""
 
         # Count unique concepts across dimensions
         unique_concepts = set()
         for dimension_data in semantic_cube["dimensions"].values():
-            for category in dimension_data.keys():
+            for category in dimension_data:
                 unique_concepts.add(category)
 
         # Normalize complexity
         max_expected_concepts = 20
         return min(1.0, len(unique_concepts) / max_expected_concepts)
-
 
 # ---------------------------------------------------------------------------
 # 3. PERFORMANCE ANALYZER
@@ -381,14 +363,14 @@ class SemanticAnalyzer:
 class PerformanceAnalyzer:
     """Analyze value chain performance with operational loss functions."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
         if IsolationForest is not None:
             self.bottleneck_detector = IsolationForest(contamination=0.1, random_state=RANDOM_SEED)
         else:
             self.bottleneck_detector = None
 
-    def analyze_performance(self, semantic_cube: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_performance(self, semantic_cube: dict[str, Any]) -> dict[str, Any]:
         """Analyze performance indicators across value chain links."""
 
         performance_analysis = {
@@ -419,7 +401,7 @@ class PerformanceAnalyzer:
         logger.info(f"Performance analysis completed for {len(performance_analysis['value_chain_metrics'])} links")
         return performance_analysis
 
-    def _calculate_throughput_metrics(self, segments: List[Dict], link_config: ValueChainLink) -> Dict[str, Any]:
+    def _calculate_throughput_metrics(self, segments: list[dict], link_config: ValueChainLink) -> dict[str, Any]:
         """Calculate throughput metrics for a value chain link."""
 
         if not segments:
@@ -431,7 +413,7 @@ class PerformanceAnalyzer:
 
         # Calculate semantic throughput
         total_semantic_content = sum(seg["semantic_density"] for seg in segments)
-        
+
         if np is not None:
             avg_coherence = np.mean([seg["coherence_score"] for seg in segments])
         else:
@@ -457,7 +439,7 @@ class PerformanceAnalyzer:
             "segment_count": len(segments)
         }
 
-    def _detect_bottlenecks(self, segments: List[Dict], link_config: ValueChainLink) -> Dict[str, Any]:
+    def _detect_bottlenecks(self, segments: list[dict], link_config: ValueChainLink) -> dict[str, Any]:
         """Detect bottlenecks in value chain link."""
 
         bottleneck_analysis = {
@@ -491,7 +473,7 @@ class PerformanceAnalyzer:
 
         return bottleneck_analysis
 
-    def _calculate_loss_functions(self, metrics: Dict[str, Any], link_config: ValueChainLink) -> Dict[str, Any]:
+    def _calculate_loss_functions(self, metrics: dict[str, Any], link_config: ValueChainLink) -> dict[str, Any]:
         """Calculate operational loss functions."""
 
         # Throughput loss (quadratic)
@@ -502,7 +484,7 @@ class PerformanceAnalyzer:
         # Efficiency loss (exponential)
         target_efficiency = 0.8
         efficiency_gap = max(0, target_efficiency - metrics["efficiency_score"])
-        
+
         if np is not None:
             efficiency_loss = np.exp(efficiency_gap * 2) - 1
         else:
@@ -525,7 +507,7 @@ class PerformanceAnalyzer:
             "composite_loss": float(composite_loss)
         }
 
-    def _generate_recommendations(self, performance_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _generate_recommendations(self, performance_analysis: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate optimization recommendations."""
 
         recommendations = []
@@ -549,7 +531,6 @@ class PerformanceAnalyzer:
 
         return recommendations
 
-
 # ---------------------------------------------------------------------------
 # 4. TEXT MINING ENGINE
 # ---------------------------------------------------------------------------
@@ -557,7 +538,7 @@ class PerformanceAnalyzer:
 class TextMiningEngine:
     """Advanced text mining for critical diagnosis."""
 
-    def __init__(self, ontology: MunicipalOntology):
+    def __init__(self, ontology: MunicipalOntology) -> None:
         self.ontology = ontology
 
         # Initialize simple keyword extractor
@@ -574,8 +555,8 @@ class TextMiningEngine:
                 except:
                     logger.warning("Could not download NLTK stopwords. Using empty set.")
 
-    def diagnose_critical_links(self, semantic_cube: Dict[str, Any],
-                                performance_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def diagnose_critical_links(self, semantic_cube: dict[str, Any],
+                                performance_analysis: dict[str, Any]) -> dict[str, Any]:
         """Diagnose critical value chain links."""
 
         diagnosis_results = {
@@ -610,7 +591,7 @@ class TextMiningEngine:
         logger.info(f"Diagnosed {len(critical_links)} critical links")
         return diagnosis_results
 
-    def _identify_critical_links(self, performance_analysis: Dict[str, Any]) -> Dict[str, float]:
+    def _identify_critical_links(self, performance_analysis: dict[str, Any]) -> dict[str, float]:
         """Identify critical links based on performance metrics."""
 
         critical_links = {}
@@ -637,7 +618,7 @@ class TextMiningEngine:
 
         return critical_links
 
-    def _analyze_link_text(self, segments: List[Dict]) -> Dict[str, Any]:
+    def _analyze_link_text(self, segments: list[dict]) -> dict[str, Any]:
         """Analyze text content for a link."""
 
         if not segments:
@@ -674,7 +655,7 @@ class TextMiningEngine:
             "negative_indicators": negative_count
         }
 
-    def _assess_risks(self, segments: List[Dict], text_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def _assess_risks(self, segments: list[dict], text_analysis: dict[str, Any]) -> dict[str, Any]:
         """Assess risks for a value chain link."""
 
         risk_assessment = {
@@ -702,8 +683,8 @@ class TextMiningEngine:
 
         return risk_assessment
 
-    def _generate_interventions(self, link_name: str, risk_assessment: Dict[str, Any],
-                                text_analysis: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _generate_interventions(self, link_name: str, risk_assessment: dict[str, Any],
+                                text_analysis: dict[str, Any]) -> list[dict[str, str]]:
         """Generate intervention recommendations."""
 
         interventions = []
@@ -731,7 +712,6 @@ class TextMiningEngine:
 
         return interventions
 
-
 # ---------------------------------------------------------------------------
 # 5. COMPREHENSIVE ANALYZER
 # ---------------------------------------------------------------------------
@@ -739,7 +719,7 @@ class TextMiningEngine:
 class MunicipalAnalyzer:
     """Main analyzer integrating all components."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ontology = MunicipalOntology()
         self.semantic_analyzer = SemanticAnalyzer(self.ontology)
         self.performance_analyzer = PerformanceAnalyzer(self.ontology)
@@ -747,7 +727,7 @@ class MunicipalAnalyzer:
 
         logger.info("MunicipalAnalyzer initialized successfully")
 
-    def analyze_document(self, document_path: str) -> Dict[str, Any]:
+    def analyze_document(self, document_path: str) -> dict[str, Any]:
         """Perform comprehensive analysis of a municipal document."""
 
         start_time = time.time()
@@ -789,15 +769,13 @@ class MunicipalAnalyzer:
             logger.error(f"Analysis failed: {str(e)}")
             raise
 
-    def _load_document(self, document_path: str) -> List[str]:
+    def _load_document(self, document_path: str) -> list[str]:
         """Load and segment document."""
 
-        try:
-            with open(document_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            with open(document_path, 'r', encoding='latin-1') as f:
-                content = f.read()
+        # Delegate to factory for I/O operation
+        from .factory import read_text_file
+
+        content = read_text_file(document_path)
 
         # Simple sentence segmentation
         sentences = re.split(r'[.!?]+', content)
@@ -811,9 +789,9 @@ class MunicipalAnalyzer:
 
         return segments[:100]  # Limit for processing efficiency
 
-    def _generate_summary(self, semantic_cube: Dict[str, Any],
-                          performance_analysis: Dict[str, Any],
-                          critical_diagnosis: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_summary(self, semantic_cube: dict[str, Any],
+                          performance_analysis: dict[str, Any],
+                          critical_diagnosis: dict[str, Any]) -> dict[str, Any]:
         """Generate executive summary of analysis."""
 
         # Count dimensions
@@ -867,10 +845,10 @@ def example_usage():
 
     # Create sample document
     sample_text = """
-    El Plan de Desarrollo Municipal tiene como objetivo principal fortalecer 
+    El Plan de Desarrollo Municipal tiene como objetivo principal fortalecer
     la capacidad institucional y mejorar la calidad de vida de los habitantes.
 
-    En el área de desarrollo económico, se implementarán programas de 
+    En el área de desarrollo económico, se implementarán programas de
     emprendimiento y competitividad empresarial. Los recursos asignados
     permitirán crear 500 nuevos empleos en el sector productivo.
 
@@ -888,8 +866,10 @@ def example_usage():
     """
 
     # Save sample to file
-    with open(SAMPLE_MUNICIPAL_PLAN, "w", encoding="utf-8") as f:
-        f.write(sample_text)
+    # Delegate to factory for I/O operation
+    from .factory import write_text_file
+
+    write_text_file(sample_text, SAMPLE_MUNICIPAL_PLAN)
 
     try:
         # Analyze document
@@ -978,7 +958,6 @@ def example_usage():
         except (FileNotFoundError, OSError):
             pass
 
-
 @dataclass
 class CanonicalQuestionContract:
     """Canonical contract linking questionnaire, policy area and evidence."""
@@ -987,18 +966,17 @@ class CanonicalQuestionContract:
     policy_area_id: str
     dimension_id: str
     question_number: int
-    expected_elements: List[str]
-    search_patterns: Dict[str, Any]
-    verification_patterns: List[str]
-    evaluation_criteria: Dict[str, Any]
+    expected_elements: list[str]
+    search_patterns: dict[str, Any]
+    verification_patterns: list[str]
+    evaluation_criteria: dict[str, Any]
     question_template: str
     scoring_modality: str
-    evidence_sources: Dict[str, Any]
+    evidence_sources: dict[str, Any]
     policy_area_legacy: str
     dimension_legacy: str
     canonical_question_id: str = ""
     contract_hash: str = ""
-
 
 @dataclass
 class EvidenceSegment:
@@ -1007,8 +985,7 @@ class EvidenceSegment:
     segment_index: int
     segment_text: str
     segment_hash: str
-    matched_patterns: List[str]
-
+    matched_patterns: list[str]
 
 class CanonicalQuestionSegmenter:
     """Deterministic segmenter anchored to canonical questionnaire schemas."""
@@ -1033,7 +1010,7 @@ class CanonicalQuestionSegmenter:
             rubric_path=rubric_path,
         )
 
-    def segment_plan(self, plan_text: str) -> Dict[str, Any]:
+    def segment_plan(self, plan_text: str) -> dict[str, Any]:
         """Segment *plan_text* and emit evidence manifests per canonical contract."""
 
         normalized_text = plan_text or ""
@@ -1044,7 +1021,7 @@ class CanonicalQuestionSegmenter:
         normalized_segments = [segment.strip() for segment in segments if segment and segment.strip()]
 
         matched_contracts = 0
-        question_segments: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        question_segments: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         for contract in self.contracts:
             manifest = self._build_manifest(contract, normalized_segments)
@@ -1108,11 +1085,11 @@ class CanonicalQuestionSegmenter:
     def _build_manifest(
         self,
         contract: CanonicalQuestionContract,
-        segments: List[str],
-    ) -> Dict[str, Any]:
+        segments: list[str],
+    ) -> dict[str, Any]:
         """Build deterministic evidence manifest for *contract* across *segments*."""
 
-        compiled_patterns: List[Tuple[str, Any]] = []
+        compiled_patterns: list[tuple[str, Any]] = []
         for element, spec in contract.search_patterns.items():
             pattern = spec.get("pattern") if isinstance(spec, dict) else None
             if not pattern or not isinstance(pattern, str):
@@ -1146,11 +1123,11 @@ class CanonicalQuestionSegmenter:
                     },
                 )
 
-        matched_segments: List[EvidenceSegment] = []
-        pattern_hits: Dict[str, int] = {}
+        matched_segments: list[EvidenceSegment] = []
+        pattern_hits: dict[str, int] = {}
 
         for segment_index, segment_text in enumerate(segments):
-            matched_labels: List[str] = []
+            matched_labels: list[str] = []
             for label, pattern in compiled_patterns:
                 if pattern.search(segment_text):
                     matched_labels.append(label)
@@ -1203,7 +1180,6 @@ class CanonicalQuestionSegmenter:
             },
         }
 
-
 class DocumentProcessor:
     """Utility class for document processing."""
 
@@ -1211,8 +1187,14 @@ class DocumentProcessor:
     def load_pdf(pdf_path: str) -> str:
         """Load text from PDF file."""
         try:
+            # Delegate to factory for I/O operation
+            # Note: PyPDF2 requires file handle, so we need a special approach
+            from pathlib import Path
+
             import PyPDF2
-            with open(pdf_path, 'rb') as file:
+            pdf_path_obj = Path(pdf_path)
+
+            with open(pdf_path_obj, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
                 text = ""
                 for page in reader.pages:
@@ -1243,7 +1225,7 @@ class DocumentProcessor:
             return ""
 
     @staticmethod
-    def segment_text(text: str, method: str = "sentence") -> List[str]:
+    def segment_text(text: str, method: str = "sentence") -> list[str]:
         """Segment text using different methods."""
 
         if method == "sentence":
@@ -1289,7 +1271,7 @@ class DocumentProcessor:
     def load_canonical_question_contracts(
         questionnaire_path: str = "questionnaire.json",
         rubric_path: str = "rubric_scoring_FIXED.json",
-    ) -> Tuple[List[CanonicalQuestionContract], Dict[str, Any], Dict[str, Any], str]:
+    ) -> tuple[list[CanonicalQuestionContract], dict[str, Any], dict[str, Any], str]:
         """Load canonical question contracts based on questionnaire and rubric."""
 
         questionnaire_file = Path(questionnaire_path)
@@ -1300,10 +1282,11 @@ class DocumentProcessor:
         if not rubric_file.exists():
             raise FileNotFoundError(f"Rubric file not found: {rubric_file}")
 
-        with questionnaire_file.open("r", encoding="utf-8") as handle:
-            questionnaire_data = json.load(handle)
-        with rubric_file.open("r", encoding="utf-8") as handle:
-            rubric_data = json.load(handle)
+        # Delegate to factory for I/O operation
+        from .factory import load_json
+
+        questionnaire_data = load_json(questionnaire_file)
+        rubric_data = load_json(rubric_file)
 
         questionnaire_meta = questionnaire_data.get("metadata", {})
         rubric_meta = rubric_data.get("metadata", {})
@@ -1316,7 +1299,7 @@ class DocumentProcessor:
         }
 
         base_questions = questionnaire_data.get("preguntas_base", [])
-        questionnaire_lookup: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+        questionnaire_lookup: dict[tuple[str, str, int], dict[str, Any]] = {}
         for question in base_questions:
             if not isinstance(question, dict):
                 continue
@@ -1336,7 +1319,7 @@ class DocumentProcessor:
             questionnaire_lookup[key] = question
 
         rubric_questions = rubric_data.get("questions", [])
-        rubric_lookup: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
+        rubric_lookup: dict[tuple[str, str, int], dict[str, Any]] = {}
         for question in rubric_questions:
             if not isinstance(question, dict):
                 continue
@@ -1357,7 +1340,7 @@ class DocumentProcessor:
         if not common_keys:
             raise ValueError("No overlapping question definitions between questionnaire and rubric metadata")
 
-        contracts: List[CanonicalQuestionContract] = []
+        contracts: list[CanonicalQuestionContract] = []
 
         for key in common_keys:
             questionnaire_entry = questionnaire_lookup[key]
@@ -1476,7 +1459,7 @@ class DocumentProcessor:
         questionnaire_path: str = "questionnaire.json",
         rubric_path: str = "rubric_scoring_FIXED.json",
         segmentation_method: str = "paragraph",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Convenience wrapper to segment plan text using canonical contracts."""
 
         segmenter = CanonicalQuestionSegmenter(
@@ -1508,27 +1491,28 @@ class DocumentProcessor:
                 return dimension_code
         return dimension_code
 
-
 class ResultsExporter:
     """Export analysis results to different formats."""
 
     @staticmethod
-    def export_to_json(results: Dict[str, Any], output_path: str) -> None:
+    def export_to_json(results: dict[str, Any], output_path: str) -> None:
         """Export results to JSON file."""
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+
         try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, ensure_ascii=False, default=str)
+            save_json(results, output_path)
             logger.info(f"Results exported to JSON: {output_path}")
         except Exception as e:
             logger.error(f"Error exporting to JSON: {e}")
 
     @staticmethod
-    def export_to_excel(results: Dict[str, Any], output_path: str) -> None:
+    def export_to_excel(results: dict[str, Any], output_path: str) -> None:
         """Export results to Excel file."""
         if pd is None:
             logger.warning("pandas not available. Install with: pip install pandas openpyxl")
             return
-            
+
         try:
             with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
 
@@ -1588,82 +1572,82 @@ class ResultsExporter:
             logger.error(f"Error exporting to Excel: {e}")
 
     @staticmethod
-    def export_summary_report(results: Dict[str, Any], output_path: str) -> None:
+    def export_summary_report(results: dict[str, Any], output_path: str) -> None:
         """Export a summary report in text format."""
 
         try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write("MUNICIPAL DEVELOPMENT PLAN ANALYSIS REPORT\n")
-                f.write("=" * 50 + "\n\n")
+            # Build content first
+            lines = []
+            lines.append("MUNICIPAL DEVELOPMENT PLAN ANALYSIS REPORT\n")
+            lines.append("=" * 50 + "\n\n")
 
-                # Basic info
-                f.write(f"Document: {results.get('document_path', 'Unknown')}\n")
-                f.write(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
-                f.write(f"Processing Time: {results.get('processing_time_seconds', 0):.2f} seconds\n\n")
+            # Basic info
+            lines.append(f"Document: {results.get('document_path', 'Unknown')}\n")
+            lines.append(f"Analysis Date: {results.get('analysis_timestamp', 'Unknown')}\n")
+            lines.append(f"Processing Time: {results.get('processing_time_seconds', 0):.2f} seconds\n\n")
 
-                # Summary
-                summary = results.get('summary', {})
-                f.write("EXECUTIVE SUMMARY\n")
-                f.write("-" * 20 + "\n")
+            # Summary
+            summary = results.get('summary', {})
+            lines.append("EXECUTIVE SUMMARY\n")
+            lines.append("-" * 20 + "\n")
 
-                doc_coverage = summary.get('document_coverage', {})
-                f.write(f"Segments Analyzed: {doc_coverage.get('total_segments_analyzed', 0)}\n")
-                f.write(f"Value Chain Links: {doc_coverage.get('value_chain_links_identified', 0)}\n")
-                f.write(f"Policy Domains: {doc_coverage.get('policy_domains_covered', 0)}\n")
+            doc_coverage = summary.get('document_coverage', {})
+            lines.append(f"Segments Analyzed: {doc_coverage.get('total_segments_analyzed', 0)}\n")
+            lines.append(f"Value Chain Links: {doc_coverage.get('value_chain_links_identified', 0)}\n")
+            lines.append(f"Policy Domains: {doc_coverage.get('policy_domains_covered', 0)}\n")
 
-                perf_summary = summary.get('performance_summary', {})
-                f.write(f"Average Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
+            perf_summary = summary.get('performance_summary', {})
+            lines.append(f"Average Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
 
-                risk_summary = summary.get('risk_assessment', {})
-                f.write(f"Overall Risk Level: {risk_summary.get('overall_risk_level', 'Unknown')}\n\n")
+            risk_summary = summary.get('risk_assessment', {})
+            lines.append(f"Overall Risk Level: {risk_summary.get('overall_risk_level', 'Unknown')}\n\n")
 
-                # Performance details
-                f.write("PERFORMANCE ANALYSIS\n")
-                f.write("-" * 20 + "\n")
+            # Performance details
+            lines.append("PERFORMANCE ANALYSIS\n")
+            lines.append("-" * 20 + "\n")
 
-                perf_analysis = results.get('performance_analysis', {})
-                for link, metrics in perf_analysis.get('value_chain_metrics', {}).items():
-                    f.write(f"\n{link.replace('_', ' ').title()}:\n")
-                    f.write(f"  Efficiency: {metrics.get('efficiency_score', 0):.2f}\n")
-                    f.write(f"  Throughput: {metrics.get('throughput', 0):.1f}\n")
-                    f.write(f"  Capacity: {metrics.get('capacity_utilization', 0):.2f}\n")
+            perf_analysis = results.get('performance_analysis', {})
+            for link, metrics in perf_analysis.get('value_chain_metrics', {}).items():
+                lines.append(f"\n{link.replace('_', ' ').title()}:\n")
+                lines.append(f"  Efficiency: {metrics.get('efficiency_score', 0):.2f}\n")
+                lines.append(f"  Throughput: {metrics.get('throughput', 0):.1f}\n")
+                lines.append(f"  Capacity: {metrics.get('capacity_utilization', 0):.2f}\n")
 
-                # Recommendations
-                f.write("\n\nRECOMMENDATE OPTIONS\n")
-                f.write("-" * 20 + "\n")
+            # Recommendations
+            lines.append("\n\nRECOMMENDATE OPTIONS\n")
+            lines.append("-" * 20 + "\n")
 
-                recommendations = perf_analysis.get('optimization_recommendations', [])
-                for i, rec in enumerate(recommendations, 1):
-                    f.write(f"{i}. {rec.get('description', '')} (Priority: {rec.get('priority', '')})\n")
+            recommendations = perf_analysis.get('optimization_recommendations', [])
+            for i, rec in enumerate(recommendations, 1):
+                lines.append(f"{i}. {rec.get('description', '')} (Priority: {rec.get('priority', '')})\n")
 
-                # Critical links
-                f.write("\n\nCRITICAL LINKS\n")
-                f.write("-" * 15 + "\n")
+            # Critical links
+            lines.append("\n\nCRITICAL LINKS\n")
+            lines.append("-" * 15 + "\n")
 
-                diagnosis = results.get('critical_diagnosis', {})
-                for link, info in diagnosis.get('critical_links', {}).items():
-                    f.write(f"\n{link.replace('_', ' ').title()}:\n")
-                    f.write(f"  Criticality: {info.get('criticality_score', 0):.2f}\n")
+            diagnosis = results.get('critical_diagnosis', {})
+            for link, info in diagnosis.get('critical_links', {}).items():
+                lines.append(f"\n{link.replace('_', ' ').title()}:\n")
+                lines.append(f"  Criticality: {info.get('criticality_score', 0):.2f}\n")
 
-                    text_analysis = info.get('text_analysis', {})
-                    f.write(f"  Sentiment: {text_analysis.get('sentiment', 'neutral')}\n")
+                text_analysis = info.get('text_analysis', {})
+                lines.append(f"  Sentiment: {text_analysis.get('sentiment', 'neutral')}\n")
 
-                    if link in diagnosis.get('risk_assessment', {}):
-                        risk = diagnosis['risk_assessment'][link]
-                        f.write(f"  Risk Level: {risk.get('overall_risk', 'unknown')}\n")
+                if link in diagnosis.get('risk_assessment', {}):
+                    risk = diagnosis['risk_assessment'][link]
+                    lines.append(f"  Risk Level: {risk.get('overall_risk', 'unknown')}\n")
 
+            # Delegate to factory for I/O operation
+            from .factory import write_text_file
+            write_text_file(''.join(lines), output_path)
             logger.info(f"Summary report exported: {output_path}")
 
         except Exception as e:
             logger.error(f"Error exporting summary report: {e}")
 
-
 # ---------------------------------------------------------------------------
 # 7. MAIN EXECUTION
 # ---------------------------------------------------------------------------
-
-
-
 
 # ---------------------------------------------------------------------------
 # 8. ADDITIONAL UTILITIES FOR PRODUCTION USE
@@ -1672,11 +1656,11 @@ class ResultsExporter:
 class ConfigurationManager:
     """Manage analyzer configuration."""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None) -> None:
         self.config_path = config_path or "analyzer_config.json"
         self.config = self.load_config()
 
-    def load_config(self) -> Dict[str, Any]:
+    def load_config(self) -> dict[str, Any]:
         """Load configuration from file or create default."""
 
         default_config = {
@@ -1697,15 +1681,17 @@ class ConfigurationManager:
         }
 
         if Path(self.config_path).exists():
+            # Delegate to factory for I/O operation
+            from .factory import load_json
+
             try:
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    user_config = json.load(f)
-                    # Merge with defaults
-                    for key, value in user_config.items():
-                        if key in default_config and isinstance(value, dict):
-                            default_config[key].update(value)
-                        else:
-                            default_config[key] = value
+                user_config = load_json(self.config_path)
+                # Merge with defaults
+                for key, value in user_config.items():
+                    if key in default_config and isinstance(value, dict):
+                        default_config[key].update(value)
+                    else:
+                        default_config[key] = value
             except Exception as e:
                 logger.warning(f"Error loading config: {e}. Using defaults.")
 
@@ -1713,20 +1699,21 @@ class ConfigurationManager:
 
     def save_config(self) -> None:
         """Save current configuration to file."""
+        # Delegate to factory for I/O operation
+        from .factory import save_json
+
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
+            save_json(self.config, self.config_path)
         except Exception as e:
             logger.error(f"Error saving config: {e}")
-
 
 class BatchProcessor:
     """Process multiple documents in batch."""
 
-    def __init__(self, analyzer: MunicipalAnalyzer):
+    def __init__(self, analyzer: MunicipalAnalyzer) -> None:
         self.analyzer = analyzer
 
-    def process_directory(self, directory_path: str, pattern: str = "*.txt") -> Dict[str, Any]:
+    def process_directory(self, directory_path: str, pattern: str = "*.txt") -> dict[str, Any]:
         """Process all files matching pattern in directory."""
 
         directory = Path(directory_path)
@@ -1749,7 +1736,7 @@ class BatchProcessor:
 
         return results
 
-    def export_batch_results(self, batch_results: Dict[str, Any], output_dir: str) -> None:
+    def export_batch_results(self, batch_results: dict[str, Any], output_dir: str) -> None:
         """Export batch processing results."""
 
         output_path = Path(output_dir)
@@ -1771,54 +1758,57 @@ class BatchProcessor:
         # Create batch summary
         self._create_batch_summary(batch_results, output_path)
 
-    def _create_batch_summary(self, batch_results: Dict[str, Any], output_path: Path) -> None:
+    def _create_batch_summary(self, batch_results: dict[str, Any], output_path: Path) -> None:
         """Create summary of batch processing results."""
 
         summary_file = output_path / "batch_summary.txt"
 
         try:
-            with open(summary_file, 'w', encoding='utf-8') as f:
-                f.write("BATCH PROCESSING SUMMARY\n")
-                f.write("=" * 30 + "\n\n")
+            # Build content first
+            lines = []
+            lines.append("BATCH PROCESSING SUMMARY\n")
+            lines.append("=" * 30 + "\n\n")
 
-                total_files = len(batch_results)
-                successful = sum(1 for r in batch_results.values() if "error" not in r)
-                failed = total_files - successful
+            total_files = len(batch_results)
+            successful = sum(1 for r in batch_results.values() if "error" not in r)
+            failed = total_files - successful
 
-                f.write(f"Total files processed: {total_files}\n")
-                f.write(f"Successful: {successful}\n")
-                f.write(f"Failed: {failed}\n\n")
+            lines.append(f"Total files processed: {total_files}\n")
+            lines.append(f"Successful: {successful}\n")
+            lines.append(f"Failed: {failed}\n\n")
 
-                if failed > 0:
-                    f.write("FAILED FILES:\n")
-                    f.write("-" * 15 + "\n")
-                    for filename, result in batch_results.items():
-                        if "error" in result:
-                            f.write(f"- {filename}: {result['error']}\n")
-                    f.write("\n")
+            if failed > 0:
+                lines.append("FAILED FILES:\n")
+                lines.append("-" * 15 + "\n")
+                for filename, result in batch_results.items():
+                    if "error" in result:
+                        lines.append(f"- {filename}: {result['error']}\n")
+                lines.append("\n")
 
-                if successful > 0:
-                    f.write("SUCCESSFUL ANALYSES:\n")
-                    f.write("-" * 20 + "\n")
+            if successful > 0:
+                lines.append("SUCCESSFUL ANALYSES:\n")
+                lines.append("-" * 20 + "\n")
 
-                    for filename, result in batch_results.items():
-                        if "error" not in result:
-                            summary = result.get('summary', {})
-                            perf_summary = summary.get('performance_summary', {})
-                            risk_summary = summary.get('risk_assessment', {})
+                for filename, result in batch_results.items():
+                    if "error" not in result:
+                        summary = result.get('summary', {})
+                        perf_summary = summary.get('performance_summary', {})
+                        risk_summary = summary.get('risk_assessment', {})
 
-                            f.write(f"\n{filename}:\n")
-                            f.write(f"  Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
-                            f.write(f"  Risk Level: {risk_summary.get('overall_risk_level', 'unknown')}\n")
+                        lines.append(f"\n{filename}:\n")
+                        lines.append(f"  Efficiency: {perf_summary.get('average_efficiency_score', 0):.2f}\n")
+                        lines.append(f"  Risk Level: {risk_summary.get('overall_risk_level', 'unknown')}\n")
 
+            # Delegate to factory for I/O operation
+            from .factory import write_text_file
+            write_text_file(''.join(lines), summary_file)
             logger.info(f"Batch summary created: {summary_file}")
 
         except Exception as e:
             logger.error(f"Error creating batch summary: {e}")
 
-
 # Simple CLI interface
-def main():
+def main() -> None:
     """Simple command-line interface."""
     import argparse
 

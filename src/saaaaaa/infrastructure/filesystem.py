@@ -7,12 +7,11 @@ For testing, use InMemoryFileAdapter instead.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
-
+from typing import Any
 
 class LocalFileAdapter:
     """Real file system adapter using pathlib.
-    
+
     Example:
         >>> file_port = LocalFileAdapter()
         >>> content = file_port.read_text("data/plan.txt")
@@ -43,10 +42,9 @@ class LocalFileAdapter:
         """Create a directory."""
         Path(path).mkdir(parents=parents, exist_ok=exist_ok)
 
-
 class JsonAdapter:
     """JSON serialization adapter.
-    
+
     Example:
         >>> json_port = JsonAdapter()
         >>> data = json_port.loads('{"key": "value"}')
@@ -57,18 +55,17 @@ class JsonAdapter:
         """Parse JSON from string."""
         return json.loads(text)
 
-    def dumps(self, obj: Any, indent: Optional[int] = None) -> str:
+    def dumps(self, obj: Any, indent: int | None = None) -> str:
         """Serialize object to JSON string."""
         if indent is not None:
             return json.dumps(obj, indent=indent, ensure_ascii=False, default=str)
         return json.dumps(obj, ensure_ascii=False, default=str)
 
-
 class InMemoryFileAdapter:
     """In-memory file adapter for testing.
-    
+
     Stores files in a dictionary instead of disk.
-    
+
     Example:
         >>> file_port = InMemoryFileAdapter()
         >>> file_port.write_text("test.txt", "content")
@@ -109,14 +106,13 @@ class InMemoryFileAdapter:
         if path in self._dirs and not exist_ok:
             raise FileExistsError(f"Directory already exists: {path}")
         self._dirs.add(path)
-        
+
         if parents:
             # Add all parent directories
             parts = Path(path).parts
             for i in range(1, len(parts) + 1):
                 parent = str(Path(*parts[:i]))
                 self._dirs.add(parent)
-
 
 __all__ = [
     'LocalFileAdapter',
