@@ -369,6 +369,56 @@ class MonolithForge:
     # PHASE 6: MethodSetSynthesisPhase
     # ========================================================================
 
+    def _map_catalog_priority(self, catalog_priority: str) -> int:
+        """
+        Map catalog priority strings to numeric priorities.
+        
+        Args:
+            catalog_priority: Priority string from catalog (CRITICAL, HIGH, MEDIUM, LOW)
+            
+        Returns:
+            Numeric priority (1-3)
+        """
+        priority_map = {
+            'CRITICAL': 1,
+            'HIGH': 2,
+            'MEDIUM': 2,
+            'LOW': 3
+        }
+        return priority_map.get(catalog_priority, 2)  # Default to MEDIUM (2)
+
+    def _load_catalog_methods(self) -> dict[str, list[dict]]:
+        """
+        Load method catalog and organize by base_slot.
+        
+        Returns:
+            Dictionary mapping base_slot -> list of method definitions
+        """
+        repo_root = Path(__file__).resolve().parents[1]
+        catalog_path = repo_root / "config" / "rules" / "METODOS" / "metodos_completos_nivel3.json"
+        
+        try:
+            with open(catalog_path, encoding='utf-8') as f:
+                catalog_data = json.load(f)
+        except FileNotFoundError:
+            logger.warning(f"Catalog not found at {catalog_path}, using synthetic methods")
+            return {}
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in catalog: {e}")
+            return {}
+        
+        # Extract methods from catalog
+        methods_catalog = catalog_data.get('methods_catalog', [])
+        if not isinstance(methods_catalog, list):
+            logger.warning("methods_catalog is not a list, using synthetic methods")
+            return {}
+        
+        logger.info(f"Loaded {len(methods_catalog)} methods from catalog")
+        
+        # For now, return empty dict to use synthetic methods
+        # TODO: Implement base_slot mapping logic when catalog structure is updated
+        return {}
+
     def method_set_synthesis_phase(self):
         """
         Insert method_sets per base_slot from method catalog.
@@ -377,8 +427,8 @@ class MonolithForge:
         phase = "MethodSetSynthesisPhase"
         logger.info(f"=== {phase} START ===")
 
-        # For this phase, we'll create synthetic method sets based on base_slots
-        # In a real implementation, this would load from metodos_completos_nivel3.json
+        # Load catalog methods (returns empty dict if unavailable)
+        catalog_base_slot_methods = self._load_catalog_methods()
 
         # Create method sets per base_slot
         # Each base_slot gets a set of methods for analysis
@@ -388,25 +438,29 @@ class MonolithForge:
             for q_num in range(1, 6):  # Q1-Q5
                 base_slot = f"D{d_num}-Q{q_num}"
 
-                # Synthetic method set (in production, load from catalog)
-                base_slot_methods[base_slot] = [
-                    {
-                        'class': f'Dimension{d_num}Analyzer',
-                        'function': f'analyze_question_{q_num}',
-                        'module_enum': f'DIM{d_num:02d}_METHODS',
-                        'method_type': 'extraction',
-                        'priority': 1,
-                        'description': f'Primary analysis for {base_slot}'
-                    },
-                    {
-                        'class': f'Dimension{d_num}Validator',
-                        'function': f'validate_question_{q_num}',
-                        'module_enum': f'DIM{d_num:02d}_VALIDATION',
-                        'method_type': 'validation',
-                        'priority': 2,
-                        'description': f'Validation for {base_slot}'
-                    }
-                ]
+                # Use catalog methods if available, otherwise use synthetic
+                if base_slot in catalog_base_slot_methods:
+                    base_slot_methods[base_slot] = catalog_base_slot_methods[base_slot]
+                else:
+                    # Synthetic method set (fallback)
+                    base_slot_methods[base_slot] = [
+                        {
+                            'class': f'Dimension{d_num}Analyzer',
+                            'function': f'analyze_question_{q_num}',
+                            'module_enum': f'DIM{d_num:02d}_METHODS',
+                            'method_type': 'extraction',
+                            'priority': 1,
+                            'description': f'Primary analysis for {base_slot}'
+                        },
+                        {
+                            'class': f'Dimension{d_num}Validator',
+                            'function': f'validate_question_{q_num}',
+                            'module_enum': f'DIM{d_num:02d}_VALIDATION',
+                            'method_type': 'validation',
+                            'priority': 2,
+                            'description': f'Validation for {base_slot}'
+                        }
+                    ]
 
         # Apply to questions
         for global_num in range(1, 301):

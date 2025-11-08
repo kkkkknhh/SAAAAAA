@@ -240,7 +240,7 @@ class CoreModuleFactory:
         Load method catalog JSON file.
 
         Args:
-            path: Path to catalog file. Defaults to rules/METODOS/metodos_completos_nivel3.json
+            path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
 
         Returns:
             Loaded catalog data
