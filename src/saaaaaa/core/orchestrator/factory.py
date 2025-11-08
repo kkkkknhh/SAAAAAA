@@ -134,7 +134,7 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
 
     Args:
-        path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
+        path: Path to catalog file. Defaults to config/rules/METODOS/catalogo_completo_canonico.json
               relative to repository root.
 
     Returns:
@@ -145,7 +145,7 @@ def load_catalog(path: Path | None = None) -> dict[str, Any]:
         json.JSONDecodeError: If file is not valid JSON
     """
     if path is None:
-        path = _REPO_ROOT / "config" / "rules" / "METODOS" / "metodos_completos_nivel3.json"
+        path = _REPO_ROOT / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
 
     logger.info(f"Loading catalog from {path}")
 
@@ -493,7 +493,7 @@ class CoreModuleFactory:
         """Load method catalog JSON file.
 
         Args:
-            path: Path to catalog file. Defaults to config/rules/METODOS/metodos_completos_nivel3.json
+            path: Path to catalog file. Defaults to config/rules/METODOS/catalogo_completo_canonico.json
                   relative to repository root.
 
         Returns:
