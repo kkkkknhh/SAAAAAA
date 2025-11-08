@@ -934,7 +934,7 @@ d2b5f4e  Add bandit security scan to CI
 
 ```bibtex
 @software{farfan2025,
-  author       = {{F.A.R.F.A.N Development Team}},
+  author       = {{F.A.R.F.A.N JUAN CAMILO RAVE RESTREPO}},
   title        = {{F.A.R.F.A.N: Framework for Advanced Retrieval of 
                    Administrativa Narratives - A Mechanistic Policy Pipeline 
                    for Colombian Development Plan Analysis}},
@@ -951,15 +951,15 @@ d2b5f4e  Add bandit security scan to CI
 
 ### Formato APA (7th Edition)
 
-F.A.R.F.A.N Development Team. (2025). *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis* (Version 0.1.0) [Computer software]. GitHub. https://github.com/kkkkknhh/SAAAAAA
+F.A.R.F.A.N RAVE RESTREPO, JUAN CAMILO. (2025). *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis* (Version 0.1.0) [Computer software]. GitHub. https://github.com/kkkkknhh/SAAAAAA
 
 ### Formato Chicago (17th Edition)
 
-F.A.R.F.A.N Development Team. 2025. "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis." Version 0.1.0. Computer software. GitHub. https://github.com/kkkkknhh/SAAAAAA.
+F.A.R.F.A.N RAVE RESTREPO, JUAN CAMILO. 2025. "F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis." Version 0.1.0. Computer software. GitHub. https://github.com/kkkkknhh/SAAAAAA.
 
 ### Formato MLA (9th Edition)
 
-F.A.R.F.A.N Development Team. *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis*. Version 0.1.0, GitHub, 2025, github.com/kkkkknhh/SAAAAAA.
+F.A.R.F.A.N. RAVE RESTREPO, JUAN CAMILO *F.A.R.F.A.N: Framework for Advanced Retrieval of Administrativa Narratives - A Mechanistic Policy Pipeline for Colombian Development Plan Analysis*. Version 0.1.0, GitHub, 2025, github.com/kkkkknhh/SAAAAAA.
 
 ### DOI Registro (Pendiente)
 
