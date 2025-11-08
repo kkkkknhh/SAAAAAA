@@ -1000,10 +1000,17 @@ class StrategicIntegrator:
         
         for idx, chain_group in enumerate(grouped_chains):
             full_text = ' '.join([f"{c.get('antecedent', '')} {c.get('consequent', '')}" for c in chain_group])
-            
-            # Contexto estructural
-            hierarchy = self.parent._derive_hierarchy_for_segment(chain_group[0]['position'][0], structural_analysis)
-            
+                # Fallback a vector de ceros con la misma dimensión que el modelo
+                try:
+                    if model_type == 'semantic' and hasattr(self.semantic_model, 'get_sentence_embedding_dimension'):
+                        dim = self.semantic_model.get_sentence_embedding_dimension()
+                    elif hasattr(self.semantic_model_fallback, 'get_sentence_embedding_dimension'):
+                        dim = self.semantic_model_fallback.get_sentence_embedding_dimension()
+                    else:
+                        dim = 768
+                except Exception:
+                    dim = 768
+                return np.zeros(dim)
             # Unidades de integración
             unit = {
                 'index': idx,
