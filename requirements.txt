@@ -37,7 +37,7 @@ tensorflow==2.18.0
 torch==2.8.0
 
 # NLP
-transformers==4.48.3
+transformers==4.53.0
 sentence-transformers==3.3.1
 spacy==3.8.3
 
@@ -120,17 +120,17 @@ typing-extensions==4.12.2
 blake3==0.4.1
 
 # Build Tools
-setuptools==75.6.0
+setuptools==78.1.1
 
 # HTTP & Networking
-requests==2.31.0
-urllib3==2.2.0
-certifi==2024.2.2
+requests==2.32.4
+urllib3==2.5.0
+certifi==2024.7.4
 charset-normalizer==3.3.2
-idna==3.6
+idna==3.7
 
 # Utilities
-tqdm==4.66.1
+tqdm==4.66.3
 packaging==23.2
 click==8.1.7
 joblib==1.3.2
