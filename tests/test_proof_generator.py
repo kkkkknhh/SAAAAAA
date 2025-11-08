@@ -363,3 +363,41 @@ def test_verify_proof_tampered():
         
         assert valid is False
         assert "failed" in message.lower() or "mismatch" in message.lower()
+
+
+def test_proof_data_with_calibration_metadata():
+    """Test ProofData includes calibration metadata."""
+    proof_data = ProofData(
+        run_id='test-run-123',
+        timestamp_utc='2024-01-01T12:00:00Z',
+        phases_total=11,
+        phases_success=11,
+        questions_total=305,
+        questions_answered=305,
+        evidence_records=150,
+        monolith_hash='a' * 64,
+        questionnaire_hash='b' * 64,
+        catalog_hash='c' * 64,
+        method_map_hash='d' * 64,
+        code_signature={'core.py': 'e' * 64},
+        calibration_version='1.0.0',
+        calibration_hash='calib' * 16,  # 64 chars
+    )
+    
+    assert proof_data.calibration_version == '1.0.0'
+    assert proof_data.calibration_hash == 'calib' * 16
+    
+    # Test proof generation includes calibration metadata
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_dir = Path(temp_dir)
+        
+        proof_json_path, _ = generate_proof(
+            proof_data=proof_data,
+            output_dir=output_dir,
+        )
+        
+        with open(proof_json_path, 'r') as f:
+            proof_dict = json.load(f)
+        
+        assert proof_dict['calibration_version'] == '1.0.0'
+        assert proof_dict['calibration_hash'] == 'calib' * 16

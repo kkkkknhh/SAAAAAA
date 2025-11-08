@@ -40,7 +40,7 @@ from .phases import (
 
 app = typer.Typer(
     name="flux",
-    help="FLUX Pipeline - Fine-grained, deterministic processing",
+    help="F.A.R.F.A.N FLUX Pipeline - Fine-grained, deterministic processing for Colombian development plan analysis",
     no_args_is_help=True,
 )
 

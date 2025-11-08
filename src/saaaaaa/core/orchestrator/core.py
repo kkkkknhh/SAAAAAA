@@ -261,7 +261,7 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None, use_cpp_ingestion: bool = False
+        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = False
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
         # Reject class types - only accept instances
@@ -275,20 +275,20 @@ class PreprocessedDocument:
         if isinstance(document, cls):
             return document
 
-        # Check for CPP (Canon Policy Package) ingestion
-        if use_cpp_ingestion or hasattr(document, "chunk_graph"):
+        # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
+        if use_spc_ingestion or hasattr(document, "chunk_graph"):
             try:
                 from saaaaaa.utils.cpp_adapter import CPPAdapter
                 adapter = CPPAdapter()
                 return adapter.to_preprocessed_document(document, document_id=document_id)
             except ImportError as e:
                 raise ImportError(
-                    "CPP ingestion requires cpp_adapter module. "
+                    "SPC ingestion requires cpp_adapter module. "
                     "Ensure saaaaaa.utils.cpp_adapter is available."
                 ) from e
             except Exception as e:
                 raise TypeError(
-                    f"Failed to adapt CPP document: {e}. "
+                    f"Failed to adapt SPC document: {e}. "
                     "Ensure document is a valid CanonPolicyPackage instance."
                 ) from e
 
@@ -789,10 +789,6 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    _DEFAULT_CALIBRATION_TARGETS: dict[str, list[str]] = {
-        "calibracion_bayesiana": ["BayesianEvidenceScorer"],
-    }
-
     def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
         # Build the class registry
         self.degraded_mode = False
@@ -874,23 +870,15 @@ class MethodExecutor:
             logger.error("CRITICAL DEGRADATION: %s", reason)
 
     def _map_calibrations_to_classes(self, calibrations: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        mapped: dict[str, dict[str, Any]] = {}
-
-        for name, payload in calibrations.items():
-            targets: Iterable[str] | None = None
-            if isinstance(payload, dict):
-                meta = payload.get("__meta") if isinstance(payload.get("__meta"), dict) else {}
-                raw_targets = payload.get("targets") or meta.get("targets")
-                if isinstance(raw_targets, (list, tuple, set)):
-                    targets = raw_targets
-
-            if not targets:
-                targets = self._DEFAULT_CALIBRATION_TARGETS.get(name, [])
-
-            for target in targets or []:
-                mapped.setdefault(str(target), payload)
-
-        return mapped
+        """Map legacy YAML calibrations to classes.
+        
+        NOTE: This method is deprecated and will always return an empty dict
+        since calibrations parameter is always {} (YAML loading disabled).
+        Kept for backward compatibility during transition period.
+        """
+        # Legacy YAML calibration mapping - no longer used
+        # calibrations is always {} since YAML loading was deprecated
+        return {}
 
     @staticmethod
     def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:

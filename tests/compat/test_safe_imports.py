@@ -177,10 +177,11 @@ class TestImportErrorDetailed:
     def test_exception_chaining(self):
         """Test exception chaining with cause."""
         original = ImportError("Original error")
-        exc = ImportErrorDetailed("Wrapped error") from original
-        
-        assert exc.__cause__ is original
-        assert isinstance(exc.__cause__, ImportError)
+        try:
+            raise ImportErrorDetailed("Wrapped error") from original
+        except ImportErrorDetailed as exc:
+            assert exc.__cause__ is original
+            assert isinstance(exc.__cause__, ImportError)
 
 
 class TestRealWorldScenarios:

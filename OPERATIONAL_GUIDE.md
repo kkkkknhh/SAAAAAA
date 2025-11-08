@@ -1,4 +1,6 @@
-# SAAAAAA System - Complete Operational Guide
+# F.A.R.F.A.N System - Complete Operational Guide
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## 📋 Table of Contents
 
@@ -21,7 +23,9 @@
 
 ## Overview
 
-**SAAAAAA** is a Strategic Policy Analysis System that integrates 584 analytical methods across 300 policy evaluation questions. The system uses a chess-based orchestration strategy with 7 producer modules and 1 aggregator to provide doctoral-level policy analysis.
+**F.A.R.F.A.N** (Framework for Advanced Retrieval of Administrativa Narratives) is a mechanistic policy pipeline specifically designed for comprehensive analysis of Colombian municipal development plans. F.A.R.F.A.N integrates 584 analytical methods across 300 policy evaluation questions using a chess-based orchestration strategy with 7 producer modules and 1 aggregator.
+
+As a digital-nodal-substantive policy tool, F.A.R.F.A.N provides evidence-based, rigorous analysis of development plans through the lens of policy causal mechanisms using the value chain heuristic—the formal schema for organizing policy interventions in Colombia.
 
 ### Key Components
 

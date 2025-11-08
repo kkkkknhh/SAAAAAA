@@ -43,6 +43,10 @@ class ProofData:
     input_pdf_hash: Optional[str] = None
     artifacts_manifest: dict[str, str] = field(default_factory=dict)
     execution_metadata: dict[str, Any] = field(default_factory=dict)
+    
+    # Calibration metadata for traceability
+    calibration_version: Optional[str] = None
+    calibration_hash: Optional[str] = None
 
 
 def compute_file_hash(file_path: Path) -> str:
@@ -208,6 +212,12 @@ def generate_proof(
         proof_dict['artifacts_manifest'] = proof_data.artifacts_manifest
     if proof_data.execution_metadata:
         proof_dict['execution_metadata'] = proof_data.execution_metadata
+    
+    # Add calibration metadata for traceability
+    if proof_data.calibration_version:
+        proof_dict['calibration_version'] = proof_data.calibration_version
+    if proof_data.calibration_hash:
+        proof_dict['calibration_hash'] = proof_data.calibration_hash
     
     # Write proof.json with deterministic serialization
     proof_json_path = output_dir / 'proof.json'
