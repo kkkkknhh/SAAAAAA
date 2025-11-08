@@ -400,10 +400,10 @@ def main() -> int:
     print("=" * 60)
     print(f"Files scanned:     {stats['files_scanned']}")
     print(f"Total findings:    {stats['total_findings']}")
-    print(f"  Critical:        {stats['critical']}")
-    print(f"  High:            {stats['high']}")
-    print(f"  Medium:          {stats['medium']}")
-    print(f"  Low:             {stats['low']}")
+    print(f"  Critical: {stats['critical']}")
+    print(f"  High: {stats['high']}")
+    print(f"  Medium: {stats['medium']}")
+    print(f"  Low: {stats['low']}")
     print("=" * 60)
     
     # Return non-zero if critical issues found

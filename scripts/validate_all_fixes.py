@@ -10,7 +10,10 @@ This script validates:
 5. build_processor has correct signature
 """
 import sys
-sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')
+from pathlib import Path
+
+# Ensure src/ is in Python path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 def validate_safe_strip():
     """Validate _safe_strip function."""

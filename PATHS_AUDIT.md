@@ -5,18 +5,33 @@
 
 ## Executive Summary
 
-- **Files Scanned:** 321
-- **Total Findings:** 174
+- **Files Scanned:** 352
+- **Total Findings:** 181
 - **Critical:** 0
-- **High:** 18
-- **Medium:** 155
-- **Low:** 1
+- **High:** 21
+- **Medium:** 158
+- **Low:** 2
 
 ## Findings by Severity
 
-### HIGH (18)
+### HIGH (21)
 
-#### absolute_path (18 occurrences)
+#### absolute_path (21 occurrences)
+
+- **scripts/validate_all_fixes.py:136**
+  - Absolute Unix path detected
+  - Code: `cpp_uri="/tmp/test",`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+
+- **scripts/analyze_calibration_gaps.py:9**
+  - Absolute Unix path detected
+  - Code: `sys.path.insert(0, '/home/runner/work/SAAAAAA/SAAAAAA/src')`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+
+- **scripts/analyze_calibration_gaps.py:14**
+  - Absolute Unix path detected
+  - Code: `catalog_path = Path('/home/runner/work/SAAAAAA/SAAAAAA/config/rules/METODOS/catalogo_completo_canoni`
+  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
 - **tests/test_enhanced_recommendations.py:148**
   - Absolute Unix path detected
@@ -53,24 +68,9 @@
   - Code: `if 'test_' in str(py_file) and '/tmp/' in line:`
   - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
 
-- **tests/paths/test_paths_utils.py:127**
-  - Absolute Unix path detected
-  - Code: `outside = Path("/tmp/other")`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
+  ... and 11 more occurrences
 
-- **tests/paths/test_paths_utils.py:166**
-  - Absolute Unix path detected
-  - Code: `result = safe_join(base, "/tmp/other")`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
-
-- **tests/paths/test_paths_utils.py:233**
-  - Absolute Unix path detected
-  - Code: `outside = Path("/tmp/outside_workspace.txt")`
-  - Fix: Use proj_root() or data_dir() from saaaaaa.utils.paths
-
-  ... and 8 more occurrences
-
-### MEDIUM (155)
+### MEDIUM (158)
 
 #### cwd_usage (3 occurrences)
 
@@ -79,26 +79,21 @@
   - Code: `# os.getcwd() or Path.cwd()`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-- **src/saaaaaa/core/orchestrator/core.py:1179**
+- **src/saaaaaa/core/orchestrator/core.py:1266**
   - Current working directory usage - fragile in different execution contexts
   - Code: `candidates.append(os.path.join(os.getcwd(), path))`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-- **src/saaaaaa/core/orchestrator/core.py:1181**
+- **src/saaaaaa/core/orchestrator/core.py:1268**
   - Current working directory usage - fragile in different execution contexts
   - Code: `candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))`
   - Fix: Use proj_root() or explicit paths from saaaaaa.utils.paths
 
-#### file_usage (49 occurrences)
+#### file_usage (52 occurrences)
 
-- **setup.py:22**
+- **setup.py:27**
   - __file__ usage detected - may break in packaged distributions
   - Code: `readme_file = Path(__file__).parent / "README.md"`
-  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
-
-- **setup.py:29**
-  - __file__ usage detected - may break in packaged distributions
-  - Code: `requirements_file = Path(__file__).parent / "requirements.txt"`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
 - **runtime_audit.py:662**
@@ -109,6 +104,11 @@
 - **validate_strategic_wiring.py:18**
   - __file__ usage detected - may break in packaged distributions
   - Code: `root = Path(__file__).parent`
+  - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
+
+- **examples/demo_dependency_lockdown.py:21**
+  - __file__ usage detected - may break in packaged distributions
+  - Code: `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
 - **examples/flux_demo.py:20**
@@ -141,26 +141,26 @@
   - Code: `_SRC_PATH = Path(__file__).resolve().parent.parent / "src"`
   - Fix: Use resources() for packaged data or proj_root() for workspace-relative paths
 
-  ... and 39 more occurrences
+  ... and 42 more occurrences
 
 #### hardcoded_separator (98 occurrences)
 
-- **setup.py:46**
+- **setup.py:71**
   - Potential hardcoded path separator detected
   - Code: `url="https://github.com/kkkkknhh/SAAAAAA",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:48**
+- **setup.py:73**
   - Potential hardcoded path separator detected
   - Code: `"Bug Tracker": "https://github.com/kkkkknhh/SAAAAAA/issues",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:49**
+- **setup.py:74**
   - Potential hardcoded path separator detected
   - Code: `"Documentation": "https://github.com/kkkkknhh/SAAAAAA#readme",`
   - Fix: Use Path.joinpath() or / operator
 
-- **setup.py:50**
+- **setup.py:75**
   - Potential hardcoded path separator detected
   - Code: `"Source Code": "https://github.com/kkkkknhh/SAAAAAA",`
   - Fix: Use Path.joinpath() or / operator
@@ -204,29 +204,34 @@
   - Code: `dll_path = os.path.join(path_dir, f"{libname}.dll")`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1177**
+- **src/saaaaaa/core/orchestrator/core.py:1264**
   - os.path usage detected
   - Code: `base_dir = os.path.dirname(__file__)`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1178**
+- **src/saaaaaa/core/orchestrator/core.py:1265**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(base_dir, path))`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1179**
+- **src/saaaaaa/core/orchestrator/core.py:1266**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(os.getcwd(), path))`
   - Fix: Use pathlib.Path instead of os.path
 
-- **src/saaaaaa/core/orchestrator/core.py:1181**
+- **src/saaaaaa/core/orchestrator/core.py:1268**
   - os.path usage detected
   - Code: `candidates.append(os.path.join(os.getcwd(), "rules", "METODOS", path))`
   - Fix: Use pathlib.Path instead of os.path
 
-### LOW (1)
+### LOW (2)
 
-#### open_without_context (1 occurrences)
+#### open_without_context (2 occurrences)
+
+- **scripts/analyze_calibration_gaps.py:15**
+  - open() call - verify proper resource cleanup
+  - Code: `catalog = json.load(open(catalog_path))`
+  - Fix: Consider using 'with open(...)' for automatic cleanup
 
 - **tools/testing/generate_synthetic_traffic.py:247**
   - open() call - verify proper resource cleanup
@@ -237,15 +242,15 @@
 
 ### hardcoded_separator: 98 occurrences
 
-### file_usage: 49 occurrences
+### file_usage: 52 occurrences
 
-### absolute_path: 18 occurrences
+### absolute_path: 21 occurrences
 
 ### os_path_usage: 5 occurrences
 
 ### cwd_usage: 3 occurrences
 
-### open_without_context: 1 occurrences
+### open_without_context: 2 occurrences
 
 
 ## Recommendations
