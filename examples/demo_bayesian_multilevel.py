@@ -100,7 +100,7 @@ def main():
 
     # Sample micro-level data (300 questions in real scenario)
     micro_data = [
-        # Policy Area 1 - Dimension 1 (Diagnóstico y Recursos)
+        # Policy Area 1 (PA01) - Dimension 1 (DIM01: Diagnóstico y Recursos)
         {
             'question_id': 'P1-D1-Q1',
             'raw_score': 0.75,
@@ -136,7 +136,7 @@ def main():
             ]
         },
 
-        # Policy Area 1 - Dimension 2 (Diseño de Intervención)
+        # Policy Area 1 (PA01) - Dimension 2 (DIM02: Diseño de Intervención)
         {
             'question_id': 'P1-D2-Q1',
             'raw_score': 0.71,
