@@ -355,9 +355,9 @@ class CodeInventoryGenerator:
             "graph TD"
         ]
 
-        # Add metadata inputs
+        # Add metadata inputs (UPDATED: cuestionario_FIXED.json -> questionnaire_monolith.json)
         lines.append("    META1[execution_mapping.yaml]")
-        lines.append("    META2[cuestionario_FIXED.json]")
+        lines.append("    META2[questionnaire_monolith.json]")
         lines.append("    META3[rubric_scoring.json]")
         lines.append("")
 

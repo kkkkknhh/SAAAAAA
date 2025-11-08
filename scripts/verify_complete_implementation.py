@@ -39,9 +39,15 @@ def verify_implementation():
                 blocks = monolith_data.get('blocks', {})
                 micro_questions = blocks.get('micro_questions', [])
                 
-                # Compute hash
-                from src.saaaaaa.core.orchestrator.factory import compute_monolith_hash
-                monolith_hash = compute_monolith_hash(monolith_data)
+                # Compute hash (inline to avoid import issues)
+                import hashlib
+                serialized = json.dumps(
+                    monolith_data,
+                    sort_keys=True,
+                    ensure_ascii=True,
+                    separators=(',', ':')
+                )
+                monolith_hash = hashlib.sha256(serialized.encode('utf-8')).hexdigest()
                 
                 print(f"    ✓ Valid monolith: {len(micro_questions)} questions")
                 print(f"    ✓ Version: {monolith_data.get('version')}")
