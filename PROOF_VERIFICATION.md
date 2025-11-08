@@ -1,8 +1,10 @@
-# Cryptographic Proof Verification
+# F.A.R.F.A.N Cryptographic Proof Verification
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## Overview
 
-Every successful pipeline execution generates cryptographic proof files that allow anyone (even non-engineers) to verify that the execution was genuine and complete.
+Every successful F.A.R.F.A.N pipeline execution generates cryptographic proof files that allow anyone (even non-engineers) to verify that the execution was genuine and complete.
 
 ## Generated Files
 

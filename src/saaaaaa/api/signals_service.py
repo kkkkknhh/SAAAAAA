@@ -136,8 +136,8 @@ def _create_stub_signal_packs() -> dict[str, SignalPack]:
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="SAAAAAA Signal Service",
-    description="Cross-cut signal channel from questionnaire.monolith to orchestrator",
+    title="F.A.R.F.A.N Signal Service",
+    description="Cross-cut signal channel from questionnaire.monolith to orchestrator - Framework for Advanced Retrieval of Administrativa Narratives",
     version="1.0.0",
 )
 

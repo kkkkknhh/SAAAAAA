@@ -64,8 +64,7 @@ async def test_phase_completes_within_timeout():
     result = await execute_phase_with_timeout(
         phase_id=2,
         phase_name="Fast Phase",
-        coro=fast_phase,
-        42,
+        coro=fast_phase(42),
         timeout_s=1.0
     )
 
@@ -120,9 +119,7 @@ async def test_phase_with_kwargs():
     result = await execute_phase_with_timeout(
         phase_id=4,
         phase_name="Kwargs Phase",
-        coro=phase_with_kwargs,
-        5,
-        b=15,
+        coro=phase_with_kwargs(5, b=15),
         timeout_s=1.0
     )
 

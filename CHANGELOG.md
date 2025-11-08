@@ -1,9 +1,17 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to F.A.R.F.A.N (Framework for Advanced Retrieval of Administrativa Narratives) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+- **Official Name**: Updated all official documentation and business references to use the canonical name "F.A.R.F.A.N" (Framework for Advanced Retrieval of Administrativa Narratives)
+- Added comprehensive description of F.A.R.F.A.N as a digital-nodal-substantive policy tool for Colombian development plan analysis
+- Updated README.md, pyproject.toml, setup.py, and operational guides with F.A.R.F.A.N branding
+- Enhanced citation formats to reflect F.A.R.F.A.N as mechanistic policy pipeline for value chain analysis
 
 ## [0.1.0] - 2025-11-06
 
