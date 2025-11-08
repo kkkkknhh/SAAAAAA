@@ -638,7 +638,7 @@ class RecommendationEngine:
         variance_threshold = when.get('variance_threshold')
         if variance_threshold is not None:
             if not self._is_number(variance_threshold):
-                raise ValueError(f"Rule {rule_id} has non numeric variance_threshold")
+                raise ValueError(f"Rule {rule_id} has non-numeric variance_threshold")
 
         weak_pa_id = when.get('weak_pa_id')
         if weak_pa_id is not None:
