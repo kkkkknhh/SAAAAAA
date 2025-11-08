@@ -13,16 +13,14 @@ Usage:
 Requirements:
     - Plan_1.pdf must exist in data/plans/
     - All dependencies installed (pdfplumber, pyarrow, etc.)
+
+Note: Run this script after installing the package with: pip install -e .
+
+import sys
 """
 
 import asyncio
-import sys
-import uuid
-from datetime import datetime
 from pathlib import Path
-
-# Ensure src/ is in Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline

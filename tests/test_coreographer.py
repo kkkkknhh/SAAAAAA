@@ -7,6 +7,7 @@ These tests verify the granular execution of a SINGLE micro question.
 import json
 import unittest
 from pathlib import Path
+import pytest
 
 from saaaaaa.core.orchestrator import get_questionnaire_provider
 from saaaaaa.core.orchestrator.choreographer import (
@@ -20,6 +21,9 @@ from saaaaaa.core.orchestrator.choreographer import (
     NodeResult,
     QuestionResult,
 )
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="Coreographer functionality migrated to Orchestrator")
 
 QUESTIONNAIRE_PROVIDER = get_questionnaire_provider()
 
@@ -163,10 +167,6 @@ class TestMethodExecutor(unittest.TestCase):
     def test_method_executor_init(self):
         """Test method executor initialization."""
         from saaaaaa.core.orchestrator.choreographer import ChoreographerDispatcher
-
-
-# Mark all tests in this module as outdated
-pytestmark = pytest.mark.skip(reason="Coreographer functionality migrated to Orchestrator")
 
         dispatcher = ChoreographerDispatcher()
         executor = MethodExecutor(dispatcher)

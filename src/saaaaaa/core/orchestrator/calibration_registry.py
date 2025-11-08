@@ -2146,6 +2146,114 @@ CALIBRATIONS: Dict[Tuple[str, str], MethodCalibration] = {
         requires_temporal_support=False,
         requires_source_provenance=True,
     ),
+    # SPC (Smart Policy Chunks) Ingestion - Canonical Phase-One
+    ("StrategicChunkingSystem", "process_document"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=5,
+        max_evidence_snippets=50,
+        contradiction_tolerance=0.1,
+        uncertainty_penalty=0.25,
+        aggregation_weight=1.5,
+        sensitivity=0.95,
+        requires_numeric_support=False,
+        requires_temporal_support=True,
+        requires_source_provenance=True,
+        safe_default_allowed=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("CausalChainAnalyzer", "extract_causal_chains"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=3,
+        max_evidence_snippets=25,
+        contradiction_tolerance=0.15,
+        uncertainty_penalty=0.35,
+        aggregation_weight=1.3,
+        sensitivity=0.9,
+        requires_numeric_support=False,
+        requires_temporal_support=True,
+        requires_source_provenance=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("KnowledgeGraphBuilder", "build_graph"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=4,
+        max_evidence_snippets=30,
+        contradiction_tolerance=0.1,
+        uncertainty_penalty=0.3,
+        aggregation_weight=1.2,
+        sensitivity=0.85,
+        requires_numeric_support=False,
+        requires_temporal_support=False,
+        requires_source_provenance=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("TopicModeler", "infer_topics"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=2,
+        max_evidence_snippets=15,
+        contradiction_tolerance=0.2,
+        uncertainty_penalty=0.2,
+        aggregation_weight=1.0,
+        sensitivity=0.8,
+        requires_numeric_support=False,
+        requires_temporal_support=False,
+        requires_source_provenance=False,
+        safe_default_allowed=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("ArgumentAnalyzer", "analyze_arguments"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=3,
+        max_evidence_snippets=20,
+        contradiction_tolerance=0.1,
+        uncertainty_penalty=0.3,
+        aggregation_weight=1.1,
+        sensitivity=0.9,
+        requires_numeric_support=False,
+        requires_temporal_support=False,
+        requires_source_provenance=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("TemporalAnalyzer", "analyze_temporal_dynamics"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=2,
+        max_evidence_snippets=15,
+        contradiction_tolerance=0.1,
+        uncertainty_penalty=0.25,
+        aggregation_weight=1.2,
+        sensitivity=0.9,
+        requires_numeric_support=True,
+        requires_temporal_support=True,
+        requires_source_provenance=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("DiscourseAnalyzer", "analyze_discourse"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=3,
+        max_evidence_snippets=20,
+        contradiction_tolerance=0.15,
+        uncertainty_penalty=0.3,
+        aggregation_weight=1.0,
+        sensitivity=0.85,
+        requires_numeric_support=False,
+        requires_temporal_support=False,
+        requires_source_provenance=True,
+        document_type="plan_desarrollo_municipal",
+    ),
+    ("StrategicIntegrator", "integrate_analyses"): MethodCalibration(
+        score_min=0.0, score_max=1.0,
+        min_evidence_snippets=5,
+        max_evidence_snippets=40,
+        contradiction_tolerance=0.1,
+        uncertainty_penalty=0.2,
+        aggregation_weight=1.4,
+        sensitivity=0.95,
+        requires_numeric_support=False,
+        requires_temporal_support=True,
+        requires_source_provenance=True,
+        safe_default_allowed=True,
+        document_type="plan_desarrollo_municipal",
+    ),
 }
 
 def get_calibration_hash() -> str:
@@ -2205,38 +2313,6 @@ def resolve_calibration(class_name: str, method_name: str, strict: bool = True) 
         raise MissingCalibrationError(method_fqn, {"resolution": "base"})
     
     return calib
-
-
-def get_calibration_hash() -> str:
-    """Compute deterministic hash of all calibrations for versioning.
-    
-    Returns:
-        SHA256 hex digest of calibration registry
-    """
-    import hashlib
-    import json
-    
-    # Serialize all calibrations to stable JSON
-    calib_data = {}
-    for (class_name, method_name), calib in sorted(CALIBRATIONS.items()):
-        key = f"{class_name}.{method_name}"
-        calib_data[key] = {
-            "score_min": calib.score_min,
-            "score_max": calib.score_max,
-            "min_evidence_snippets": calib.min_evidence_snippets,
-            "max_evidence_snippets": calib.max_evidence_snippets,
-            "contradiction_tolerance": calib.contradiction_tolerance,
-            "uncertainty_penalty": calib.uncertainty_penalty,
-            "aggregation_weight": calib.aggregation_weight,
-            "sensitivity": calib.sensitivity,
-            "requires_numeric_support": calib.requires_numeric_support,
-            "requires_temporal_support": calib.requires_temporal_support,
-            "requires_source_provenance": calib.requires_source_provenance,
-            "safe_default_allowed": calib.safe_default_allowed,
-        }
-    
-    calib_json = json.dumps(calib_data, sort_keys=True)
-    return hashlib.sha256(calib_json.encode("utf-8")).hexdigest()
 
 
 def resolve_calibration_with_context(

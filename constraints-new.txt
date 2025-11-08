@@ -75,7 +75,7 @@ structlog==24.4.0
 tabula-py==2.10.0
 tenacity==9.0.0
 tiktoken==0.8.0
-transformers==4.48.3
+transformers==4.53.0
 typer==0.15.1
 typing-extensions==4.12.2
 uvicorn==0.34.0
