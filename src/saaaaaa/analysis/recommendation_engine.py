@@ -743,7 +743,7 @@ class RecommendationEngine:
         if partners is None or not isinstance(partners, list) or not partners:
             raise ValueError(f"Rule {rule_id} responsible must enumerate partners")
         if any(not isinstance(partner, str) or not partner.strip() for partner in partners):
-            raise ValueError(f"Rule {rule_id} responsible partners must be non empty strings")
+            raise ValueError(f"Rule {rule_id} responsible partners must be non-empty strings")
 
         horizon = template['horizon']
         if not isinstance(horizon, dict):
