@@ -775,10 +775,6 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    _DEFAULT_CALIBRATION_TARGETS: dict[str, list[str]] = {
-        "calibracion_bayesiana": ["BayesianEvidenceScorer"],
-    }
-
     def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
         # Build the class registry
         self.degraded_mode = False
@@ -860,23 +856,15 @@ class MethodExecutor:
             logger.error("CRITICAL DEGRADATION: %s", reason)
 
     def _map_calibrations_to_classes(self, calibrations: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        mapped: dict[str, dict[str, Any]] = {}
-
-        for name, payload in calibrations.items():
-            targets: Iterable[str] | None = None
-            if isinstance(payload, dict):
-                meta = payload.get("__meta") if isinstance(payload.get("__meta"), dict) else {}
-                raw_targets = payload.get("targets") or meta.get("targets")
-                if isinstance(raw_targets, (list, tuple, set)):
-                    targets = raw_targets
-
-            if not targets:
-                targets = self._DEFAULT_CALIBRATION_TARGETS.get(name, [])
-
-            for target in targets or []:
-                mapped.setdefault(str(target), payload)
-
-        return mapped
+        """Map legacy YAML calibrations to classes.
+        
+        NOTE: This method is deprecated and will always return an empty dict
+        since calibrations parameter is always {} (YAML loading disabled).
+        Kept for backward compatibility during transition period.
+        """
+        # Legacy YAML calibration mapping - no longer used
+        # calibrations is always {} since YAML loading was deprecated
+        return {}
 
     @staticmethod
     def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:
