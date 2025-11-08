@@ -107,7 +107,9 @@ class RecommendationEngine:
     def __init__(
         self,
         rules_path: str = "config/recommendation_rules.json",
-        schema_path: str = "rules/recommendation_rules.schema.json"
+        schema_path: str = "rules/recommendation_rules.schema.json",
+        questionnaire_provider=None,
+        orchestrator=None
     ) -> None:
         """
         Initialize recommendation engine
@@ -115,9 +117,16 @@ class RecommendationEngine:
         Args:
             rules_path: Path to recommendation rules JSON file
             schema_path: Path to JSON schema for validation
+            questionnaire_provider: QuestionnaireResourceProvider instance (injected via DI)
+            orchestrator: Orchestrator instance for accessing thresholds and patterns
+        
+        ARCHITECTURAL NOTE: Thresholds should come from questionnaire monolith
+        via QuestionnaireResourceProvider, not from hardcoded values.
         """
         self.rules_path = Path(rules_path)
         self.schema_path = Path(schema_path)
+        self.questionnaire_provider = questionnaire_provider
+        self.orchestrator = orchestrator
         self.rules: dict[str, Any] = {}
         self.schema: dict[str, Any] = {}
         self.rules_by_level: dict[str, list[dict[str, Any]]] = {
@@ -179,6 +188,43 @@ class RecommendationEngine:
         """Reload rules from disk (useful for hot-reloading)"""
         self.rules_by_level = {'MICRO': [], 'MESO': [], 'MACRO': []}
         self._load_rules()
+    
+    def get_thresholds_from_monolith(self) -> dict[str, Any]:
+        """
+        Get scoring thresholds from questionnaire monolith.
+        
+        Returns:
+            Dictionary of thresholds by question_id or default thresholds
+        
+        ARCHITECTURAL NOTE: This method demonstrates proper access to 
+        questionnaire data via QuestionnaireResourceProvider, not direct I/O.
+        """
+        if self.questionnaire_provider is None:
+            logger.warning("No questionnaire provider attached, using default thresholds")
+            return {
+                'default_micro_threshold': 2.0,
+                'default_meso_threshold': 55.0,
+                'default_macro_threshold': 65.0
+            }
+        
+        # Get questionnaire data via provider
+        questionnaire_data = self.questionnaire_provider.get_data()
+        
+        # Extract thresholds from monolith structure
+        thresholds = {}
+        blocks = questionnaire_data.get('blocks', {})
+        micro_questions = blocks.get('micro_questions', [])
+        
+        for question in micro_questions:
+            question_id = question.get('question_id')
+            scoring_info = question.get('scoring', {})
+            threshold = scoring_info.get('threshold')
+            
+            if question_id and threshold is not None:
+                thresholds[question_id] = threshold
+        
+        logger.info(f"Loaded {len(thresholds)} thresholds from questionnaire monolith")
+        return thresholds
 
     # ========================================================================
     # MICRO LEVEL RECOMMENDATIONS

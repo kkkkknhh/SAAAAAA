@@ -251,29 +251,10 @@ class MetadataLoader:
 
         logger.error(json.dumps(log_entry, indent=2))
 
-def load_cuestionario(
-    path: Path | None = None,
-    required_version: str = "2.0.0"
-) -> dict[str, Any]:
-    """
-    Load and validate cuestionario_FIXED.json
-
-    Args:
-        path: Path to cuestionario file (default: questionnaire_monolith.json)
-        required_version: Required version
-
-    Returns:
-        Validated cuestionario data
-    """
-    if path is None:
-        path = proj_root() / "questionnaire_monolith.json"
-
-    loader = MetadataLoader()
-    return loader.load_and_validate_metadata(
-        path=path,
-        schema_ref=None,  # TODO: Create cuestionario schema
-        required_version=required_version
-    )
+# REMOVED: load_cuestionario() - LEGACY FUNCTION
+# Questionnaire monolith must ONLY be loaded via factory.load_questionnaire_monolith()
+# This enforces architectural requirement: Single I/O boundary in factory.py
+# See: src/saaaaaa/core/orchestrator/factory.py::load_questionnaire_monolith()
 
 def load_execution_mapping(
     path: Path | None = None,
