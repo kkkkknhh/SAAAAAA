@@ -1,5 +1,8 @@
 """Compatibility wrapper for QMCM hooks."""
-from saaaaaa.utils.qmcm_hooks import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.utils.qmcm_hooks import (  # noqa: F401, E402
     QMCMRecorder,
     get_global_recorder,
     qmcm_record,

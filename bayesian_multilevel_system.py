@@ -1,0 +1,51 @@
+"""Compatibility wrapper for Bayesian Multi-Level Analysis System."""
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.analysis.bayesian_multilevel_system import (  # noqa: F401, E402
+    BayesianPortfolioComposer,
+    BayesianRollUp,
+    BayesianUpdate,
+    BayesianUpdater,
+    ContradictionDetection,
+    ContradictionScanner,
+    DispersionEngine,
+    MacroLevelAnalysis,
+    MesoLevelAnalysis,
+    MicroLevelAnalysis,
+    MultiLevelBayesianOrchestrator,
+    PeerCalibrator,
+    PeerComparison,
+    PeerContext,
+    PenaltyCategory,
+    ProbativeTest,
+    ProbativeTestType,
+    ReconciliationValidator,
+    ValidationResult,
+    ValidationRule,
+    ValidatorType,
+)
+
+__all__ = [
+    "BayesianPortfolioComposer",
+    "BayesianRollUp",
+    "BayesianUpdate",
+    "BayesianUpdater",
+    "ContradictionDetection",
+    "ContradictionScanner",
+    "DispersionEngine",
+    "MacroLevelAnalysis",
+    "MesoLevelAnalysis",
+    "MicroLevelAnalysis",
+    "MultiLevelBayesianOrchestrator",
+    "PeerCalibrator",
+    "PeerComparison",
+    "PeerContext",
+    "PenaltyCategory",
+    "ProbativeTest",
+    "ProbativeTestType",
+    "ReconciliationValidator",
+    "ValidationResult",
+    "ValidationRule",
+    "ValidatorType",
+]

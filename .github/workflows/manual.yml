@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # match what you use locally
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # If your project is package-structured (recommended), install it:
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          # If you have pyproject.toml, this installs your package and deps:
+          pip install -e .
+          # If you use requirements instead, do this:
+          # pip install -r requirements.txt
+
+      - name: Run validator
+        run: python schema_validator.py

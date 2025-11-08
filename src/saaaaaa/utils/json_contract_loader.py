@@ -5,31 +5,30 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Union
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 PathLike = Union[str, Path]
 
-
 def _canonical_dump(payload: Mapping[str, object]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
 
 @dataclass(frozen=True)
 class ContractDocument:
     """Materialized JSON contract with checksum information."""
 
     path: Path
-    payload: Dict[str, object]
+    payload: dict[str, object]
     checksum: str
-
 
 @dataclass
 class ContractLoadReport:
     """Result of attempting to load multiple contract documents."""
 
-    documents: Dict[str, ContractDocument]
-    errors: List[str]
+    documents: dict[str, ContractDocument]
+    errors: list[str]
 
     @property
     def is_successful(self) -> bool:
@@ -41,16 +40,23 @@ class ContractLoadReport:
             parts.append(f"errors={len(self.errors)}")
         return ", ".join(parts)
 
-
 class JSONContractLoader:
-    """Load JSON contract files and compute integrity metadata."""
+    """Load JSON contract files and compute integrity metadata.
+    
+    ARCHITECTURAL BOUNDARY: This loader is for generic JSON contracts ONLY.
+    It must NOT be used to load questionnaire_monolith.json directly.
+    
+    For questionnaire access, use:
+    - factory.load_questionnaire_monolith() for I/O
+    - QuestionnaireResourceProvider for pattern extraction
+    """
 
-    def __init__(self, base_path: Optional[Path] = None):
+    def __init__(self, base_path: Path | None = None) -> None:
         self.base_path = base_path or Path(__file__).resolve().parent
 
     def load(self, paths: Iterable[PathLike]) -> ContractLoadReport:
-        documents: Dict[str, ContractDocument] = {}
-        errors: List[str] = []
+        documents: dict[str, ContractDocument] = {}
+        errors: list[str] = []
         for raw in paths:
             path = self._resolve_path(raw)
             try:
@@ -83,13 +89,20 @@ class JSONContractLoader:
         return path
 
     @staticmethod
-    def _read_payload(path: Path) -> Dict[str, object]:
+    def _read_payload(path: Path) -> dict[str, object]:
+        # ARCHITECTURAL GUARD: Block unauthorized questionnaire monolith access
+        if path.name == "questionnaire_monolith.json":
+            raise ValueError(
+                "ARCHITECTURAL VIOLATION: questionnaire_monolith.json must ONLY be "
+                "loaded via factory.load_questionnaire_monolith(). "
+                "Use factory.py for I/O, QuestionnaireResourceProvider for patterns."
+            )
+        
         text = path.read_text(encoding="utf-8")
         data = json.loads(text)
         if not isinstance(data, dict):
             raise ValueError("Contract document must be a JSON object")
         return data
-
 
 __all__ = [
     "ContractDocument",

@@ -114,11 +114,16 @@ fi
 # Create .env if doesn't exist
 if [ ! -f ".env" ]; then
     print_info "Creating .env file..."
+    
+    # Generate secure random secrets
+    API_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+    JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+    
     cat > .env << EOF
 # AtroZ Dashboard Configuration
 ATROZ_API_PORT=$PORT
-ATROZ_API_SECRET=dev-secret-key-change-in-production
-ATROZ_JWT_SECRET=dev-jwt-secret-change-in-production
+ATROZ_API_SECRET=$API_SECRET
+ATROZ_JWT_SECRET=$JWT_SECRET
 ATROZ_DEBUG=true
 ATROZ_CORS_ORIGINS=http://localhost:$STATIC_PORT,http://127.0.0.1:$STATIC_PORT
 ATROZ_RATE_LIMIT=false
@@ -128,12 +133,14 @@ ATROZ_DATA_DIR=output
 ATROZ_CACHE_DIR=cache
 ATROZ_ENABLE_REALTIME=true
 EOF
-    print_info "✓ .env file created"
+    print_info "✓ .env file created with secure random secrets"
 fi
 
 # Load environment variables
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a  # automatically export all variables
+    source .env
+    set +a
 fi
 
 # Check if required files exist

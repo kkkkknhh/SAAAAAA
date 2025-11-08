@@ -1,5 +1,8 @@
 """Compatibility wrapper for direct schema validator imports."""
-from saaaaaa.utils.validation.schema_validator import (  # noqa: F401
+from pathlib import Path
+
+# Ensure src/ is in path for imports
+from saaaaaa.utils.validation.schema_validator import (  # noqa: F401, E402
     MonolithIntegrityReport,
     MonolithSchemaValidator,
     SchemaInitializationError,

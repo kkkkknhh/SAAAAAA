@@ -4,9 +4,17 @@ Contracts package - defines API contracts and interfaces.
 This package provides backward compatibility by re-exporting
 from saaaaaa.utils.contracts.
 """
+from __future__ import annotations
 
+from pathlib import Path
+
+# Add src to path for development environments
+_SRC_PATH = Path(__file__).resolve().parent.parent / "src"
+if _SRC_PATH.exists():  # pragma: no cover - executed at import time
+    src_str = str(_SRC_PATH)
 # Direct imports from the source modules
-from saaaaaa.utils.contracts import (  # noqa: F401
+from saaaaaa.utils.contracts import (  # noqa: F401, E402
+    MISSING,
     AnalysisInputV1,
     AnalysisInputV1Optional,
     AnalysisOutputV1,
@@ -18,7 +26,6 @@ from saaaaaa.utils.contracts import (  # noqa: F401
     DocumentMetadataV1Optional,
     ExecutionContextV1,
     ExecutionContextV1Optional,
-    MISSING,
     ProcessedTextV1,
     ProcessedTextV1Optional,
     SentenceCollection,
@@ -29,7 +36,7 @@ from saaaaaa.utils.contracts import (  # noqa: F401
     validate_contract,
     validate_mapping_keys,
 )
-from saaaaaa.utils.seed_factory import SeedFactory  # noqa: F401
+from saaaaaa.utils.seed_factory import SeedFactory  # noqa: F401, E402
 
 __all__ = [
     "AnalysisInputV1",

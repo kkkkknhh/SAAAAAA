@@ -12,18 +12,18 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 DATA_PATH = Path("data/prompt_cross_registry.json")
 
-
-def _load_data() -> Dict[str, object]:
+def _load_data() -> dict[str, object]:
     """Load the consolidated prompt-cross dataset."""
 
     with DATA_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
 
 def _contribution(weight: float, normalized_time: float, depth: int) -> float:
     """Compute contribution score for a single registry entry."""
@@ -31,8 +31,7 @@ def _contribution(weight: float, normalized_time: float, depth: int) -> float:
     safe_depth = max(depth, 1)
     return weight * normalized_time / safe_depth
 
-
-def consolidate_evidence(records: Iterable[Dict[str, object]]) -> Dict[str, object]:
+def consolidate_evidence(records: Iterable[dict[str, object]]) -> dict[str, object]:
     """Deduplicate registry records and compute contribution metrics.
 
     Args:
@@ -44,10 +43,10 @@ def consolidate_evidence(records: Iterable[Dict[str, object]]) -> Dict[str, obje
     """
 
     records = list(records)
-    canonical: Dict[Tuple[str, str, str], Dict[str, object]] = {}
-    record_to_node: Dict[str, str] = {}
-    parent_links: Dict[str, List[str]] = defaultdict(list)
-    contributions: Dict[str, float] = defaultdict(float)
+    canonical: dict[tuple[str, str, str], dict[str, object]] = {}
+    record_to_node: dict[str, str] = {}
+    parent_links: dict[str, list[str]] = defaultdict(list)
+    contributions: dict[str, float] = defaultdict(float)
 
     for record in records:
         key = (
@@ -88,7 +87,7 @@ def consolidate_evidence(records: Iterable[Dict[str, object]]) -> Dict[str, obje
             parent_links[node_id].append(parent_record)
 
     # Resolve parent pointers to canonical node identifiers
-    resolved_parents: Dict[str, List[str]] = {}
+    resolved_parents: dict[str, list[str]] = {}
     for node_id, parents in parent_links.items():
         resolved = {
             record_to_node[parent]
@@ -99,7 +98,7 @@ def consolidate_evidence(records: Iterable[Dict[str, object]]) -> Dict[str, obje
 
     # Build global node list
     level_order = {"micro": 0, "meso": 1, "macro": 2}
-    global_nodes: List[Dict[str, object]] = []
+    global_nodes: list[dict[str, object]] = []
     for entry in canonical.values():
         node_id = entry["node_id"]
         global_nodes.append(
@@ -149,12 +148,11 @@ def consolidate_evidence(records: Iterable[Dict[str, object]]) -> Dict[str, obje
         "top_contributors": top_contributors,
     }
 
-
-def build_method_coverage(entries: Iterable[Dict[str, object]]) -> Tuple[Dict[str, object], str]:
+def build_method_coverage(entries: Iterable[dict[str, object]]) -> tuple[dict[str, object], str]:
     """Generate method coverage matrix and heatmap recommendations."""
 
     dimensions = sorted({entry["dimension"] for entry in entries})
-    matrix: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
+    matrix: dict[str, dict[str, dict[str, float]]] = defaultdict(
         lambda: {dim: {"invocations": 0, "tests": 0} for dim in dimensions}
     )
 
@@ -164,17 +162,15 @@ def build_method_coverage(entries: Iterable[Dict[str, object]]) -> Tuple[Dict[st
         matrix[method][dim]["invocations"] += entry["invocations"]
         matrix[method][dim]["tests"] += entry["tests_executed"]
 
-    recommendations: List[Dict[str, object]] = []
+    recommendations: list[dict[str, object]] = []
     for method, dim_data in matrix.items():
-        cold_dims: List[str] = []
+        cold_dims: list[str] = []
         for dim, stats in dim_data.items():
             inv = stats["invocations"]
             tests = stats["tests"]
             coverage_ratio = tests / inv if inv else 0.0
             stats["coverage_ratio"] = round(coverage_ratio, 3)
-            if inv and coverage_ratio < 0.25:
-                cold_dims.append(dim)
-            elif not inv:
+            if inv and coverage_ratio < 0.25 or not inv:
                 cold_dims.append(dim)
 
         if cold_dims:
@@ -188,7 +184,7 @@ def build_method_coverage(entries: Iterable[Dict[str, object]]) -> Tuple[Dict[st
 
     # Build ASCII table
     header = ["Method"] + dimensions
-    rows: List[List[str]] = []
+    rows: list[list[str]] = []
     for method in sorted(matrix):
         row = [method]
         for dim in dimensions:
@@ -202,7 +198,7 @@ def build_method_coverage(entries: Iterable[Dict[str, object]]) -> Tuple[Dict[st
 
     col_widths = [max(len(row[i]) for row in [header] + rows) for i in range(len(header))]
 
-    def _format_row(row: List[str]) -> str:
+    def _format_row(row: list[str]) -> str:
         return " | ".join(val.ljust(col_widths[idx]) for idx, val in enumerate(row))
 
     separator = "-+-".join("-" * width for width in col_widths)
@@ -231,7 +227,6 @@ def build_method_coverage(entries: Iterable[Dict[str, object]]) -> Tuple[Dict[st
         ascii_table,
     )
 
-
 SEVERITY_WEIGHTS = {
     "critical": 4,
     "high": 3,
@@ -239,14 +234,13 @@ SEVERITY_WEIGHTS = {
     "low": 1,
 }
 
-
 def analyze_contract_failures(
-    entries: Iterable[Dict[str, object]], inputs: Dict[str, int]
-) -> Tuple[Dict[str, object], List[str]]:
+    entries: Iterable[dict[str, object]], inputs: dict[str, int]
+) -> tuple[dict[str, object], list[str]]:
     """Aggregate contract failures into a funnel and narrative."""
 
-    level_stats: Dict[str, Dict[str, object]] = {}
-    method_scores: Dict[str, Dict[str, object]] = defaultdict(
+    level_stats: dict[str, dict[str, object]] = {}
+    method_scores: dict[str, dict[str, object]] = defaultdict(
         lambda: {"severity_score": 0, "total_failures": 0}
     )
 
@@ -296,28 +290,26 @@ def analyze_contract_failures(
 
     return {"funnel": level_stats, "top_methods": top_methods}, narrative
 
-
 @dataclass
 class PathStatus:
     path_id: str
     complete: bool
-    missing_dimensions: List[str]
-    issues: List[str]
+    missing_dimensions: list[str]
+    issues: list[str]
 
-
-def evaluate_causal_paths(data: Dict[str, object]) -> Dict[str, object]:
+def evaluate_causal_paths(data: dict[str, object]) -> dict[str, object]:
     """Verify causal path continuity across dimensions."""
 
-    expected_sequence: List[str] = data["dimension_sequence"]
-    complete_paths: List[Dict[str, object]] = []
-    broken_paths: List[Dict[str, object]] = []
-    repair_actions: List[str] = []
+    expected_sequence: list[str] = data["dimension_sequence"]
+    complete_paths: list[dict[str, object]] = []
+    broken_paths: list[dict[str, object]] = []
+    repair_actions: list[str] = []
 
     for path in data["causal_paths"]:
-        dims: List[str] = path["dimensions"]
+        dims: list[str] = path["dimensions"]
         missing = [dim for dim in expected_sequence if dim not in dims]
         unexpected = [dim for dim in dims if dim not in expected_sequence]
-        issues: List[str] = []
+        issues: list[str] = []
 
         if dims != expected_sequence:
             # Check for unexpected dimensions (not in expected sequence)
@@ -325,13 +317,13 @@ def evaluate_causal_paths(data: Dict[str, object]) -> Dict[str, object]:
                 issues.append(
                     "Unexpected dimensions: " + ", ".join(unexpected)
                 )
-            
+
             # Check for length mismatch
             if len(dims) != len(expected_sequence):
                 issues.append(
                     f"Length mismatch: expected {len(expected_sequence)} dimensions but found {len(dims)}"
                 )
-            
+
             # Check for adjacency breaks
             for idx, expected_dim in enumerate(expected_sequence):
                 if idx >= len(dims):
@@ -383,7 +375,6 @@ def evaluate_causal_paths(data: Dict[str, object]) -> Dict[str, object]:
         "repair_actions": sorted(set(repair_actions)),
     }
 
-
 def run() -> None:
     """Execute all Prompt Cross analyses and print results."""
 
@@ -410,7 +401,6 @@ def run() -> None:
     causal = evaluate_causal_paths(data)
     print("\n=== Prompt Cross – Causal Path Integrity ===")
     print(json.dumps(causal, indent=2))
-
 
 if __name__ == "__main__":
     run()

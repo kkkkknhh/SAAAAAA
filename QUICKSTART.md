@@ -1,22 +1,32 @@
-# Quick Start Guide - Build Hygiene
+# F.A.R.F.A.N Quick Start Guide
 
-## TL;DR - For Developers
+## Framework for Advanced Retrieval of Administrativa Narratives
 
-This repository now follows strict build hygiene practices. Here's what you need to know:
+### TL;DR - For Developers
+
+F.A.R.F.A.N is a mechanistic policy pipeline for Colombian development plan analysis. This repository follows strict build hygiene practices. Here's what you need to know:
 
 ## Setup (First Time)
 
 ### Quick Automated Setup (Recommended)
 
 ```bash
-# Run the automated setup script
+# Method 1: Using Makefile (simplest - installs dependencies and package)
+make install
+
+# Method 2: Using setup script (includes SpaCy models)
 bash scripts/setup.sh
 ```
 
-This will:
+**Using `make install` will:**
 1. Install all Python dependencies from requirements.txt
-2. Download required SpaCy language models (es_core_news_lg, es_dep_news_trf)
-3. Verify the installation
+2. Install the saaaaaa package in editable mode (required for imports to work)
+
+**Using `bash scripts/setup.sh` will:**
+1. Install all Python dependencies from requirements.txt
+2. Install the saaaaaa package in editable mode (required for imports to work)
+3. Download required SpaCy language models (es_core_news_lg, es_dep_news_trf)
+4. Verify the installation
 
 ### Manual Setup
 
@@ -34,7 +44,7 @@ python -m spacy download es_dep_news_trf
 # 4. Copy environment template
 cp .env.example .env
 
-# 5. Install in editable mode
+# 5. Install the package in editable mode (required)
 pip install -e .
 
 # 6. Verify setup

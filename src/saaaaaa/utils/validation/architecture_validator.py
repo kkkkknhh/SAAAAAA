@@ -12,9 +12,9 @@ from __future__ import annotations
 import ast
 import json
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 # Regular expression used to capture fully-qualified method references such as
 # ``ClassName.method_name``.
@@ -22,7 +22,7 @@ METHOD_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
 
 _EXTERNAL_REFERENCE = object()
 
-ALIAS_MAP: Dict[str, object] = {
+ALIAS_MAP: dict[str, object] = {
     # Performance analyzer exposes the functionality through a private helper.
     "PerformanceAnalyzer.analyze_loss_function": "PerformanceAnalyzer._calculate_loss_functions",
     # The municipal plan analyzer generates recommendations with a private helper.
@@ -38,20 +38,19 @@ ALIAS_MAP: Dict[str, object] = {
 # Root directory of the repository (two levels above this file).
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
-
 @dataclass(frozen=True)
 class ArchitectureValidationResult:
     """Container with the outcome of the architecture validation process."""
 
-    resolved_methods: Set[str]
-    missing_methods: Mapping[str, Mapping[str, List[str]]]
+    resolved_methods: set[str]
+    missing_methods: Mapping[str, Mapping[str, list[str]]]
     coverage: float
     total_spec_methods: int
     total_available_methods: int
-    per_dimension: Mapping[str, Mapping[str, List[str]]]
-    global_methods: Tuple[str, ...] = field(default_factory=tuple)
+    per_dimension: Mapping[str, Mapping[str, list[str]]]
+    global_methods: tuple[str, ...] = field(default_factory=tuple)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         """Serialise the validation result into a JSON-compatible dict."""
 
         return {
@@ -60,25 +59,23 @@ class ArchitectureValidationResult:
             "total_available_methods": self.total_available_methods,
             "resolved_methods": sorted(self.resolved_methods),
             "missing_methods": {
-                dimension: {question: methods for question, methods in question_map.items()}
+                dimension: dict(question_map.items())
                 for dimension, question_map in self.missing_methods.items()
             },
             "per_dimension": {
-                dimension: {question: methods for question, methods in question_map.items()}
+                dimension: dict(question_map.items())
                 for dimension, question_map in self.per_dimension.items()
             },
             "global_methods": list(self.global_methods),
         }
 
-
-def load_architecture_spec(path: Path) -> Dict[str, object]:
+def load_architecture_spec(path: Path) -> dict[str, object]:
     """Load the JSON architecture specification from ``path``."""
 
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
-
-def _extract_method_from_entry(entry: object) -> Optional[str]:
+def _extract_method_from_entry(entry: object) -> str | None:
     """Return the method string encoded in ``entry`` if present."""
 
     if isinstance(entry, str) and METHOD_PATTERN.match(entry):
@@ -86,7 +83,7 @@ def _extract_method_from_entry(entry: object) -> Optional[str]:
 
     if isinstance(entry, Mapping):
         # Architecture steps are stored as {"Class.method": "description"}
-        for key in entry.keys():
+        for key in entry:
             if isinstance(key, str) and METHOD_PATTERN.match(key):
                 return key
 
@@ -98,7 +95,6 @@ def _extract_method_from_entry(entry: object) -> Optional[str]:
 
     return None
 
-
 def _extract_methods_from_string(value: str) -> Iterable[str]:
     """Extract additional method references embedded in textual descriptions."""
 
@@ -106,16 +102,15 @@ def _extract_methods_from_string(value: str) -> Iterable[str]:
         if METHOD_PATTERN.match(candidate):
             yield candidate
 
-
-def extract_architecture_methods(spec: Mapping[str, object]) -> Tuple[Dict[str, Dict[str, List[str]]], List[str]]:
+def extract_architecture_methods(spec: Mapping[str, object]) -> tuple[dict[str, dict[str, list[str]]], list[str]]:
     """Extract method sequences per dimension and global method references."""
 
     policy_spec = spec.get("policy_analysis_architecture", {})
     if not isinstance(policy_spec, Mapping):
         raise ValueError("Malformed architecture specification: missing 'policy_analysis_architecture'.")
 
-    per_dimension: Dict[str, Dict[str, List[str]]] = {}
-    global_methods: List[str] = []
+    per_dimension: dict[str, dict[str, list[str]]] = {}
+    global_methods: list[str] = []
 
     # --- Component level methods -------------------------------------------------
     orchestration = policy_spec.get("orchestration_flow", {})
@@ -152,12 +147,12 @@ def extract_architecture_methods(spec: Mapping[str, object]) -> Tuple[Dict[str, 
         if not isinstance(dimension, Mapping):
             continue
         dim_id = str(dimension.get("id", "UNKNOWN"))
-        dimension_methods: Dict[str, List[str]] = {}
+        dimension_methods: dict[str, list[str]] = {}
         for subdimension in dimension.get("subdimension", []):
             if not isinstance(subdimension, Mapping):
                 continue
             question_id = str(subdimension.get("pregunta", "UNKNOWN"))
-            methods: List[str] = []
+            methods: list[str] = []
             for step in subdimension.get("cadena_metodos", []):
                 method = _extract_method_from_entry(step)
                 if method:
@@ -187,18 +182,17 @@ def extract_architecture_methods(spec: Mapping[str, object]) -> Tuple[Dict[str, 
 
     return per_dimension, global_methods
 
-
-def load_method_inventory(path: Path) -> Tuple[Set[str], Set[str]]:
+def load_method_inventory(path: Path) -> tuple[set[str], set[str]]:
     """Load available class methods and module functions from the inventory."""
 
     with path.open("r", encoding="utf-8") as handle:
         inventory = json.load(handle)
 
-    available_methods: Set[str] = set()
-    functions: Set[str] = set()
+    available_methods: set[str] = set()
+    functions: set[str] = set()
 
     candidate_files = inventory.get("files", {})
-    for file_name in candidate_files.keys():
+    for file_name in candidate_files:
         file_path = ROOT_DIR / file_name
         if not file_path.exists():
             continue
@@ -208,9 +202,7 @@ def load_method_inventory(path: Path) -> Tuple[Set[str], Set[str]]:
             continue
 
         for node in tree.body:
-            if isinstance(node, ast.FunctionDef):
-                functions.add(node.name)
-            elif isinstance(node, ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 functions.add(node.name)
             elif isinstance(node, ast.ClassDef):
                 for item in node.body:
@@ -219,12 +211,11 @@ def load_method_inventory(path: Path) -> Tuple[Set[str], Set[str]]:
 
     return available_methods, functions
 
-
 def _resolve_method_reference(
     reference: str,
-    available_methods: Set[str],
-    available_functions: Set[str],
-) -> Optional[str]:
+    available_methods: set[str],
+    available_functions: set[str],
+) -> str | None:
     """Resolve a method reference using the available inventory."""
 
     reference = reference.strip()
@@ -254,7 +245,6 @@ def _resolve_method_reference(
         return reference
     return None
 
-
 def validate_architecture(spec_path: Path, inventory_path: Path) -> ArchitectureValidationResult:
     """Validate that every method described in the architecture exists."""
 
@@ -263,8 +253,8 @@ def validate_architecture(spec_path: Path, inventory_path: Path) -> Architecture
 
     available_methods, available_functions = load_method_inventory(inventory_path)
 
-    resolved_methods: Set[str] = set()
-    missing_methods: Dict[str, Dict[str, List[str]]] = {}
+    resolved_methods: set[str] = set()
+    missing_methods: dict[str, dict[str, list[str]]] = {}
 
     # Validate global references
     for method in global_methods:
@@ -300,14 +290,12 @@ def validate_architecture(spec_path: Path, inventory_path: Path) -> Architecture
         global_methods=tuple(global_methods),
     )
 
-
 def write_validation_report(result: ArchitectureValidationResult, output_path: Path) -> None:
     """Write the validation report to ``output_path`` in JSON format."""
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
         json.dump(result.to_dict(), handle, indent=2, ensure_ascii=False)
-
 
 def main() -> None:
     """Entry point for CLI usage."""
@@ -328,6 +316,5 @@ def main() -> None:
     else:
         print(f"Architecture validation successful. Report saved to {report_path}.")
 
-
-if __name__ == "__main__":
-    main()
+# Note: Main entry point removed to maintain I/O boundary separation.
+# For usage, call main() function from a script or see examples/ directory.
