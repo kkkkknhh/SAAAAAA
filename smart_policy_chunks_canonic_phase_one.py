@@ -39,18 +39,36 @@ from sentence_transformers import SentenceTransformer, util
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import canonical components to avoid redundancy
-try:
-    from embedding_policy import PolicyAnalysisEmbedder
-    from semantic_chunking_policy import SemanticChunkingProducer, SemanticProcessor
-    from policy_processor import IndustrialPolicyProcessor, PolicyTextProcessor
-except ImportError:
-    # Fallback if imports fail - will use internal implementations
-    PolicyAnalysisEmbedder = None
-    SemanticChunkingProducer = None
-    SemanticProcessor = None
-    IndustrialPolicyProcessor = None
-    PolicyTextProcessor = None
+# ============================================================================= 
+# CANONICAL MODULE INTEGRATION
+# Import production-grade canonical components from saaaaaa.processing
+# These replace internal duplicate implementations
+# =============================================================================
+from saaaaaa.processing.embedding_policy import (
+    PolicyAnalysisEmbedder,
+    AdvancedSemanticChunker,
+    ChunkingConfig as EmbeddingChunkingConfig,
+    SemanticChunk as CanonicalSemanticChunk,
+    BayesianNumericalAnalyzer,
+    PolicyDomain,
+    AnalyticalDimension
+)
+from saaaaaa.processing.semantic_chunking_policy import (
+    SemanticProcessor,
+    SemanticChunkingProducer,
+    SemanticConfig,
+    BayesianEvidenceIntegrator,
+    CausalDimension as CanonicalCausalDimension,
+    PDMSection,
+    PolicyDocumentAnalyzer
+)
+from saaaaaa.processing.policy_processor import (
+    IndustrialPolicyProcessor,
+    BayesianEvidenceScorer,
+    PolicyTextProcessor,
+    CausalDimension as ProcessorCausalDimension,
+    CAUSAL_PATTERN_TAXONOMY
+)
 
 # Optional language detection for multi-language support
 try:
@@ -1215,7 +1233,13 @@ class StrategicIntegrator:
 class StrategicChunkingSystem:
     def __init__(self):
         """
-        Initialize the Strategic Chunking System with lazy-loaded models.
+        Initialize the Strategic Chunking System with canonical components.
+        
+        Integrates production-grade canonical modules:
+        - PolicyAnalysisEmbedder for semantic embeddings
+        - SemanticProcessor for chunking with PDM structure awareness
+        - IndustrialPolicyProcessor for causal evidence extraction
+        - BayesianEvidenceScorer for probabilistic confidence scoring
         
         Inputs:
             None
@@ -1225,20 +1249,35 @@ class StrategicChunkingSystem:
         self.config = SmartChunkConfig()
         self.logger = logging.getLogger(self.__class__.__name__)
         
-        # Models will be lazy-loaded on first use for memory efficiency
-        self._semantic_model = None
-        self._semantic_model_fallback = None
-        self._nlp = None
+        # =====================================================================
+        # CANONICAL COMPONENTS - Replace internal implementations
+        # =====================================================================
         
-        # Sistemas auxiliares - will be lazy-loaded
-        self._context_preserver = None
-        self._causal_analyzer = None
-        self._kg_builder = None
-        self._topic_modeler = None
-        self._argument_analyzer = None
-        self._temporal_analyzer = None
-        self._discourse_analyzer = None
-        self._strategic_integrator = None
+        # 1. Embedding & Semantic Analysis (from embedding_policy.py)
+        self._embedder = None  # Lazy-loaded PolicyAnalysisEmbedder
+        self._semantic_chunker = None  # Lazy-loaded AdvancedSemanticChunker
+        
+        # 2. Semantic Processing (from semantic_chunking_policy.py)
+        self._semantic_processor = None  # Lazy-loaded SemanticProcessor
+        self._bayesian_integrator = None  # Lazy-loaded BayesianEvidenceIntegrator
+        
+        # 3. Policy Processing (from policy_processor.py)
+        self._policy_processor = None  # Lazy-loaded IndustrialPolicyProcessor
+        self._evidence_scorer = None  # Lazy-loaded BayesianEvidenceScorer
+        self._text_processor = None  # Lazy-loaded PolicyTextProcessor
+        
+        # =====================================================================
+        # SPECIALIZED COMPONENTS - Keep (no canonical equivalent)
+        # =====================================================================
+        
+        # These provide unique Smart Policy Chunks functionality
+        self._nlp = None  # SpaCy for NER (lazy-loaded)
+        self._kg_builder = None  # NetworkX knowledge graph
+        self._topic_modeler = None  # LDA topic modeling
+        self._argument_analyzer = None  # Toulmin argument structure
+        self._temporal_analyzer = None  # Temporal dynamics
+        self._discourse_analyzer = None  # Discourse markers
+        self._strategic_integrator = None  # Cross-reference integration
         
         # Modelo para clasificación de tipo de chunk
         self.chunk_classifier = None
@@ -1248,24 +1287,76 @@ class StrategicChunkingSystem:
         self.chunks_for_tfidf = []
         self.corpus_embeddings = None
         
-        # Internal memoization cache for embeddings (replaces @lru_cache with mutable returns)
+        # Internal memoization cache for backward compatibility
         self._embedding_cache: Dict[Tuple[str, str], bytes] = {}
+    
+    # =========================================================================
+    # CANONICAL COMPONENT PROPERTIES - Lazy-loaded adapters
+    # =========================================================================
+    
+    @property
+    def embedder(self):
+        """Lazy-load PolicyAnalysisEmbedder (canonical embedding component)"""
+        if self._embedder is None:
+            self.logger.info("Loading canonical PolicyAnalysisEmbedder...")
+            self._embedder = PolicyAnalysisEmbedder(
+                embedding_model="intfloat/multilingual-e5-large"
+            )
+        return self._embedder
+    
+    @property
+    def semantic_processor(self):
+        """Lazy-load SemanticProcessor (canonical semantic processing)"""
+        if self._semantic_processor is None:
+            self.logger.info("Loading canonical SemanticProcessor with BGE-M3...")
+            self._semantic_processor = SemanticProcessor(
+                config=SemanticConfig()
+            )
+        return self._semantic_processor
+    
+    @property
+    def policy_processor(self):
+        """Lazy-load IndustrialPolicyProcessor (canonical causal extraction)"""
+        if self._policy_processor is None:
+            self.logger.info("Loading canonical IndustrialPolicyProcessor...")
+            self._policy_processor = IndustrialPolicyProcessor()
+        return self._policy_processor
+    
+    @property
+    def evidence_scorer(self):
+        """Lazy-load BayesianEvidenceScorer (canonical probabilistic scoring)"""
+        if self._evidence_scorer is None:
+            self.logger.info("Loading canonical BayesianEvidenceScorer...")
+            self._evidence_scorer = BayesianEvidenceScorer()
+        return self._evidence_scorer
+    
+    @property
+    def text_processor(self):
+        """Lazy-load PolicyTextProcessor (canonical text sanitization)"""
+        if self._text_processor is None:
+            self.logger.info("Loading canonical PolicyTextProcessor...")
+            self._text_processor = PolicyTextProcessor()
+        return self._text_processor
+    
+    # =========================================================================
+    # BACKWARD COMPATIBILITY PROPERTIES - Deprecated, use canonical components
+    # =========================================================================
     
     @property
     def semantic_model(self):
-        """Lazy-load semantic embedding model"""
-        if self._semantic_model is None:
-            self.logger.info("Loading semantic model: intfloat/multilingual-e5-large")
-            self._semantic_model = SentenceTransformer('intfloat/multilingual-e5-large')
-        return self._semantic_model
+        """DEPRECATED: Use self.embedder instead. Kept for backward compatibility."""
+        self.logger.warning("semantic_model is deprecated, use self.embedder")
+        return self.embedder
     
     @property
     def semantic_model_fallback(self):
-        """Lazy-load fallback semantic model"""
-        if self._semantic_model_fallback is None:
-            self.logger.info("Loading fallback model: paraphrase-multilingual-MiniLM-L12-v2")
-            self._semantic_model_fallback = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-        return self._semantic_model_fallback
+        """DEPRECATED: Use self.embedder instead. Kept for backward compatibility."""
+        self.logger.warning("semantic_model_fallback is deprecated, use self.embedder")
+        return self.embedder
+    
+    # =========================================================================
+    # SPECIALIZED COMPONENT PROPERTIES - No canonical equivalent, keep as-is
+    # =========================================================================
     
     @property
     def nlp(self):
@@ -1285,17 +1376,21 @@ class StrategicChunkingSystem:
     
     @property
     def context_preserver(self):
-        """Lazy-load context preservation system"""
-        if self._context_preserver is None:
-            self._context_preserver = ContextPreservationSystem(self)
-        return self._context_preserver
+        """
+        CANONICAL REPLACEMENT: Use semantic_processor for chunking.
+        Kept for backward compatibility but delegates to canonical component.
+        """
+        # Return a lightweight adapter that uses canonical SemanticProcessor
+        return self.semantic_processor
     
     @property
     def causal_analyzer(self):
-        """Lazy-load causal chain analyzer"""
-        if self._causal_analyzer is None:
-            self._causal_analyzer = CausalChainAnalyzer(self)
-        return self._causal_analyzer
+        """
+        CANONICAL REPLACEMENT: Use policy_processor for causal extraction.
+        Kept for backward compatibility but delegates to canonical component.
+        """
+        # Return canonical policy processor which has causal extraction
+        return self.policy_processor
     
     @property
     def kg_builder(self):
@@ -1397,15 +1492,18 @@ class StrategicChunkingSystem:
     
     def _generate_embedding(self, text: str, model_type: str = 'semantic') -> np.ndarray:
         """
-        Generate semantic embedding with internal memoization.
+        CANONICAL ADAPTER: Generate embedding using PolicyAnalysisEmbedder.
+        
+        This method now delegates to the canonical embedding component,
+        maintaining backward compatibility with existing code.
         
         Inputs:
             text (str): Input text to embed
-            model_type (str): Type of model to use ('semantic' or 'fallback')
+            model_type (str): Type of model (ignored, canonical uses multilingual)
         Outputs:
-            np.ndarray: Embedding vector (deep copy to avoid cache corruption)
+            np.ndarray: Embedding vector from canonical component
         """
-        # Use immutable tuple as cache key
+        # Use immutable tuple as cache key for backward compatibility
         cache_key = (text, model_type)
         
         # Check cache and return deep copy to avoid mutable reference issues
@@ -1414,10 +1512,8 @@ class StrategicChunkingSystem:
             return np.frombuffer(cached_bytes, dtype=np.float32).copy()
         
         try:
-            if model_type == 'semantic':
-                embedding = self.semantic_model.encode(text, convert_to_numpy=True, show_progress_bar=False)
-            else:
-                embedding = self.semantic_model_fallback.encode(text, convert_to_numpy=True, show_progress_bar=False)
+            # CANONICAL INTEGRATION: Use PolicyAnalysisEmbedder
+            embedding = self.embedder.embed_policy_text(text)
             
             # Store as immutable bytes
             embedding = embedding.astype(np.float32)
@@ -1432,7 +1528,7 @@ class StrategicChunkingSystem:
             
             return embedding
         except Exception as e:
-            self.logger.error(f"Error generando embedding: {e}")
+            self.logger.error(f"Error generando embedding via canonical component: {e}")
             # Fallback a un vector de ceros
             return np.zeros(1024, dtype=np.float32) 
 
@@ -2640,7 +2736,10 @@ class StrategicChunkingSystem:
 
     def _generate_embeddings_for_corpus(self, texts: List[str], batch_size: int = 128) -> np.ndarray:
         """
-        Generate embeddings for a corpus of texts with batching for efficiency.
+        CANONICAL ADAPTER: Generate corpus embeddings using PolicyAnalysisEmbedder.
+        
+        This method now delegates to the canonical embedding component for
+        efficient batch processing with proper batching.
         
         Inputs:
             texts (List[str]): List of text strings to embed
@@ -2651,13 +2750,8 @@ class StrategicChunkingSystem:
         if not texts:
             return np.array([])
         
-        # Use model's batch encoding with configurable batch size
-        return self.semantic_model.encode(
-            texts, 
-            convert_to_numpy=True, 
-            show_progress_bar=False,
-            batch_size=batch_size
-        )
+        # CANONICAL INTEGRATION: Use PolicyAnalysisEmbedder batch method
+        return self.embedder.batch_embed_texts(texts, batch_size=batch_size)
 
     def _validate_strategic_integrity(self, chunks: List[SmartPolicyChunk]) -> List[SmartPolicyChunk]:
         """Validar que los chunks cumplan con umbrales mínimos de calidad y completitud"""
