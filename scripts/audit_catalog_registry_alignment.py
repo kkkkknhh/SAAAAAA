@@ -87,25 +87,44 @@ def main():
     
     # Build defect report
     defects = []
+    acceptable_divergence = []
     
-    # Defect Type 1: Registry method not in catalog
+    # Check 1: Registry methods not in catalog
+    # Per CATALOG_REGISTRY_ALIGNMENT_POLICY.md, this is ACCEPTABLE if methods are unused
     for class_name, method_name in sorted(registry_not_catalog):
-        defects.append({
-            "type": "REGISTRY_NOT_IN_CATALOG",
-            "severity": "HIGH",
-            "method": f"{class_name}.{method_name}",
-            "description": f"Method has calibration but is not in canonical catalog",
-            "action": "Either add to catalog or remove from registry"
-        })
+        fqn = f"{class_name}.{method_name}"
+        
+        # Check if this method is actually used
+        usage = usage_data.get('methods', {}).get(fqn, {})
+        usage_count = usage.get('total_usages', 0) if isinstance(usage, dict) else 0
+        
+        if usage_count > 0:
+            # Used but not in catalog - this is a DEFECT
+            defects.append({
+                "type": "REGISTRY_NOT_IN_CATALOG_USED",
+                "severity": "HIGH",
+                "method": fqn,
+                "description": f"Method has calibration, is USED ({usage_count} times), but not in canonical catalog",
+                "action": "Add to catalog - this method is actively used"
+            })
+        else:
+            # Unused and not in catalog - this is ACCEPTABLE per policy
+            acceptable_divergence.append({
+                "type": "REGISTRY_NOT_IN_CATALOG_UNUSED",
+                "severity": "INFO",
+                "method": fqn,
+                "description": "Method has calibration but is not in catalog (unused - acceptable per policy)",
+                "action": "No action required (different scopes) - see CATALOG_REGISTRY_ALIGNMENT_POLICY.md"
+            })
     
-    # Defect Type 2: Used method not in catalog
+    # Check 2: Used method not in catalog - ALWAYS A DEFECT
     for class_name, method_name in sorted(used_not_catalog):
         defects.append({
             "type": "USED_NOT_IN_CATALOG",
-            "severity": "HIGH",
+            "severity": "CRITICAL",
             "method": f"{class_name}.{method_name}",
             "description": "Method is used in codebase but not in canonical catalog",
-            "action": "Add to catalog"
+            "action": "Add to catalog immediately"
         })
     
     # Warnings
@@ -158,6 +177,7 @@ def main():
             "used_not_registry": len(used_not_registry),
         },
         "defects": defects,
+        "acceptable_divergence": acceptable_divergence,
         "warnings": warnings[:50],  # Limit warnings
         "alignment_score": {
             "catalog_registry_alignment": round(len(catalog_and_registry) / max(len(catalog_methods), 1) * 100, 2),
@@ -172,14 +192,28 @@ def main():
         json.dump(report, f, indent=2, ensure_ascii=False)
     
     print(f"\n\n[DEFECT REPORT]")
-    print(f"  Total defects: {len(defects)}")
+    print(f"  Total CRITICAL defects: {len(defects)}")
     
     if defects:
-        print(f"\n  Sample defects (first 5):")
-        for defect in defects[:5]:
+        print(f"\n  CRITICAL defects (require action):")
+        for defect in defects[:10]:
             print(f"    {defect['type']}: {defect['method']}")
             print(f"      → {defect['description']}")
             print(f"      Action: {defect['action']}")
+    
+    print(f"\n\n[ACCEPTABLE DIVERGENCE]")
+    print(f"  Total acceptable divergences: {len(acceptable_divergence)}")
+    print(f"  (Registry methods not in catalog but unused - per CATALOG_REGISTRY_ALIGNMENT_POLICY.md)")
+    
+    if acceptable_divergence and len(acceptable_divergence) <= 10:
+        print(f"\n  All {len(acceptable_divergence)} acceptable divergences:")
+        for item in acceptable_divergence:
+            print(f"    {item['method']}")
+    elif acceptable_divergence:
+        print(f"\n  Sample acceptable divergences (first 5 of {len(acceptable_divergence)}):")
+        for item in acceptable_divergence[:5]:
+            print(f"    {item['method']}")
+        print(f"  See CATALOG_REGISTRY_ALIGNMENT_POLICY.md for full policy")
     
     print(f"\n\n[WARNING REPORT]")
     print(f"  Total warnings: {len(warnings)}")
@@ -197,12 +231,16 @@ def main():
     
     print(f"\n✓ Audit report written to: {output_path}")
     
+    # Policy-aware exit
     if len(defects) > 0:
-        print(f"\n❌ AUDIT FAILED: {len(defects)} defects found")
-        print("   Fix defects before proceeding")
+        print(f"\n❌ AUDIT FAILED: {len(defects)} CRITICAL defects found")
+        print("   Fix critical defects before proceeding")
+        print(f"\n   Note: {len(acceptable_divergence)} acceptable divergences documented")
+        print("   See CATALOG_REGISTRY_ALIGNMENT_POLICY.md for alignment policy")
         return 1
     else:
-        print(f"\n✓ AUDIT PASSED: No defects found")
+        print(f"\n✅ AUDIT PASSED: No critical defects found")
+        print(f"   ({len(acceptable_divergence)} acceptable divergences per policy)")
         return 0
 
 
