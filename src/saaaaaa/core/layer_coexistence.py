@@ -20,7 +20,7 @@ Canonical Layer Notation (from questionnaire_monolith.json):
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Callable, Optional, Tuple
+from typing import Dict, List, Set, Optional
 from enum import Enum
 import json
 from pathlib import Path
