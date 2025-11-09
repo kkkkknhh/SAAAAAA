@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Set, Optional
 from enum import Enum
 import json
-from pathlib import Path
 
 
 class Layer(Enum):
