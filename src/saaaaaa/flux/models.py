@@ -31,6 +31,10 @@ class PhaseOutcome(BaseModel):
     payload: dict[str, Any]  # concrete model cast below
     metrics: dict[str, float] = Field(default_factory=dict)
     fingerprint: str
+    # Contract infrastructure metadata
+    policy_unit_id: str | None = None
+    correlation_id: str | None = None
+    envelope_metadata: dict[str, str] = Field(default_factory=dict)
 
 
 # Ingest Phase
