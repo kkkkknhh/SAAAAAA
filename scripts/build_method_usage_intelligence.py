@@ -108,14 +108,20 @@ class MethodUsageScanner:
         with open(registry_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Parse the CALIBRATIONS dict
-        # Look for patterns like: ("ClassName", "method_name"): MethodCalibration(...)
-        pattern = r'\("([^"]+)",\s*"([^"]+)"\)\s*:\s*MethodCalibration\('
-        matches = re.findall(pattern, content)
-        
-        for class_name, method_name in matches:
-            self.calibration_registry_methods.add((class_name, method_name))
-        
+        # Parse the CALIBRATIONS dict using AST
+        tree = ast.parse(content, filename=str(registry_path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == 'CALIBRATIONS':
+                        if isinstance(node.value, ast.Dict):
+                            for key in node.value.keys:
+                                # Expecting tuple of two strings: (class_name, method_name)
+                                if isinstance(key, ast.Tuple) and len(key.elts) == 2:
+                                    elt0, elt1 = key.elts
+                                    if isinstance(elt0, ast.Constant) and isinstance(elt1, ast.Constant):
+                                        if isinstance(elt0.value, str) and isinstance(elt1.value, str):
+                                            self.calibration_registry_methods.add((elt0.value, elt1.value))
         print(f"  Found {len(self.calibration_registry_methods)} methods in calibration_registry.py")
     
     def _scan_python_files(self):
