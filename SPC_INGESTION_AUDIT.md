@@ -83,7 +83,7 @@ None found - the methods serve specialized purposes within their contexts.
 
 ## Canonical Catalog Registration
 
-### Methods to Register in catalogo_completo_canonico.json
+### Methods to Register in complete_canonical_catalog.json
 
 From `smart_policy_chunks_canonic_phase_one.py`:
 1. `StrategicChunkingSystem.process_document()` - Main entry point
@@ -129,7 +129,7 @@ To `calibration_registry.py`:
 **Reason**: The smart_policy_chunks implementation is a complete, integrated system purpose-built for phase-one. While there is some functional overlap with canonical modules, it serves a specialized role and consolidating it would risk breaking the proven phase-one pipeline.
 
 **Action Items**:
-1. Document current state in catalogo_completo_canonico.json
+1. Document current state in complete_canonical_catalog.json
 2. Add calibration parameters to calibration_registry.py
 3. Maintain clear boundaries and contracts
 4. Plan future refactoring incrementally

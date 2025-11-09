@@ -3,7 +3,7 @@
 ## Current State (After Phase 1)
 
 ✅ **Completed:**
-- Catalog renamed to `catalogo_completo_canonico.json`
+- Catalog renamed to `complete_canonical_catalog.json`
 - All references updated (5 files)
 - Exhaustive search conducted and documented
 - 590 methods in catalog

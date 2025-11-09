@@ -109,8 +109,8 @@ All occurrences must use the correct spelling:
 
 ### Canonical Method Catalog
 
-**Source**: `config/rules/METODOS/catalogo_completo_canonico.json`  
-**Python Module**: `src/saaaaaa/core/orchestrator/catalogo_completo_canonico.py`
+**Source**: `config/rules/METODOS/complete_canonical_catalog.json`  
+**Python Module**: `src/saaaaaa/core/orchestrator/complete_canonical_catalog.py`
 
 **Version**: 3.0.0  
 **Methods**: 590 canonical methods across 53 classes
@@ -125,7 +125,7 @@ All occurrences must use the correct spelling:
 ### Usage
 
 ```python
-from saaaaaa.core.orchestrator.catalogo_completo_canonico import (
+from saaaaaa.core.orchestrator.complete_canonical_catalog import (
     CATALOG,
     get_canonical_method,
     validate_method_is_canonical
@@ -321,8 +321,8 @@ python scripts/audit_catalog_registry_alignment.py
 | Artifact | Type | Description |
 |----------|------|-------------|
 | `config/canonical_ontologies/policy_areas_and_dimensions.json` | Data | Canonical PA & DoA definitions |
-| `config/rules/METODOS/catalogo_completo_canonico.json` | Data | Canonical method universe (590 methods) |
-| `src/saaaaaa/core/orchestrator/catalogo_completo_canonico.py` | Code | Programmatic catalog access |
+| `config/rules/METODOS/complete_canonical_catalog.json` | Data | Canonical method universe (590 methods) |
+| `src/saaaaaa/core/orchestrator/complete_canonical_catalog.py` | Code | Programmatic catalog access |
 | `src/saaaaaa/core/orchestrator/calibration_registry.py` | Code | Method calibration metadata (180 methods) |
 | `config/method_usage_intelligence.json` | Data | Usage metrics & topology (612 methods tracked) |
 | `config/calibration_decisions.json` | Data | Auto-calibration decisions |
@@ -336,7 +336,7 @@ python scripts/audit_catalog_registry_alignment.py
 ## 13. References
 
 - **Questionnaire Monolith**: `data/questionnaire_monolith.json`
-- **Method Catalog**: `config/rules/METODOS/catalogo_completo_canonico.json`
+- **Method Catalog**: `config/rules/METODOS/complete_canonical_catalog.json`
 - **Calibration Registry**: `src/saaaaaa/core/orchestrator/calibration_registry.py`
 
 ---

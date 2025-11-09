@@ -303,7 +303,7 @@ class CanonicalMethodCalibration:
 
 ## Alignment Requirements
 
-### 1. catalogo_completo_canonico.json
+### 1. complete_canonical_catalog.json
 Must include:
 - `canonical_id` field using this notation
 - `layer` assignment

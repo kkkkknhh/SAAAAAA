@@ -2,7 +2,7 @@
 
 ## Summary
 
-**Issue**: 43 methods in `calibration_registry.py` but not in `catalogo_completo_canonico.json`
+**Issue**: 43 methods in `calibration_registry.py` but not in `complete_canonical_catalog.json`
 
 **Resolution**: ✅ **ACCEPTED AS POLICY** (Option C from original proposal)
 

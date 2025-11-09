@@ -33,7 +33,7 @@ LEYENDA:
     * SI hash_mismatch:
         RAISE "Monolith corrupted"
   
-  * method_catalog = load_json('catalogo_completo_canonico.json')
+  * method_catalog = load_json('complete_canonical_catalog.json')
     * VERIFICAR: method_catalog['metadata']['total_methods'] == 416
   
   PRINT "✓ Monolith cargado: 305 preguntas"
