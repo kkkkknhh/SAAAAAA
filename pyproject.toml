@@ -233,13 +233,22 @@ select = [
     "SIM", # flake8-simplify
     "TCH", # flake8-type-checking
     "ANN", # flake8-annotations
+    "PL",  # pylint
 ]
 
 ignore = [
     "E501",  # line too long (handled by formatter)
     "ANN101", # missing type annotation for self
     "ANN102", # missing type annotation for cls
+    "PLR0913", # too many arguments (common in data classes)
 ]
+
+# Custom rules for canonical notation enforcement
+[tool.ruff.lint.pylint]
+max-args = 10
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ANN", "ARG"]

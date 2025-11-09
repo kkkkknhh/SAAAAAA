@@ -46,28 +46,39 @@ MODEL_PARAPHRASE_MULTILINGUAL = "sentence-transformers/paraphrase-multilingual-m
 # ============================================================================
 
 class PolicyDomain(Enum):
-    """Colombian PDM policy areas (P1-P10) per Decálogo."""
+    """
+    Colombian PDM policy areas (PA01-PA10) per canonical notation.
+    
+    Values are loaded from questionnaire_monolith.json canonical_notation.
+    Use CanonicalPolicyArea from saaaaaa.core.canonical_notation for dynamic access.
+    """
 
-    P1 = "Derechos de las mujeres e igualdad de género"
-    P2 = "Prevención de la violencia y protección frente al conflicto"
-    P3 = "Ambiente sano, cambio climático, prevención y atención a desastres"
-    P4 = "Derechos económicos, sociales y culturales"
-    P5 = "Derechos de las víctimas y construcción de paz"
-    P6 = "Derecho al buen futuro de la niñez, adolescencia, juventud"
-    P7 = "Tierras y territorios"
-    P8 = "Líderes y defensores de derechos humanos"
-    P9 = "Crisis de derechos de personas privadas de la libertad"
-    P10 = "Migración transfronteriza"
+    # Legacy IDs mapped to canonical codes for backward compatibility
+    P1 = "PA01"  # Derechos de las mujeres e igualdad de género
+    P2 = "PA02"  # Prevención de la violencia y protección frente al conflicto
+    P3 = "PA03"  # Ambiente sano, cambio climático, prevención y atención a desastres
+    P4 = "PA04"  # Derechos económicos, sociales y culturales
+    P5 = "PA05"  # Derechos de las víctimas y construcción de paz
+    P6 = "PA06"  # Derecho al buen futuro de la niñez, adolescencia, juventud
+    P7 = "PA07"  # Tierras y territorios
+    P8 = "PA08"  # Líderes y defensores de derechos humanos
+    P9 = "PA09"  # Crisis de derechos de personas privadas de la libertad
+    P10 = "PA10"  # Migración transfronteriza
 
 class AnalyticalDimension(Enum):
-    """Analytical dimensions (D1-D6) per canonical notation."""
+    """
+    Analytical dimensions (D1-D6) per canonical notation.
+    
+    Values reference canonical notation from questionnaire_monolith.json.
+    Use CanonicalDimension from saaaaaa.core.canonical_notation for dynamic access.
+    """
 
-    D1 = "Diagnóstico y Recursos"
-    D2 = "Diseño de Intervención"
-    D3 = "Productos y Outputs"
-    D4 = "Resultados y Outcomes"
-    D5 = "Impactos y Efectos de Largo Plazo"
-    D6 = "Teoría de Cambio y Coherencia Causal"
+    D1 = "DIM01"  # INSUMOS - Diagnóstico y Recursos
+    D2 = "DIM02"  # ACTIVIDADES - Diseño de Intervención
+    D3 = "DIM03"  # PRODUCTOS - Productos y Outputs
+    D4 = "DIM04"  # RESULTADOS - Resultados y Outcomes
+    D5 = "DIM05"  # IMPACTOS - Impactos de Largo Plazo
+    D6 = "DIM06"  # CAUSALIDAD - Teoría de Cambio
 
 class PDQIdentifier(TypedDict):
     """Canonical P-D-Q identifier structure."""

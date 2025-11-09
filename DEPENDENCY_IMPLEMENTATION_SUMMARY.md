@@ -89,11 +89,12 @@ tests/test_dependency_management.py (10.9KB) - Comprehensive test suite
 
 ## Key Features
 
-### Exact Pinning Strategy
-All core runtime dependencies use exact version pins (==):
-- ✅ numpy==2.2.1 (not numpy>=2.0.0)
-- ✅ pandas==2.2.3
-- ✅ All 37 core packages pinned exactly
+### Flexible Pinning Strategy
+Core runtime dependencies use a hybrid approach:
+- ✅ Exact pins (==) for most packages for reproducibility
+- ✅ Constrained ranges (>=X,<Y) for ML/NLP packages to allow dependency resolution
+- ✅ 11 approved packages with constrained ranges: transformers, huggingface-hub, numpy, scipy, pandas, scikit-learn, pydantic, fastapi, sentence-transformers, tokenizers, safetensors
+- ✅ All other 44 packages use exact pins
 
 ### Profile-Based Installation
 Multiple installation profiles:
@@ -163,7 +164,7 @@ make deps:audit
 ### Scripts Tested ✅
 - ✅ audit_dependencies.py - Scans 233 files, detects 40 missing packages
 - ✅ verify_importability.py - Tests import of all critical packages
-- ✅ check_version_pins.py - Validates exact pins, no open ranges
+- ✅ check_version_pins.py - Validates appropriate version constraints (exact pins or constrained ranges)
 - ✅ compare_freeze_lock.py - Detects version mismatches correctly
 - ✅ generate_dependency_files.py - Generates all 6 requirement files
 
