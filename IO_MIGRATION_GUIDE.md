@@ -12,7 +12,7 @@ The core orchestrator modules have been refactored to eliminate I/O operations, 
 from saaaaaa.core.orchestrator import Orchestrator
 
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
+    catalog_path="rules/METODOS/complete_canonical_catalog.json",
     monolith_path="questionnaire_monolith.json",
     method_map_path="COMPLETE_METHOD_CLASS_MAP.json",
     schema_path="schemas/questionnaire.schema.json"

@@ -71,7 +71,7 @@ Cada dimensión contiene 5 preguntas con sus métodos:
 import json
 
 # Cargar el JSON
-with open('catalogo_completo_canonico.json', 'r', encoding='utf-8') as f:
+with open('complete_canonical_catalog.json', 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 # Ver metadata

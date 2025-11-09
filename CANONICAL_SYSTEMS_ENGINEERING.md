@@ -109,7 +109,7 @@ All occurrences must use the correct spelling:
 
 ### Canonical Method Catalog
 
-**Source**: `config/rules/METODOS/catalogo_completo_canonico.json`  
+**Source**: `config/rules/METODOS/complete_canonical_catalog.json`  
 **Python Module**: `src/saaaaaa/core/orchestrator/catalogo_completo_canonico.py`
 
 **Version**: 3.0.0  
@@ -321,7 +321,7 @@ python scripts/audit_catalog_registry_alignment.py
 | Artifact | Type | Description |
 |----------|------|-------------|
 | `config/canonical_ontologies/policy_areas_and_dimensions.json` | Data | Canonical PA & DoA definitions |
-| `config/rules/METODOS/catalogo_completo_canonico.json` | Data | Canonical method universe (590 methods) |
+| `config/rules/METODOS/complete_canonical_catalog.json` | Data | Canonical method universe (590 methods) |
 | `src/saaaaaa/core/orchestrator/catalogo_completo_canonico.py` | Code | Programmatic catalog access |
 | `src/saaaaaa/core/orchestrator/calibration_registry.py` | Code | Method calibration metadata (180 methods) |
 | `config/method_usage_intelligence.json` | Data | Usage metrics & topology (612 methods tracked) |
@@ -336,7 +336,7 @@ python scripts/audit_catalog_registry_alignment.py
 ## 13. References
 
 - **Questionnaire Monolith**: `data/questionnaire_monolith.json`
-- **Method Catalog**: `config/rules/METODOS/catalogo_completo_canonico.json`
+- **Method Catalog**: `config/rules/METODOS/complete_canonical_catalog.json`
 - **Calibration Registry**: `src/saaaaaa/core/orchestrator/calibration_registry.py`
 
 ---

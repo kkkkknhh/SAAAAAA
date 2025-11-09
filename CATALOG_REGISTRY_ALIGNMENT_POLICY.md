@@ -12,7 +12,7 @@ This document explains the intentional, acceptable divergence between the **meth
 
 ## Catalog Scope
 
-**File**: `config/rules/METODOS/catalogo_completo_canonico.json`  
+**File**: `config/rules/METODOS/complete_canonical_catalog.json`  
 **Python Module**: `src/saaaaaa/core/orchestrator/catalogo_completo_canonico.py`
 
 **Purpose**: Document methods from **level-3 analysis files** (8 files scanned)

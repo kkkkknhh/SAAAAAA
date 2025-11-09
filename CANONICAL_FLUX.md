@@ -100,7 +100,7 @@ Quality validation occurs at:
 All pipeline behavior is controlled via:
 - **Feature Flags**: `WiringFeatureFlags` with `use_spc_ingestion=True`
 - **Calibration**: `calibration_registry.py` for canonical parameters
-- **Method Registry**: `catalogo_completo_canonico.json` for method definitions
+- **Method Registry**: `complete_canonical_catalog.json` for method definitions
 
 ## Verification
 
@@ -129,7 +129,7 @@ Pipeline integrity is verified by:
 Any new phases must:
 1. Integrate into the canonical flux at the appropriate position
 2. Define clear input/output contracts
-3. Register methods in `catalogo_completo_canonico.json`
+3. Register methods in `complete_canonical_catalog.json`
 4. Add calibration parameters to `calibration_registry.py`
 5. Not create parallel processing paths
 

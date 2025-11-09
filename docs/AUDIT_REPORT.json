@@ -16036,7 +16036,7 @@
         ]
       },
       {
-        "path": "config/rules/METODOS/catalogo_completo_canonico.json",
+        "path": "config/rules/METODOS/complete_canonical_catalog.json",
         "size": 978431,
         "valid": true,
         "keys": [
