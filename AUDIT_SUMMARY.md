@@ -231,7 +231,7 @@ Files explicitly loaded at runtime (33 total):
 ```
 config/recommendation_rules.json
 config/recommendation_rules_enhanced.json
-config/rules/METODOS/metodos_completos_nivel3.json
+config/rules/METODOS/catalogo_completo_canonico.json
 config/schemas/questionnaire_monolith.schema.json
 data/prompt_cross_registry.json
 data/questionnaire_monolith.json

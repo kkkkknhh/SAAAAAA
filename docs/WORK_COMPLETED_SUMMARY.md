@@ -6,7 +6,7 @@
 
 #### ✅ Request 1: Rename Catalog File
 **Status**: COMPLETE
-- **Old name**: `metodos_completos_nivel3.json`
+- **Old name**: `catalogo_completo_canonico.json`
 - **New name**: `catalogo_completo_canonico.json`
 - **Verification**: File renamed, all 5 references updated, catalog loads successfully
 

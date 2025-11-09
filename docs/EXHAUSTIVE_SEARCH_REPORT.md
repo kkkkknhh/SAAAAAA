@@ -105,7 +105,7 @@ Searched for YAML loading patterns and calibration files:
 ### 3.3 Audit JSON References
 
 **docs/AUDIT_REPORT.json** and **AUDIT_DRY_RUN_REPORT.json**
-- Contain references to old path `config/rules/METODOS/metodos_completos_nivel3.json`
+- Contain references to old path `config/rules/METODOS/catalogo_completo_canonico.json`
 - Status: ℹ️ Historical audit data, not code invocations
 
 ### 3.4 In-Script Calibration
@@ -129,7 +129,7 @@ From calibration_registry.py analysis:
 ## Summary
 
 ### ✅ Completed Actions
-1. Renamed catalog: `metodos_completos_nivel3.json` → `catalogo_completo_canonico.json`
+1. Renamed catalog: `catalogo_completo_canonico.json` → `catalogo_completo_canonico.json`
 2. Updated 5 direct references to use canonical name
 3. Verified canonical path resolution through _REPO_ROOT
 4. Documented all method map invocations (12 files)
@@ -160,6 +160,6 @@ From calibration_registry.py analysis:
 2. src/saaaaaa/core/orchestrator/core_module_factory.py (1 location)
 3. tests/test_coreographer.py (2 locations)
 4. config/rules/METODOS/ejemplo_uso_nivel3.py (1 location)
-5. config/rules/METODOS/metodos_completos_nivel3.json → catalogo_completo_canonico.json (renamed)
+5. config/rules/METODOS/catalogo_completo_canonico.json → catalogo_completo_canonico.json (renamed)
 
 Total: 5 files updated, 1 file renamed

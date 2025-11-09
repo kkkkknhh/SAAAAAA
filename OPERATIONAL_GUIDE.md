@@ -568,14 +568,14 @@ from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_m
 from saaaaaa.core.orchestrator import Orchestrator, get_questionnaire_provider
 
 # Step 1: Load data using factory
-catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+catalog = load_catalog(Path("rules/METODOS/catalogo_completo_canonico.json"))
 monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 get_questionnaire_provider().set_data(monolith)
 
 # Step 2: Create orchestrator instance
 factory = CoreModuleFactory(catalog)
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith
 )
 
@@ -609,13 +609,13 @@ from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_m
 from saaaaaa.core.orchestrator import Orchestrator, get_questionnaire_provider
 
 # Load configuration
-catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+catalog = load_catalog(Path("rules/METODOS/catalogo_completo_canonico.json"))
 monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 get_questionnaire_provider().set_data(monolith)
 
 # Initialize orchestrator
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith
 )
 
@@ -943,12 +943,12 @@ from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_m
 from pathlib import Path
 
 # Load data
-catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+catalog = load_catalog(Path("rules/METODOS/catalogo_completo_canonico.json"))
 monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 
 # Create orchestrator
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith
 )
 
@@ -1473,14 +1473,14 @@ from saaaaaa.core.orchestrator import Orchestrator
 from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_monolith
 
 # Load configuration once
-catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+catalog = load_catalog(Path("rules/METODOS/catalogo_completo_canonico.json"))
 monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 
 # Process all PDFs
 for pdf in Path("data/input_plans").glob("*.pdf"):
     print(f"Processing {pdf.name}...")
     orchestrator = Orchestrator(
-        catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+        catalog_path="rules/METODOS/catalogo_completo_canonico.json",
         questionnaire_data=monolith
     )
     results = orchestrator.process_development_plan(str(pdf))
@@ -1591,7 +1591,7 @@ python scripts/update_imports.py tests examples scripts
 from saaaaaa.core.orchestrator import Orchestrator, ResourceLimits
 
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith,
     limits=ResourceLimits(max_memory_mb=8192)  # Set memory limit
 )
@@ -1609,7 +1609,7 @@ export PYTHONMAXMEMORY=8192
 # Use concurrent execution (built into Orchestrator)
 # The Orchestrator uses ThreadPoolExecutor for parallel producer execution
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith
 )
 # Producers run in parallel automatically
@@ -1842,12 +1842,12 @@ from saaaaaa.core.orchestrator.factory import load_catalog, load_questionnaire_m
 from pathlib import Path
 
 # Load configuration
-catalog = load_catalog(Path("rules/METODOS/metodos_completos_nivel3.json"))
+catalog = load_catalog(Path("rules/METODOS/catalogo_completo_canonico.json"))
 monolith = load_questionnaire_monolith(Path("questionnaire_monolith.json"))
 
 # Full pipeline
 orchestrator = Orchestrator(
-    catalog_path="rules/METODOS/metodos_completos_nivel3.json",
+    catalog_path="rules/METODOS/catalogo_completo_canonico.json",
     questionnaire_data=monolith
 )
 results = orchestrator.process_development_plan("data/input_plans/plan.pdf")

@@ -33,7 +33,7 @@
       "reason": "Referenced by runtime file I/O operations"
     },
     {
-      "path": "config/rules/METODOS/metodos_completos_nivel3.json",
+      "path": "config/rules/METODOS/catalogo_completo_canonico.json",
       "reason": "Referenced by runtime file I/O operations"
     },
     {
@@ -3400,8 +3400,8 @@
       "tools/type_safety_checks.py -> 'tests/test_contracts.py' via open()",
       "tools/scan_core_purity.py -> 'core' via Path()",
       "tools/bulk_import_test.py -> 'src/saaaaaa' via Path()",
-      "tests/test_coreographer.py -> 'rules/METODOS/metodos_completos_nivel3.json' via open()",
-      "tests/test_coreographer.py -> 'rules/METODOS/metodos_completos_nivel3.json' via Path()",
+      "tests/test_coreographer.py -> 'rules/METODOS/catalogo_completo_canonico.json' via open()",
+      "tests/test_coreographer.py -> 'rules/METODOS/catalogo_completo_canonico.json' via Path()",
       "tools/validation/validate_build_hygiene.py -> '.python-version' via Path()",
       "tools/validation/validate_build_hygiene.py -> 'pyproject.toml' via Path()",
       "tools/validation/validate_build_hygiene.py -> 'requirements.txt' via Path()",
@@ -3414,7 +3414,7 @@
       "src/saaaaaa/analysis/bayesian_multilevel_system.py -> 'data/bayesian_outputs' via Path()",
       "src/saaaaaa/analysis/enhance_recommendation_rules.py -> 'config/recommendation_rules.json' via Path()",
       "src/saaaaaa/analysis/enhance_recommendation_rules.py -> 'config/recommendation_rules_enhanced.json' via Path()",
-      "src/saaaaaa/core/orchestrator/factory.py -> 'rules/METODOS/metodos_completos_nivel3.json' via Path()",
+      "src/saaaaaa/core/orchestrator/factory.py -> 'rules/METODOS/catalogo_completo_canonico.json' via Path()",
       "src/saaaaaa/core/orchestrator/factory.py -> 'schemas/questionnaire_monolith.schema.json' via Path()",
       "src/saaaaaa/core/orchestrator/contract_loader.py -> '.' via Path()"
     ],
