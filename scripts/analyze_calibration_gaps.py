@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Analyze calibration gaps between catalog and calibration_registry."""
+"""Analyze calibration gaps between canonical catalog and calibration_registry.
+
+Uses canonical method catalog: config/canonical_method_catalog.json (1,996 methods)
+"""
 
 import json
 import sys
@@ -12,8 +15,8 @@ sys.path.insert(0, str(_proj_root / 'src'))
 
 from saaaaaa.core.orchestrator.calibration_registry import CALIBRATIONS
 
-# Load catalog using portable path resolution
-catalog_path = _proj_root / 'config' / 'rules' / 'METODOS' / 'catalogo_completo_canonico.json'
+# Load canonical catalog
+catalog_path = _proj_root / 'config' / 'canonical_method_catalog.json'
 with open(catalog_path, encoding='utf-8') as f:
     catalog = json.load(f)
 
@@ -22,15 +25,15 @@ print("CALIBRATION GAP ANALYSIS")
 print("=" * 80)
 print()
 
-# Get all methods from catalog
+# Get all methods from canonical catalog
 catalog_methods = set()
-if 'methods_catalog' in catalog:
-    for method in catalog['methods_catalog']:
-        class_name = method.get('class', 'Unknown')
-        method_name = method.get('method_name', 'unknown')
+for method in catalog['methods']:
+    class_name = method.get('class_name')
+    method_name = method.get('method_name')
+    if class_name and method_name:
         catalog_methods.add((class_name, method_name))
 
-print(f"Methods in catalog: {len(catalog_methods)}")
+print(f"Methods in canonical catalog: {len(catalog_methods)}")
 print(f"Methods with calibration: {len(CALIBRATIONS)}")
 print()
 

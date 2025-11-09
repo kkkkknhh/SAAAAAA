@@ -7,8 +7,10 @@ Deterministic, rule-based classifier to determine calibration requirements:
 - NO_CALIBRATION_REQUIRED  
 - FLAG_FOR_REVIEW
 
-Input: Method from catalog + usage metadata
+Input: Method from canonical catalog + usage metadata
 Output: Calibration decision with explicit rationale
+
+Uses canonical method catalog: config/canonical_method_catalog.json (1,996 methods)
 
 Criteria:
 - Role in critical pipelines
@@ -31,8 +33,6 @@ from typing import Optional, List, Dict
 # Add src to path
 repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / "src"))
-
-from saaaaaa.core.orchestrator.catalogo_completo_canonico import CATALOG, CanonicalMethod, MethodPriority, MethodComplexity
 
 
 class CalibrationDecision(Enum):
@@ -106,8 +106,19 @@ class CalibrationDecisionEngine:
         'evidence',
     ]
     
-    def __init__(self, catalog=None, usage_intelligence_path: Optional[Path] = None):
-        self.catalog = catalog or CATALOG
+    def __init__(self, catalog_data=None, usage_intelligence_path: Optional[Path] = None):
+        # Load canonical catalog if not provided
+        if catalog_data is None:
+            catalog_path = repo_root / "config" / "canonical_method_catalog.json"
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+        
+        self.catalog_data = catalog_data
+        self.catalog_methods = {
+            (m['class_name'], m['method_name']): m 
+            for m in catalog_data['methods']
+            if m['class_name']
+        }
         self.usage_data = {}
         
         if usage_intelligence_path and usage_intelligence_path.exists():
@@ -122,7 +133,7 @@ class CalibrationDecisionEngine:
         Returns CalibrationRationale with decision and explicit reasoning.
         """
         # Get method from catalog
-        method = self.catalog.get_method(class_name, method_name)
+        method = self.catalog_methods.get((class_name, method_name))
         
         if not method:
             return CalibrationRationale(
@@ -140,7 +151,7 @@ class CalibrationDecisionEngine:
         # Apply decision rules
         return self._apply_rules(method, usage)
     
-    def _apply_rules(self, method: CanonicalMethod, usage: dict) -> CalibrationRationale:
+    def _apply_rules(self, method: dict, usage: dict) -> CalibrationRationale:
         """Apply deterministic decision rules"""
         
         reasons = []
