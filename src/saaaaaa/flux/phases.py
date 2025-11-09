@@ -9,7 +9,6 @@ from typing import Any, Callable
 # third-party (pinned in pyproject)
 import polars as pl
 import pyarrow as pa
-import structlog
 from blake3 import blake3
 from opentelemetry import metrics, trace
 from pydantic import BaseModel, ValidationError
@@ -49,7 +48,8 @@ from .models import (
     SignalsExpectation,
 )
 
-log = structlog.get_logger()
+# Use contract infrastructure JSON logger instead of structlog
+contract_logger = get_json_logger("flux")
 tracer = trace.get_tracer("flux")
 meter = metrics.get_meter("flux")
 
@@ -221,7 +221,7 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None 
             started_monotonic=started_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="ingest",
             ok=True,
@@ -237,6 +237,13 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None 
             payload=out.model_dump(),
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "content_digest": env_out.content_digest},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -327,7 +334,7 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_i
             started_monotonic=start_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="normalize",
             ok=True,
@@ -345,6 +352,13 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_i
             payload=out.model_dump(),
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -447,7 +461,7 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: s
             started_monotonic=start_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="chunk",
             ok=True,
@@ -465,6 +479,13 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: s
             payload=out.model_dump(),
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -573,7 +594,7 @@ def run_signals(
             started_monotonic=started_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="signals",
             ok=True,
@@ -590,6 +611,13 @@ def run_signals(
             payload=out.model_dump(),
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "content_digest": env_out.content_digest},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -690,7 +718,7 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_
             started_monotonic=started_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="aggregate",
             ok=True,
@@ -707,6 +735,13 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_
             payload=payload_dict,
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows, "content_digest": env_out.content_digest},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -806,7 +841,7 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: st
             started_monotonic=started_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="score",
             ok=True,
@@ -823,6 +858,13 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: st
             payload=payload_dict,
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "score_count": df.height, "content_digest": env_out.content_digest},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -923,7 +965,7 @@ def run_report(
             started_monotonic=started_monotonic
         )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="report",
             ok=True,
@@ -940,4 +982,11 @@ def run_report(
             payload=out.model_dump(),
             fingerprint=fp,
             metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts), "content_digest": env_out.content_digest},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )

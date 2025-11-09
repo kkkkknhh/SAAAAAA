@@ -1210,6 +1210,9 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             
             # DETERMINISTIC EXECUTION CONTEXT - makes all random operations reproducible!
             with deterministic(policy_unit_id, correlation_id) as seeds:
+                # Create local RNG for deterministic random operations
+                rng = np.random.default_rng(seeds.np)
+                
                 logger.info(f"Executing with DETERMINISTIC seeding: policy_unit_id={policy_unit_id}, "
                           f"correlation_id={correlation_id}, seed={seeds.py}")
                 
