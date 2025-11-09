@@ -98,9 +98,19 @@ class CanonicalMethodCatalog:
         self._summary: Dict = {}
         self._load_catalog()
     
+    def find_repo_root(self, start_path: Path) -> Path:
+        """Find the repository root by looking for .git or config directory"""
+        current = start_path.resolve()
+        while current != current.parent:
+            if (current / ".git").exists() or (current / "config").exists():
+                return current
+            current = current.parent
+        raise FileNotFoundError("Could not locate repository root")
+
     def _load_catalog(self):
         """Load the canonical catalog from JSON"""
-        catalog_path = Path(__file__).parent.parent.parent.parent.parent / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
+        repo_root = self.find_repo_root(Path(__file__))
+        catalog_path = repo_root / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
         
         if not catalog_path.exists():
             raise FileNotFoundError(
