@@ -61,7 +61,7 @@ python-socketio==5.14.1
 pyyaml==6.0.2
 redis==5.2.1
 ruff==0.9.1
-schemathesis==3.38.4
+schemathesis==3.39.16
 scikit-learn==1.6.1
 scipy==1.15.1
 sentence-transformers==3.3.1

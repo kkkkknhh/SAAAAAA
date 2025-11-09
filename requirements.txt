@@ -140,4 +140,4 @@ python-dateutil==2.8.2
 pytz==2024.1
 
 # Testing & Contract Validation
-schemathesis==3.37.3
+schemathesis==3.39.16
