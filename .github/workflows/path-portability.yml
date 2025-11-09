@@ -10,6 +10,8 @@ jobs:
   path-audit:
     name: Path Audit
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - uses: actions/checkout@v4
@@ -50,6 +52,8 @@ jobs:
     permissions:
       contents: read
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     strategy:
       fail-fast: false
@@ -165,6 +169,8 @@ jobs:
   path-static-checks:
     name: Static Path Checks
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - uses: actions/checkout@v4

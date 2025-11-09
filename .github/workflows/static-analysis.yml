@@ -13,6 +13,8 @@ jobs:
     name: Pyright and Mypy
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
 
     steps:
     - name: Checkout repository
@@ -31,6 +33,7 @@ jobs:
         npm install -g pyright
         # Install minimal runtime dependencies for type checking
         pip install -r requirements.txt
+        pip install -e .
 
     - name: Run pyright (strict)
       run: |
