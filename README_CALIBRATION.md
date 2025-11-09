@@ -7,6 +7,34 @@
 
 ---
 
+## ⚠️ CRITICAL: Canonical Method Catalog Authority
+
+**SINGLE SOURCE OF TRUTH (as of Nov 9, 2025):**
+
+```
+File: config/canonical_method_catalog.json
+Methods: 1,996
+Version: 1.0.0
+Status: AUTHORITATIVE - Use this and ONLY this
+```
+
+**DEPRECATED (DO NOT USE):**
+
+```
+File: config/rules/METODOS/catalogo_completo_canonico.json
+Methods: 590
+Version: 3.0.0 (Oct 29, 2025)  
+Status: DEPRECATED - Compatibility shim only
+```
+
+**Hard Rules:**
+1. All code MUST use `config/canonical_method_catalog.json`
+2. Any references to the old catalog are deprecated
+3. Module `catalogo_completo_canonico.py` exists only for legacy compatibility
+4. All scripts migrated as of commit a51ccab
+
+---
+
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)

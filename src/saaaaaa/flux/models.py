@@ -20,7 +20,11 @@ class DocManifest(BaseModel):
 
 
 class PhaseOutcome(BaseModel):
-    """Outcome from a pipeline phase execution."""
+    """Outcome from a pipeline phase execution.
+    
+    Authoritative boundary contract between phases and orchestrators.
+    All metadata must be preserved across phase boundaries.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -29,8 +33,15 @@ class PhaseOutcome(BaseModel):
         "ingest", "normalize", "chunk", "signals", "aggregate", "score", "report"
     ]
     payload: dict[str, Any]  # concrete model cast below
-    metrics: dict[str, float] = Field(default_factory=dict)
     fingerprint: str
+    
+    # Mandatory metadata propagation (directive requirement)
+    policy_unit_id: str | None = None
+    correlation_id: str | None = None
+    envelope_metadata: dict[str, str] = Field(default_factory=dict)
+    
+    # Legacy field - retained for compatibility
+    metrics: dict[str, float] = Field(default_factory=dict)
 
 
 # Ingest Phase
