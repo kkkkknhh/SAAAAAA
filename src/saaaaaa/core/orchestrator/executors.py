@@ -124,6 +124,7 @@ def deterministic(policy_unit_id: str | None, correlation_id: str | None):
         DeterministicSeeds with .np and .python attributes
     """
     import hashlib
+    import random
     
     # Derive deterministic seed from identifiers
     components = [
@@ -139,7 +140,28 @@ def deterministic(policy_unit_id: str | None, correlation_id: str | None):
         python=base_seed + 1,
     )
     
+    # Seed Python's random module for deterministic execution
+    random.seed(seeds.python)
+    
     yield seeds
+
+
+def _ensure_rng(rng: np.random.Generator | None) -> np.random.Generator:
+    """
+    Ensure a valid RNG generator is available.
+    
+    If rng is None, creates a new default generator.
+    Otherwise, returns the provided rng.
+    
+    Args:
+        rng: Optional numpy random generator
+        
+    Returns:
+        A valid numpy random generator
+    """
+    if rng is None:
+        return np.random.default_rng()
+    return rng
 
 
 class CircuitBreakerState:
@@ -323,16 +345,14 @@ class QuantumState:
 
     def measure(self, rng: np.random.Generator | None = None) -> int:
         """Collapse to measured state"""
+        rng = _ensure_rng(rng)
         probabilities = np.abs(self.amplitudes) ** 2
         probabilities /= probabilities.sum()
-        if rng is None:
-            rng = np.random.default_rng()
         return rng.choice(self.dimension, p=probabilities)
 
     def optimize_path(self, iterations: int = 3, rng: np.random.Generator | None = None) -> int:
         """Find optimal execution path using Grover-inspired search"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         for _ in range(iterations):
             self.apply_diffusion()
         return self.measure(rng=rng)
@@ -352,8 +372,7 @@ class QuantumExecutionOptimizer:
 
     def select_optimal_path(self, available_methods: list[int], rng: np.random.Generator | None = None) -> list[int]:
         """Select optimal execution path using quantum annealing principles"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         start_time = time.time()
 
         if self.execution_history:
@@ -373,8 +392,7 @@ class QuantumExecutionOptimizer:
 
     def _construct_path(self, start_idx: int, available: list[int], rng: np.random.Generator | None = None) -> list[int]:
         """Construct execution path from starting point"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         if not available:
             return []
         path = [available[start_idx % len(available)]]
@@ -708,8 +726,7 @@ class MetaLearningStrategy:
 
     def select_strategy(self, rng: np.random.Generator | None = None) -> int:
         """Select execution strategy using epsilon-greedy"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         if rng.random() < self.epsilon:
             strategy_idx = rng.integers(0, self.num_strategies)
         else:
@@ -954,8 +971,7 @@ class ProbabilisticExecutor:
 
     def sample_prior(self, param_name: str, rng: np.random.Generator | None = None) -> float:
         """Sample from prior distribution"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         if param_name not in self.distributions:
             return 1.0
 
@@ -3675,8 +3691,7 @@ class FrontierExecutorOrchestrator:
 
     def _optimize_execution_order(self, question_ids: list[str], rng: np.random.Generator | None = None) -> list[str]:
         """Optimize execution order using causal inference"""
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = _ensure_rng(rng)
         if len(question_ids) <= 1:
             return question_ids
 
