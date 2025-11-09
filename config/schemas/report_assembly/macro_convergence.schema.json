@@ -23,33 +23,33 @@
     },
     "convergence_by_dimension": {
       "type": "object",
-      "description": "Convergencia por dimensión analítica (D1-D6) en escala porcentual",
+      "description": "Convergencia por dimensión analítica (D1-D6 maps to DIM01-DIM06 per canonical notation) en escala porcentual",
       "required": ["D1", "D2", "D3", "D4", "D5", "D6"],
       "properties": {
-        "D1": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Diagnóstico y Recursos"},
-        "D2": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Diseño de Intervención"},
-        "D3": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Productos y Outputs"},
-        "D4": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Resultados y Outcomes"},
-        "D5": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Impactos de Largo Plazo"},
-        "D6": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Teoría de Cambio y Coherencia Causal"}
+        "D1": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM01: INSUMOS - Diagnóstico y Recursos"},
+        "D2": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM02: ACTIVIDADES - Diseño de Intervención"},
+        "D3": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM03: PRODUCTOS - Productos y Outputs"},
+        "D4": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM04: RESULTADOS - Resultados y Outcomes"},
+        "D5": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM05: IMPACTOS - Impactos de Largo Plazo"},
+        "D6": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "DIM06: CAUSALIDAD - Teoría de Cambio"}
       },
       "additionalProperties": false
     },
     "convergence_by_policy_area": {
       "type": "object",
-      "description": "Convergencia por área de política del Decálogo (P1-P10) en escala porcentual",
+      "description": "Convergencia por área de política (P1-P10 maps to PA01-PA10 per canonical notation) en escala porcentual",
       "required": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10"],
       "properties": {
-        "P1": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Derechos de las mujeres e igualdad de género"},
-        "P2": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Prevención de la violencia y protección frente al conflicto"},
-        "P3": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Ambiente sano, cambio climático"},
-        "P4": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Derechos económicos, sociales y culturales"},
-        "P5": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Derechos de las víctimas y construcción de paz"},
-        "P6": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Niñez, adolescencia y juventud"},
-        "P7": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Tierras y territorios"},
-        "P8": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Líderes y defensores de derechos humanos"},
-        "P9": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Personas privadas de la libertad"},
-        "P10": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "Migración transfronteriza"}
+        "P1": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA01: Derechos de las mujeres e igualdad de género"},
+        "P2": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA02: Prevención de la violencia y protección frente al conflicto"},
+        "P3": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA03: Ambiente sano, cambio climático, prevención y atención a desastres"},
+        "P4": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA04: Derechos económicos, sociales y culturales"},
+        "P5": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA05: Derechos de las víctimas y construcción de paz"},
+        "P6": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA06: Derecho al buen futuro de la niñez, adolescencia, juventud y entornos protectores"},
+        "P7": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA07: Tierras y territorios"},
+        "P8": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA08: Líderes y lideresas, defensores y defensoras de derechos humanos"},
+        "P9": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA09: Crisis de derechos de personas privadas de la libertad"},
+        "P10": {"type": "number", "minimum": 0.0, "maximum": 100.0, "description": "PA10: Migración transfronteriza"}
       },
       "additionalProperties": false
     },
