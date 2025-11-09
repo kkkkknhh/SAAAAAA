@@ -244,7 +244,10 @@ class WeightedAverageFusion(FusionOperator):
         
         trace.append(f"Weighted sum: Σ(w·x) = {weighted_sum:.4f}")
         trace.append(f"Weight sum: Σ(w) = {weight_sum:.4f}")
-        trace.append(f"Result: {weighted_sum:.4f} / {weight_sum:.4f} = {weighted_sum/weight_sum:.4f}")
+        if weight_sum == 0:
+            trace.append(f"Result: No valid weights, returning 0.0")
+        else:
+            trace.append(f"Result: {weighted_sum:.4f} / {weight_sum:.4f} = {weighted_sum/weight_sum:.4f}")
         
         return trace
 
