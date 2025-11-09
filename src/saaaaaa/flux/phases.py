@@ -17,6 +17,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 from saaaaaa.utils.paths import reports_dir
 
+# Contract infrastructure - ACTUAL INTEGRATION
+from saaaaaa.utils.contract_io import ContractEnvelope
+from saaaaaa.utils.determinism_helpers import deterministic
+from saaaaaa.utils.json_logger import get_json_logger, log_io_event
+from saaaaaa.utils.domain_errors import DataContractError
+
 from .configs import (
     AggregateConfig,
     ChunkConfig,
@@ -206,24 +212,50 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
 
 
 # NORMALIZE
-def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
+def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
     """
-    Execute normalize phase.
+    Execute normalize phase with ContractEnvelope integration.
 
     requires: compatible input from ingest
     ensures: sentences list is not empty, sentence_meta matches length
+    
+    Args:
+        cfg: Normalization configuration
+        ing: Ingest deliverable
+        policy_unit_id: Optional policy unit identifier for determinism (from PDF filename)
+        correlation_id: Optional correlation ID for request tracking
     """
     start_time = time.time()
+    start_monotonic = time.monotonic()
+    
+    # Derive policy_unit_id from environment or generate default
+    if policy_unit_id is None:
+        policy_unit_id = os.getenv("POLICY_UNIT_ID", "default-policy")
+    if correlation_id is None:
+        import uuid
+        correlation_id = str(uuid.uuid4())
+    
+    # Get contract-aware JSON logger
+    contract_logger = get_json_logger("flux.normalize")
 
     with tracer.start_as_current_span("normalize") as span:
+        # Wrap input with ContractEnvelope for traceability
+        env_in = ContractEnvelope.wrap(
+            ing.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+        
         # Compatibility check
         assert_compat(ing, NormalizeExpectation)
 
-        # TODO: Implement actual normalization (unicode normalization, etc.)
-        sentences = [s for s in ing.raw_text.split("\n") if s.strip()]
-        sentence_meta: list[dict[str, Any]] = [
-            {"index": i, "length": len(s)} for i, s in enumerate(sentences)
-        ]
+        # Execute with deterministic seeding for reproducibility
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual normalization (unicode normalization, etc.)
+            sentences = [s for s in ing.raw_text.split("\n") if s.strip()]
+            sentence_meta: list[dict[str, Any]] = [
+                {"index": i, "length": len(s)} for i, s in enumerate(sentences)
+            ]
 
         out = NormalizeDeliverable(sentences=sentences, sentence_meta=sentence_meta)
 
@@ -240,13 +272,31 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
                 f"sentences={len(out.sentences)}, meta={len(out.sentence_meta)}",
             )
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
         span.set_attribute("sentence_count", len(out.sentences))
+        span.set_attribute("correlation_id", correlation_id)
+        span.set_attribute("content_digest", env_out.content_digest)
 
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "normalize"})
         phase_counter.add(1, {"phase": "normalize"})
+        
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="normalize",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=start_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -255,6 +305,9 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             sentence_count=len(out.sentences),
+            correlation_id=correlation_id,
+            content_digest=env_out.content_digest,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
@@ -267,35 +320,61 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
 
 
 # CHUNK
-def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
+def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
     """
-    Execute chunk phase.
+    Execute chunk phase with ContractEnvelope integration.
 
     requires: compatible input from normalize
     ensures: chunks not empty, chunk_index has valid resolutions
+    
+    Args:
+        cfg: Chunking configuration
+        norm: Normalize deliverable
+        policy_unit_id: Optional policy unit identifier for determinism
+        correlation_id: Optional correlation ID for request tracking
     """
     start_time = time.time()
+    start_monotonic = time.monotonic()
+    
+    # Derive policy_unit_id from environment or generate default
+    if policy_unit_id is None:
+        policy_unit_id = os.getenv("POLICY_UNIT_ID", "default-policy")
+    if correlation_id is None:
+        import uuid
+        correlation_id = str(uuid.uuid4())
+    
+    # Get contract-aware JSON logger
+    contract_logger = get_json_logger("flux.chunk")
 
     with tracer.start_as_current_span("chunk") as span:
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            norm.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+        
         # Compatibility check
         assert_compat(norm, ChunkExpectation)
 
-        # TODO: Implement actual chunking with token limits and overlap
-        chunks: list[dict[str, Any]] = [
-            {
-                "id": f"c{i}",
-                "text": s,
-                "resolution": cfg.priority_resolution,
-                "span": {"start": i, "end": i + 1},
-            }
-            for i, s in enumerate(norm.sentences)
-        ]
+        # Execute with deterministic seeding
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual chunking with token limits and overlap
+            chunks: list[dict[str, Any]] = [
+                {
+                    "id": f"c{i}",
+                    "text": s,
+                    "resolution": cfg.priority_resolution,
+                    "span": {"start": i, "end": i + 1},
+                }
+                for i, s in enumerate(norm.sentences)
+            ]
 
-        idx: dict[str, list[str]] = {
-            "micro": [],
-            "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
-            "macro": [],
-        }
+            idx: dict[str, list[str]] = {
+                "micro": [],
+                "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
+                "macro": [],
+            }
 
         out = ChunkDeliverable(chunks=chunks, chunk_index=idx)
 
@@ -313,13 +392,31 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
                 f"Keys must be {valid_resolutions}",
             )
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
         span.set_attribute("chunk_count", len(out.chunks))
+        span.set_attribute("correlation_id", correlation_id)
+        span.set_attribute("content_digest", env_out.content_digest)
 
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "chunk"})
         phase_counter.add(1, {"phase": "chunk"})
+        
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="chunk",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=start_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -328,6 +425,9 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             chunk_count=len(out.chunks),
+            correlation_id=correlation_id,
+            content_digest=env_out.content_digest,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(

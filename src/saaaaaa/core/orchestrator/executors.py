@@ -53,9 +53,13 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 import inspect
+import os
 from typing import Any, Generic, TypeVar
 
 import numpy as np
+
+# Contract infrastructure - ACTUAL INTEGRATION
+from saaaaaa.utils.determinism_helpers import deterministic, create_deterministic_rng
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
 from .calibration_registry import CALIBRATIONS, resolve_calibration
@@ -1165,8 +1169,13 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 )
 
     def execute_with_optimization(self, doc, method_executor,
-                                  method_sequence: list[tuple[str, str]]) -> dict[str, Any]:
-        """Execute with advanced optimization strategies
+                                  method_sequence: list[tuple[str, str]], 
+                                  *, 
+                                  policy_unit_id: str | None = None,
+                                  correlation_id: str | None = None) -> dict[str, Any]:
+        """Execute with advanced optimization strategies and deterministic seeding
+        
+        NOW INTEGRATED WITH CONTRACT INFRASTRUCTURE for reproducibility!
 
         Includes:
         - Signal fetching and usage tracking
@@ -1175,11 +1184,19 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         - Retry logic for transient failures
         - Execution time tracking
         - Failure metrics collection
+        - **DETERMINISTIC EXECUTION** via policy_unit_id seeding
         """
         execution_start = time.time()
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
+        
+        # Derive policy_unit_id from environment or doc if not provided
+        if policy_unit_id is None:
+            policy_unit_id = os.getenv("POLICY_UNIT_ID", "default-policy")
+        if correlation_id is None:
+            import uuid
+            correlation_id = str(uuid.uuid4())
 
         # Start OpenTelemetry span for entire execution
         span_context = tracer.start_as_current_span("executor.execute") if HAS_OTEL and tracer else None
@@ -1188,142 +1205,151 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             if span_context:
                 span = span_context.__enter__()
                 span.set_attribute("num_methods", len(method_sequence))
+                span.set_attribute("policy_unit_id", policy_unit_id)
+                span.set_attribute("correlation_id", correlation_id)
             
-            # Fetch signals at the beginning of execution
-            # Fetch signals and store for use during execution
-            signals = self._fetch_signals("fiscal")
-            if signals and span_context:
-                span.set_attribute("signals.fetched", True)
-                span.set_attribute("signals.pattern_count", len(signals.get("patterns", [])))
-            elif span_context:
-                span.set_attribute("signals.fetched", False)
-            
-            # Store signals in context for methods to access
-            if signals:
-                self._argument_context['signals'] = signals
-                logger.info(f"Signals loaded: {len(signals.get('patterns', []))} patterns, "
-                           f"{len(signals.get('indicators', []))} indicators")
+            # DETERMINISTIC EXECUTION CONTEXT - makes all random operations reproducible!
+            with deterministic(policy_unit_id, correlation_id) as seeds:
+                logger.info(f"Executing with DETERMINISTIC seeding: policy_unit_id={policy_unit_id}, "
+                          f"correlation_id={correlation_id}, seed={seeds.py}")
+                
+                # Fetch signals at the beginning of execution
+                # Fetch signals and store for use during execution
+                signals = self._fetch_signals("fiscal")
+                if signals and span_context:
+                    span.set_attribute("signals.fetched", True)
+                    span.set_attribute("signals.pattern_count", len(signals.get("patterns", [])))
+                elif span_context:
+                    span.set_attribute("signals.fetched", False)
+                
+                # Store signals in context for methods to access
+                if signals:
+                    self._argument_context['signals'] = signals
+                    logger.info(f"Signals loaded: {len(signals.get('patterns', []))} patterns, "
+                               f"{len(signals.get('indicators', []))} indicators")
 
-            strategy_idx = self.meta_learner.select_strategy()
-            self.meta_learner.get_strategy_config(strategy_idx)
+                strategy_idx = self.meta_learner.select_strategy()
+                self.meta_learner.get_strategy_config(strategy_idx)
 
-            method_names = [f"{cls}.{method}" for cls, method in method_sequence]
-            self.attention.prioritize_methods(method_names, method_names[:3])
+                method_names = [f"{cls}.{method}" for cls, method in method_sequence]
+                self.attention.prioritize_methods(method_names, method_names[:3])
 
-            logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
+                logger.info(f"Starting execution with {len(method_sequence)} methods using strategy {strategy_idx}")
 
-            total_entropy = 0.0
+                total_entropy = 0.0
 
-            self._reset_argument_context(doc)
-            # Re-add signals after reset if available
-            if signals:
-                self._argument_context['signals'] = signals
+                self._reset_argument_context(doc)
+                # Re-add signals after reset if available
+                if signals:
+                    self._argument_context['signals'] = signals
 
-            for idx, (class_name, method_name) in enumerate(method_sequence):
-                method_key = f"{class_name}.{method_name}"
+                for idx, (class_name, method_name) in enumerate(method_sequence):
+                    method_key = f"{class_name}.{method_name}"
 
-                self.probabilistic_executor.define_prior(
-                    method_key, "beta", alpha=2, beta=2
+                    self.probabilistic_executor.define_prior(
+                        method_key, "beta", alpha=2, beta=2
+                    )
+                    self.probabilistic_executor.sample_prior(method_key)
+
+                    # Execute with retry logic
+                    method_start = time.time()
+                    success = False
+                    max_retries = 3
+                    prepared_kwargs = {}  # Initialize to prevent UnboundLocalError in failure logging
+
+                    for attempt in range(max_retries):
+                        try:
+                            prepared_kwargs = self._prepare_arguments(
+                                class_name,
+                                method_name,
+                                doc,
+                                current_data,
+                            )
+
+                            result = self.executor.execute(
+                                class_name,
+                                method_name,
+                                **prepared_kwargs,
+                            )
+
+                            results[method_key] = result
+                            success = True
+
+                            self.info_optimizer.update_flow_metrics(idx, result)
+
+                            data_quality = self._assess_data_quality(result)
+                            self.neuromorphic_controller.process_data_flow([data_quality])
+
+                            performance = data_quality
+                            self.probabilistic_executor.bayesian_update(method_key, performance)
+
+                            entropy = self.info_optimizer.calculate_entropy(result)
+                            total_entropy += entropy
+
+                            if result is not None:
+                                current_data = result
+
+                            self._update_argument_context(
+                                method_key,
+                                result,
+                                class_name,
+                                method_name,
+                            )
+
+                            break  # Success, exit retry loop
+
+                        except Exception as e:
+                            if attempt < max_retries - 1:
+                                _global_metrics.record_retry()
+                                logger.warning(
+                                    f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
+                                    exc_info=False
+                                )
+                                time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                            else:
+                                results[method_key] = None
+                                logger.error(
+                                    "Method %s failed",
+                                    f"{class_name}.{method_name}",
+                                    exc_info=True,
+                                    extra={
+                                        'method_key': f"{class_name}.{method_name}",
+                                        'class_name': class_name,
+                                        'method_name': method_name,
+                                        'prepared_kwargs_keys': list(prepared_kwargs.keys()),
+                                        'error_type': type(e).__name__,
+                                        'error_details': str(e),
+                                    }
+                                )
+
+                    # Record execution metrics
+                    method_time = time.time() - method_start
+                    _global_metrics.record_execution(success, method_time, method_key)
+
+                avg_entropy = total_entropy / max(len(method_sequence), 1)
+                reward = self._calculate_reward(avg_entropy)
+                self.meta_learner.update_strategy_performance(strategy_idx, reward)
+
+                bottlenecks = self.info_optimizer.get_information_bottlenecks()
+
+                total_time = time.time() - execution_start
+                logger.info(
+                    f"Execution completed in {total_time:.3f}s: {_global_metrics.successful_executions}/{_global_metrics.total_executions} methods successful",
+                    extra={
+                        'total_time': total_time,
+                        'avg_entropy': avg_entropy,
+                        'bottlenecks': len(bottlenecks),
+                        'strategy': strategy_idx,
+                        'policy_unit_id': policy_unit_id,
+                        'correlation_id': correlation_id,
+                    }
                 )
-                self.probabilistic_executor.sample_prior(method_key)
 
-                # Execute with retry logic
-                method_start = time.time()
-                success = False
-                max_retries = 3
-                prepared_kwargs = {}  # Initialize to prevent UnboundLocalError in failure logging
-
-                for attempt in range(max_retries):
-                    try:
-                        prepared_kwargs = self._prepare_arguments(
-                            class_name,
-                            method_name,
-                            doc,
-                            current_data,
-                        )
-
-                        result = self.executor.execute(
-                            class_name,
-                            method_name,
-                            **prepared_kwargs,
-                        )
-
-                        results[method_key] = result
-                        success = True
-
-                        self.info_optimizer.update_flow_metrics(idx, result)
-
-                        data_quality = self._assess_data_quality(result)
-                        self.neuromorphic_controller.process_data_flow([data_quality])
-
-                        performance = data_quality
-                        self.probabilistic_executor.bayesian_update(method_key, performance)
-
-                        entropy = self.info_optimizer.calculate_entropy(result)
-                        total_entropy += entropy
-
-                        if result is not None:
-                            current_data = result
-
-                        self._update_argument_context(
-                            method_key,
-                            result,
-                            class_name,
-                            method_name,
-                        )
-
-                        break  # Success, exit retry loop
-
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            _global_metrics.record_retry()
-                            logger.warning(
-                                f"Method {method_key} failed on attempt {attempt + 1}/{max_retries}: {str(e)}. Retrying...",
-                                exc_info=False
-                            )
-                            time.sleep(0.1 * (attempt + 1))  # Exponential backoff
-                        else:
-                            results[method_key] = None
-                            logger.error(
-                                "Method %s failed",
-                                f"{class_name}.{method_name}",
-                                exc_info=True,
-                                extra={
-                                    'method_key': f"{class_name}.{method_name}",
-                                    'class_name': class_name,
-                                    'method_name': method_name,
-                                    'prepared_kwargs_keys': list(prepared_kwargs.keys()),
-                                    'error_type': type(e).__name__,
-                                    'error_details': str(e),
-                                }
-                            )
-
-                # Record execution metrics
-                method_time = time.time() - method_start
-                _global_metrics.record_execution(success, method_time, method_key)
-
-            avg_entropy = total_entropy / max(len(method_sequence), 1)
-            reward = self._calculate_reward(avg_entropy)
-            self.meta_learner.update_strategy_performance(strategy_idx, reward)
-
-            bottlenecks = self.info_optimizer.get_information_bottlenecks()
-
-            total_time = time.time() - execution_start
-            logger.info(
-                f"Execution completed in {total_time:.3f}s: {_global_metrics.successful_executions}/{_global_metrics.total_executions} methods successful",
-                extra={
-                    'total_time': total_time,
-                    'avg_entropy': avg_entropy,
-                    'bottlenecks': len(bottlenecks),
-                    'strategy': strategy_idx
-                }
-            )
-
-            # Add execution metrics to span
-            if span_context:
-                span.set_attribute("execution_time_s", total_time)
-                span.set_attribute("successful_methods", _global_metrics.successful_executions)
-                span.set_attribute("total_methods", _global_metrics.total_executions)
+                # Add execution metrics to span
+                if span_context:
+                    span.set_attribute("execution_time_s", total_time)
+                    span.set_attribute("successful_methods", _global_metrics.successful_executions)
+                    span.set_attribute("total_methods", _global_metrics.total_executions)
                 span.set_attribute("avg_entropy", avg_entropy)
                 span.set_attribute("used_signals_count", len(self.used_signals))
                 span.set_status(Status(StatusCode.OK))
