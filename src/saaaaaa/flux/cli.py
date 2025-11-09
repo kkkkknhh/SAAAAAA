@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from typing import Any, Optional
 
 # third-party (pinned in pyproject)
-import structlog
 import typer
 from pydantic import ValidationError
 
@@ -44,7 +44,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-log = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 
 def _print_contracts() -> None:

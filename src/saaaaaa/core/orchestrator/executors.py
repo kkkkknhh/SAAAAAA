@@ -91,6 +91,57 @@ except Exception:  # pragma: no cover - avoid hard failure if module unavailable
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# DETERMINISTIC EXECUTION CONTEXT
+# ============================================================================
+
+@dataclass
+class DeterministicSeeds:
+    """Container for deterministic seeds used within an execution context."""
+    np: int  # Seed for numpy RNG
+    python: int  # Seed for Python random
+    
+    
+@contextmanager
+def deterministic(policy_unit_id: str | None, correlation_id: str | None):
+    """
+    Deterministic execution context manager.
+    
+    Provides stable seeds derived from policy_unit_id and correlation_id.
+    For the same (policy_unit_id, correlation_id), guarantees bit-for-bit
+    reproducible execution of stochastic operations.
+    
+    Usage:
+        with deterministic(policy_unit_id, correlation_id) as seeds:
+            rng = np.random.default_rng(seeds.np)
+            # Use rng for all stochastic operations
+    
+    Args:
+        policy_unit_id: Policy unit identifier
+        correlation_id: Correlation identifier
+        
+    Yields:
+        DeterministicSeeds with .np and .python attributes
+    """
+    import hashlib
+    
+    # Derive deterministic seed from identifiers
+    components = [
+        str(policy_unit_id) if policy_unit_id else "NO_POLICY_UNIT",
+        str(correlation_id) if correlation_id else "NO_CORRELATION",
+    ]
+    material = "|".join(components)
+    digest = hashlib.sha256(material.encode("utf-8")).digest()
+    base_seed = int.from_bytes(digest[:4], byteorder="big")
+    
+    seeds = DeterministicSeeds(
+        np=base_seed,
+        python=base_seed + 1,
+    )
+    
+    yield seeds
+
+
 class CircuitBreakerState:
     """Async-safe circuit breaker state for fault isolation."""
     
@@ -270,17 +321,21 @@ class QuantumState:
         avg = np.mean(self.amplitudes)
         self.amplitudes = 2 * avg - self.amplitudes
 
-    def measure(self) -> int:
+    def measure(self, rng: np.random.Generator | None = None) -> int:
         """Collapse to measured state"""
         probabilities = np.abs(self.amplitudes) ** 2
         probabilities /= probabilities.sum()
-        return np.random.choice(self.dimension, p=probabilities)
+        if rng is None:
+            rng = np.random.default_rng()
+        return rng.choice(self.dimension, p=probabilities)
 
-    def optimize_path(self, iterations: int = 3) -> int:
+    def optimize_path(self, iterations: int = 3, rng: np.random.Generator | None = None) -> int:
         """Find optimal execution path using Grover-inspired search"""
+        if rng is None:
+            rng = np.random.default_rng()
         for _ in range(iterations):
             self.apply_diffusion()
-        return self.measure()
+        return self.measure(rng=rng)
 
 class QuantumExecutionOptimizer:
     """Quantum-inspired optimizer for execution path selection
@@ -295,8 +350,10 @@ class QuantumExecutionOptimizer:
         self.state = QuantumState(num_methods)
         self.execution_history: list[tuple[int, float]] = []
 
-    def select_optimal_path(self, available_methods: list[int]) -> list[int]:
+    def select_optimal_path(self, available_methods: list[int], rng: np.random.Generator | None = None) -> list[int]:
         """Select optimal execution path using quantum annealing principles"""
+        if rng is None:
+            rng = np.random.default_rng()
         start_time = time.time()
 
         if self.execution_history:
@@ -304,8 +361,8 @@ class QuantumExecutionOptimizer:
             marked = [m[0] for m in top_methods[:len(top_methods) // 3]]
             self.state.apply_oracle(marked)
 
-        optimal_idx = self.state.optimize_path()
-        path = self._construct_path(optimal_idx, available_methods)
+        optimal_idx = self.state.optimize_path(rng=rng)
+        path = self._construct_path(optimal_idx, available_methods, rng=rng)
 
         # Record convergence time
         convergence_time = time.time() - start_time
@@ -314,8 +371,10 @@ class QuantumExecutionOptimizer:
 
         return path
 
-    def _construct_path(self, start_idx: int, available: list[int]) -> list[int]:
+    def _construct_path(self, start_idx: int, available: list[int], rng: np.random.Generator | None = None) -> list[int]:
         """Construct execution path from starting point"""
+        if rng is None:
+            rng = np.random.default_rng()
         if not available:
             return []
         path = [available[start_idx % len(available)]]
@@ -323,7 +382,7 @@ class QuantumExecutionOptimizer:
 
         while remaining and len(path) < len(available):
             probs = self._tunneling_probabilities(path[-1], remaining)
-            next_method = np.random.choice(remaining, p=probs)
+            next_method = rng.choice(remaining, p=probs)
             path.append(next_method)
             remaining.remove(next_method)
 
@@ -374,9 +433,10 @@ class SpikingNeuron:
 class NeuromorphicFlowController:
     """Neuromorphic controller for dynamic data flow"""
 
-    def __init__(self, num_stages: int) -> None:
+    def __init__(self, num_stages: int, seed: int | None = None) -> None:
         self.neurons = [SpikingNeuron() for _ in range(num_stages)]
-        self.synaptic_weights = np.random.rand(num_stages, num_stages) * 0.5
+        rng = np.random.default_rng(seed)
+        self.synaptic_weights = rng.random((num_stages, num_stages)) * 0.5
         self.stdp_learning_rate = 0.01
 
     def process_data_flow(self, data_quality: list[float]) -> list[bool]:
@@ -646,10 +706,12 @@ class MetaLearningStrategy:
         self.epsilon = epsilon
         self.learning_rate = learning_rate
 
-    def select_strategy(self) -> int:
+    def select_strategy(self, rng: np.random.Generator | None = None) -> int:
         """Select execution strategy using epsilon-greedy"""
-        if np.random.random() < self.epsilon:
-            strategy_idx = np.random.randint(self.num_strategies)
+        if rng is None:
+            rng = np.random.default_rng()
+        if rng.random() < self.epsilon:
+            strategy_idx = rng.integers(0, self.num_strategies)
         else:
             strategy_idx = np.argmax(self.strategy_performance)
 
@@ -690,17 +752,18 @@ class MetaLearningStrategy:
 class AttentionMechanism:
     """Attention mechanism for focusing computational resources"""
 
-    def __init__(self, embedding_dim: int = 64) -> None:
+    def __init__(self, embedding_dim: int = 64, seed: int | None = None) -> None:
         self.embedding_dim = embedding_dim
-        self.query_weights = np.random.randn(embedding_dim, embedding_dim) * 0.01
-        self.key_weights = np.random.randn(embedding_dim, embedding_dim) * 0.01
-        self.value_weights = np.random.randn(embedding_dim, embedding_dim) * 0.01
+        rng = np.random.default_rng(seed)
+        self.query_weights = rng.standard_normal((embedding_dim, embedding_dim)) * 0.01
+        self.key_weights = rng.standard_normal((embedding_dim, embedding_dim)) * 0.01
+        self.value_weights = rng.standard_normal((embedding_dim, embedding_dim)) * 0.01
 
     def embed_method(self, method_name: str) -> np.ndarray:
         """Embed method name into vector space"""
         hash_val = hash(method_name)
-        np.random.seed(hash_val % (2 ** 31))
-        embedding = np.random.randn(self.embedding_dim)
+        rng = np.random.default_rng(hash_val % (2 ** 31))
+        embedding = rng.standard_normal(self.embedding_dim)
         return embedding / np.linalg.norm(embedding)
 
     def compute_attention(self, query_methods: list[str],
@@ -889,19 +952,21 @@ class ProbabilisticExecutor:
         """Define prior distribution for parameter"""
         self.distributions[param_name] = (distribution, kwargs)
 
-    def sample_prior(self, param_name: str) -> float:
+    def sample_prior(self, param_name: str, rng: np.random.Generator | None = None) -> float:
         """Sample from prior distribution"""
+        if rng is None:
+            rng = np.random.default_rng()
         if param_name not in self.distributions:
             return 1.0
 
         dist_type, params = self.distributions[param_name]
 
         if dist_type == "normal":
-            return np.random.normal(params.get("mean", 0), params.get("std", 1))
+            return float(rng.normal(params.get("mean", 0), params.get("std", 1)))
         elif dist_type == "beta":
-            return np.random.beta(params.get("alpha", 2), params.get("beta", 2))
+            return float(rng.beta(params.get("alpha", 2), params.get("beta", 2)))
         elif dist_type == "gamma":
-            return np.random.gamma(params.get("shape", 2), params.get("scale", 1))
+            return float(rng.gamma(params.get("shape", 2), params.get("scale", 1)))
         else:
             return 1.0
 
@@ -3608,8 +3673,10 @@ class FrontierExecutorOrchestrator:
 
         return results
 
-    def _optimize_execution_order(self, question_ids: list[str]) -> list[str]:
+    def _optimize_execution_order(self, question_ids: list[str], rng: np.random.Generator | None = None) -> list[str]:
         """Optimize execution order using causal inference"""
+        if rng is None:
+            rng = np.random.default_rng()
         if len(question_ids) <= 1:
             return question_ids
 
@@ -3618,7 +3685,7 @@ class FrontierExecutorOrchestrator:
         temp_graph = CausalGraph(num_variables=n_questions)
 
         # Generate synthetic data for structure learning
-        data = np.random.randn(max(100, n_questions * 10), n_questions)
+        data = rng.standard_normal((max(100, n_questions * 10), n_questions))
         temp_graph.learn_structure(data, alpha=0.05)
 
         # Get optimal execution order

@@ -29,8 +29,11 @@ class PhaseOutcome(BaseModel):
         "ingest", "normalize", "chunk", "signals", "aggregate", "score", "report"
     ]
     payload: dict[str, Any]  # concrete model cast below
-    metrics: dict[str, float] = Field(default_factory=dict)
     fingerprint: str
+    policy_unit_id: str | None = None
+    correlation_id: str | None = None
+    envelope_metadata: dict[str, str] = Field(default_factory=dict)
+    metrics: dict[str, float] = Field(default_factory=dict)
 
 
 # Ingest Phase

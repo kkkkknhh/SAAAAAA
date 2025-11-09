@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from typing import Any, Callable
@@ -9,7 +10,6 @@ from typing import Any, Callable
 # third-party (pinned in pyproject)
 import polars as pl
 import pyarrow as pa
-import structlog
 from blake3 import blake3
 from opentelemetry import metrics, trace
 from pydantic import BaseModel, ValidationError
@@ -44,7 +44,7 @@ from .models import (
     SignalsExpectation,
 )
 
-log = structlog.get_logger()
+logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("flux")
 meter = metrics.get_meter("flux")
 
@@ -188,12 +188,12 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
         phase_latency_histogram.record(duration_ms, {"phase": "ingest"})
         phase_counter.add(1, {"phase": "ingest"})
 
-        log.info(
-            "phase_complete",
-            phase="ingest",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f",
+            "ingest",
+            True,
+            fp,
+            duration_ms,
         )
 
         return PhaseOutcome(
@@ -248,13 +248,13 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
         phase_latency_histogram.record(duration_ms, {"phase": "normalize"})
         phase_counter.add(1, {"phase": "normalize"})
 
-        log.info(
-            "phase_complete",
-            phase="normalize",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            sentence_count=len(out.sentences),
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f sentence_count=%d",
+            "normalize",
+            True,
+            fp,
+            duration_ms,
+            len(out.sentences),
         )
 
         return PhaseOutcome(
@@ -321,13 +321,13 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
         phase_latency_histogram.record(duration_ms, {"phase": "chunk"})
         phase_counter.add(1, {"phase": "chunk"})
 
-        log.info(
-            "phase_complete",
-            phase="chunk",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            chunk_count=len(out.chunks),
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f chunk_count=%d",
+            "chunk",
+            True,
+            fp,
+            duration_ms,
+            len(out.chunks),
         )
 
         return PhaseOutcome(
@@ -345,6 +345,7 @@ def run_signals(
     ch: ChunkDeliverable,
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
+    policy_unit_id: str | None = None,
 ) -> PhaseOutcome:
     """
     Execute signals phase (cross-cut).
@@ -406,13 +407,14 @@ def run_signals(
         phase_latency_histogram.record(duration_ms, {"phase": "signals"})
         phase_counter.add(1, {"phase": "signals"})
 
-        log.info(
-            "phase_complete",
-            phase="signals",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            signals_present=used_signals["present"],
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f signals_present=%s policy_unit_id=%s",
+            "signals",
+            True,
+            fp,
+            duration_ms,
+            used_signals["present"],
+            policy_unit_id,
         )
 
         return PhaseOutcome(
@@ -420,6 +422,7 @@ def run_signals(
             phase="signals",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
             metrics={"duration_ms": duration_ms},
         )
 
@@ -484,13 +487,13 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
         phase_latency_histogram.record(duration_ms, {"phase": "aggregate"})
         phase_counter.add(1, {"phase": "aggregate"})
 
-        log.info(
-            "phase_complete",
-            phase="aggregate",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            feature_count=tbl.num_rows,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f feature_count=%d",
+            "aggregate",
+            True,
+            fp,
+            duration_ms,
+            tbl.num_rows,
         )
 
         return PhaseOutcome(
@@ -560,13 +563,13 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
         phase_latency_histogram.record(duration_ms, {"phase": "score"})
         phase_counter.add(1, {"phase": "score"})
 
-        log.info(
-            "phase_complete",
-            phase="score",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            score_count=df.height,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f score_count=%d",
+            "score",
+            True,
+            fp,
+            duration_ms,
+            df.height,
         )
 
         return PhaseOutcome(
@@ -580,7 +583,7 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
 
 # REPORT
 def run_report(
-    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest
+    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest, *, policy_unit_id: str | None = None
 ) -> PhaseOutcome:
     """
     Execute report phase.
@@ -638,13 +641,14 @@ def run_report(
         phase_latency_histogram.record(duration_ms, {"phase": "report"})
         phase_counter.add(1, {"phase": "report"})
 
-        log.info(
-            "phase_complete",
-            phase="report",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            artifact_count=len(out.artifacts),
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f artifact_count=%d policy_unit_id=%s",
+            "report",
+            True,
+            fp,
+            duration_ms,
+            len(out.artifacts),
+            policy_unit_id,
         )
 
         return PhaseOutcome(
@@ -652,5 +656,6 @@ def run_report(
             phase="report",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
             metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts)},
         )
