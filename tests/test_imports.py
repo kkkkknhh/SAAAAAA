@@ -3,11 +3,17 @@ Test suite for import validation
 =================================
 
 This test verifies that all imports work correctly across the system.
+
+NOTE: This test file is OUTDATED. Use test_import_consistency.py and test_smoke_imports.py instead.
 """
 
 import importlib
 import sys
 from pathlib import Path
+import pytest
+
+# Mark all tests in this module as outdated
+pytestmark = pytest.mark.skip(reason="outdated - use test_import_consistency.py and test_smoke_imports.py")
 
 # Add project paths
 
@@ -56,7 +62,7 @@ def test_core_packages():
 
 def test_qmcm_hooks_backward_compatibility():
     """Test that qmcm_hooks has backward-compatible aliases"""
-    import saaaaaa.core.qmcm_hooks
+    import saaaaaa.core.qmcm_hooks as qmcm_hooks
 
     # Check that both old and new names work
     assert hasattr(qmcm_hooks, 'qmcm_record')
@@ -69,7 +75,7 @@ def test_qmcm_hooks_backward_compatibility():
 
 def test_signature_validator_backward_compatibility():
     """Test that signature_validator has backward-compatible aliases"""
-    import saaaaaa.validation.signature_validator
+    import saaaaaa.validation.signature_validator as signature_validator
 
     # Check that both old and new names work
     assert hasattr(signature_validator, 'SignatureMismatch')
@@ -84,7 +90,7 @@ def test_signature_validator_backward_compatibility():
 
 def test_contracts_exports():
     """Test that contracts module exports expected symbols"""
-    import saaaaaa.contracts
+    import saaaaaa.contracts as contracts
 
     expected_exports = [
         "AnalysisInputV1",
@@ -99,7 +105,7 @@ def test_contracts_exports():
 
 def test_aggregation_exports():
     """Test that aggregation module exports expected symbols"""
-    import saaaaaa.core.aggregation
+    import saaaaaa.core.aggregation as aggregation
 
     expected_exports = [
         "MacroAggregator",

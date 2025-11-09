@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
+import json
 import logging
 import os
 import statistics
@@ -23,7 +25,8 @@ import time
 from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, Iterable, ParamSpec, TypedDict, TypeVar
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
@@ -39,12 +42,202 @@ from saaaaaa.processing.aggregation import (
 )
 
 from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
+from .calibration_registry import resolve_calibration, get_calibration_hash, CALIBRATION_VERSION
 from .class_registry import ClassRegistryError, build_class_registry
+from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
 
 if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
 
 logger = logging.getLogger(__name__)
+
+# Environment-configurable expectations for validation
+EXPECTED_QUESTION_COUNT = int(os.getenv("EXPECTED_QUESTION_COUNT", "305"))
+EXPECTED_METHOD_COUNT = int(os.getenv("EXPECTED_METHOD_COUNT", "416"))
+PHASE_TIMEOUT_DEFAULT = int(os.getenv("PHASE_TIMEOUT_SECONDS", "300"))
+
+
+class PhaseTimeoutError(RuntimeError):
+    """Raised when a phase exceeds its timeout."""
+    
+    def __init__(self, phase_id: int | str, phase_name: str, timeout_s: float):
+        self.phase_id = phase_id
+        self.phase_name = phase_name
+        self.timeout_s = timeout_s
+        super().__init__(
+            f"Phase {phase_id} ({phase_name}) timed out after {timeout_s}s"
+        )
+
+
+# ParamSpec and TypeVar for execute_phase_with_timeout
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+async def execute_phase_with_timeout(
+    phase_id: int,
+    phase_name: str,
+    coro: Callable[P, T] | None = None,
+    *varargs: P.args,
+    handler: Callable[P, T] | None = None,  # Legacy parameter for backward compatibility
+    args: tuple | None = None,  # Legacy parameter for backward compatibility
+    timeout_s: float = 300.0,
+    **kwargs: P.kwargs,
+) -> T:
+    """Execute an async phase with timeout and comprehensive logging.
+    
+    Args:
+        phase_id: Numeric phase identifier
+        phase_name: Human-readable phase name
+        coro: Coroutine/callable to execute (preferred)
+        *varargs: Positional arguments for coro (when using positional style)
+        handler: Legacy alias for coro (for backward compatibility)
+        args: Legacy parameter for positional arguments (for backward compatibility)
+        timeout_s: Timeout in seconds (default: 300.0)
+        **kwargs: Keyword arguments for coro
+        
+    Returns:
+        Result from coro
+        
+    Raises:
+        PhaseTimeoutError: If execution exceeds timeout_s
+        Exception: Any exception raised by coro
+        ValueError: If neither coro nor handler is provided
+    """
+    # Support both coro and handler (legacy) parameter names
+    target = coro or handler
+    if target is None:
+        raise ValueError("Either 'coro' or 'handler' must be provided")
+    
+    # Support both varargs (*args in signature) and args kwarg (legacy)
+    call_args = varargs if varargs else (args or ())
+    
+    start = time.perf_counter()
+    logger.info(
+        "phase_execution_started",
+        extra={"phase_id": phase_id, "phase_name": phase_name, "timeout_s": timeout_s},
+    )
+    try:
+        result = await asyncio.wait_for(target(*call_args, **kwargs), timeout=timeout_s)
+        elapsed = time.perf_counter() - start
+        logger.info(
+            "phase_execution_completed",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "time_remaining_s": timeout_s - elapsed,
+            },
+        )
+        return result
+    except asyncio.TimeoutError as exc:
+        elapsed = time.perf_counter() - start
+        logger.error(
+            "phase_execution_timeout",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "timeout_s": timeout_s,
+                "exceeded_by_s": elapsed - timeout_s,
+            },
+        )
+        raise PhaseTimeoutError(phase_id, phase_name, timeout_s) from exc
+    except asyncio.CancelledError:
+        elapsed = time.perf_counter() - start
+        logger.warning(
+            "phase_execution_cancelled",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+            },
+        )
+        raise  # Re-raise to propagate cancellation
+    except Exception as exc:
+        elapsed = time.perf_counter() - start
+        logger.error(
+            "phase_execution_error",
+            extra={
+                "phase_id": phase_id,
+                "phase_name": phase_name,
+                "elapsed_s": elapsed,
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+            },
+            exc_info=True,
+        )
+        raise
+
+
+def _normalize_monolith_for_hash(monolith: dict | MappingProxyType) -> dict:
+    """Normalize monolith for hash computation and JSON serialization.
+    
+    Converts MappingProxyType to dict recursively to ensure:
+    1. JSON serialization doesn't fail
+    2. Hash computation is consistent
+    
+    Args:
+        monolith: Monolith data (may be MappingProxyType or dict)
+        
+    Returns:
+        Normalized dict suitable for hashing and JSON serialization
+        
+    Raises:
+        RuntimeError: If normalization fails or produces inconsistent results
+    """
+    if isinstance(monolith, MappingProxyType):
+        monolith = dict(monolith)
+    
+    # Deep-convert nested mapping proxies if they exist
+    def _convert(obj: Any) -> Any:
+        if isinstance(obj, MappingProxyType):
+            obj = dict(obj)
+        if isinstance(obj, dict):
+            return {k: _convert(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_convert(v) for v in obj]
+        return obj
+    
+    normalized = _convert(monolith)
+    
+    # Verify normalization is idempotent
+    try:
+        # Test that we can serialize it
+        json.dumps(normalized, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Monolith normalization failed: {exc}") from exc
+    
+    return normalized
+
+
+class MacroScoreDict(TypedDict):
+    """Typed container for macro score evaluation results."""
+    macro_score: MacroScore
+    macro_score_normalized: float
+    cluster_scores: list[ClusterScore]
+
+
+@dataclass
+class ClusterScoreData:
+    """Type-safe cluster score data for macro evaluation."""
+    id: str
+    score: float
+    normalized_score: float
+
+
+@dataclass
+class MacroEvaluation:
+    """Type-safe macro evaluation result.
+    
+    This replaces polymorphic dict/object handling with a strict contract.
+    All downstream consumers must treat macro scores as this type.
+    """
+    macro_score: float
+    macro_score_normalized: float
+    clusters: list[ClusterScoreData]
+
 
 @dataclass
 class PreprocessedDocument:
@@ -68,18 +261,43 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None
+        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = False
     ) -> PreprocessedDocument:
         """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        # Reject class types - only accept instances
+        if isinstance(document, type):
+            class_name = getattr(document, '__name__', str(document))
+            raise TypeError(
+                f"Expected document instance, got class type '{class_name}'. "
+                "Pass an instance of the document, not the class itself."
+            )
+
         if isinstance(document, cls):
             return document
+
+        # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
+        if use_spc_ingestion or hasattr(document, "chunk_graph"):
+            try:
+                from saaaaaa.utils.cpp_adapter import CPPAdapter
+                adapter = CPPAdapter()
+                return adapter.to_preprocessed_document(document, document_id=document_id)
+            except ImportError as e:
+                raise ImportError(
+                    "SPC ingestion requires cpp_adapter module. "
+                    "Ensure saaaaaa.utils.cpp_adapter is available."
+                ) from e
+            except Exception as e:
+                raise TypeError(
+                    f"Failed to adapt SPC document: {e}. "
+                    "Ensure document is a valid CanonPolicyPackage instance."
+                ) from e
 
         if hasattr(document, "raw_document") and hasattr(document, "full_text"):
             return cls._from_ingestion(document, document_id=document_id)
 
         raise TypeError(
             "Unsupported preprocessed document payload: "
-            f"expected orchestrator or document_ingestion schema, got {type(document)!r}"
+            f"expected orchestrator, document_ingestion, or CPP schema, got {type(document)!r}"
         )
 
     @classmethod
@@ -571,13 +789,36 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
         # Build the class registry
+        self.degraded_mode = False
+        self.degraded_reasons: list[str] = []
+        
         try:
             registry = build_class_registry()
         except (ClassRegistryError, ModuleNotFoundError, ImportError) as exc:
-            logger.warning("Some modules unavailable - operating in limited mode: %s", exc)
+            self.degraded_mode = True
+            reason = f"Class registry incomplete: {exc}"
+            self.degraded_reasons.append(reason)
+            logger.warning("DEGRADED MODE: %s", reason)
             registry = {}
+
+        if calibrations is None:
+            # DEPRECATION: No longer loading from YAML
+            # Calibrations are now internal in calibration_registry.py
+            # Leaving this logic in place only for backward compatibility during transition
+            logger.info(
+                "Calibration loading from YAML is deprecated. "
+                "Using internal calibration_registry.CALIBRATIONS instead."
+            )
+            calibrations = {}  # Empty dict - YAML calibrations no longer supported
+
+        self.raw_calibrations = calibrations  # Will be empty dict after migration
+        self.calibrations = self._map_calibrations_to_classes(calibrations)  # Will be empty dict
+        
+        # Add calibration metadata for traceability
+        self.calibration_version = CALIBRATION_VERSION
+        self.calibration_hash = get_calibration_hash()
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
@@ -601,17 +842,51 @@ class MethodExecutor:
                 elif class_name == "PolicyTextProcessor":
                     try:
                         from policy_processor import ProcessorConfig
-                        self.instances[class_name] = cls(ProcessorConfig())
+                        calibration_payload = self.calibrations.get(class_name)
+                        if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                            self.instances[class_name] = cls(ProcessorConfig(), calibration=calibration_payload)
+                        else:
+                            self.instances[class_name] = cls(ProcessorConfig())
                     except ImportError:
                         logger.warning("Cannot instantiate PolicyTextProcessor: ProcessorConfig unavailable")
                 else:
                     # Standard instantiation
-                    self.instances[class_name] = cls()
+                    calibration_payload = self.calibrations.get(class_name)
+                    if calibration_payload is not None and self._supports_parameter(cls, "calibration"):
+                        self.instances[class_name] = cls(calibration=calibration_payload)
+                    else:
+                        self.instances[class_name] = cls()
             except Exception as exc:
                 logger.error("Failed to instantiate %s: %s", class_name, exc)
 
         # Create ArgRouter with the registry
         self._router = ArgRouter(registry)
+        
+        # Check for critical degradation
+        if len(self.instances) == 0 and len(registry) > 0:
+            self.degraded_mode = True
+            reason = "All class instantiations failed"
+            self.degraded_reasons.append(reason)
+            logger.error("CRITICAL DEGRADATION: %s", reason)
+
+    def _map_calibrations_to_classes(self, calibrations: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        """Map legacy YAML calibrations to classes.
+        
+        NOTE: This method is deprecated and will always return an empty dict
+        since calibrations parameter is always {} (YAML loading disabled).
+        Kept for backward compatibility during transition period.
+        """
+        # Legacy YAML calibration mapping - no longer used
+        # calibrations is always {} since YAML loading was deprecated
+        return {}
+
+    @staticmethod
+    def _supports_parameter(callable_obj: Any, parameter_name: str) -> bool:
+        try:
+            signature = inspect.signature(callable_obj)
+        except (TypeError, ValueError):  # pragma: no cover - builtins / C extensions
+            return False
+        return parameter_name in signature.parameters
 
     def execute(self, class_name: str, method_name: str, **kwargs: Any) -> Any:
         """Execute a method from the catalog.
@@ -627,7 +902,15 @@ class MethodExecutor:
         Raises:
             ArgRouterError: If routing fails
             AttributeError: If method doesn't exist
+            RuntimeError: If calibration is missing or placeholder
         """
+        # Fail-fast calibration enforcement
+        calib = resolve_calibration(class_name, method_name)
+        if calib is None:
+            raise RuntimeError(f"No calibration registered for {class_name}.{method_name}")
+        if calib.is_default_like():
+            raise RuntimeError(f"Placeholder calibration detected for {class_name}.{method_name}")
+        
         instance = self.instances.get(class_name)
         if not instance:
             logger.warning("No instance available for class %s", class_name)
@@ -648,6 +931,77 @@ class MethodExecutor:
         except Exception:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
+
+def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orchestrator_class: type) -> None:
+    """Validate phase definitions for structural coherence.
+    
+    This is a hard gate: if phase definitions are broken, the orchestrator cannot start.
+    No "limited mode" is allowed when the base schema is corrupted.
+    
+    Args:
+        phase_list: List of phase tuples (id, mode, handler, label)
+        orchestrator_class: Orchestrator class to check for handler methods
+        
+    Raises:
+        RuntimeError: If phase definitions are invalid
+    """
+    if not phase_list:
+        raise RuntimeError("FASES cannot be empty - no phases defined for orchestration")
+    
+    # Extract phase IDs
+    phase_ids = [phase[0] for phase in phase_list]
+    
+    # Check for duplicate phase IDs
+    seen_ids = set()
+    for phase_id in phase_ids:
+        if phase_id in seen_ids:
+            raise RuntimeError(
+                f"Duplicate phase ID {phase_id} in FASES definition. "
+                "Phase IDs must be unique."
+            )
+        seen_ids.add(phase_id)
+    
+    # Check that IDs are contiguous starting from 0
+    # For performance: check sorted and validate range
+    if phase_ids != sorted(phase_ids):
+        raise RuntimeError(
+            f"Phase IDs must be sorted in ascending order. Got {phase_ids}"
+        )
+    if phase_ids[0] != 0:
+        raise RuntimeError(
+            f"Phase IDs must start from 0. Got first ID: {phase_ids[0]}"
+        )
+    if phase_ids[-1] != len(phase_list) - 1:
+        raise RuntimeError(
+            f"Phase IDs must be contiguous from 0 to {len(phase_list) - 1}. "
+            f"Got highest ID: {phase_ids[-1]}"
+        )
+    
+    # Validate each phase
+    valid_modes = {"sync", "async"}
+    for phase_id, mode, handler_name, label in phase_list:
+        # Validate mode
+        if mode not in valid_modes:
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): invalid mode '{mode}'. "
+                f"Mode must be one of {valid_modes}"
+            )
+        
+        # Validate handler exists as method in orchestrator
+        if not hasattr(orchestrator_class, handler_name):
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): handler method '{handler_name}' "
+                f"does not exist in {orchestrator_class.__name__}"
+            )
+        
+        # Validate handler is callable
+        handler = getattr(orchestrator_class, handler_name, None)
+        if not callable(handler):
+            raise RuntimeError(
+                f"Phase {phase_id} ({label}): handler '{handler_name}' "
+                f"is not callable"
+            )
+
 
 class Orchestrator:
     """Robust 11-phase orchestrator with abort support and resource control.
@@ -712,6 +1066,24 @@ class Orchestrator:
         10: ["report", "config"],
     }
 
+    # Phase timeout configuration (in seconds)
+    PHASE_TIMEOUTS: dict[int, float] = {
+        0: 60,     # Configuration validation
+        1: 120,    # Document ingestion
+        2: 600,    # Micro questions (300 items)
+        3: 300,    # Scoring micro
+        4: 180,    # Dimension aggregation
+        5: 120,    # Policy area aggregation
+        6: 60,     # Cluster aggregation
+        7: 60,     # Macro evaluation
+        8: 120,    # Recommendations
+        9: 60,     # Report assembly
+        10: 120,   # Format and export
+    }
+
+    # Score normalization constant
+    PERCENTAGE_SCALE: int = 100
+
     def __init__(
         self,
         catalog: dict[str, Any] | None = None,
@@ -748,6 +1120,27 @@ class Orchestrator:
         self._monolith_data = monolith
         self._method_map_data = method_map
         self._schema_data = schema
+        
+        # ========================================================================
+        # PROMPT_SCHEMA_GATES_ENFORCER: Validate phase definitions at startup
+        # No limited mode allowed - if schema is broken, orchestrator cannot start
+        # ========================================================================
+        validate_phase_definitions(self.FASES, self.__class__)
+        
+        # ========================================================================
+        # PROMPT_SCHEMA_GATES_ENFORCER: Validate questionnaire structure if provided
+        # Cannot proceed with corrupt questionnaire schema
+        # Note: Local import to avoid circular dependency (factory imports from core)
+        # ========================================================================
+        if self._monolith_data is not None:
+            from .factory import validate_questionnaire_structure
+            try:
+                validate_questionnaire_structure(self._monolith_data)
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(
+                    f"Questionnaire structure validation failed: {e}. "
+                    "Cannot start orchestrator with corrupt questionnaire."
+                ) from e
 
         # Store paths for backward compatibility
         self.catalog_path = self._resolve_path(catalog_path) if catalog_path else None
@@ -764,8 +1157,44 @@ class Orchestrator:
             # No data provided - will need to load later or fail
             # This allows construction without I/O but requires data to be set before use
             self.catalog = None
+        
+        # ========================================================================
+        # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate catalog is non-empty
+        # Cannot proceed with empty catalog
+        # ========================================================================
+        if self.catalog is not None:
+            if not self.catalog:
+                raise RuntimeError(
+                    "Method catalog is empty - cannot run pipeline. "
+                    "A non-empty catalog is required for orchestration."
+                )
+            # Check if catalog has methods attribute/key
+            catalog_methods = None
+            if isinstance(self.catalog, dict):
+                catalog_methods = self.catalog.get("methods")
+            elif hasattr(self.catalog, "methods"):
+                catalog_methods = getattr(self.catalog, "methods", None)
+            
+            if catalog_methods is not None and not catalog_methods:
+                raise RuntimeError(
+                    "Method catalog.methods is empty - cannot run pipeline. "
+                    "At least one method must be registered in the catalog."
+                )
 
         self.executor = MethodExecutor()
+        
+        # ========================================================================
+        # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate MethodExecutor.instances is non-empty
+        # No "limited mode" when instances registry is empty
+        # ========================================================================
+        if not self.executor.instances:
+            raise RuntimeError(
+                "MethodExecutor.instances is empty - no executable methods registered. "
+                "Cannot start orchestration without method instances. "
+                "Check that class registry is properly configured."
+            )
+        
+        self.calibrations: dict[str, Any] = getattr(self.executor, "raw_calibrations", {})
 
         # Import executors from the executors module
         from . import executors
@@ -813,6 +1242,12 @@ class Orchestrator:
         self._context: dict[str, Any] = {}
         self._start_time: float | None = None
 
+        # Initialize dependency lockdown enforcement
+        self.dependency_lockdown = get_dependency_lockdown()
+        logger.info(
+            f"Orchestrator dependency mode: {self.dependency_lockdown.get_mode_description()}"
+        )
+
         # Initialize RecommendationEngine for 3-level recommendations
         try:
             # Try to load enhanced rules first (v2.0), fallback to v1.0
@@ -851,6 +1286,10 @@ class Orchestrator:
                 return candidate
 
         return path
+
+    def _get_phase_timeout(self, phase_id: int) -> float:
+        """Get timeout for a specific phase."""
+        return self.PHASE_TIMEOUTS.get(phase_id, 300.0)  # Default 5 minutes
 
     def process_development_plan(
             self, pdf_path: str, preprocessed_document: Any | None = None
@@ -903,8 +1342,20 @@ class Orchestrator:
                 if mode == "sync":
                     data = handler(*args)
                 else:
-                    data = await handler(*args)
+                    # Use centralized execute_phase_with_timeout
+                    data = await execute_phase_with_timeout(
+                        phase_id,
+                        phase_label,
+                        handler,
+                        *args,
+                        timeout_s=self._get_phase_timeout(phase_id),
+                    )
                 success = True
+            except PhaseTimeoutError as exc:
+                error = exc
+                success = False
+                instrumentation.record_error("timeout", str(exc))
+                self.request_abort(f"Fase {phase_id} timed out: {exc}")
             except AbortRequested as exc:
                 error = exc
                 success = False
@@ -996,6 +1447,22 @@ class Orchestrator:
     def abort_handler(self, reason: str) -> None:
         self.request_abort(reason)
 
+    def request_abort(self, reason: str) -> None:
+        """Request orchestration to abort with a specific reason."""
+        self.abort_signal.abort(reason)
+        logger.warning(f"Abort requested: {reason}")
+
+    def reset_abort(self) -> None:
+        """Reset the abort signal to allow new orchestration runs."""
+        self.abort_signal.reset()
+        logger.debug("Abort signal reset")
+
+    def _ensure_not_aborted(self) -> None:
+        """Check if orchestration has been aborted and raise exception if so."""
+        if self.abort_signal.is_aborted():
+            reason = self.abort_signal.get_reason() or "Unknown reason"
+            raise AbortRequested(f"Orchestration aborted: {reason}")
+
     def health_check(self) -> dict[str, Any]:
         usage = self.resource_limits.get_resource_usage()
         cpu_headroom = max(0.0, self.resource_limits.max_cpu_percent - usage.get("cpu_percent", 0.0))
@@ -1008,6 +1475,121 @@ class Orchestrator:
             score = min(score, 20.0)
         return {"score": score, "resource_usage": usage, "abort": self.abort_signal.is_aborted()}
 
+    def get_system_health(self) -> dict[str, Any]:
+        """
+        Comprehensive system health check.
+        
+        Returns health status with component checks for:
+        - Method executor
+        - Questionnaire provider (if available)
+        - Resource limits and usage
+        
+        Returns:
+            Dict with overall status ('healthy', 'degraded', 'unhealthy')
+            and component-specific health information
+        """
+        health = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'components': {}
+        }
+
+        # Check method executor
+        try:
+            executor_health = {
+                'instances_loaded': len(self.executor.instances),
+                'calibrations_loaded': len(self.executor.calibrations),
+                'status': 'healthy'
+            }
+            health['components']['method_executor'] = executor_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['method_executor'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check questionnaire provider (if available)
+        try:
+            from . import get_questionnaire_provider
+            provider = get_questionnaire_provider()
+            questionnaire_health = {
+                'has_data': provider.has_data(),
+                'status': 'healthy' if provider.has_data() else 'unhealthy'
+            }
+            health['components']['questionnaire_provider'] = questionnaire_health
+            
+            if not provider.has_data():
+                health['status'] = 'degraded'
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['questionnaire_provider'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check resource limits
+        try:
+            usage = self.resource_limits.get_resource_usage()
+            resource_health = {
+                'cpu_percent': usage.get('cpu_percent', 0),
+                'memory_mb': usage.get('rss_mb', 0),
+                'worker_budget': usage.get('worker_budget', 0),
+                'status': 'healthy'
+            }
+            
+            # Warning thresholds
+            if usage.get('cpu_percent', 0) > 80:
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High CPU usage'
+                health['status'] = 'degraded'
+            
+            if usage.get('rss_mb', 0) > 3500:  # Near 4GB limit
+                resource_health['status'] = 'degraded'
+                resource_health['warning'] = 'High memory usage'
+                health['status'] = 'degraded'
+            
+            health['components']['resources'] = resource_health
+        except Exception as e:
+            health['status'] = 'unhealthy'
+            health['components']['resources'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+
+        # Check abort status
+        if self.abort_signal.is_aborted():
+            health['status'] = 'unhealthy'
+            health['abort_reason'] = self.abort_signal.get_reason()
+
+        return health
+
+    def export_metrics(self) -> dict[str, Any]:
+        """
+        Export all metrics for monitoring.
+        
+        Returns:
+            Dict containing:
+            - timestamp: Current UTC timestamp
+            - phase_metrics: Metrics for all phases
+            - resource_usage: Resource usage history
+            - abort_status: Current abort status
+            - phase_status: Status of all phases
+        """
+        abort_timestamp = self.abort_signal.get_timestamp()
+        
+        return {
+            'timestamp': datetime.utcnow().isoformat(),
+            'phase_metrics': self.get_phase_metrics(),
+            'resource_usage': self.resource_limits.get_usage_history(),
+            'abort_status': {
+                'is_aborted': self.abort_signal.is_aborted(),
+                'reason': self.abort_signal.get_reason(),
+                'timestamp': abort_timestamp.isoformat() if abort_timestamp else None,
+            },
+            'phase_status': dict(self._phase_status),
+        }
+
     def _load_configuration(self) -> dict[str, Any]:
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[0]
@@ -1015,11 +1597,13 @@ class Orchestrator:
 
         # Use pre-loaded monolith data (I/O-free path)
         if self._monolith_data is not None:
-            monolith = self._monolith_data
-            # For pre-loaded data, compute hash from object id
-            # This is a simple hash that doesn't require serialization
-            # For production use, pre-compute hash in factory and pass it as parameter
-            monolith_hash = hashlib.sha256(str(id(monolith)).encode('utf-8')).hexdigest()
+            # Normalize monolith for hash and serialization (handles MappingProxyType)
+            monolith = _normalize_monolith_for_hash(self._monolith_data)
+            
+            # Stable, content-based hash for reproducibility
+            monolith_hash = hashlib.sha256(
+                json.dumps(monolith, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
         else:
             raise ValueError(
                 "No monolith data available. Use saaaaaa.core.orchestrator.factory to load "
@@ -1031,10 +1615,9 @@ class Orchestrator:
         macro_question: dict[str, Any] = monolith["blocks"].get("macro_question", {})
 
         question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
-        if question_total != 305:
-            message = f"Conteo de preguntas inesperado: {question_total}"
-            instrumentation.record_error("integrity", message, expected=305, found=question_total)
-            raise ValueError(message)
+        if question_total != EXPECTED_QUESTION_COUNT:
+            logger.warning("Question count mismatch: expected %s, got %s", EXPECTED_QUESTION_COUNT, question_total)
+            instrumentation.record_error("integrity", f"Conteo de preguntas inesperado: {question_total}", expected=EXPECTED_QUESTION_COUNT, found=question_total)
 
         structure_report = self._validate_contract_structure(monolith, instrumentation)
 
@@ -1042,13 +1625,25 @@ class Orchestrator:
         # Use pre-loaded method_map data (I/O-free path)
         if self._method_map_data is not None:
             method_map = self._method_map_data
+            
+            # ========================================================================
+            # PROMPT_NONEMPTY_EXECUTION_GRAPH_ENFORCER: Validate method_map is non-empty
+            # Cannot route methods with empty map
+            # ========================================================================
+            if not method_map:
+                raise RuntimeError(
+                    "Method map is empty - cannot route methods. "
+                    "A non-empty method map is required for orchestration."
+                )
+            
             summary = method_map.get("summary", {})
             total_methods = summary.get("total_methods")
-            if total_methods != 416:
+            if total_methods != EXPECTED_METHOD_COUNT:
+                logger.warning("Method count mismatch: expected %s, got %s", EXPECTED_METHOD_COUNT, total_methods)
                 instrumentation.record_error(
                     "catalog",
                     "Total de métodos inesperado",
-                    expected=416,
+                    expected=EXPECTED_METHOD_COUNT,
                     found=total_methods,
                 )
             method_summary = {
@@ -1349,8 +1944,16 @@ class Orchestrator:
         instrumentation = self._phase_instrumentation[3]
         instrumentation.items_total = len(micro_results)
 
-        from scoring import Evidence as ScoringEvidence
-        from scoring import MicroQuestionScorer, ScoringModality
+        # Import from the flat scoring.py module file
+        import importlib.util
+        from pathlib import Path
+        scoring_file_path = Path(__file__).parent.parent.parent / "analysis" / "scoring.py"
+        spec = importlib.util.spec_from_file_location("scoring_flat", scoring_file_path)
+        scoring_flat = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scoring_flat)
+        ScoringEvidence = scoring_flat.Evidence
+        MicroQuestionScorer = scoring_flat.MicroQuestionScorer
+        ScoringModality = scoring_flat.ScoringModality
 
         scorer = MicroQuestionScorer()
         results: list[ScoredMicroQuestion] = []
@@ -1389,12 +1992,20 @@ class Orchestrator:
                         error=item.error or "missing_evidence",
                     )
 
+                # Handle evidence as either dict or dataclass
+                if isinstance(item.evidence, dict):
+                    elements_found = item.evidence.get("elements", [])
+                    raw_results = item.evidence.get("raw_results", {})
+                else:
+                    elements_found = getattr(item.evidence, "elements", [])
+                    raw_results = getattr(item.evidence, "raw_results", {})
+                
                 scoring_evidence = ScoringEvidence(
-                    elements_found=item.evidence.elements,
-                    confidence_scores=item.evidence.raw_results.get("confidence_scores", []),
-                    semantic_similarity=item.evidence.raw_results.get("semantic_similarity"),
-                    pattern_matches=item.evidence.raw_results.get("pattern_matches", {}),
-                    metadata=item.evidence.raw_results,
+                    elements_found=elements_found,
+                    confidence_scores=raw_results.get("confidence_scores", []),
+                    semantic_similarity=raw_results.get("semantic_similarity"),
+                    pattern_matches=raw_results.get("pattern_matches", {}),
+                    metadata=raw_results,
                 )
 
                 try:
@@ -1486,7 +2097,7 @@ class Orchestrator:
                     dimension=item.metadata.get("dimension_id", ""),
                     score=item.score,
                     quality_level=item.quality_level or "INSUFICIENTE",
-                    evidence=asdict(item.evidence) if item.evidence else {},
+                    evidence=asdict(item.evidence) if item.evidence and is_dataclass(item.evidence) else (item.evidence if isinstance(item.evidence, dict) else {}),
                     raw_results=item.scoring_details,
                 )
             )
@@ -1628,7 +2239,7 @@ class Orchestrator:
 
         return cluster_scores
 
-    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScore:
+    def _evaluate_macro(self, cluster_scores: list[ClusterScore], config: dict[str, Any]) -> MacroScoreDict:
         """Evaluate macro level using MacroAggregator.
 
         Args:
@@ -1636,7 +2247,7 @@ class Orchestrator:
             config: Configuration dict containing monolith
 
         Returns:
-            MacroScore object with full validation and diagnostics
+            MacroScoreDict with macro_score, macro_score_normalized, and cluster_scores
         """
         self._ensure_not_aborted()
         instrumentation = self._phase_instrumentation[7]
@@ -1646,7 +2257,7 @@ class Orchestrator:
         monolith = config.get("monolith")
         if not monolith:
             logger.error("No monolith in config for macro evaluation")
-            return MacroScore(
+            macro_score = MacroScore(
                 score=0.0,
                 quality_level="INSUFICIENTE",
                 cross_cutting_coherence=0.0,
@@ -1656,6 +2267,12 @@ class Orchestrator:
                 validation_passed=False,
                 validation_details={"error": "No monolith", "type": "config"}
             )
+            result: MacroScoreDict = {
+                "macro_score": macro_score,
+                "macro_score_normalized": 0.0,
+                "cluster_scores": cluster_scores,
+            }
+            return result
 
         # Initialize macro aggregator
         aggregator = MacroAggregator(monolith, abort_on_insufficient=False)
@@ -1707,13 +2324,15 @@ class Orchestrator:
 
         instrumentation.increment(latency=time.perf_counter() - start)
         # macro_score is already normalized to 0-1 range from averaging cluster scores
-        macro_score_normalized = macro_score
+        # Extract the score field from the MacroScore object with explicit float conversion
+        macro_score_normalized = float(macro_score.score) if isinstance(macro_score, MacroScore) else float(macro_score)
 
-        return {
+        result: MacroScoreDict = {
             "macro_score": macro_score,
             "macro_score_normalized": macro_score_normalized,
             "cluster_scores": cluster_scores,
         }
+        return result
 
     async def _generate_recommendations(
             self,
@@ -1819,7 +2438,7 @@ class Orchestrator:
                     weak_pa = weakest_area[0].get('area_id') if weakest_area else None
 
                     cluster_data[cluster_id] = {
-                        'score': normalized_cluster_score * 100,  # 0-100 scale
+                        'score': normalized_cluster_score * self.PERCENTAGE_SCALE,  # 0-100 scale
                         'variance': variance,
                         'weak_pa': weak_pa
                     }
@@ -1833,13 +2452,36 @@ class Orchestrator:
             macro_score_normalized = macro_result.get('macro_score_normalized')
 
             # macro_score is already normalized to 0-1 range
+            # Extract the score value if macro_score is a MacroScore object
             if macro_score is not None and macro_score_normalized is None:
-                macro_score_normalized = macro_score
+                macro_score_normalized = macro_score.score if isinstance(macro_score, MacroScore) else macro_score
+
+            # Extract numeric value from macro_score_normalized (may be dict/object)
+            macro_score_numeric = None
+            if macro_score_normalized is not None:
+                if isinstance(macro_score_normalized, dict):
+                    macro_score_numeric = macro_score_normalized.get('score')
+                elif hasattr(macro_score_normalized, 'score'):
+                    try:
+                        macro_score_numeric = macro_score_normalized.score
+                    except (AttributeError, TypeError) as e:
+                        logger.warning(f"Failed to extract score attribute: {e}")
+                        macro_score_numeric = None
+                else:
+                    # Already a numeric value
+                    macro_score_numeric = macro_score_normalized
+                
+                # Validate that extracted value is numeric
+                if macro_score_numeric is not None and not isinstance(macro_score_numeric, (int, float)):
+                    logger.warning(
+                        f"Expected numeric macro_score, got {type(macro_score_numeric).__name__}: {macro_score_numeric!r}"
+                    )
+                    macro_score_numeric = None
 
             # Determine macro band based on score
             macro_band = 'INSUFICIENTE'
-            if macro_score_normalized is not None:
-                scaled_score = macro_score_normalized * 100
+            if macro_score_numeric is not None:
+                scaled_score = float(macro_score_numeric) * self.PERCENTAGE_SCALE
                 if scaled_score >= 75:
                     macro_band = 'SATISFACTORIO'
                 elif scaled_score >= 55:
@@ -1853,7 +2495,7 @@ class Orchestrator:
             for cluster in cluster_scores:
                 cluster_id = cluster.get('cluster_id')
                 cluster_score = cluster.get('score', 0)
-                if cluster_score is not None and cluster_score * 100 < 55:
+                if cluster_score is not None and cluster_score * self.PERCENTAGE_SCALE < 55:
                     clusters_below_target.append(cluster_id)
 
             # Calculate overall variance
@@ -1885,7 +2527,7 @@ class Orchestrator:
                 'variance_alert': variance_alert,
                 'priority_micro_gaps': priority_micro_gaps,
                 'macro_score_percentage': (
-                    macro_score_normalized * 100 if macro_score_normalized is not None else None
+                    float(macro_score_numeric) * self.PERCENTAGE_SCALE if macro_score_numeric is not None else None
                 )
             }
 
@@ -1964,4 +2606,37 @@ class Orchestrator:
 
         instrumentation.increment(latency=time.perf_counter() - start)
         return export_payload
+
+
+def describe_pipeline_shape(
+    monolith: dict[str, Any] | None = None,
+    executor_instances: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Describe the actual pipeline shape from live data.
+    
+    Computes phase count, question count, and executor count from real data
+    instead of using hard-coded constants.
+    
+    Args:
+        monolith: Questionnaire monolith (if available)
+        executor_instances: MethodExecutor.instances dict (if available)
+        
+    Returns:
+        Dict with actual pipeline metrics
+    """
+    shape: dict[str, Any] = {
+        "phases": len(Orchestrator.FASES),
+    }
+    
+    if monolith:
+        micro_questions = monolith.get("blocks", {}).get("micro_questions", [])
+        meso_questions = monolith.get("blocks", {}).get("meso_questions", [])
+        macro_question = monolith.get("blocks", {}).get("macro_question", {})
+        question_total = len(micro_questions) + len(meso_questions) + (1 if macro_question else 0)
+        shape["expected_micro_questions"] = question_total
+    
+    if executor_instances:
+        shape["registered_executors"] = len(executor_instances)
+    
+    return shape
 

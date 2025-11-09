@@ -1,0 +1,457 @@
+name: Agent Veracity - Shadow Oracle
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-oracle-differential:
+    name: Shadow Oracle Differential Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    
+    strategy:
+      matrix:
+        universe: [primary, shadow]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          echo "=== INSTALLING DEPENDENCIES IN ${{ matrix.universe }} UNIVERSE ==="
+          python3 -m pip install --upgrade pip
+          
+          if [ -f requirements-core.txt ]; then
+            pip install -r requirements-core.txt || echo "Warning: Some core deps failed"
+          fi
+          
+          pip install pdfplumber pyarrow || echo "Warning: Optional deps not installed"
+          pip install -e . || echo "Warning: Editable install failed"
+          
+          echo "UNIVERSE=${{ matrix.universe }}" >> $GITHUB_ENV
+      
+      - name: Execute in primary universe (with agent)
+        if: matrix.universe == 'primary'
+        run: |
+          echo "=== PRIMARY UNIVERSE EXECUTION ==="
+          python3 << 'EOF'
+          import json
+          import subprocess
+          import sys
+          from datetime import datetime
+          from pathlib import Path
+          
+          primary_log = {
+              "universe": "primary",
+              "start_time": datetime.utcnow().isoformat(),
+              "agent_enabled": True
+          }
+          
+          runner_path = Path("scripts/run_policy_pipeline_verified.py")
+          
+          if runner_path.exists():
+              try:
+                  result = subprocess.run(
+                      [sys.executable, str(runner_path)],
+                      capture_output=True,
+                      text=True,
+                      timeout=300
+                  )
+                  
+                  primary_log["returncode"] = result.returncode
+                  primary_log["stdout"] = result.stdout
+                  primary_log["stderr"] = result.stderr
+                  primary_log["success"] = result.returncode == 0
+                  
+                  # Extract claims
+                  claims = []
+                  for line in result.stdout.split('\n'):
+                      if line.startswith("CLAIM:"):
+                          try:
+                              claim_json = line[6:].strip()
+                              claims.append(json.loads(claim_json))
+                          except:
+                              pass
+                  
+                  primary_log["claims_count"] = len(claims)
+                  primary_log["claims"] = claims
+                  
+                  # Check for verification marker
+                  primary_log["pipeline_verified"] = "PIPELINE_VERIFIED=1" in result.stdout
+                  
+              except subprocess.TimeoutExpired:
+                  primary_log["success"] = False
+                  primary_log["error"] = "Execution timeout"
+              except Exception as e:
+                  primary_log["success"] = False
+                  primary_log["error"] = str(e)
+          else:
+              primary_log["success"] = False
+              primary_log["error"] = "Runner script not found"
+          
+          primary_log["end_time"] = datetime.utcnow().isoformat()
+          
+          # Save primary universe log
+          Path("primary_universe.json").write_text(json.dumps(primary_log, indent=2))
+          
+          print(f"PRIMARY_SUCCESS={primary_log.get('success', False)}")
+          print(f"PRIMARY_CLAIMS={primary_log.get('claims_count', 0)}")
+          EOF
+      
+      - name: Execute in shadow universe (control)
+        if: matrix.universe == 'shadow'
+        run: |
+          echo "=== SHADOW UNIVERSE EXECUTION ==="
+          python3 << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+          from pathlib import Path
+          
+          shadow_log = {
+              "universe": "shadow",
+              "start_time": datetime.utcnow().isoformat(),
+              "agent_enabled": False,
+              "note": "Control execution without agent claims"
+          }
+          
+          # In shadow universe, we execute a minimal control flow
+          # This simulates what would happen without agent intervention
+          runner_path = Path("scripts/run_policy_pipeline_verified.py")
+          
+          if runner_path.exists():
+              # Check if runner would be executable
+              shadow_log["runner_exists"] = True
+              shadow_log["runner_path"] = str(runner_path)
+              
+              # Instead of executing, we just verify the environment
+              shadow_log["python_version"] = sys.version
+              shadow_log["cwd"] = str(Path.cwd())
+              
+              # Check for input files
+              plan_path = Path("data/plans/Plan_1.pdf")
+              shadow_log["input_exists"] = plan_path.exists()
+              if plan_path.exists():
+                  shadow_log["input_size"] = plan_path.stat().st_size
+              
+              shadow_log["success"] = True
+          else:
+              shadow_log["success"] = False
+              shadow_log["error"] = "Runner script not found"
+              shadow_log["runner_exists"] = False
+          
+          shadow_log["end_time"] = datetime.utcnow().isoformat()
+          
+          # Save shadow universe log
+          Path("shadow_universe.json").write_text(json.dumps(shadow_log, indent=2))
+          
+          print(f"SHADOW_SUCCESS={shadow_log.get('success', False)}")
+          EOF
+      
+      - name: Snapshot final state
+        run: |
+          echo "=== SNAPSHOTTING FINAL STATE (${{ matrix.universe }}) ==="
+          python3 << 'EOF'
+          import hashlib
+          import json
+          from pathlib import Path
+          
+          def compute_sha256(file_path):
+              """Compute SHA256 hash of a file."""
+              sha256_hash = hashlib.sha256()
+              with open(file_path, "rb") as f:
+                  for byte_block in iter(lambda: f.read(4096), b""):
+                      sha256_hash.update(byte_block)
+              return sha256_hash.hexdigest()
+          
+          universe = "${{ matrix.universe }}"
+          
+          # Collect artifact hashes
+          artifacts_dir = Path("artifacts/plan1").resolve()
+          artifact_hashes = {}
+          cwd = Path.cwd()
+          
+          if artifacts_dir.exists():
+              for artifact_file in artifacts_dir.rglob("*"):
+                  if artifact_file.is_file():
+                      rel_path = str(artifact_file.relative_to(cwd))
+                      artifact_hashes[rel_path] = compute_sha256(artifact_file)
+          
+          # Create snapshot
+          snapshot = {
+              "universe": universe,
+              "artifacts_found": len(artifact_hashes),
+              "artifact_hashes": artifact_hashes
+          }
+          
+          # Save snapshot
+          snapshot_path = Path(f"{universe}_snapshot.json")
+          snapshot_path.write_text(json.dumps(snapshot, indent=2))
+          
+          print(f"SNAPSHOT_ARTIFACTS={len(artifact_hashes)}")
+          EOF
+      
+      - name: Upload universe artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.universe }}-universe-artifacts
+          path: |
+            ${{ matrix.universe }}_universe.json
+            ${{ matrix.universe }}_snapshot.json
+            artifacts/plan1/*.json
+          retention-days: 30
+  
+  differential-analysis:
+    name: Differential Cryptanalysis
+    needs: shadow-oracle-differential
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Download primary universe artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: primary-universe-artifacts
+          path: primary/
+      
+      - name: Download shadow universe artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: shadow-universe-artifacts
+          path: shadow/
+      
+      - name: Perform differential analysis
+        id: differential
+        run: |
+          echo "=== DIFFERENTIAL CRYPTANALYSIS ==="
+          python3 << 'EOF'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+          from typing import Dict, List, Any
+          
+          violations = []
+          
+          # Load universe logs
+          primary_log_path = Path("primary/primary_universe.json")
+          shadow_log_path = Path("shadow/shadow_universe.json")
+          
+          if not primary_log_path.exists():
+              violations.append("Primary universe log not found")
+              print("VIOLATION: Primary log missing")
+          
+          if not shadow_log_path.exists():
+              violations.append("Shadow universe log not found")
+              print("VIOLATION: Shadow log missing")
+          
+          if violations:
+              print(f"\nCritical errors: {len(violations)}")
+              for v in violations:
+                  print(f"  - {v}")
+              sys.exit(1)
+          
+          primary_log = json.loads(primary_log_path.read_text())
+          shadow_log = json.loads(shadow_log_path.read_text())
+          
+          # Load snapshots
+          primary_snapshot_path = Path("primary/primary_snapshot.json")
+          shadow_snapshot_path = Path("shadow/shadow_snapshot.json")
+          
+          primary_snapshot = {}
+          shadow_snapshot = {}
+          
+          if primary_snapshot_path.exists():
+              primary_snapshot = json.loads(primary_snapshot_path.read_text())
+          
+          if shadow_snapshot_path.exists():
+              shadow_snapshot = json.loads(shadow_snapshot_path.read_text())
+          
+          # Extract agent claims from primary
+          primary_claims = primary_log.get("claims", [])
+          print(f"\nAgent made {len(primary_claims)} claims")
+          
+          # Verify claims against evidence
+          if primary_log.get("success", False):
+              # Agent claims success - verify it
+              manifest_path = Path("primary/artifacts/plan1/verification_manifest.json")
+              
+              if manifest_path.exists():
+                  manifest = json.loads(manifest_path.read_text())
+                  
+                  # Check manifest consistency
+                  manifest_success = manifest.get("success", False)
+                  phases_failed = manifest.get("phases_failed", 999)
+                  
+                  if not manifest_success:
+                      violations.append(
+                          f"Agent claimed success but manifest shows success={manifest_success}"
+                      )
+                  
+                  if phases_failed > 0:
+                      violations.append(
+                          f"Agent claimed success but {phases_failed} phases failed"
+                      )
+                  
+                  # Verify artifact hashes
+                  claimed_hashes = manifest.get("artifact_hashes", {})
+                  for artifact_path, claimed_hash in claimed_hashes.items():
+                      # Check if artifact exists in snapshot
+                      if artifact_path not in primary_snapshot.get("artifact_hashes", {}):
+                          violations.append(
+                              f"Manifest claims artifact {artifact_path} but not found in snapshot"
+                          )
+                      else:
+                          actual_hash = primary_snapshot["artifact_hashes"][artifact_path]
+                          if actual_hash != claimed_hash:
+                              violations.append(
+                                  f"Hash mismatch for {artifact_path}: "
+                                  f"claimed={claimed_hash}, actual={actual_hash}"
+                              )
+                  
+                  print(f"Manifest success: {manifest_success}")
+                  print(f"Phases completed: {manifest.get('phases_completed', 0)}")
+                  print(f"Phases failed: {phases_failed}")
+                  print(f"Artifacts claimed: {len(claimed_hashes)}")
+              else:
+                  violations.append("Agent claimed success but no verification manifest found")
+          
+          # Compare artifact divergences between universes
+          primary_artifacts = set(primary_snapshot.get("artifact_hashes", {}).keys())
+          shadow_artifacts = set(shadow_snapshot.get("artifact_hashes", {}).keys())
+          
+          # Primary should have MORE artifacts than shadow (agent did work)
+          if len(primary_artifacts) <= len(shadow_artifacts):
+              violations.append(
+                  f"Primary universe has {len(primary_artifacts)} artifacts, "
+                  f"shadow has {len(shadow_artifacts)} - expected primary > shadow"
+              )
+          
+          print(f"\nPrimary artifacts: {len(primary_artifacts)}")
+          print(f"Shadow artifacts: {len(shadow_artifacts)}")
+          
+          # Check for specific claimed outputs
+          expected_artifacts = [
+              "artifacts/plan1/verification_manifest.json",
+              "artifacts/plan1/execution_claims.json"
+          ]
+          
+          for expected in expected_artifacts:
+              if expected not in primary_artifacts:
+                  violations.append(f"Expected artifact not found: {expected}")
+          
+          # Output divergence analysis
+          if primary_log.get("stdout"):
+              stdout_lines = len(primary_log["stdout"].split('\n'))
+              print(f"\nPrimary stdout: {stdout_lines} lines")
+              
+              # Check for verification marker
+              if "PIPELINE_VERIFIED=1" not in primary_log["stdout"]:
+                  violations.append("Primary execution missing PIPELINE_VERIFIED=1 marker")
+          
+          # Report results
+          print("\n" + "=" * 80)
+          if violations:
+              print("=== VERACITY VIOLATIONS DETECTED ===")
+              for i, violation in enumerate(violations, 1):
+                  print(f"{i}. {violation}")
+              print(f"\nTOTAL VIOLATIONS: {len(violations)}")
+              print("VERACITY_STATUS=VIOLATION")
+              print("=" * 80)
+              sys.exit(1)
+          else:
+              print("=== DIFFERENTIAL ANALYSIS PASSED ===")
+              print("Agent claims verified against shadow oracle")
+              print("No divergences indicating dishonesty detected")
+              print("VERACITY_STATUS=VERIFIED")
+              print("=" * 80)
+          EOF
+      
+      - name: Generate differential report
+        if: always()
+        run: |
+          echo "=== DIFFERENTIAL ANALYSIS REPORT ==="
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+          
+          report = {
+              "analysis_type": "shadow_oracle_differential",
+              "universes_compared": ["primary", "shadow"]
+          }
+          
+          # Load and summarize primary
+          primary_log_path = Path("primary/primary_universe.json")
+          if primary_log_path.exists():
+              primary = json.loads(primary_log_path.read_text())
+              report["primary"] = {
+                  "success": primary.get("success", False),
+                  "claims": primary.get("claims_count", 0),
+                  "pipeline_verified": primary.get("pipeline_verified", False)
+              }
+          
+          # Load and summarize shadow
+          shadow_log_path = Path("shadow/shadow_universe.json")
+          if shadow_log_path.exists():
+              shadow = json.loads(shadow_log_path.read_text())
+              report["shadow"] = {
+                  "success": shadow.get("success", False),
+                  "runner_exists": shadow.get("runner_exists", False)
+              }
+          
+          # Save report
+          Path("differential_report.json").write_text(json.dumps(report, indent=2))
+          
+          print(json.dumps(report, indent=2))
+          EOF
+      
+      - name: Upload differential analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-analysis-artifacts
+          path: |
+            differential_report.json
+            primary/*.json
+            shadow/*.json
+          retention-days: 30
+      
+      - name: Display verification summary
+        if: always()
+        run: |
+          echo "=== SHADOW ORACLE VERIFICATION SUMMARY ==="
+          echo ""
+          
+          if [ -f differential_report.json ]; then
+            echo "Differential Report:"
+            cat differential_report.json
+          fi
+          
+          echo ""
+          echo "=== END SUMMARY ==="

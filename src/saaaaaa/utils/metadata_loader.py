@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from saaaaaa.utils.paths import proj_root
+
 try:
     import jsonschema
     JSONSCHEMA_AVAILABLE = True
@@ -79,7 +81,7 @@ class MetadataLoader:
     """
 
     def __init__(self, workspace_root: Path | None = None) -> None:
-        self.workspace_root = Path(workspace_root) if workspace_root else Path.cwd()
+        self.workspace_root = Path(workspace_root) if workspace_root else proj_root()
         self.schemas_dir = self.workspace_root / "schemas"
 
         # Loaded schemas cache
@@ -249,29 +251,10 @@ class MetadataLoader:
 
         logger.error(json.dumps(log_entry, indent=2))
 
-def load_cuestionario(
-    path: Path | None = None,
-    required_version: str = "2.0.0"
-) -> dict[str, Any]:
-    """
-    Load and validate cuestionario_FIXED.json
-
-    Args:
-        path: Path to cuestionario file (default: questionnaire_monolith.json)
-        required_version: Required version
-
-    Returns:
-        Validated cuestionario data
-    """
-    if path is None:
-        path = Path.cwd() / "questionnaire_monolith.json"
-
-    loader = MetadataLoader()
-    return loader.load_and_validate_metadata(
-        path=path,
-        schema_ref=None,  # TODO: Create cuestionario schema
-        required_version=required_version
-    )
+# REMOVED: load_cuestionario() - LEGACY FUNCTION
+# Questionnaire monolith must ONLY be loaded via factory.load_questionnaire_monolith()
+# This enforces architectural requirement: Single I/O boundary in factory.py
+# See: src/saaaaaa/core/orchestrator/factory.py::load_questionnaire_monolith()
 
 def load_execution_mapping(
     path: Path | None = None,
@@ -288,7 +271,7 @@ def load_execution_mapping(
         Validated execution mapping
     """
     if path is None:
-        path = Path.cwd() / "execution_mapping.yaml"
+        path = proj_root() / "execution_mapping.yaml"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(
@@ -312,7 +295,7 @@ def load_rubric_scoring(
         Validated rubric scoring configuration
     """
     if path is None:
-        path = Path.cwd() / "rubric_scoring.json"
+        path = proj_root() / "rubric_scoring.json"
 
     loader = MetadataLoader()
     return loader.load_and_validate_metadata(

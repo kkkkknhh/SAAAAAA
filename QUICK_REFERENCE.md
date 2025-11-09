@@ -1,4 +1,17 @@
-# SAAAAAA Quick Reference Card
+# F.A.R.F.A.N Quick Reference Card
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
+
+## 📖 What is F.A.R.F.A.N?
+
+F.A.R.F.A.N is a mechanistic policy pipeline for comprehensive analysis of Colombian municipal development plans. It provides:
+
+- **Evidence-based analysis** through policy causal mechanisms
+- **Value chain heuristics** - the formal schema for organizing policy interventions in Colombia
+- **584 analytical methods** across 300 policy evaluation questions
+- **Rigorous, sophisticated analysis** that traditionally takes extensive time and effort
+
+F.A.R.F.A.N is a digital-nodal-substantive policy tool that empowers policy communities and citizens with comprehensive development plan analysis.
 
 ## 🚀 Essential Commands
 

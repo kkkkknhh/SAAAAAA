@@ -30,6 +30,10 @@ from saaaaaa.scoring.scoring import (
     score_type_e,
     score_type_f,
 )
+from saaaaaa.processing.aggregation import DimensionAggregator
+
+# Alias for compatibility with test
+AggregationScoredResult = ScoredResult
 
 def test_scored_result_hash():
     """Test that evidence hash is computed correctly."""

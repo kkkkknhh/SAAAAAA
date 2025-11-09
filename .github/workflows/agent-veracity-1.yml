@@ -1,0 +1,358 @@
+name: Agent Veracity - Cryptographic Provenance
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cryptographic-provenance:
+    name: Cryptographic Provenance Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Record pre-execution snapshot
+        id: pre_snapshot
+        run: |
+          echo "=== PHASE: PRE-EXECUTION SNAPSHOT ==="
+          python3 << 'EOF'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from datetime import datetime
+          
+          def compute_sha256(file_path):
+              """Compute SHA256 hash of a file."""
+              sha256_hash = hashlib.sha256()
+              with open(file_path, "rb") as f:
+                  for byte_block in iter(lambda: f.read(4096), b""):
+                      sha256_hash.update(byte_block)
+              return sha256_hash.hexdigest()
+          
+          # Compute hash of entire codebase
+          repo_root = Path(".")
+          file_hashes = {}
+          
+          for file_path in sorted(repo_root.rglob("*")):
+              if file_path.is_file() and ".git" not in str(file_path):
+                  try:
+                      rel_path = str(file_path.relative_to(repo_root))
+                      file_hashes[rel_path] = compute_sha256(file_path)
+                  except Exception as e:
+                      print(f"Warning: Could not hash {file_path}: {e}")
+          
+          # Record environmental invariants
+          env_snapshot = {
+              "timestamp": datetime.utcnow().isoformat(),
+              "python_version": sys.version,
+              "platform": sys.platform,
+              "git_commit": os.environ.get("GITHUB_SHA", "unknown"),
+              "git_ref": os.environ.get("GITHUB_REF", "unknown"),
+              "workflow_run_id": os.environ.get("GITHUB_RUN_ID", "unknown"),
+              "file_count": len(file_hashes),
+              "codebase_hash_manifest": file_hashes
+          }
+          
+          # Save snapshot
+          Path("pre_execution_snapshot.json").write_text(
+              json.dumps(env_snapshot, indent=2)
+          )
+          
+          # Compute manifest hash for tamper detection
+          manifest_hash = compute_sha256(Path("pre_execution_snapshot.json"))
+          print(f"PRE_SNAPSHOT_HASH={manifest_hash}")
+          print(f"FILE_COUNT={len(file_hashes)}")
+          print("PRE_SNAPSHOT_COMPLETE=1")
+          
+          # Set output for GitHub Actions
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+              f.write(f"snapshot_hash={manifest_hash}\n")
+              f.write(f"file_count={len(file_hashes)}\n")
+          EOF
+      
+      - name: Install dependencies
+        run: |
+          echo "=== PHASE: DEPENDENCY INSTALLATION ==="
+          python3 -m pip install --upgrade pip
+          
+          # Install core dependencies for pipeline
+          if [ -f requirements-core.txt ]; then
+            pip install -r requirements-core.txt || echo "Warning: Some core deps failed"
+          fi
+          
+          # Try to install optional dependencies
+          pip install pdfplumber pyarrow || echo "Warning: Optional deps not installed"
+          
+          # Install project in editable mode
+          pip install -e . || echo "Warning: Editable install failed"
+          
+          echo "DEPENDENCIES_INSTALLED=1"
+      
+      - name: Execute agent code under surveillance
+        id: agent_execution
+        run: |
+          echo "=== PHASE: AGENT EXECUTION WITH SURVEILLANCE ==="
+          python3 << 'EOF'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import sys
+          import time
+          from datetime import datetime
+          from pathlib import Path
+          
+          # Create surveillance log
+          surveillance_log = {
+              "start_time": datetime.utcnow().isoformat(),
+              "events": [],
+              "file_io_operations": [],
+              "subprocess_calls": []
+          }
+          
+          def log_event(event_type, message, data=None):
+              """Log surveillance event."""
+              event = {
+                  "timestamp": datetime.utcnow().isoformat(),
+                  "event_type": event_type,
+                  "message": message,
+                  "data": data or {}
+              }
+              surveillance_log["events"].append(event)
+              print(f"SURVEILLANCE: {json.dumps(event)}")
+          
+          log_event("start", "Beginning agent execution")
+          
+          # Check if verified runner exists
+          runner_path = Path("scripts/run_policy_pipeline_verified.py")
+          if not runner_path.exists():
+              log_event("error", "Verified runner script not found", 
+                       {"path": str(runner_path)})
+              surveillance_log["success"] = False
+              Path("surveillance_log.json").write_text(json.dumps(surveillance_log, indent=2))
+              print("AGENT_EXECUTION_FAILED=1")
+              sys.exit(1)
+          
+          log_event("file_found", "Verified runner located", {"path": str(runner_path)})
+          
+          # Execute the verified runner
+          try:
+              log_event("subprocess_start", "Launching verified pipeline runner")
+              
+              result = subprocess.run(
+                  [sys.executable, str(runner_path)],
+                  capture_output=True,
+                  text=True,
+                  timeout=300  # 5 minute timeout
+              )
+              
+              surveillance_log["subprocess_calls"].append({
+                  "command": str(runner_path),
+                  "returncode": result.returncode,
+                  "stdout_length": len(result.stdout),
+                  "stderr_length": len(result.stderr),
+                  "timestamp": datetime.utcnow().isoformat()
+              })
+              
+              # Save stdout and stderr
+              Path("agent_stdout.log").write_text(result.stdout)
+              Path("agent_stderr.log").write_text(result.stderr)
+              
+              log_event("subprocess_complete", "Verified runner completed",
+                       {"returncode": result.returncode})
+              
+              # Parse claims from stdout
+              claims_found = []
+              for line in result.stdout.split('\n'):
+                  if line.startswith("CLAIM:"):
+                      try:
+                          claim_json = line[6:].strip()
+                          claim = json.loads(claim_json)
+                          claims_found.append(claim)
+                      except:
+                          pass
+              
+              log_event("claims_extracted", f"Extracted {len(claims_found)} claims",
+                       {"claim_count": len(claims_found)})
+              
+              # Check for PIPELINE_VERIFIED marker
+              pipeline_verified = "PIPELINE_VERIFIED=1" in result.stdout
+              
+              surveillance_log["success"] = (result.returncode == 0 and pipeline_verified)
+              surveillance_log["pipeline_verified"] = pipeline_verified
+              surveillance_log["claims_extracted"] = claims_found
+              surveillance_log["end_time"] = datetime.utcnow().isoformat()
+              
+              # Save surveillance log
+              Path("surveillance_log.json").write_text(json.dumps(surveillance_log, indent=2))
+              
+              if not surveillance_log["success"]:
+                  print("AGENT_EXECUTION_FAILED=1")
+                  sys.exit(1)
+              
+              print("AGENT_EXECUTION_COMPLETE=1")
+              
+          except subprocess.TimeoutExpired:
+              log_event("error", "Runner execution timeout")
+              surveillance_log["success"] = False
+              Path("surveillance_log.json").write_text(json.dumps(surveillance_log, indent=2))
+              print("AGENT_EXECUTION_TIMEOUT=1")
+              sys.exit(1)
+          except Exception as e:
+              log_event("error", f"Runner execution failed: {str(e)}")
+              surveillance_log["success"] = False
+              Path("surveillance_log.json").write_text(json.dumps(surveillance_log, indent=2))
+              print("AGENT_EXECUTION_ERROR=1")
+              sys.exit(1)
+          EOF
+      
+      - name: Cross-reference claims against evidence
+        id: claim_verification
+        run: |
+          echo "=== PHASE: CLAIM VERIFICATION ==="
+          python3 << 'EOF'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+          
+          def compute_sha256(file_path):
+              """Compute SHA256 hash of a file."""
+              sha256_hash = hashlib.sha256()
+              with open(file_path, "rb") as f:
+                  for byte_block in iter(lambda: f.read(4096), b""):
+                      sha256_hash.update(byte_block)
+              return sha256_hash.hexdigest()
+          
+          violations = []
+          
+          # Load surveillance log
+          surveillance_path = Path("surveillance_log.json")
+          if not surveillance_path.exists():
+              violations.append("Surveillance log not found - execution may not have run")
+              print("CLAIM_VIOLATION: No surveillance log")
+          else:
+              surveillance = json.loads(surveillance_path.read_text())
+              
+              # Check if execution succeeded
+              if not surveillance.get("success", False):
+                  violations.append("Agent execution did not complete successfully")
+                  print("CLAIM_VIOLATION: Execution failed")
+              
+              # Load verification manifest if it exists
+              manifest_path = Path("artifacts/plan1/verification_manifest.json")
+              if manifest_path.exists():
+                  manifest = json.loads(manifest_path.read_text())
+                  
+                  # Verify manifest structure
+                  required_fields = ["success", "input_pdf_sha256", "artifact_hashes", 
+                                   "phases_completed", "phases_failed"]
+                  for field in required_fields:
+                      if field not in manifest:
+                          violations.append(f"Manifest missing required field: {field}")
+                  
+                  # Verify artifact hashes
+                  if "artifact_hashes" in manifest:
+                      for artifact_path, claimed_hash in manifest["artifact_hashes"].items():
+                          artifact_file = Path(artifact_path)
+                          if artifact_file.exists():
+                              actual_hash = compute_sha256(artifact_file)
+                              if actual_hash != claimed_hash:
+                                  violations.append(
+                                      f"Hash mismatch for {artifact_path}: "
+                                      f"claimed={claimed_hash}, actual={actual_hash}"
+                                  )
+                          else:
+                              violations.append(f"Claimed artifact not found: {artifact_path}")
+                  
+                  # Check success claim consistency
+                  manifest_success = manifest.get("success", False)
+                  phases_failed = manifest.get("phases_failed", 999)
+                  
+                  if manifest_success and phases_failed > 0:
+                      violations.append(
+                          f"Manifest claims success=true but phases_failed={phases_failed}"
+                      )
+                  
+                  if not manifest_success and phases_failed == 0:
+                      violations.append(
+                          f"Manifest claims success=false but phases_failed=0"
+                      )
+                  
+                  print(f"MANIFEST_SUCCESS={manifest_success}")
+                  print(f"PHASES_COMPLETED={manifest.get('phases_completed', 0)}")
+                  print(f"PHASES_FAILED={phases_failed}")
+              else:
+                  violations.append("Verification manifest not generated")
+                  print("CLAIM_VIOLATION: No verification manifest")
+          
+          # Report results
+          if violations:
+              print("\n=== CLAIM VIOLATIONS DETECTED ===")
+              for i, violation in enumerate(violations, 1):
+                  print(f"{i}. {violation}")
+              print(f"\nTOTAL VIOLATIONS: {len(violations)}")
+              print("VERACITY_STATUS=VIOLATION")
+              sys.exit(1)
+          else:
+              print("\n=== CLAIM VERIFICATION PASSED ===")
+              print("All agent claims verified against cryptographic evidence")
+              print("VERACITY_STATUS=VERIFIED")
+          EOF
+      
+      - name: Upload verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cryptographic-provenance-artifacts
+          path: |
+            pre_execution_snapshot.json
+            surveillance_log.json
+            agent_stdout.log
+            agent_stderr.log
+            artifacts/plan1/verification_manifest.json
+            artifacts/plan1/execution_claims.json
+            artifacts/plan1/*.json
+          retention-days: 30
+      
+      - name: Display verification summary
+        if: always()
+        run: |
+          echo "=== CRYPTOGRAPHIC PROVENANCE VERIFICATION SUMMARY ==="
+          echo ""
+          echo "Pre-Snapshot Hash: ${{ steps.pre_snapshot.outputs.snapshot_hash }}"
+          echo "Files Tracked: ${{ steps.pre_snapshot.outputs.file_count }}"
+          echo ""
+          
+          if [ -f surveillance_log.json ]; then
+            echo "Surveillance Log:"
+            python3 -c "import json; log=json.load(open('surveillance_log.json')); print(f\"  Events: {len(log.get('events', []))}\"); print(f\"  Success: {log.get('success', False)}\")"
+          fi
+          
+          if [ -f artifacts/plan1/verification_manifest.json ]; then
+            echo ""
+            echo "Verification Manifest:"
+            python3 -c "import json; m=json.load(open('artifacts/plan1/verification_manifest.json')); print(f\"  Success: {m.get('success', False)}\"); print(f\"  Phases Completed: {m.get('phases_completed', 0)}\"); print(f\"  Phases Failed: {m.get('phases_failed', 0)}\"); print(f\"  Artifacts: {len(m.get('artifacts_generated', []))}\")"
+          fi
+          
+          echo ""
+          echo "=== END SUMMARY ==="

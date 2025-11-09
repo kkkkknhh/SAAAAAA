@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, List, Literal, Protocol, TypedDict
 
 import numpy as np
 from sentence_transformers import CrossEncoder, SentenceTransformer
@@ -46,28 +46,39 @@ MODEL_PARAPHRASE_MULTILINGUAL = "sentence-transformers/paraphrase-multilingual-m
 # ============================================================================
 
 class PolicyDomain(Enum):
-    """Colombian PDM policy areas (P1-P10) per Decálogo."""
+    """
+    Colombian PDM policy areas (PA01-PA10) per canonical notation.
+    
+    Values are loaded from questionnaire_monolith.json canonical_notation.
+    Use CanonicalPolicyArea from saaaaaa.core.canonical_notation for dynamic access.
+    """
 
-    P1 = "Derechos de las mujeres e igualdad de género"
-    P2 = "Prevención de la violencia y protección frente al conflicto"
-    P3 = "Ambiente sano, cambio climático, prevención y atención a desastres"
-    P4 = "Derechos económicos, sociales y culturales"
-    P5 = "Derechos de las víctimas y construcción de paz"
-    P6 = "Derecho al buen futuro de la niñez, adolescencia, juventud"
-    P7 = "Tierras y territorios"
-    P8 = "Líderes y defensores de derechos humanos"
-    P9 = "Crisis de derechos de personas privadas de la libertad"
-    P10 = "Migración transfronteriza"
+    # Legacy IDs mapped to canonical codes for backward compatibility
+    P1 = "PA01"  # Derechos de las mujeres e igualdad de género
+    P2 = "PA02"  # Prevención de la violencia y protección frente al conflicto
+    P3 = "PA03"  # Ambiente sano, cambio climático, prevención y atención a desastres
+    P4 = "PA04"  # Derechos económicos, sociales y culturales
+    P5 = "PA05"  # Derechos de las víctimas y construcción de paz
+    P6 = "PA06"  # Derecho al buen futuro de la niñez, adolescencia, juventud
+    P7 = "PA07"  # Tierras y territorios
+    P8 = "PA08"  # Líderes y defensores de derechos humanos
+    P9 = "PA09"  # Crisis de derechos de personas privadas de la libertad
+    P10 = "PA10"  # Migración transfronteriza
 
 class AnalyticalDimension(Enum):
-    """Analytical dimensions (D1-D6) per canonical notation."""
+    """
+    Analytical dimensions (D1-D6) per canonical notation.
+    
+    Values reference canonical notation from questionnaire_monolith.json.
+    Use CanonicalDimension from saaaaaa.core.canonical_notation for dynamic access.
+    """
 
-    D1 = "Diagnóstico y Recursos"
-    D2 = "Diseño de Intervención"
-    D3 = "Productos y Outputs"
-    D4 = "Resultados y Outcomes"
-    D5 = "Impactos y Efectos de Largo Plazo"
-    D6 = "Teoría de Cambio y Coherencia Causal"
+    D1 = "DIM01"  # INSUMOS - Diagnóstico y Recursos
+    D2 = "DIM02"  # ACTIVIDADES - Diseño de Intervención
+    D3 = "DIM03"  # PRODUCTOS - Productos y Outputs
+    D4 = "DIM04"  # RESULTADOS - Resultados y Outcomes
+    D5 = "DIM05"  # IMPACTOS - Impactos de Largo Plazo
+    D6 = "DIM06"  # CAUSALIDAD - Teoría de Cambio
 
 class PDQIdentifier(TypedDict):
     """Canonical P-D-Q identifier structure."""
@@ -614,7 +625,7 @@ class BayesianNumericalAnalyzer:
             **kwargs: Additional optional parameters for compatibility
 
         Returns:
-            Evidence strength classification
+            Evidence strength classification (weak/moderate/strong/very_strong)
         """
         if credible_interval_width > 0.5:
             return "weak"
@@ -768,9 +779,23 @@ class PolicyCrossEncoderReranker:
             model_name: HuggingFace model name (multilingual preferred)
             max_length: Maximum sequence length for cross-encoder
             retry_handler: Optional RetryHandler for model loading
+            
+        Raises:
+            RuntimeError: If online model download is required but HF_ONLINE=0
         """
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model load
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown, _is_model_cached
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download a remote model when offline
+        if not _is_model_cached(model_name):
+            lockdown.check_online_model_access(
+                model_name=model_name,
+                operation="load CrossEncoder model"
+            )
 
         # Load model with retry logic if available
         if retry_handler:
@@ -878,6 +903,17 @@ class PolicyAnalysisEmbedder:
         self.config = config
         self._logger = logging.getLogger(self.__class__.__name__)
         self.retry_handler = retry_handler
+        
+        # Check dependency lockdown before attempting model loads
+        from saaaaaa.core.dependency_lockdown import get_dependency_lockdown, _is_model_cached
+        lockdown = get_dependency_lockdown()
+        
+        # Check if we're trying to download remote models when offline
+        if not _is_model_cached(config.embedding_model):
+            lockdown.check_online_model_access(
+                model_name=config.embedding_model,
+                operation="load SentenceTransformer embedding model"
+            )
 
         # Initialize embedding model with retry logic
         if retry_handler:

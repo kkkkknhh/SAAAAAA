@@ -15,6 +15,7 @@ Version: 2.0.0 (Beach-Grounded Production Grade)
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import re

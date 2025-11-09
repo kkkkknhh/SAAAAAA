@@ -2,6 +2,7 @@
 Tests for signature validation and defensive programming fixes
 """
 
+import sys
 from pathlib import Path
 
 # Add project root to path

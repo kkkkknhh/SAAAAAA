@@ -11,8 +11,9 @@ All file I/O for the analysis package should be handled through this factory.
 import csv
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 try:
     import yaml
@@ -35,6 +36,13 @@ except ImportError:
     spacy = None
 
 logger = logging.getLogger(__name__)
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_CALIBRATION_SEARCH_PATHS: tuple[Path, ...] = (
+    _PROJECT_ROOT / "config" / "calibraciones",
+    _PROJECT_ROOT / "config",
+    _PROJECT_ROOT,
+)
 
 # ============================================================================
 # JSON I/O OPERATIONS
@@ -113,6 +121,84 @@ def load_yaml(file_path: str | Path) -> dict[str, Any]:
 
     logger.info(f"Loaded YAML from {file_path}")
     return data
+
+def _is_calibration_file(path: Path) -> bool:
+    stem = path.stem.lower()
+    return any(keyword in stem for keyword in ("calibr", "calib", "calibracion"))
+
+@lru_cache(maxsize=1)
+def list_calibration_files() -> dict[str, Path]:
+    """Return mapping of calibration name -> file path detected in search paths."""
+    files: dict[str, Path] = {}
+    for base in _CALIBRATION_SEARCH_PATHS:
+        if not base.exists():
+            continue
+        for pattern in ("*.yaml", "*.yml"):
+            for candidate in base.glob(pattern):
+                if not candidate.is_file():
+                    continue
+                if not _is_calibration_file(candidate):
+                    continue
+                key = candidate.stem
+                # Prefer higher-priority paths (earlier entries in search list)
+                files.setdefault(key, candidate)
+    return files
+
+def load_calibration(name: str) -> dict[str, Any]:
+    """Load a single calibration YAML by name (stem or filename).
+    
+    DEPRECATED: External YAML calibration loading is deprecated.
+    Use internal calibration_registry.py for all calibrations.
+    This function is maintained only for backwards compatibility.
+    """
+    import warnings
+    warnings.warn(
+        "load_calibration() is deprecated. Use calibration_registry.py for internal calibrations.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    # Raise error to block usage - deprecated path
+    raise RuntimeError(
+        "Deprecated calibration path: External YAML calibration loading is no longer supported. "
+        "All calibrations must be defined in calibration_registry.py. "
+        f"Attempted to load: {name}"
+    )
+
+
+def load_all_calibrations(include_metadata: bool = True) -> dict[str, dict[str, Any]]:
+    """Load all detected calibration YAML files.
+    
+    DEPRECATED: External YAML calibration loading is deprecated.
+    Use internal calibration_registry.py for all calibrations.
+    This function is maintained only for backwards compatibility.
+
+    Args:
+        include_metadata: When True, attach helper metadata (path, targets) to each calibration entry.
+
+    Returns:
+        Empty dictionary - YAML calibrations no longer supported
+    """
+    import warnings
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    warnings.warn(
+        "load_all_calibrations() is deprecated. Use calibration_registry.CALIBRATIONS for internal calibrations.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    logger.warning(
+        "DEPRECATED: load_all_calibrations() called. "
+        "External YAML calibration loading is no longer supported. "
+        "Use calibration_registry.CALIBRATIONS instead. "
+        "Returning empty dict."
+    )
+    
+    # Return empty dict - no YAML calibrations loaded
+    return {}
 
 # ============================================================================
 # TEXT FILE I/O OPERATIONS

@@ -38,6 +38,8 @@ jobs:
     name: Validate D2 Method Concurrence (Strict)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - name: Checkout repository
@@ -86,6 +88,8 @@ jobs:
     name: Validate D2 Method Concurrence (Non-Strict)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - name: Checkout repository
@@ -133,6 +137,8 @@ jobs:
     name: Test D2 Orchestrator
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
     - name: Checkout repository

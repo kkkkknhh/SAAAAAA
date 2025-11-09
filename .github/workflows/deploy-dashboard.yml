@@ -1,0 +1,95 @@
+name: Deploy AtroZ Dashboard
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/saaaaaa/api/static/**'
+      - 'src/saaaaaa/api/api_server.py'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask flask-cors flask-socketio pyjwt
+          pip install -e .
+
+      - name: Prepare static files for deployment
+        run: |
+          mkdir -p _site
+          cp -r src/saaaaaa/api/static/* _site/
+          
+          # Create a simple index redirect if needed
+          if [ ! -f _site/index.html ]; then
+            echo "Error: index.html not found in static directory"
+            exit 1
+          fi
+          
+          # Create .nojekyll to prevent GitHub Pages from processing with Jekyll
+          touch _site/.nojekyll
+          
+          # Create README for Pages
+          cat > _site/README.md << 'EOF'
+          # AtroZ Dashboard
+          
+          This is the AtroZ Municipal Analysis Dashboard deployment.
+          
+          ## Access
+          
+          The dashboard is accessible at the GitHub Pages URL for this repository.
+          
+          ## Backend API
+          
+          For full functionality, the dashboard needs to connect to the backend API server.
+          Configure the API endpoint in the dashboard settings.
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Report deployment status
+        if: always()
+        run: |
+          if [ "${{ steps.deployment.outcome }}" == "success" ]; then
+            echo "✅ Dashboard deployed successfully!"
+            echo "🌐 URL: ${{ steps.deployment.outputs.page_url }}"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi

@@ -1,4 +1,6 @@
-# SAAAAAA System - Complete Operational Guide
+# F.A.R.F.A.N System - Complete Operational Guide
+
+**Framework for Advanced Retrieval of Administrativa Narratives**
 
 ## 📋 Table of Contents
 
@@ -21,7 +23,9 @@
 
 ## Overview
 
-**SAAAAAA** is a Strategic Policy Analysis System that integrates 584 analytical methods across 300 policy evaluation questions. The system uses a chess-based orchestration strategy with 7 producer modules and 1 aggregator to provide doctoral-level policy analysis.
+**F.A.R.F.A.N** (Framework for Advanced Retrieval of Administrativa Narratives) is a mechanistic policy pipeline specifically designed for comprehensive analysis of Colombian municipal development plans. F.A.R.F.A.N integrates 584 analytical methods across 300 policy evaluation questions using a chess-based orchestration strategy with 7 producer modules and 1 aggregator.
+
+As a digital-nodal-substantive policy tool, F.A.R.F.A.N provides evidence-based, rigorous analysis of development plans through the lens of policy causal mechanisms using the value chain heuristic—the formal schema for organizing policy interventions in Colombia.
 
 ### Key Components
 
@@ -266,10 +270,14 @@ from saaaaaa.analysis.teoria_cambio import TeoriaCambio, AdvancedDAGValidator
 from saaaaaa.analysis.dereck_beach import CDAFFramework, BeachEvidentialTest
 from saaaaaa.analysis.bayesian_multilevel_system import BayesianMultilevelScorer
 
-# Processing modules
-from saaaaaa.processing.document_ingestion import DocumentIngestionEngine
+# Processing modules - CPP Ingestion (CANONICAL)
+from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+from saaaaaa.utils.cpp_adapter import CPPAdapter
 from saaaaaa.processing.policy_processor import IndustrialPolicyProcessor
 from saaaaaa.processing.embedding_policy import PolicyAnalysisEmbedder
+
+# Legacy processing (DEPRECATED - Use cpp_ingestion instead)
+# from saaaaaa.processing.document_ingestion import DocumentIngestionEngine  # DEPRECATED
 
 # Utilities
 from saaaaaa.utils.contracts import ProducerContract, ScoringModality
@@ -279,7 +287,7 @@ from saaaaaa.utils.validation.schema_validator import SchemaValidator
 **📁 Orchestrator Directory Structure**:
 The orchestration functionality is distributed across modular files in `src/saaaaaa/core/orchestrator/`:
 - **`core.py`** - Main `Orchestrator` class and core orchestration logic
-- **`executors.py`** - All executor classes (D1Q1_Executor through D6Q5_Executor)
+- **`executors.py`** - All executor classes implementing the execution logic
 - **`evidence_registry.py`** - Evidence management and tracking
 - **`arg_router.py`** - Argument routing and normalization
 - **`contract_loader.py`** - Contract loading and validation
@@ -287,19 +295,16 @@ The orchestration functionality is distributed across modular files in `src/saaa
 - **`factory.py`** - Factory functions for building components
 - **`class_registry.py`** - Class registry for dynamic instantiation
 
-**Legacy Structure (DEPRECATED - DO NOT USE)**:
+**Executors**:
+The `executors.py` module contains all execution logic for running the analysis pipeline. Import executors as needed:
 ```python
-# DEPRECATED: These imports are maintained for backward compatibility only
-# Use the new modular structure above instead
-from orchestrator.core import Orchestrator  # DEPRECATED
-from concurrency import TaskExecutor  # DEPRECATED
-from saaaaaa.core.ORCHESTRATOR_MONILITH import Orchestrator  # DEPRECATED - DO NOT USE
+from saaaaaa.core.orchestrator.executors import MethodExecutor
+from saaaaaa.core.orchestrator import Orchestrator
 ```
 
 **⚠️ Important**: 
-- The legacy `orchestrator` module is deprecated. Use `saaaaaa.core.orchestrator` instead.
-- **`ORCHESTRATOR_MONILITH.py` has been deprecated** and replaced by modular files. See the directory structure above.
-- All new code should use the modular orchestrator package structure.
+- All orchestration components are in the modular `saaaaaa.core.orchestrator` package
+- Always use absolute imports from the installed package
 
 #### Resolving Import Conflicts
 
@@ -406,26 +411,65 @@ This section guides you through analyzing a municipal development plan using SAA
 ```bash
 # Create data directory for input documents
 mkdir -p data/input_plans
+mkdir -p data/cpp_output
 
 # Place your PDF document
 # Example: copy your plan to data/input_plans/plan_municipal_2024.pdf
 ```
 
 Supported formats:
-- PDF (`.pdf`)
+- PDF (`.pdf`) - Recommended
+- DOCX (`.docx`)
+- HTML (`.html`)
 - Text (`.txt`)
-- JSON (`.json`)
 
-#### Step 2: Document Ingestion
+#### Step 2: CPP Document Ingestion (Canonical Method)
+
+The Canon Policy Package (CPP) ingestion system is the **canonical and recommended** method for document processing. It provides:
+- ✅ Deterministic 9-phase pipeline with quality gates
+- ✅ Advanced policy-aware chunking (8 mechanisms)
+- ✅ Complete provenance tracking (100% token-to-page mapping)
+- ✅ Multi-resolution chunks (micro/meso/macro)
+- ✅ BLAKE3 integrity verification
 
 ```bash
-# Run document ingestion
-python3 -m saaaaaa.processing.document_ingestion \
+# Run CPP ingestion pipeline
+python3 run_complete_analysis_plan1.py \
   --input data/input_plans/plan_municipal_2024.pdf \
-  --output data/processed/plan_parsed.json
+  --output-dir data/cpp_output/
 
-# This extracts text, tables, and metadata from your document
+# Or use the CPP ingestion directly
+python3 -c "
+from pathlib import Path
+from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
+
+pipeline = CPPIngestionPipeline()
+outcome = pipeline.ingest(
+    Path('data/input_plans/plan_municipal_2024.pdf'),
+    Path('data/cpp_output/')
+)
+print(f'CPP ingestion completed: {outcome.success}')
+print(f'Quality metrics: {outcome.quality_metrics}')
+"
+
+# This creates a Canon Policy Package with:
+# - content_stream.arrow (text with offsets)
+# - provenance_map.arrow (token-to-page mapping)
+# - chunk_graph (multi-resolution chunks)
+# - metadata.json (quality metrics and manifest)
 ```
+
+**Output Structure:**
+```
+data/cpp_output/
+├── content_stream.arrow      # Text with stable offsets
+├── provenance_map.arrow       # Complete provenance data
+├── chunk_graph.json           # Multi-resolution chunks
+├── metadata.json              # Quality metrics & manifest
+└── integrity_index.json       # BLAKE3 hashes
+```
+
+**Note:** The old `document_ingestion` module is deprecated. Always use CPP ingestion for new projects.
 
 #### Step 3: Policy Processing
 

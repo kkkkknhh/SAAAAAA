@@ -11,6 +11,12 @@ repos:
         entry: python tools/integrity/check_cross_refs.py
         language: system
         pass_filenames: false
+      - id: canonical-notation-check
+        name: Canonical Notation Enforcement
+        entry: python tools/lint/check_canonical_notation.py
+        language: system
+        types: [python]
+        pass_filenames: true
       - id: questionnaire-json-lint
         name: Questionnaire JSON Lint
         entry: python tools/lint/json_lint.py questionnaire.json --schema schemas/questionnaire.schema.json

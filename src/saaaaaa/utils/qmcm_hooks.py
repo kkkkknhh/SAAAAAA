@@ -41,7 +41,8 @@ class QMCMRecorder:
             input_types: dict[str, str],
             output_type: str,
             execution_status: str = "success",
-            execution_time_ms: float = 0.0
+            execution_time_ms: float = 0.0,
+            monolith_hash: str | None = None
     ) -> None:
         """
         Record a method call
@@ -52,6 +53,11 @@ class QMCMRecorder:
             output_type: Type name of the return value
             execution_status: 'success', 'error', or 'skipped'
             execution_time_ms: Execution time in milliseconds
+            monolith_hash: SHA-256 hash of questionnaire_monolith.json (recommended)
+        
+        ARCHITECTURAL NOTE: Including monolith_hash ties each method call
+        to the specific questionnaire version, enabling reproducibility.
+        Use factory.compute_monolith_hash() to generate this value.
         """
         if not self.enabled:
             return
@@ -64,6 +70,10 @@ class QMCMRecorder:
             "execution_status": execution_status,
             "execution_time_ms": round(execution_time_ms, 2)
         }
+        
+        # Include monolith_hash if provided
+        if monolith_hash is not None:
+            call_record["monolith_hash"] = monolith_hash
 
         self.calls.append(call_record)
         logger.debug(f"QMCM recorded: {method_name}")
@@ -156,7 +166,7 @@ def get_global_recorder() -> QMCMRecorder:
         _global_recorder = QMCMRecorder()
     return _global_recorder
 
-def qmcm_record(method):
+def qmcm_record(method=None, *, monolith_hash: str | None = None):
     """
     Decorator to record method calls in QMCM
 
@@ -164,53 +174,67 @@ def qmcm_record(method):
         @qmcm_record
         def my_method(self, arg1: str, arg2: int) -> dict:
             return {"result": "data"}
+        
+        # With monolith hash (recommended for questionnaire-dependent methods)
+        @qmcm_record(monolith_hash=compute_monolith_hash(questionnaire))
+        def my_questionnaire_method(self, question_id: str) -> dict:
+            return {"result": "data"}
     """
-    @wraps(method)
-    def wrapper(*args, **kwargs):
-        recorder = get_global_recorder()
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            recorder = get_global_recorder()
 
-        import time
-        start_time = time.time()
+            import time
+            start_time = time.time()
 
-        try:
-            result = method(*args, **kwargs)
-            execution_time_ms = (time.time() - start_time) * 1000
+            try:
+                result = func(*args, **kwargs)
+                execution_time_ms = (time.time() - start_time) * 1000
 
-            # Record the call
-            input_types = {}
-            if args:
-                # Skip self argument
-                for i, arg in enumerate(args[1:], 1):
-                    input_types[f"arg{i}"] = type(arg).__name__
-            for key, value in kwargs.items():
-                input_types[key] = type(value).__name__
+                # Record the call
+                input_types = {}
+                if args:
+                    # Skip self argument
+                    for i, arg in enumerate(args[1:], 1):
+                        input_types[f"arg{i}"] = type(arg).__name__
+                for key, value in kwargs.items():
+                    input_types[key] = type(value).__name__
 
-            output_type = type(result).__name__
+                output_type = type(result).__name__
 
-            recorder.record_call(
-                method_name=method.__name__,
-                input_types=input_types,
-                output_type=output_type,
-                execution_status="success",
-                execution_time_ms=execution_time_ms
-            )
+                recorder.record_call(
+                    method_name=func.__name__,
+                    input_types=input_types,
+                    output_type=output_type,
+                    execution_status="success",
+                    execution_time_ms=execution_time_ms,
+                    monolith_hash=monolith_hash
+                )
 
-            return result
+                return result
 
-        except Exception:
-            execution_time_ms = (time.time() - start_time) * 1000
+            except Exception:
+                execution_time_ms = (time.time() - start_time) * 1000
 
-            recorder.record_call(
-                method_name=method.__name__,
-                input_types={},
-                output_type="error",
-                execution_status="error",
-                execution_time_ms=execution_time_ms
-            )
+                recorder.record_call(
+                    method_name=func.__name__,
+                    input_types={},
+                    output_type="error",
+                    execution_status="error",
+                    execution_time_ms=execution_time_ms,
+                    monolith_hash=monolith_hash
+                )
 
-            raise
+                raise
 
-    return wrapper
+        return wrapper
+    
+    # Handle both @qmcm_record and @qmcm_record() usage
+    if method is None:
+        return decorator
+    else:
+        return decorator(method)
 
 # Export public API
 __all__ = [

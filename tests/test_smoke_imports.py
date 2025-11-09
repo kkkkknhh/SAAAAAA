@@ -92,8 +92,8 @@ def test_infrastructure_modules():
     from saaaaaa.infrastructure import filesystem
     assert filesystem is not None
     
-    from saaaaaa.infrastructure import logging
-    assert logging is not None
+    from saaaaaa.infrastructure import log_adapters
+    assert log_adapters is not None
 
 
 def test_walk_packages():

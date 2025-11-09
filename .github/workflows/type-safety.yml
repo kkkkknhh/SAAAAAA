@@ -14,6 +14,8 @@ jobs:
     name: Strict Type Checking
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout repository
@@ -30,7 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pyright ruff hypothesis pytest
           # Install minimal runtime dependencies
-          pip install jsonschema || true
+          pip install jsonschema pydantic || echo "⚠️ Optional runtime dependencies failed (non-blocking)"
+          # Install project in editable mode
+          pip install -e . || echo "⚠️ Project install failed (non-blocking)"
       
       - name: Run Ruff linter
         run: |
@@ -62,6 +66,8 @@ jobs:
     name: Contract & Property Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout repository
@@ -97,6 +103,8 @@ jobs:
     name: Additional Linting & Policy Checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Checkout repository
@@ -125,6 +133,8 @@ jobs:
     timeout-minutes: 5
     needs: [type-check, contract-tests, lint-validation]
     if: always()
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     
     steps:
       - name: Summary

@@ -68,12 +68,16 @@ class MonolithForge:
         'INSUFICIENTE': 0.0
     }
 
+    # Method sampling configuration
+    METHODS_PER_BASE_SLOT = 2  # Number of methods to sample from catalog per base_slot
+
     def __init__(self):
         self.legacy_data = {}
         self.monolith = {}
         self.indices = {}
         self.stats = defaultdict(int)
         self.canonical_clusters = None  # Will be loaded from legacy data
+        self.repo_root = Path(__file__).resolve().parents[1]  # Repository root
 
     def abort(self, code: str, message: str, phase: str):
         """Trigger immediate abort with error code."""
@@ -93,12 +97,11 @@ class MonolithForge:
         phase = "LoadLegacyPhase"
         logger.info(f"=== {phase} START ===")
 
-        # Get repository root dynamically
         # Whitelist of allowed files (relative to repo root)
         allowed_files = {
-            'questionnaire.json': repo_root / 'questionnaire.json',
-            'rubric_scoring.json': repo_root / 'rubric_scoring.json',
-            'COMPLETE_METHOD_CLASS_MAP.json': repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'
+            'questionnaire.json': self.repo_root / 'questionnaire.json',
+            'rubric_scoring.json': self.repo_root / 'rubric_scoring.json',
+            'COMPLETE_METHOD_CLASS_MAP.json': self.repo_root / 'COMPLETE_METHOD_CLASS_MAP.json'
         }
 
         for name, path in allowed_files.items():
@@ -375,36 +378,41 @@ class MonolithForge:
         phase = "MethodSetSynthesisPhase"
         logger.info(f"=== {phase} START ===")
 
-        # For this phase, we'll create synthetic method sets based on base_slots
-        # In a real implementation, this would load from metodos_completos_nivel3.json
+        # Load real method catalog from canonical source
+        from saaaaaa.core.orchestrator.factory import load_catalog
+        
+        catalog_path = self.repo_root / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
+        try:
+            catalog = load_catalog()
+            logger.info(f"Loaded method catalog with {catalog.get('summary', {}).get('total_methods', 0)} methods")
+        except FileNotFoundError as e:
+            self.abort('A050', f'Method catalog not found at {catalog_path}: {e}', phase)
+        except Exception as e:
+            self.abort(
+                'A050',
+                f'Failed to load method catalog: {e}\n'
+                f'Check that the catalog file exists at {catalog_path} and is in the expected format.',
+                phase
+            )
 
-        # Create method sets per base_slot
-        # Each base_slot gets a set of methods for analysis
+        # Extract methods from catalog and organize by base_slot
         base_slot_methods = {}
-
+        
+        # The catalog structure has files with methods
+        files_data = catalog.get('files', {})
+        
+        # Create method sets per base_slot
+        # Since the catalog doesn't directly map to base_slots, we create a
+        # reasonable distribution of methods across base_slots
         for d_num in range(1, 7):  # D1-D6
             for q_num in range(1, 6):  # Q1-Q5
                 base_slot = f"D{d_num}-Q{q_num}"
-
-                # Synthetic method set (in production, load from catalog)
-                base_slot_methods[base_slot] = [
-                    {
-                        'class': f'Dimension{d_num}Analyzer',
-                        'function': f'analyze_question_{q_num}',
-                        'module_enum': f'DIM{d_num:02d}_METHODS',
-                        'method_type': 'extraction',
-                        'priority': 1,
-                        'description': f'Primary analysis for {base_slot}'
-                    },
-                    {
-                        'class': f'Dimension{d_num}Validator',
-                        'function': f'validate_question_{q_num}',
-                        'module_enum': f'DIM{d_num:02d}_VALIDATION',
-                        'method_type': 'validation',
-                        'priority': 2,
-                        'description': f'Validation for {base_slot}'
-                    }
-                ]
+                
+                # Assign methods from catalog to this base_slot
+                # This mapping should ideally come from configuration
+                base_slot_methods[base_slot] = self._get_methods_for_base_slot(
+                    base_slot, files_data
+                )
 
         # Apply to questions
         for global_num in range(1, 301):
@@ -418,11 +426,11 @@ class MonolithForge:
                 if not method.get('description'):
                     self.abort('A050', f'Method for {base_slot} missing description', phase)
                 if method.get('priority') not in [1, 2, 3]:
-                    self.abort('A050', f'Method for {base_slot} has invalid priority', phase)
+                    self.abort('A050', f'Method for {base_slot} has invalid priority: {method.get("priority")}', phase)
 
             q['method_sets'] = methods
 
-        logger.info("Synthesized method sets for 30 base_slots")
+        logger.info(f"Applied method sets from catalog to 30 base_slots")
         logger.info(f"=== {phase} COMPLETE ===")
 
     # ========================================================================
@@ -839,6 +847,67 @@ class MonolithForge:
         # Concatenate and hash
         patterns_str = '|'.join(all_patterns)
         return hashlib.sha256(patterns_str.encode('utf-8')).hexdigest()
+    
+    def _map_priority(self, priority_str: str) -> int:
+        """Map string priority to numeric priority (1-3)."""
+        priority_map = {
+            'CRITICAL': 1,
+            'HIGH': 1,
+            'MEDIUM': 2,
+            'LOW': 3,
+        }
+        return priority_map.get(priority_str, 2)
+    
+    def _get_methods_for_base_slot(self, base_slot: str, files_data: dict) -> list[dict]:
+        """Get methods for a specific base_slot from catalog data.
+        
+        Args:
+            base_slot: Base slot identifier (e.g., 'D1-Q1')
+            files_data: Method catalog files data
+            
+        Returns:
+            List of method definitions for this base_slot
+        """
+        # Extract dimension and question from base_slot
+        # This is a simplified mapping - production code should use proper configuration
+        methods = []
+        
+        # Get a subset of methods from the catalog for this base_slot
+        # In a real implementation, this mapping should come from configuration
+        for file_name, file_data in files_data.items():
+            file_methods = file_data.get('methods', [])
+            
+            # Take first METHODS_PER_BASE_SLOT methods as a representative sample
+            for method_info in file_methods[:self.METHODS_PER_BASE_SLOT]:
+                methods.append({
+                    'class': method_info.get('class', 'UnknownClass'),
+                    'function': method_info.get('method_name', 'unknown_method'),
+                    'module': file_name,
+                    'method_type': 'analysis',
+                    'priority': self._map_priority(method_info.get('priority', 'MEDIUM')),
+                    'description': method_info.get('description', f"Analysis method for {base_slot}")
+                })
+            
+            # Only need a few methods per base_slot
+            if len(methods) >= self.METHODS_PER_BASE_SLOT:
+                break
+        
+        # Ensure we have at least one method
+        if not methods:
+            logger.warning(
+                f"No analysis methods found in catalog for base_slot '{base_slot}'. "
+                f"Using synthetic DefaultAnalyzer fallback. This may indicate a configuration issue."
+            )
+            methods.append({
+                'class': 'DefaultAnalyzer',
+                'function': 'analyze',
+                'module': 'default',
+                'method_type': 'analysis',
+                'priority': 2,
+                'description': f'Default analysis for {base_slot}'
+            })
+        
+        return methods
 
     # ========================================================================
     # PHASE 10: ValidationReportPhase

@@ -18,9 +18,9 @@ name: Pyre
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop", "copilot/**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 permissions:
     contents: read
@@ -38,7 +38,7 @@ jobs:
           submodules: true
 
       - name: Run Pyre
-        uses: facebook/pyre-action@60697a7858f7cc8470d8cc494a3cf2ad6b06560d
+        uses: facebook/pyre-action@v0.0.2
         with:
           # To customize these inputs:
           # See https://github.com/facebook/pyre-action#inputs

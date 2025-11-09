@@ -38,7 +38,6 @@ __all__ = [
     "DocumentMetadataV1Optional",
     "ExecutionContextV1",
     "ExecutionContextV1Optional",
-    "MISSING",
     "ProcessedTextV1",
     "ProcessedTextV1Optional",
     "SeedFactory",

@@ -8,6 +8,7 @@ Tests that all import paths work correctly from different locations:
 3. Root-level .py file imports
 """
 
+import sys
 from pathlib import Path
 
 # Add parent directory to path for root-level imports
@@ -30,7 +31,7 @@ def test_root_level_package_imports():
     """Test that root-level compatibility packages can be imported."""
     # Import from packages (directories with __init__.py)
     from saaaaaa.scoring.scoring import QualityLevel
-    from orchestrator.core import Evidence
+    from saaaaaa.core.orchestrator.core import Evidence
     from saaaaaa.concurrency.concurrency import WorkerPool
     from saaaaaa.contracts import validate_contract
     

@@ -26,7 +26,7 @@ from saaaaaa.infrastructure.filesystem import (
     JsonAdapter,
     LocalFileAdapter,
 )
-from saaaaaa.infrastructure.logging import (
+from saaaaaa.infrastructure.log_adapters import (
     InMemoryLogAdapter,
     StandardLogAdapter,
 )

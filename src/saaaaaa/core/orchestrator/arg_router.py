@@ -5,6 +5,7 @@ import inspect
 import logging
 import os
 import random
+import threading
 from collections.abc import Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
 from typing import (
@@ -92,13 +93,15 @@ class ArgRouter:
     def __init__(self, class_registry: Mapping[str, type]) -> None:
         self._class_registry = dict(class_registry)
         self._spec_cache: dict[tuple[str, str], MethodSpec] = {}
+        self._lock = threading.RLock()
 
     def describe(self, class_name: str, method_name: str) -> MethodSpec:
         """Return the cached method specification, building it if necessary."""
         key = (class_name, method_name)
-        if key not in self._spec_cache:
-            self._spec_cache[key] = self._build_spec(class_name, method_name)
-        return self._spec_cache[key]
+        with self._lock:
+            if key not in self._spec_cache:
+                self._spec_cache[key] = self._build_spec(class_name, method_name)
+            return self._spec_cache[key]
 
     def route(
         self,
@@ -380,8 +383,9 @@ class PayloadDriftMonitor:
             )
 
     @staticmethod
-    def _expected_type_name(expected: Any) -> str:
-        return ", ".join(getattr(t, "__name__", str(t)) for t in expected)
+    def _expected_type_name(expected: object) -> str:
+        if isinstance(expected, tuple):
+            return ", ".join(getattr(t, "__name__", str(t)) for t in expected)
         if hasattr(expected, "__name__"):
-            return expected.__name__
+            return getattr(expected, "__name__")  # type: ignore[arg-type]
         return str(expected)

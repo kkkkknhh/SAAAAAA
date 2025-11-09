@@ -41,7 +41,15 @@ class ContractLoadReport:
         return ", ".join(parts)
 
 class JSONContractLoader:
-    """Load JSON contract files and compute integrity metadata."""
+    """Load JSON contract files and compute integrity metadata.
+    
+    ARCHITECTURAL BOUNDARY: This loader is for generic JSON contracts ONLY.
+    It must NOT be used to load questionnaire_monolith.json directly.
+    
+    For questionnaire access, use:
+    - factory.load_questionnaire_monolith() for I/O
+    - QuestionnaireResourceProvider for pattern extraction
+    """
 
     def __init__(self, base_path: Path | None = None) -> None:
         self.base_path = base_path or Path(__file__).resolve().parent
@@ -82,6 +90,14 @@ class JSONContractLoader:
 
     @staticmethod
     def _read_payload(path: Path) -> dict[str, object]:
+        # ARCHITECTURAL GUARD: Block unauthorized questionnaire monolith access
+        if path.name == "questionnaire_monolith.json":
+            raise ValueError(
+                "ARCHITECTURAL VIOLATION: questionnaire_monolith.json must ONLY be "
+                "loaded via factory.load_questionnaire_monolith(). "
+                "Use factory.py for I/O, QuestionnaireResourceProvider for patterns."
+            )
+        
         text = path.read_text(encoding="utf-8")
         data = json.loads(text)
         if not isinstance(data, dict):

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+PROJECT_ROOT = Path(__file__).parent.parent
 SRC_ROOT = PROJECT_ROOT / "src"
 MODULE_PATH = SRC_ROOT / "saaaaaa" / "processing" / "semantic_chunking_policy.py"
 
