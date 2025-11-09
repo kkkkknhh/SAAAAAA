@@ -286,34 +286,41 @@ class CalibrationDecisionEngine:
         """Generate calibration decisions report"""
         results = self.batch_decide()
         
-        # Build summary
-        by_decision = {
-            "REQUIRES_CALIBRATION": [],
-            "NO_CALIBRATION_REQUIRED": [],
-            "FLAG_FOR_REVIEW": []
+        # Build method-keyed decisions (CORRECT STRUCTURE)
+        method_decisions = {}
+        
+        # Build summary by category
+        summary_by_category = {
+            "REQUIRES_CALIBRATION": 0,
+            "NO_CALIBRATION_REQUIRED": 0,
+            "FLAG_FOR_REVIEW": 0
         }
         
         for fqn, rationale in results.items():
-            by_decision[rationale.decision.value].append({
-                "method": fqn,
+            # Store as method-keyed
+            method_decisions[fqn] = {
+                "decision": rationale.decision.value,
                 "confidence": rationale.confidence,
                 "reasons": rationale.reasons,
                 "risk_factors": rationale.risk_factors,
                 "recommendation": rationale.recommendation,
-            })
+            }
+            
+            # Update summary
+            summary_by_category[rationale.decision.value] += 1
         
         report = {
             "metadata": {
-                "generated_at": "2025-11-08",
+                "generated_at": "2025-11-09",
                 "total_methods": len(results),
                 "catalog_version": self.catalog.catalog_version,
             },
             "summary": {
-                "requires_calibration": len(by_decision["REQUIRES_CALIBRATION"]),
-                "no_calibration_required": len(by_decision["NO_CALIBRATION_REQUIRED"]),
-                "flag_for_review": len(by_decision["FLAG_FOR_REVIEW"]),
+                "requires_calibration": summary_by_category["REQUIRES_CALIBRATION"],
+                "no_calibration_required": summary_by_category["NO_CALIBRATION_REQUIRED"],
+                "flag_for_review": summary_by_category["FLAG_FOR_REVIEW"],
             },
-            "decisions": by_decision,
+            "decisions": method_decisions,  # METHOD-KEYED, not category-keyed
         }
         
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -326,9 +333,9 @@ class CalibrationDecisionEngine:
         print("AUTO-CALIBRATION DECISION SUMMARY")
         print("="*80)
         print(f"Total methods analyzed: {len(results)}")
-        print(f"  - REQUIRES_CALIBRATION: {len(by_decision['REQUIRES_CALIBRATION'])}")
-        print(f"  - NO_CALIBRATION_REQUIRED: {len(by_decision['NO_CALIBRATION_REQUIRED'])}")
-        print(f"  - FLAG_FOR_REVIEW: {len(by_decision['FLAG_FOR_REVIEW'])}")
+        print(f"  - REQUIRES_CALIBRATION: {summary_by_category['REQUIRES_CALIBRATION']}")
+        print(f"  - NO_CALIBRATION_REQUIRED: {summary_by_category['NO_CALIBRATION_REQUIRED']}")
+        print(f"  - FLAG_FOR_REVIEW: {summary_by_category['FLAG_FOR_REVIEW']}")
         
         return report
 
@@ -349,8 +356,22 @@ def main():
     print("SAMPLE DECISIONS")
     print("="*80)
     
+    # Group by category for display
+    by_category = {
+        "REQUIRES_CALIBRATION": [],
+        "NO_CALIBRATION_REQUIRED": [],
+        "FLAG_FOR_REVIEW": []
+    }
+    
+    for method_fqn, decision_data in report["decisions"].items():
+        category = decision_data["decision"]
+        by_category[category].append({
+            "method": method_fqn,
+            **decision_data
+        })
+    
     for category in ["REQUIRES_CALIBRATION", "NO_CALIBRATION_REQUIRED", "FLAG_FOR_REVIEW"]:
-        items = report["decisions"][category][:3]
+        items = by_category[category][:3]
         if items:
             print(f"\n{category}:")
             for item in items:

@@ -123,17 +123,16 @@ class MethodUsageScanner:
         python_files = list(self.src_root.rglob("*.py"))
         print(f"  Found {len(python_files)} Python files")
         
+        # Get catalog methods as a set for fast lookup
+        catalog_method_set = {(m.class_name, m.method_name) for m in self.catalog.all_methods()}
+        
         for py_file in python_files:
             try:
                 with open(py_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Simple pattern matching for method calls
-                # Look for: ClassName().method_name( or obj.method_name(
-                # Also look for class definitions to understand structure
-                
                 tree = ast.parse(content)
-                visitor = MethodCallVisitor(py_file, self.repo_root)
+                visitor = MethodCallVisitor(py_file, self.repo_root, catalog_method_set)
                 visitor.visit(tree)
                 
                 # Collect results
@@ -150,7 +149,7 @@ class MethodUsageScanner:
             except Exception as e:
                 print(f"  ERROR parsing {py_file}: {e}")
         
-        print(f"  Tracked {len(self.usage_map)} unique methods")
+        print(f"  Tracked {len(self.usage_map)} unique methods with actual usage")
     
     def _scan_yaml_files(self):
         """Scan YAML files for method references"""
@@ -291,11 +290,31 @@ class MethodUsageScanner:
 class MethodCallVisitor(ast.NodeVisitor):
     """AST visitor to extract method calls"""
     
-    def __init__(self, file_path: Path, repo_root: Path):
+    def __init__(self, file_path: Path, repo_root: Path, catalog_methods: Set[Tuple[str, str]]):
         self.file_path = file_path
         self.repo_root = repo_root
+        self.catalog_methods = catalog_methods
         self.method_calls: Dict[Tuple[str, str], List[dict]] = defaultdict(list)
         self.current_class = None
+        self.imports = {}  # Track imports: {alias: module}
+        self.class_instances = {}  # Track variable assignments to classes
+    
+    def visit_Import(self, node):
+        """Track import statements"""
+        for alias in node.names:
+            name = alias.asname if alias.asname else alias.name
+            self.imports[name] = alias.name
+        self.generic_visit(node)
+    
+    def visit_ImportFrom(self, node):
+        """Track from...import statements"""
+        for alias in node.names:
+            name = alias.asname if alias.asname else alias.name
+            if node.module:
+                self.imports[name] = f"{node.module}.{alias.name}"
+            else:
+                self.imports[name] = alias.name
+        self.generic_visit(node)
     
     def visit_ClassDef(self, node):
         """Track current class context"""
@@ -304,29 +323,63 @@ class MethodCallVisitor(ast.NodeVisitor):
         self.generic_visit(node)
         self.current_class = old_class
     
+    def visit_Assign(self, node):
+        """Track variable assignments that might be class instances"""
+        try:
+            if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+                class_name = node.value.func.id
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.class_instances[target.id] = class_name
+        except Exception:
+            pass
+        self.generic_visit(node)
+    
     def visit_Call(self, node):
         """Extract method calls"""
         try:
-            # Pattern: obj.method()
+            # Pattern 1: obj.method()
             if isinstance(node.func, ast.Attribute):
                 method_name = node.func.attr
+                class_name = None
                 
                 # Try to infer the class
                 if isinstance(node.func.value, ast.Name):
                     # Direct call: obj.method()
-                    # We don't know the class without type analysis
-                    # Skip for now
-                    pass
+                    obj_name = node.func.value.id
+                    
+                    # Check if obj is a known class instance
+                    if obj_name in self.class_instances:
+                        class_name = self.class_instances[obj_name]
+                    # Check if obj is a known import
+                    elif obj_name in self.imports:
+                        # Try to extract class name from import
+                        import_path = self.imports[obj_name]
+                        if '.' in import_path:
+                            class_name = import_path.split('.')[-1]
+                        else:
+                            class_name = obj_name
+                    # Check if it matches any catalog class
+                    else:
+                        for cat_class, cat_method in self.catalog_methods:
+                            if method_name == cat_method:
+                                # Potential match - use catalog class name
+                                class_name = cat_class
+                                break
+                
                 elif isinstance(node.func.value, ast.Call):
                     # Chained call: ClassName().method()
                     if isinstance(node.func.value.func, ast.Name):
                         class_name = node.func.value.func.id
-                        location = {
-                            'file': str(self.file_path.relative_to(self.repo_root)),
-                            'line': node.lineno,
-                            'context': 'call'
-                        }
-                        self.method_calls[(class_name, method_name)].append(location)
+                
+                # Record the call if we found a class
+                if class_name and (class_name, method_name) in self.catalog_methods:
+                    location = {
+                        'file': str(self.file_path.relative_to(self.repo_root)),
+                        'line': node.lineno,
+                        'context': 'method_call'
+                    }
+                    self.method_calls[(class_name, method_name)].append(location)
         
         except Exception:
             pass

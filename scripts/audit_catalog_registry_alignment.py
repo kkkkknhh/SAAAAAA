@@ -125,23 +125,17 @@ def main():
     for class_name, method_name in sorted(list(used_not_registry)[:20]):  # Top 20
         # Check calibration decision
         fqn = f"{class_name}.{method_name}"
-        decision_info = None
         
-        for category, methods in decisions_data.get('decisions', {}).items():
-            for m in methods:
-                if m.get('method') == fqn:
-                    decision_info = (category, m)
-                    break
-            if decision_info:
-                break
+        # Decisions are now method-keyed, not category-keyed
+        decision_data = decisions_data.get('decisions', {}).get(fqn)
         
-        if decision_info and decision_info[0] == "REQUIRES_CALIBRATION":
+        if decision_data and decision_data.get('decision') == "REQUIRES_CALIBRATION":
             warnings.append({
                 "type": "USED_NOT_CALIBRATED",
                 "severity": "MEDIUM",
                 "method": fqn,
                 "description": "Method is used and requires calibration but not in registry",
-                "action": f"Add calibration entry (auto-decision: {decision_info[0]})"
+                "action": f"Add calibration entry (auto-decision: {decision_data.get('decision')})"
             })
     
     # Generate report
