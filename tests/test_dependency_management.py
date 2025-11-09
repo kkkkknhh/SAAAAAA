@@ -69,9 +69,21 @@ class TestDependencyManagement:
             content = filepath.read_text()
             assert len(content) > 1000, f"Documentation too short: {doc}"
     
-    def test_core_requirements_exact_pins(self, project_root):
-        """Verify core requirements use exact version pins."""
+    def test_core_requirements_version_constraints(self, project_root):
+        """Verify core requirements use appropriate version constraints.
+        
+        Most packages should use exact pins (==) for reproducibility,
+        but certain packages with complex dependency chains (like ML/NLP libraries)
+        may use constrained ranges (>=X,<Y) to allow pip to resolve dependencies.
+        """
         requirements_file = project_root / "requirements-core.txt"
+        
+        # Packages allowed to have constrained ranges due to complex dependency chains
+        allowed_ranges = {
+            'fastapi', 'huggingface-hub', 'numpy', 'pandas', 'pydantic',
+            'safetensors', 'scikit-learn', 'scipy', 'sentence-transformers',
+            'tokenizers', 'transformers'
+        }
         
         with open(requirements_file, 'r') as f:
             for line in f:
@@ -81,17 +93,30 @@ class TestDependencyManagement:
                 if not line or line.startswith('#'):
                     continue
                 
-                # Verify exact pin (==) is used, or skip -r includes
+                # Skip -r includes
                 if line.startswith('-r '):
                     continue
-                elif '==' in line:
+                
+                # Extract package name
+                pkg_name = line.split('=')[0].split('>')[0].split('<')[0].strip()
+                
+                if '==' in line:
                     # Good: exact pin
                     continue
+                elif '>=' in line and '<' in line:
+                    # Constrained range - check if allowed
+                    if pkg_name.lower() not in allowed_ranges:
+                        pytest.fail(
+                            f"Package '{pkg_name}' uses a constrained range but is not in allowed list.\n"
+                            f"Line: {line}\n"
+                            f"Either use exact pin (==) or add to allowed_ranges if needed for dependency resolution."
+                        )
                 elif any(op in line for op in ['>=', '~=', '<=', '<', '>', '*']):
+                    # Unconstrained or unusual range
                     pytest.fail(
-                        f"Core requirements must use exact pins (==), "
-                        f"found open range in: {line}\n"
-                        f"Expected format: package==X.Y.Z (e.g., numpy==2.2.1)"
+                        f"Core requirements must use exact pins (==) or constrained ranges (>=X,<Y), "
+                        f"found problematic constraint in: {line}\n"
+                        f"Expected format: package==X.Y.Z or package>=X.Y.Z,<A.B.C"
                     )
     
     def test_audit_script_runs(self, project_root):

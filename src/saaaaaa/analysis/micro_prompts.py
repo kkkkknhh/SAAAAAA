@@ -45,12 +45,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QMCMRecord:
-    """Record in the Question→Method Contribution Map"""
+    """Record in the Question→Method Contribution Map
+    
+    Aligned with questionnaire_monolith.json structure:
+    - base_slot: Question slot identifier from monolith
+    - scoring_modality: Scoring mechanism (binary, ordinal, numeric, etc.)
+    """
     question_id: str
     method_fqn: str
     contribution_weight: float
     timestamp: float
     output_schema: dict[str, Any]
+    base_slot: str | None = field(default=None)  # From questionnaire monolith
+    scoring_modality: str | None = field(default=None)  # From questionnaire monolith
     metadata: dict[str, Any] = field(default_factory=dict)
 
 @dataclass

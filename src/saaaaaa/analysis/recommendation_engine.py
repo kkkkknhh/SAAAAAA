@@ -101,13 +101,17 @@ class RecommendationSet:
 
 class RecommendationEngine:
     """
-    Core recommendation engine that evaluates rules and generates recommendations
+    Core recommendation engine that evaluates rules and generates recommendations.
+    
+    Uses canonical notation for dimension and policy area validation.
     """
 
     def __init__(
         self,
         rules_path: str = "config/recommendation_rules.json",
-        schema_path: str = "rules/recommendation_rules.schema.json"
+        schema_path: str = "rules/recommendation_rules.schema.json",
+        questionnaire_provider=None,
+        orchestrator=None
     ) -> None:
         """
         Initialize recommendation engine
@@ -115,9 +119,16 @@ class RecommendationEngine:
         Args:
             rules_path: Path to recommendation rules JSON file
             schema_path: Path to JSON schema for validation
+            questionnaire_provider: QuestionnaireResourceProvider instance (injected via DI)
+            orchestrator: Orchestrator instance for accessing thresholds and patterns
+        
+        ARCHITECTURAL NOTE: Thresholds should come from questionnaire monolith
+        via QuestionnaireResourceProvider, not from hardcoded values.
         """
         self.rules_path = Path(rules_path)
         self.schema_path = Path(schema_path)
+        self.questionnaire_provider = questionnaire_provider
+        self.orchestrator = orchestrator
         self.rules: dict[str, Any] = {}
         self.schema: dict[str, Any] = {}
         self.rules_by_level: dict[str, list[dict[str, Any]]] = {
@@ -125,6 +136,9 @@ class RecommendationEngine:
             'MESO': [],
             'MACRO': []
         }
+        
+        # Load canonical notation for validation
+        self._load_canonical_notation()
 
         # Load rules and schema
         self._load_schema()
@@ -136,6 +150,21 @@ class RecommendationEngine:
             f"{len(self.rules_by_level['MESO'])} MESO, "
             f"{len(self.rules_by_level['MACRO'])} MACRO rules"
         )
+    
+    def _load_canonical_notation(self) -> None:
+        """Load canonical notation for validation"""
+        try:
+            from saaaaaa.core.canonical_notation import get_all_dimensions, get_all_policy_areas
+            self.canonical_dimensions = get_all_dimensions()
+            self.canonical_policy_areas = get_all_policy_areas()
+            logger.info(
+                f"Canonical notation loaded: {len(self.canonical_dimensions)} dimensions, "
+                f"{len(self.canonical_policy_areas)} policy areas"
+            )
+        except Exception as e:
+            logger.warning(f"Could not load canonical notation: {e}")
+            self.canonical_dimensions = {}
+            self.canonical_policy_areas = {}
 
     def _load_schema(self) -> None:
         """Load JSON schema for rule validation"""
@@ -179,6 +208,43 @@ class RecommendationEngine:
         """Reload rules from disk (useful for hot-reloading)"""
         self.rules_by_level = {'MICRO': [], 'MESO': [], 'MACRO': []}
         self._load_rules()
+    
+    def get_thresholds_from_monolith(self) -> dict[str, Any]:
+        """
+        Get scoring thresholds from questionnaire monolith.
+        
+        Returns:
+            Dictionary of thresholds by question_id or default thresholds
+        
+        ARCHITECTURAL NOTE: This method demonstrates proper access to 
+        questionnaire data via QuestionnaireResourceProvider, not direct I/O.
+        """
+        if self.questionnaire_provider is None:
+            logger.warning("No questionnaire provider attached, using default thresholds")
+            return {
+                'default_micro_threshold': 2.0,
+                'default_meso_threshold': 55.0,
+                'default_macro_threshold': 65.0
+            }
+        
+        # Get questionnaire data via provider
+        questionnaire_data = self.questionnaire_provider.get_data()
+        
+        # Extract thresholds from monolith structure
+        thresholds = {}
+        blocks = questionnaire_data.get('blocks', {})
+        micro_questions = blocks.get('micro_questions', [])
+        
+        for question in micro_questions:
+            question_id = question.get('question_id')
+            scoring_info = question.get('scoring', {})
+            threshold = scoring_info.get('threshold')
+            
+            if question_id and threshold is not None:
+                thresholds[question_id] = threshold
+        
+        logger.info(f"Loaded {len(thresholds)} thresholds from questionnaire monolith")
+        return thresholds
 
     # ========================================================================
     # MICRO LEVEL RECOMMENDATIONS
@@ -601,7 +667,7 @@ class RecommendationEngine:
 
         score_lt = when['score_lt']
         if not self._is_number(score_lt):
-            raise ValueError(f"Rule {rule_id} has non numeric MICRO threshold")
+            raise ValueError(f"Rule {rule_id} has non-numeric MICRO threshold")
         if not 0 <= float(score_lt) <= 3:
             raise ValueError(f"Rule {rule_id} MICRO threshold must be between 0 and 3")
 
@@ -652,7 +718,7 @@ class RecommendationEngine:
         clusters = when.get('clusters_below_target')
         if clusters is not None:
             if not isinstance(clusters, list) or not clusters:
-                raise ValueError(f"Rule {rule_id} must declare non empty clusters_below_target")
+                raise ValueError(f"Rule {rule_id} must declare non-empty clusters_below_target")
             if not all(isinstance(item, str) and item.strip() for item in clusters):
                 raise ValueError(f"Rule {rule_id} has invalid cluster identifiers")
             discriminants += 1

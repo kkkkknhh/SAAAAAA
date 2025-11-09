@@ -1,4 +1,4 @@
-.PHONY: help install setup verify clean validate-schema validate-monolith equip equip-python equip-native equip-compat equip-types audit-imports audit-paths test-paths fix-paths ci-prep-dirs
+.PHONY: help install setup verify clean validate-schema validate-monolith validate-canonical equip equip-python equip-native equip-compat equip-types audit-imports audit-paths test-paths fix-paths ci-prep-dirs
 
 # Default target: show help
 .DEFAULT_GOAL := help
@@ -6,16 +6,17 @@
 # Show available make targets
 help:
 	@echo "Available make targets:"
-	@echo "  make install         - Install all dependencies and setup for development (alias for setup)"
-	@echo "  make setup           - Install dependencies (requirements.txt + requirements-dev.txt) and package"
-	@echo "  make verify          - Run all verification checks (compilation, linting, testing)"
-	@echo "  make clean           - Remove build artifacts and cache files"
-	@echo "  make validate-schema - Validate questionnaire monolith against JSON Schema"
-	@echo "  make equip           - Verify environment readiness (Python, native, compatibility)"
-	@echo "  make audit-imports   - Run comprehensive import system checks"
-	@echo "  make audit-paths     - Run comprehensive path usage and portability checks"
-	@echo "  make test-paths      - Run path validation tests"
-	@echo "  make ci-prep-dirs    - Create required directories for CI/CD"
+	@echo "  make install              - Install all dependencies and setup for development (alias for setup)"
+	@echo "  make setup                - Install dependencies (requirements.txt + requirements-dev.txt) and package"
+	@echo "  make verify               - Run all verification checks (compilation, linting, testing)"
+	@echo "  make clean                - Remove build artifacts and cache files"
+	@echo "  make validate-schema      - Validate questionnaire monolith against JSON Schema"
+	@echo "  make validate-canonical   - Enforce canonical notation usage (no hardcoded strings)"
+	@echo "  make equip                - Verify environment readiness (Python, native, compatibility)"
+	@echo "  make audit-imports        - Run comprehensive import system checks"
+	@echo "  make audit-paths          - Run comprehensive path usage and portability checks"
+	@echo "  make test-paths           - Run path validation tests"
+	@echo "  make ci-prep-dirs         - Create required directories for CI/CD"
 	@echo ""
 	@echo "Note: Run 'make setup' first to install all required dependencies."
 
@@ -42,22 +43,26 @@ verify:
 	@python tools/scan_core_purity.py || (echo "❌ Core purity check failed" && exit 1)
 	@echo "✓ Core purity verified\n"
 	
-	@echo "=== Step 3: Import Linter (Layer Contracts) ==="
+	@echo "=== Step 3: Canonical Notation Enforcement ==="
+	@python tools/lint/check_canonical_notation.py || (echo "❌ Canonical notation violations detected" && exit 1)
+	@echo "✓ Canonical notation check passed\n"
+	
+	@echo "=== Step 4: Import Linter (Layer Contracts) ==="
 	@lint-imports --config contracts/importlinter.ini || (echo "❌ Import contracts violated" && exit 1)
 	@echo "✓ Import contracts satisfied\n"
 	
-	@echo "=== Step 4: Ruff Linting ==="
+	@echo "=== Step 5: Ruff Linting ==="
 	@ruff check core orchestrator executors --quiet || (echo "⚠️  Ruff found issues" && exit 1)
 	@echo "✓ Ruff checks passed\n"
 	
-	@echo "=== Step 5: Mypy Type Checking ==="
+	@echo "=== Step 6: Mypy Type Checking ==="
 	@mypy core orchestrator executors --config-file pyproject.toml --no-error-summary 2>&1 | tee /tmp/mypy_output.txt | grep -E "(error|warning)" && echo "⚠️  Mypy found issues (install full package for complete check)" || echo "✓ Mypy checks passed\n"
 	
-	@echo "=== Step 6: Grep Boundary Checks ==="
+	@echo "=== Step 7: Grep Boundary Checks ==="
 	@python tools/grep_boundary_checks.py || (echo "❌ Boundary violations detected" && exit 1)
 	@echo "✓ Boundary checks passed\n"
 	
-	@echo "=== Step 7: Pycycle (Circular Dependency Detection) ==="
+	@echo "=== Step 8: Pycycle (Circular Dependency Detection) ==="
 	@pycycle --here > /tmp/pycycle_output.txt 2>&1 || true; \
 	if grep -q "No worries" /tmp/pycycle_output.txt; then \
 		echo "✓ No circular dependencies\n"; \
@@ -67,17 +72,22 @@ verify:
 		exit 1; \
 	fi
 	
-	@echo "=== Step 8: Bulk Import Test ==="
+	@echo "=== Step 9: Bulk Import Test ==="
 	@python scripts/import_all.py || (echo "❌ Import test failed" && exit 1)
 	@echo "✓ Import test passed\n"
 	
-	@echo "=== Step 9: Bandit Security Scan ==="
+	@echo "=== Step 10: Bandit Security Scan ==="
 	@bandit -q -r core orchestrator executors -f txt 2>&1 | head -20 || echo "✓ Security scan completed\n"
 	
-	@echo "=== Step 10: Test Suite ==="
+	@echo "=== Step 11: Test Suite ==="
 	@pytest -q -ra tests/ 2>&1 | tail -30 || echo "⚠️  Some tests failed"
 	
 	@echo "\n=== VERIFICATION COMPLETE ==="
+
+# Validate canonical notation usage
+validate-canonical:
+	@echo "Checking canonical notation enforcement..."
+	@python3 tools/lint/check_canonical_notation.py
 
 # Validate questionnaire monolith against JSON Schema
 validate-monolith:

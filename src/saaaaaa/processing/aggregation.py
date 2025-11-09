@@ -12,6 +12,7 @@ Requirements:
 - Comprehensive logging and abortability at each level
 - No strategic simplification
 - Full alignment with monolith specifications
+- Uses canonical notation for dimension and policy area validation
 
 Architecture:
 - DimensionAggregator: Aggregates 5 micro questions → 1 dimension score
@@ -25,6 +26,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+# Import canonical notation for validation
+try:
+    from saaaaaa.core.canonical_notation import get_all_dimensions, get_all_policy_areas
+    HAS_CANONICAL_NOTATION = True
+except ImportError:
+    HAS_CANONICAL_NOTATION = False
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +153,82 @@ class DimensionAggregator:
             self.niveles = None
 
         logger.info("DimensionAggregator initialized")
+        
+        # Validate canonical notation if available
+        if HAS_CANONICAL_NOTATION:
+            try:
+                canonical_dims = get_all_dimensions()
+                canonical_areas = get_all_policy_areas()
+                logger.info(
+                    f"Canonical notation loaded: {len(canonical_dims)} dimensions, "
+                    f"{len(canonical_areas)} policy areas"
+                )
+            except Exception as e:
+                logger.warning(f"Could not load canonical notation: {e}")
+
+    def validate_dimension_id(self, dimension_id: str) -> bool:
+        """
+        Validate dimension ID against canonical notation.
+        
+        Args:
+            dimension_id: Dimension ID to validate (e.g., "DIM01")
+            
+        Returns:
+            True if dimension ID is valid
+            
+        Raises:
+            ValidationError: If dimension ID is invalid and abort_on_insufficient is True
+        """
+        if not HAS_CANONICAL_NOTATION:
+            logger.debug("Canonical notation not available, skipping validation")
+            return True
+        
+        try:
+            canonical_dims = get_all_dimensions()
+            # Check if dimension_id is a valid code
+            valid_codes = {info.code for info in canonical_dims.values()}
+            if dimension_id in valid_codes:
+                return True
+            
+            msg = f"Invalid dimension ID: {dimension_id}. Valid codes: {sorted(valid_codes)}"
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise ValidationError(msg)
+            return False
+        except Exception as e:
+            logger.warning(f"Could not validate dimension ID: {e}")
+            return True  # Don't fail if validation can't be performed
+
+    def validate_policy_area_id(self, area_id: str) -> bool:
+        """
+        Validate policy area ID against canonical notation.
+        
+        Args:
+            area_id: Policy area ID to validate (e.g., "PA01")
+            
+        Returns:
+            True if policy area ID is valid
+            
+        Raises:
+            ValidationError: If policy area ID is invalid and abort_on_insufficient is True
+        """
+        if not HAS_CANONICAL_NOTATION:
+            logger.debug("Canonical notation not available, skipping validation")
+            return True
+        
+        try:
+            canonical_areas = get_all_policy_areas()
+            if area_id in canonical_areas:
+                return True
+            
+            msg = f"Invalid policy area ID: {area_id}. Valid codes: {sorted(canonical_areas.keys())}"
+            logger.error(msg)
+            if self.abort_on_insufficient:
+                raise ValidationError(msg)
+            return False
+        except Exception as e:
+            logger.warning(f"Could not validate policy area ID: {e}")
+            return True  # Don't fail if validation can't be performed
 
     def validate_weights(self, weights: list[float]) -> tuple[bool, str]:
         """

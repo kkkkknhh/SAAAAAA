@@ -70,14 +70,19 @@ class ValidationEngine:
     - Severity-based logging (ERROR/WARNING/INFO)
     """
 
-    def __init__(self, cuestionario_data: dict[str, Any] | None = None) -> None:
+    def __init__(self, questionnaire_provider=None) -> None:
         """
         Initialize validation engine.
 
         Args:
-            cuestionario_data: Full cuestionario metadata for validation
+            questionnaire_provider: QuestionnaireResourceProvider instance (injected via DI)
+                                   If None, validation operations requiring questionnaire
+                                   data will use ValidationPredicates without provider.
+        
+        ARCHITECTURAL NOTE: Direct cuestionario_data parameter REMOVED.
+        Questionnaire access must go through QuestionnaireResourceProvider.
         """
-        self.cuestionario_data = cuestionario_data or {}
+        self.questionnaire_provider = questionnaire_provider
         self.predicates = ValidationPredicates()
         logger.info("ValidationEngine initialized")
 
@@ -115,7 +120,7 @@ class ValidationEngine:
         question_spec: dict[str, Any]
     ) -> ValidationResult:
         """
-        Validate expected_elements from cuestionario.
+        Validate expected_elements from questionnaire provider.
 
         Args:
             question_spec: Question specification
@@ -126,8 +131,13 @@ class ValidationEngine:
         logger.debug(f"Validating expected_elements for question: "
                     f"{question_spec.get('id', 'UNKNOWN')}")
 
+        # Get questionnaire data from provider if available
+        questionnaire_data = {}
+        if self.questionnaire_provider is not None:
+            questionnaire_data = self.questionnaire_provider.get_data()
+        
         result = self.predicates.verify_expected_elements(
-            question_spec, self.cuestionario_data
+            question_spec, questionnaire_data
         )
 
         self._log_result(result)
