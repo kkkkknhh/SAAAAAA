@@ -79,19 +79,19 @@
           "items": {
             "type": "string",
             "enum": [
-              "P1_Derechos de las mujeres e igualdad de género",
-              "P2_Prevención de la violencia y protección frente al conflicto",
-              "P3_Ambiente sano, cambio climático, prevención y atención a desastres",
-              "P4_Derechos económicos, sociales y culturales",
-              "P5_Derechos de las víctimas y construcción de paz",
-              "P6_Derecho al buen futuro de la niñez, adolescencia, juventud",
-              "P7_Tierras y territorios",
-              "P8_Líderes y defensores de derechos humanos",
-              "P9_Crisis de derechos de personas privadas de la libertad",
-              "P10_Migración transfronteriza"
+              "PA01_Derechos de las mujeres e igualdad de género",
+              "PA02_Prevención de la violencia y protección frente al conflicto",
+              "PA03_Ambiente sano, cambio climático, prevención y atención a desastres",
+              "PA04_Derechos económicos, sociales y culturales",
+              "PA05_Derechos de las víctimas y construcción de paz",
+              "PA06_Derecho al buen futuro de la niñez, adolescencia, juventud",
+              "PA07_Tierras y territorios",
+              "PA08_Líderes y defensores de derechos humanos",
+              "PA09_Crisis de derechos de personas privadas de la libertad",
+              "PA10_Migración transfronteriza"
             ]
           },
-          "description": "Dominios de política detectados en el chunk (P1-P10 del Decálogo)",
+          "description": "Dominios de política detectados en el chunk (PA01-PA10 per canonical notation)",
           "uniqueItems": true
         },
         "analytical_dimensions_detected": {
@@ -99,15 +99,15 @@
           "items": {
             "type": "string",
             "enum": [
-              "D1_Diagnóstico y Recursos",
-              "D2_Diseño de Intervención",
-              "D3_Productos y Outputs",
-              "D4_Resultados y Outcomes",
-              "D5_Impactos y Efectos de Largo Plazo",
-              "D6_Teoría de Cambio y Coherencia Causal"
+              "DIM01_Diagnóstico y Recursos",
+              "DIM02_Diseño de Intervención",
+              "DIM03_Productos y Outputs",
+              "DIM04_Resultados y Outcomes",
+              "DIM05_Impactos de Largo Plazo",
+              "DIM06_Teoría de Cambio"
             ]
           },
-          "description": "Dimensiones analíticas detectadas (D1-D6)",
+          "description": "Dimensiones analíticas detectadas (DIM01-DIM06 per canonical notation)",
           "uniqueItems": true
         },
         "extracted_at": {
