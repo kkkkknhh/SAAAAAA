@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 from pydantic import ValidationError
 
