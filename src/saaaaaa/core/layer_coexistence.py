@@ -54,15 +54,21 @@ class LayerScore:
     value: float
     weight: float = 1.0
     metadata: Dict = field(default_factory=dict)
-    
-    def __post_init__(self):
-        """Validate score bounds"""
-        if not 0 <= self.value <= 1:
-            raise ValueError(f"Layer score must be in [0,1], got {self.value}")
-        if not 0 <= self.weight <= 1:
-            raise ValueError(f"Layer weight must be in [0,1], got {self.weight}")
 
+    def __new__(cls, layer: Layer, value: float, weight: float = 1.0, metadata: Dict = None):
+        """Validate score bounds before instance creation"""
+        if not 0 <= value <= 1:
+            raise ValueError(f"Layer score must be in [0,1], got {value}")
+        if not 0 <= weight <= 1:
+            raise ValueError(f"Layer weight must be in [0,1], got {weight}")
+        if metadata is None:
+            metadata = {}
+        return super().__new__(cls)
 
+    def __init__(self, layer: Layer, value: float, weight: float = 1.0, metadata: Dict = None):
+        # dataclass will set fields, but we need to ensure metadata is not None
+        if metadata is None:
+            object.__setattr__(self, 'metadata', {})
 @dataclass
 class MethodSignature:
     """
