@@ -3,6 +3,21 @@ from pathlib import Path
 
 # Ensure src/ is in path for imports
 from saaaaaa.utils.contracts import (  # noqa: F401, E402
+    # V2 Enhanced Contracts (Pydantic-based)
+    AnalysisInputV2,
+    AnalysisOutputV2,
+    BaseContract,
+    DocumentMetadataV2,
+    ExecutionContextV2,
+    ProcessedTextV2,
+    ContractValidationError,
+    DataIntegrityError,
+    FlowCompatibilityError,
+    SystemConfigError,
+    StructuredLogger,
+    compute_content_digest,
+    utc_now_iso,
+    # V1 Contracts (TypedDict-based)
     AnalysisInputV1,
     AnalysisInputV1Optional,
     AnalysisOutputV1,
@@ -27,6 +42,21 @@ from saaaaaa.utils.contracts import (  # noqa: F401, E402
 from saaaaaa.utils.seed_factory import SeedFactory  # noqa: F401, E402
 
 __all__ = [
+    # V2 Enhanced Contracts
+    "AnalysisInputV2",
+    "AnalysisOutputV2",
+    "BaseContract",
+    "DocumentMetadataV2",
+    "ExecutionContextV2",
+    "ProcessedTextV2",
+    "ContractValidationError",
+    "DataIntegrityError",
+    "FlowCompatibilityError",
+    "SystemConfigError",
+    "StructuredLogger",
+    "compute_content_digest",
+    "utc_now_iso",
+    # V1 Contracts
     "AnalysisInputV1",
     "AnalysisInputV1Optional",
     "AnalysisOutputV1",
