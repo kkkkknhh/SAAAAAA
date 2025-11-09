@@ -9,13 +9,17 @@ from typing import Any, Callable
 # third-party (pinned in pyproject)
 import polars as pl
 import pyarrow as pa
-import structlog
 from blake3 import blake3
 from opentelemetry import metrics, trace
 from pydantic import BaseModel, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 from saaaaaa.utils.paths import reports_dir
+
+# Contract infrastructure - ACTUAL INTEGRATION
+from saaaaaa.utils.contract_io import ContractEnvelope
+from saaaaaa.utils.determinism_helpers import deterministic
+from saaaaaa.utils.json_logger import get_json_logger, log_io_event
 
 from .configs import (
     AggregateConfig,
@@ -44,7 +48,8 @@ from .models import (
     SignalsExpectation,
 )
 
-log = structlog.get_logger()
+# Use contract infrastructure JSON logger instead of structlog
+contract_logger = get_json_logger("flux")
 tracer = trace.get_tracer("flux")
 meter = metrics.get_meter("flux")
 
@@ -157,9 +162,17 @@ def run_ingest(
     requires: non-empty input_uri
     ensures: provenance_ok is True, fingerprint computed, metadata propagated
     """
+    contract_logger = get_json_logger("flux.ingest")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("ingest") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Preconditions
         if not input_uri or not input_uri.strip():
             raise PreconditionError(
@@ -174,17 +187,19 @@ def run_ingest(
         if correlation_id:
             span.set_attribute("correlation_id", correlation_id)
 
-        # TODO: Implement actual ingestion logic
-        # This is a stub that should be replaced with real implementation
-        raw_text = f"[PLACEHOLDER] Content from {input_uri}"
-        tables: list[dict[str, Any]] = []
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual ingestion logic
+            # This is a stub that should be replaced with real implementation
+            raw_text = f"[PLACEHOLDER] Content from {input_uri}"
+            tables: list[dict[str, Any]] = []
 
-        out = IngestDeliverable(
-            manifest=DocManifest(document_id=os.path.basename(input_uri)),
-            raw_text=raw_text,
-            tables=tables,
-            provenance_ok=True,
-        )
+            out = IngestDeliverable(
+                manifest=DocManifest(document_id=os.path.basename(input_uri)),
+                raw_text=raw_text,
+                tables=tables,
+                provenance_ok=True,
+            )
 
         # Postconditions
         if not out.provenance_ok:
@@ -195,11 +210,29 @@ def run_ingest(
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
 
+        # Wrap output with ContractEnvelope for traceability
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "ingest"})
         phase_counter.add(1, {"phase": "ingest"})
 
-        log.info(
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="ingest",
+            envelope_in=None,  # First phase has no input envelope
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
+
+        contract_logger.info(
             "phase_complete",
             phase="ingest",
             ok=True,
@@ -237,8 +270,26 @@ def run_normalize(
     ensures: sentences list is not empty, sentence_meta matches length, metadata propagated
     """
     start_time = time.time()
+    start_monotonic = time.monotonic()
+    
+    # Derive policy_unit_id from environment or generate default
+    if policy_unit_id is None:
+        policy_unit_id = os.getenv("POLICY_UNIT_ID", "default-policy")
+    if correlation_id is None:
+        import uuid
+        correlation_id = str(uuid.uuid4())
+    
+    # Get contract-aware JSON logger
+    contract_logger = get_json_logger("flux.normalize")
 
     with tracer.start_as_current_span("normalize") as span:
+        # Wrap input with ContractEnvelope for traceability
+        env_in = ContractEnvelope.wrap(
+            ing.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+        
         # Compatibility check
         assert_compat(ing, NormalizeExpectation)
 
@@ -268,15 +319,33 @@ def run_normalize(
                 f"sentences={len(out.sentences)}, meta={len(out.sentence_meta)}",
             )
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
         span.set_attribute("sentence_count", len(out.sentences))
+        span.set_attribute("correlation_id", correlation_id)
+        span.set_attribute("content_digest", env_out.content_digest)
 
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "normalize"})
         phase_counter.add(1, {"phase": "normalize"})
+        
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="normalize",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=start_monotonic
+        )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="normalize",
             ok=True,
@@ -296,6 +365,13 @@ def run_normalize(
             correlation_id=correlation_id,
             envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -315,8 +391,26 @@ def run_chunk(
     ensures: chunks not empty, chunk_index has valid resolutions, metadata propagated
     """
     start_time = time.time()
+    start_monotonic = time.monotonic()
+    
+    # Derive policy_unit_id from environment or generate default
+    if policy_unit_id is None:
+        policy_unit_id = os.getenv("POLICY_UNIT_ID", "default-policy")
+    if correlation_id is None:
+        import uuid
+        correlation_id = str(uuid.uuid4())
+    
+    # Get contract-aware JSON logger
+    contract_logger = get_json_logger("flux.chunk")
 
     with tracer.start_as_current_span("chunk") as span:
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            norm.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+        
         # Compatibility check
         assert_compat(norm, ChunkExpectation)
 
@@ -336,11 +430,11 @@ def run_chunk(
             for i, s in enumerate(norm.sentences)
         ]
 
-        idx: dict[str, list[str]] = {
-            "micro": [],
-            "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
-            "macro": [],
-        }
+            idx: dict[str, list[str]] = {
+                "micro": [],
+                "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
+                "macro": [],
+            }
 
         out = ChunkDeliverable(chunks=chunks, chunk_index=idx)
 
@@ -358,15 +452,33 @@ def run_chunk(
                 f"Keys must be {valid_resolutions}",
             )
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id
+        )
+
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
         span.set_attribute("chunk_count", len(out.chunks))
+        span.set_attribute("correlation_id", correlation_id)
+        span.set_attribute("content_digest", env_out.content_digest)
 
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "chunk"})
         phase_counter.add(1, {"phase": "chunk"})
+        
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="chunk",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=start_monotonic
+        )
 
-        log.info(
+        contract_logger.info(
             "phase_complete",
             phase="chunk",
             ok=True,
@@ -386,6 +498,13 @@ def run_chunk(
             correlation_id=correlation_id,
             envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
         )
 
 
@@ -405,11 +524,27 @@ def run_signals(
     requires: compatible input from chunk, registry_get callable
     ensures: enriched_chunks not empty, used_signals recorded, metadata propagated
     """
+    contract_logger = get_json_logger("flux.signals")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("signals") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(ch, SignalsExpectation)
+
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            ch.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if registry_get is None:
@@ -460,11 +595,29 @@ def run_signals(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("signals_present", used_signals["present"])
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "signals"})
         phase_counter.add(1, {"phase": "signals"})
 
-        log.info(
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="signals",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
+
+        contract_logger.info(
             "phase_complete",
             phase="signals",
             ok=True,
@@ -502,11 +655,27 @@ def run_aggregate(
     requires: compatible input from signals, group_by not empty
     ensures: features table has required columns, aggregation_meta recorded, metadata propagated
     """
+    contract_logger = get_json_logger("flux.aggregate")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("aggregate") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(sig, AggregateExpectation)
+
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            sig.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if not cfg.group_by:
@@ -525,15 +694,15 @@ def run_aggregate(
         item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
         patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
 
-        tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
+            tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
 
-        aggregation_meta: dict[str, Any] = {
-            "rows": tbl.num_rows,
-            "group_by": cfg.group_by,
-            "feature_set": cfg.feature_set,
-        }
+            aggregation_meta: dict[str, Any] = {
+                "rows": tbl.num_rows,
+                "group_by": cfg.group_by,
+                "feature_set": cfg.feature_set,
+            }
 
-        out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
+            out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
 
         # Postconditions
         if out.features.num_rows == 0:
@@ -555,11 +724,30 @@ def run_aggregate(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("feature_count", tbl.num_rows)
 
+        # Wrap output with ContractEnvelope
+        payload_dict = {"rows": tbl.num_rows, "meta": aggregation_meta}
+        env_out = ContractEnvelope.wrap(
+            payload_dict,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "aggregate"})
         phase_counter.add(1, {"phase": "aggregate"})
 
-        log.info(
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="aggregate",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
+
+        contract_logger.info(
             "phase_complete",
             phase="aggregate",
             ok=True,
@@ -573,7 +761,7 @@ def run_aggregate(
         return PhaseOutcome(
             ok=True,
             phase="aggregate",
-            payload={"rows": tbl.num_rows, "meta": aggregation_meta},
+            payload=payload_dict,
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
@@ -597,11 +785,28 @@ def run_score(
     requires: compatible input from aggregate, metrics not empty
     ensures: scores dataframe not empty, has required columns, metadata propagated
     """
+    contract_logger = get_json_logger("flux.score")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("score") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(agg, ScoreExpectation)
+
+        # Wrap input with ContractEnvelope
+        input_payload = {"rows": agg.features.num_rows, "meta": agg.aggregation_meta}
+        env_in = ContractEnvelope.wrap(
+            input_payload,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if not cfg.metrics:
@@ -617,18 +822,18 @@ def run_score(
         # TODO: Implement actual scoring logic
         item_ids = agg.features.column("item_id").to_pylist()
 
-        # Create scores for each metric
-        data: dict[str, list[Any]] = {
-            "item_id": item_ids * len(cfg.metrics),
-            "metric": [m for m in cfg.metrics for _ in item_ids],
-            "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
-        }
+            # Create scores for each metric
+            data: dict[str, list[Any]] = {
+                "item_id": item_ids * len(cfg.metrics),
+                "metric": [m for m in cfg.metrics for _ in item_ids],
+                "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
+            }
 
-        df = pl.DataFrame(data)
+            df = pl.DataFrame(data)
 
-        calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
+            calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
 
-        out = ScoreDeliverable(scores=df, calibration=calibration)
+            out = ScoreDeliverable(scores=df, calibration=calibration)
 
         # Postconditions
         if out.scores.height == 0:
@@ -648,11 +853,30 @@ def run_score(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("score_count", df.height)
 
+        # Wrap output with ContractEnvelope
+        payload_dict = {"n": df.height}
+        env_out = ContractEnvelope.wrap(
+            payload_dict,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "score"})
         phase_counter.add(1, {"phase": "score"})
 
-        log.info(
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="score",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
+
+        contract_logger.info(
             "phase_complete",
             phase="score",
             ok=True,
@@ -666,7 +890,7 @@ def run_score(
         return PhaseOutcome(
             ok=True,
             phase="score",
-            payload={"n": df.height},
+            payload=payload_dict,
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
@@ -691,11 +915,28 @@ def run_report(
     requires: compatible input from score, manifest not None
     ensures: artifacts not empty, summary contains required fields, metadata propagated
     """
+    contract_logger = get_json_logger("flux.report")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("report") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(sc, ReportExpectation)
+
+        # Wrap input with ContractEnvelope
+        input_payload = {"n": sc.scores.height}
+        env_in = ContractEnvelope.wrap(
+            input_payload,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if manifest is None:
@@ -711,21 +952,21 @@ def run_report(
         # TODO: Implement actual report generation
         artifacts: dict[str, str] = {}
 
-        # Use reports directory instead of /tmp
-        report_base = reports_dir() / "flux_summaries"
-        report_base.mkdir(parents=True, exist_ok=True)
+            # Use reports directory instead of /tmp
+            report_base = reports_dir() / "flux_summaries"
+            report_base.mkdir(parents=True, exist_ok=True)
 
-        for fmt in cfg.formats:
-            artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
-            artifacts[f"summary.{fmt}"] = artifact_path
+            for fmt in cfg.formats:
+                artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
+                artifacts[f"summary.{fmt}"] = artifact_path
 
-        summary: dict[str, Any] = {
-            "items": sc.scores.height,
-            "document_id": manifest.document_id,
-            "include_provenance": cfg.include_provenance,
-        }
+            summary: dict[str, Any] = {
+                "items": sc.scores.height,
+                "document_id": manifest.document_id,
+                "include_provenance": cfg.include_provenance,
+            }
 
-        out = ReportDeliverable(artifacts=artifacts, summary=summary)
+            out = ReportDeliverable(artifacts=artifacts, summary=summary)
 
         # Postconditions
         if not out.artifacts:
@@ -742,11 +983,29 @@ def run_report(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("artifact_count", len(out.artifacts))
 
+        # Wrap output with ContractEnvelope (final phase)
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "report"})
         phase_counter.add(1, {"phase": "report"})
 
-        log.info(
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="report",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
+
+        contract_logger.info(
             "phase_complete",
             phase="report",
             ok=True,

@@ -11,6 +11,12 @@ Purpose: Replace ad-hoc dicts with typed structures to prevent:
 - 'str' object has no attribute 'text' errors
 - 'bool' object is not iterable
 - unhashable type: 'dict' in sets
+
+Version 2.0 Enhancement:
+- Pydantic-based contracts with strict validation (enhanced_contracts.py)
+- Backward compatibility with V1 TypedDict contracts maintained
+- Domain-specific exceptions and structured logging
+- Cryptographic content verification and deterministic execution
 """
 
 from __future__ import annotations
@@ -27,6 +33,30 @@ from typing import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from pathlib import Path
+
+# ============================================================================
+# V2 ENHANCED CONTRACTS - Pydantic-based with strict validation
+# ============================================================================
+# Import V2 contracts from enhanced_contracts module
+# Use these for new code; V1 contracts maintained for backward compatibility
+from .enhanced_contracts import (
+    # Pydantic Models
+    AnalysisInputV2,
+    AnalysisOutputV2,
+    BaseContract,
+    DocumentMetadataV2,
+    ExecutionContextV2,
+    ProcessedTextV2,
+    # Exceptions
+    ContractValidationError,
+    DataIntegrityError,
+    FlowCompatibilityError,
+    SystemConfigError,
+    # Utilities
+    StructuredLogger,
+    compute_content_digest,
+    utc_now_iso,
+)
 
 # ============================================================================
 # DOCUMENT CONTRACTS - V1
@@ -324,3 +354,49 @@ def ensure_hashable(
             f"consumer={consumer}"
             f"]"
         ) from e
+
+
+# ============================================================================
+# MODULE EXPORTS
+# ============================================================================
+
+__all__ = [
+    # V2 Enhanced Contracts (Pydantic-based) - RECOMMENDED FOR NEW CODE
+    "AnalysisInputV2",
+    "AnalysisOutputV2",
+    "BaseContract",
+    "DocumentMetadataV2",
+    "ExecutionContextV2",
+    "ProcessedTextV2",
+    # V2 Exceptions
+    "ContractValidationError",
+    "DataIntegrityError",
+    "FlowCompatibilityError",
+    "SystemConfigError",
+    # V2 Utilities
+    "StructuredLogger",
+    "compute_content_digest",
+    "utc_now_iso",
+    # V1 Contracts (TypedDict-based) - BACKWARD COMPATIBILITY
+    "AnalysisInputV1",
+    "AnalysisInputV1Optional",
+    "AnalysisOutputV1",
+    "AnalysisOutputV1Optional",
+    "AnalyzerProtocol",
+    "ContractMismatchError",
+    "DocumentLoaderProtocol",
+    "DocumentMetadataV1",
+    "DocumentMetadataV1Optional",
+    "ExecutionContextV1",
+    "ExecutionContextV1Optional",
+    "MISSING",
+    "ProcessedTextV1",
+    "ProcessedTextV1Optional",
+    "SentenceCollection",
+    "TextDocument",
+    "TextProcessorProtocol",
+    "ensure_hashable",
+    "ensure_iterable_not_string",
+    "validate_contract",
+    "validate_mapping_keys",
+]

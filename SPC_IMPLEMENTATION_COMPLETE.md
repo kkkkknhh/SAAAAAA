@@ -92,7 +92,7 @@ Each includes:
 - Support requirements (numeric, temporal, provenance)
 - Document type specification
 
-**Catalog Registration**: Methods documented in `SPC_INGESTION_AUDIT.md` for future addition to `catalogo_completo_canonico.json`
+**Catalog Registration**: Methods documented in `SPC_INGESTION_AUDIT.md` for future addition to `complete_canonical_catalog.json`
 
 ### 6. ✅ Orchestrator Wiring
 
@@ -161,7 +161,7 @@ Each includes:
   - Final Phase: Reporting
 - Quality gates at phase transitions
 - Verification via `run_policy_pipeline_verified.py`
-- Configuration via WiringFeatureFlags, calibration_registry, catalogo_completo_canonico
+- Configuration via WiringFeatureFlags, calibration_registry, complete_canonical_catalog
 - Migration notes from old cpp_ingestion system
 
 ## Backwards Compatibility
@@ -213,7 +213,7 @@ python -c "from saaaaaa.processing.spc_ingestion import CPPIngestionPipeline; pr
 
 The implementation is complete and production-ready. Optional future enhancements:
 
-1. **Catalog Update**: Add the 8 documented methods to `catalogo_completo_canonico.json`
+1. **Catalog Update**: Add the 8 documented methods to `complete_canonical_catalog.json`
 2. **Method Consolidation**: Gradually extract shared enums (CausalDimension) to common modules
 3. **Embedding Unification**: Consider using PolicyAnalysisEmbedder for embedding generation
 4. **Documentation**: Add more examples and usage patterns
