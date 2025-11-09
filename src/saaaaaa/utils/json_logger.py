@@ -146,6 +146,8 @@ def log_io_event(
     try:
         output_bytes = len(json.dumps(envelope_out.payload, ensure_ascii=False))
     except (TypeError, AttributeError):
+        # If payload is missing or not serializable, skip logging output_bytes.
+        # This is non-critical for logging; output_bytes will be None.
         pass
     
     logger.info(
