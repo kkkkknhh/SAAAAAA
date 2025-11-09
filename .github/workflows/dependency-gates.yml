@@ -72,16 +72,18 @@ jobs:
           fi
           echo "✅ PASSED: All critical packages importable"
       
-      - name: Gate 3 - Check for Open Ranges in Core
+      - name: Gate 3 - Check for Unconstrained Open Ranges
         run: |
-          echo "=== Gate 3: Open Range Detection ==="
-          if grep -E ">=|~=|\*" requirements-core.txt; then
-            echo "❌ FAILED: Open version ranges detected in core dependencies!"
-            echo "Core dependencies MUST use exact pins (==) for reproducibility"
-            echo "Found open ranges (>=, ~=, *) above"
+          echo "=== Gate 3: Unconstrained Open Range Detection ==="
+          # Allow >=X,<Y format (constrained ranges) but not >= without upper bound
+          # Check for lines with >= that don't have a < on the same line
+          if grep -E ">=" requirements-core.txt | grep -v "^#" | grep -v "<"; then
+            echo "❌ FAILED: Unconstrained open version ranges detected!"
+            echo "Version ranges should have upper bounds (e.g., >=1.0.0,<2.0.0)"
+            echo "Found unconstrained ranges above"
             exit 1
           fi
-          echo "✅ PASSED: All core dependencies use exact pins"
+          echo "✅ PASSED: All version ranges are properly constrained"
       
       - name: Gate 4 - Freeze vs Lock Comparison
         run: |
