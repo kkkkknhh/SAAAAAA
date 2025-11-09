@@ -83,7 +83,7 @@
 ## Commits Made
 
 ### Commit 1: 2e47899
-**Message**: "Phase 1: Rename catalog to catalogo_completo_canonico and update all references"
+**Message**: "Phase 1: Rename catalog to complete_canonical_catalog and update all references"
 **Files Changed**: 5
 - Renamed catalog file
 - Updated factory.py (2 locations)

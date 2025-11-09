@@ -4,7 +4,7 @@
 
 ### Phase 1: Method Catalog Invocations
 Conducted recursive grep searches across entire repository:
-- Pattern: `catalogo_completo_canonico|metodos_completos_nivel3|method.*catalog|METODOS/`
+- Pattern: `complete_canonical_catalog|metodos_completos_nivel3|method.*catalog|METODOS/`
 - File types: `*.py`, `*.yaml`, `*.json`
 - Excluded: `.pyc`, `__pycache__`, `.git`
 

@@ -161,7 +161,7 @@ Each includes:
   - Final Phase: Reporting
 - Quality gates at phase transitions
 - Verification via `run_policy_pipeline_verified.py`
-- Configuration via WiringFeatureFlags, calibration_registry, catalogo_completo_canonico
+- Configuration via WiringFeatureFlags, calibration_registry, complete_canonical_catalog
 - Migration notes from old cpp_ingestion system
 
 ## Backwards Compatibility
