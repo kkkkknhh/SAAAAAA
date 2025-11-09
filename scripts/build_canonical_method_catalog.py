@@ -20,13 +20,12 @@ This is the authoritative source for:
 
 import ast
 import hashlib
-import inspect
 import json
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Any
 
 
 @dataclass
@@ -202,6 +201,9 @@ class MethodScanner:
             try:
                 return_type = ast.unparse(node.returns)
             except Exception:
+                # If the return type annotation cannot be parsed, default to None.
+                # This is safe because we are scanning arbitrary source files and
+                # missing return type information is non-critical for catalog completeness.
                 pass
         
         # Get docstring
@@ -306,6 +308,9 @@ class MethodScanner:
                             "location": "src/saaaaaa/core/orchestrator/calibration_registry.py"
                         }
                 except Exception:
+                    # If calibration registry file cannot be read or parsed,
+                    # we continue without centralized status detection.
+                    # This is safe as methods will be marked as 'unknown' and flagged for review.
                     pass
         
         # Heuristics for calibration requirement
@@ -432,7 +437,7 @@ def main():
     print("  ✓ Single canonical source of truth")
     print()
     
-    catalog = build_catalog(repo_root, output_path)
+    build_catalog(repo_root, output_path)
     
     print("\n" + "=" * 80)
     print("CATALOG BUILD COMPLETE")
