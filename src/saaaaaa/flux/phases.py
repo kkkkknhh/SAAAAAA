@@ -149,16 +149,24 @@ def assert_compat(deliverable: BaseModel, expectation_cls: type[BaseModel]) -> N
     wait=wait_exponential_jitter(initial=1, max=10),
     reraise=True,
 )
-def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
+def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
     """
-    Execute ingest phase.
+    Execute ingest phase with ContractEnvelope integration.
 
     requires: non-empty input_uri
     ensures: provenance_ok is True, fingerprint computed
     """
+    contract_logger = get_json_logger("flux.ingest")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("ingest") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Preconditions
         if not input_uri or not input_uri.strip():
             raise PreconditionError(
@@ -169,17 +177,19 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
 
         span.set_attribute("document_id", os.path.basename(input_uri))
 
-        # TODO: Implement actual ingestion logic
-        # This is a stub that should be replaced with real implementation
-        raw_text = f"[PLACEHOLDER] Content from {input_uri}"
-        tables: list[dict[str, Any]] = []
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual ingestion logic
+            # This is a stub that should be replaced with real implementation
+            raw_text = f"[PLACEHOLDER] Content from {input_uri}"
+            tables: list[dict[str, Any]] = []
 
-        out = IngestDeliverable(
-            manifest=DocManifest(document_id=os.path.basename(input_uri)),
-            raw_text=raw_text,
-            tables=tables,
-            provenance_ok=True,
-        )
+            out = IngestDeliverable(
+                manifest=DocManifest(document_id=os.path.basename(input_uri)),
+                raw_text=raw_text,
+                tables=tables,
+                provenance_ok=True,
+            )
 
         # Postconditions
         if not out.provenance_ok:
@@ -190,9 +200,27 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
         fp = _fp(out)
         span.set_attribute("fingerprint", fp)
 
+        # Wrap output with ContractEnvelope for traceability
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "ingest"})
         phase_counter.add(1, {"phase": "ingest"})
+
+        # Structured JSON logging with envelope metadata
+        log_io_event(
+            contract_logger,
+            phase="ingest",
+            envelope_in=None,  # First phase has no input envelope
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -200,6 +228,8 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
             ok=True,
             fingerprint=fp,
             duration_ms=duration_ms,
+            correlation_id=correlation_id,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
@@ -207,7 +237,7 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
             phase="ingest",
             payload=out.model_dump(),
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms},
+            metrics={"duration_ms": duration_ms, "content_digest": env_out.content_digest},
         )
 
 
@@ -445,18 +475,36 @@ def run_signals(
     ch: ChunkDeliverable,
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
 ) -> PhaseOutcome:
     """
-    Execute signals phase (cross-cut).
+    Execute signals phase (cross-cut) with ContractEnvelope integration.
 
     requires: compatible input from chunk, registry_get callable
     ensures: enriched_chunks not empty, used_signals recorded
     """
+    contract_logger = get_json_logger("flux.signals")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("signals") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(ch, SignalsExpectation)
+
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            ch.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if registry_get is None:
@@ -466,24 +514,26 @@ def run_signals(
                 "registry_get must be provided",
             )
 
-        # TODO: Implement actual signal enrichment
-        pack = registry_get("default")
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual signal enrichment
+            pack = registry_get("default")
 
-        if pack is None:
-            enriched = ch.chunks
-            used_signals: dict[str, Any] = {"present": False}
-        else:
-            enriched = [
-                {**c, "patterns_used": len(pack.get("patterns", []))}
-                for c in ch.chunks
-            ]
-            used_signals = {
-                "present": True,
-                "version": pack.get("version", "unknown"),
-                "policy_area": "default",
-            }
+            if pack is None:
+                enriched = ch.chunks
+                used_signals: dict[str, Any] = {"present": False}
+            else:
+                enriched = [
+                    {**c, "patterns_used": len(pack.get("patterns", []))}
+                    for c in ch.chunks
+                ]
+                used_signals = {
+                    "present": True,
+                    "version": pack.get("version", "unknown"),
+                    "policy_area": "default",
+                }
 
-        out = SignalsDeliverable(enriched_chunks=enriched, used_signals=used_signals)
+            out = SignalsDeliverable(enriched_chunks=enriched, used_signals=used_signals)
 
         # Postconditions
         if not out.enriched_chunks:
@@ -502,9 +552,27 @@ def run_signals(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("signals_present", used_signals["present"])
 
+        # Wrap output with ContractEnvelope
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "signals"})
         phase_counter.add(1, {"phase": "signals"})
+
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="signals",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -513,6 +581,8 @@ def run_signals(
             fingerprint=fp,
             duration_ms=duration_ms,
             signals_present=used_signals["present"],
+            correlation_id=correlation_id,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
@@ -520,23 +590,39 @@ def run_signals(
             phase="signals",
             payload=out.model_dump(),
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms},
+            metrics={"duration_ms": duration_ms, "content_digest": env_out.content_digest},
         )
 
 
 # AGGREGATE
-def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome:
+def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
     """
-    Execute aggregate phase.
+    Execute aggregate phase with ContractEnvelope integration.
 
     requires: compatible input from signals, group_by not empty
     ensures: features table has required columns, aggregation_meta recorded
     """
+    contract_logger = get_json_logger("flux.aggregate")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("aggregate") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(sig, AggregateExpectation)
+
+        # Wrap input with ContractEnvelope
+        env_in = ContractEnvelope.wrap(
+            sig.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if not cfg.group_by:
@@ -546,19 +632,21 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
                 "group_by must contain at least one field",
             )
 
-        # TODO: Implement actual feature engineering
-        item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
-        patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual feature engineering
+            item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
+            patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
 
-        tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
+            tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
 
-        aggregation_meta: dict[str, Any] = {
-            "rows": tbl.num_rows,
-            "group_by": cfg.group_by,
-            "feature_set": cfg.feature_set,
-        }
+            aggregation_meta: dict[str, Any] = {
+                "rows": tbl.num_rows,
+                "group_by": cfg.group_by,
+                "feature_set": cfg.feature_set,
+            }
 
-        out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
+            out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
 
         # Postconditions
         if out.features.num_rows == 0:
@@ -580,9 +668,28 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
         span.set_attribute("fingerprint", fp)
         span.set_attribute("feature_count", tbl.num_rows)
 
+        # Wrap output with ContractEnvelope
+        payload_dict = {"rows": tbl.num_rows, "meta": aggregation_meta}
+        env_out = ContractEnvelope.wrap(
+            payload_dict,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "aggregate"})
         phase_counter.add(1, {"phase": "aggregate"})
+
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="aggregate",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -591,30 +698,49 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
             fingerprint=fp,
             duration_ms=duration_ms,
             feature_count=tbl.num_rows,
+            correlation_id=correlation_id,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
             ok=True,
             phase="aggregate",
-            payload={"rows": tbl.num_rows, "meta": aggregation_meta},
+            payload=payload_dict,
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows},
+            metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows, "content_digest": env_out.content_digest},
         )
 
 
 # SCORE
-def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
+def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
     """
-    Execute score phase.
+    Execute score phase with ContractEnvelope integration.
 
     requires: compatible input from aggregate, metrics not empty
     ensures: scores dataframe not empty, has required columns
     """
+    contract_logger = get_json_logger("flux.score")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("score") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(agg, ScoreExpectation)
+
+        # Wrap input with ContractEnvelope
+        input_payload = {"rows": agg.features.num_rows, "meta": agg.aggregation_meta}
+        env_in = ContractEnvelope.wrap(
+            input_payload,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if not cfg.metrics:
@@ -622,21 +748,23 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
                 "run_score", "metrics not empty", "metrics list must not be empty"
             )
 
-        # TODO: Implement actual scoring logic
-        item_ids = agg.features.column("item_id").to_pylist()
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual scoring logic
+            item_ids = agg.features.column("item_id").to_pylist()
 
-        # Create scores for each metric
-        data: dict[str, list[Any]] = {
-            "item_id": item_ids * len(cfg.metrics),
-            "metric": [m for m in cfg.metrics for _ in item_ids],
-            "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
-        }
+            # Create scores for each metric
+            data: dict[str, list[Any]] = {
+                "item_id": item_ids * len(cfg.metrics),
+                "metric": [m for m in cfg.metrics for _ in item_ids],
+                "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
+            }
 
-        df = pl.DataFrame(data)
+            df = pl.DataFrame(data)
 
-        calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
+            calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
 
-        out = ScoreDeliverable(scores=df, calibration=calibration)
+            out = ScoreDeliverable(scores=df, calibration=calibration)
 
         # Postconditions
         if out.scores.height == 0:
@@ -656,9 +784,28 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
         span.set_attribute("fingerprint", fp)
         span.set_attribute("score_count", df.height)
 
+        # Wrap output with ContractEnvelope
+        payload_dict = {"n": df.height}
+        env_out = ContractEnvelope.wrap(
+            payload_dict,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "score"})
         phase_counter.add(1, {"phase": "score"})
+
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="score",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -667,32 +814,51 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             score_count=df.height,
+            correlation_id=correlation_id,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
             ok=True,
             phase="score",
-            payload={"n": df.height},
+            payload=payload_dict,
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "score_count": df.height},
+            metrics={"duration_ms": duration_ms, "score_count": df.height, "content_digest": env_out.content_digest},
         )
 
 
 # REPORT
 def run_report(
-    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest
+    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest, *, policy_unit_id: str | None = None, correlation_id: str | None = None
 ) -> PhaseOutcome:
     """
-    Execute report phase.
+    Execute report phase with ContractEnvelope integration.
 
     requires: compatible input from score, manifest not None
     ensures: artifacts not empty, summary contains required fields
     """
+    contract_logger = get_json_logger("flux.report")
+    started_monotonic = time.monotonic()
     start_time = time.time()
 
     with tracer.start_as_current_span("report") as span:
+        # Thread correlation tracking
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        
         # Compatibility check
         assert_compat(sc, ReportExpectation)
+
+        # Wrap input with ContractEnvelope
+        input_payload = {"n": sc.scores.height}
+        env_in = ContractEnvelope.wrap(
+            input_payload,
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("input_digest", env_in.content_digest)
 
         # Preconditions
         if manifest is None:
@@ -700,24 +866,26 @@ def run_report(
                 "run_report", "manifest not None", "manifest must be provided"
             )
 
-        # TODO: Implement actual report generation
-        artifacts: dict[str, str] = {}
+        # Deterministic execution context
+        with deterministic(policy_unit_id, correlation_id):
+            # TODO: Implement actual report generation
+            artifacts: dict[str, str] = {}
 
-        # Use reports directory instead of /tmp
-        report_base = reports_dir() / "flux_summaries"
-        report_base.mkdir(parents=True, exist_ok=True)
+            # Use reports directory instead of /tmp
+            report_base = reports_dir() / "flux_summaries"
+            report_base.mkdir(parents=True, exist_ok=True)
 
-        for fmt in cfg.formats:
-            artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
-            artifacts[f"summary.{fmt}"] = artifact_path
+            for fmt in cfg.formats:
+                artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
+                artifacts[f"summary.{fmt}"] = artifact_path
 
-        summary: dict[str, Any] = {
-            "items": sc.scores.height,
-            "document_id": manifest.document_id,
-            "include_provenance": cfg.include_provenance,
-        }
+            summary: dict[str, Any] = {
+                "items": sc.scores.height,
+                "document_id": manifest.document_id,
+                "include_provenance": cfg.include_provenance,
+            }
 
-        out = ReportDeliverable(artifacts=artifacts, summary=summary)
+            out = ReportDeliverable(artifacts=artifacts, summary=summary)
 
         # Postconditions
         if not out.artifacts:
@@ -734,9 +902,27 @@ def run_report(
         span.set_attribute("fingerprint", fp)
         span.set_attribute("artifact_count", len(out.artifacts))
 
+        # Wrap output with ContractEnvelope (final phase)
+        env_out = ContractEnvelope.wrap(
+            out.model_dump(),
+            policy_unit_id=policy_unit_id or "default",
+            correlation_id=correlation_id
+        )
+        span.set_attribute("content_digest", env_out.content_digest)
+        span.set_attribute("event_id", env_out.event_id)
+
         duration_ms = (time.time() - start_time) * 1000
         phase_latency_histogram.record(duration_ms, {"phase": "report"})
         phase_counter.add(1, {"phase": "report"})
+
+        # Structured JSON logging
+        log_io_event(
+            contract_logger,
+            phase="report",
+            envelope_in=env_in,
+            envelope_out=env_out,
+            started_monotonic=started_monotonic
+        )
 
         log.info(
             "phase_complete",
@@ -745,6 +931,8 @@ def run_report(
             fingerprint=fp,
             duration_ms=duration_ms,
             artifact_count=len(out.artifacts),
+            correlation_id=correlation_id,
+            event_id=env_out.event_id,
         )
 
         return PhaseOutcome(
@@ -752,5 +940,5 @@ def run_report(
             phase="report",
             payload=out.model_dump(),
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts)},
+            metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts), "content_digest": env_out.content_digest},
         )
