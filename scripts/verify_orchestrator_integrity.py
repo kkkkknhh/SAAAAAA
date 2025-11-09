@@ -275,7 +275,8 @@ def check_describe_pipeline_shape() -> tuple[bool, str]:
 def main():
     """Run all integrity checks."""
     print("=" * 80)
-    print("ORCHESTRATOR INTEGRITY VERIFICATION")
+    print("ORCHESTRATOR STATIC INTEGRITY VERIFICATION")
+    print("(Note: This performs static code checks only, not runtime execution tests)")
     print("=" * 80)
     print()
     
@@ -311,7 +312,7 @@ def main():
         print("=" * 80)
         return 0
     else:
-        print("❌ INTEGRITY CHECKS FAILED")
+        print("❌ STATIC INTEGRITY CHECKS FAILED")
         failed = [name for name, passed, _ in results if not passed]
         print(f"   Failed checks: {', '.join(failed)}")
         print("=" * 80)
