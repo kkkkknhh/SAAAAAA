@@ -143,12 +143,19 @@ def assert_compat(deliverable: BaseModel, expectation_cls: type[BaseModel]) -> N
     wait=wait_exponential_jitter(initial=1, max=10),
     reraise=True,
 )
-def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
+def run_ingest(
+    cfg: IngestConfig,
+    *,
+    input_uri: str,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute ingest phase.
+    Execute ingest phase with mandatory metadata propagation.
 
     requires: non-empty input_uri
-    ensures: provenance_ok is True, fingerprint computed
+    ensures: provenance_ok is True, fingerprint computed, metadata propagated
     """
     start_time = time.time()
 
@@ -162,6 +169,10 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
             )
 
         span.set_attribute("document_id", os.path.basename(input_uri))
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual ingestion logic
         # This is a stub that should be replaced with real implementation
@@ -194,6 +205,8 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
             ok=True,
             fingerprint=fp,
             duration_ms=duration_ms,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -201,23 +214,38 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str) -> PhaseOutcome:
             phase="ingest",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms},
         )
 
 
 # NORMALIZE
-def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
+def run_normalize(
+    cfg: NormalizeConfig,
+    ing: IngestDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute normalize phase.
+    Execute normalize phase with mandatory metadata propagation.
 
     requires: compatible input from ingest
-    ensures: sentences list is not empty, sentence_meta matches length
+    ensures: sentences list is not empty, sentence_meta matches length, metadata propagated
     """
     start_time = time.time()
 
     with tracer.start_as_current_span("normalize") as span:
         # Compatibility check
         assert_compat(ing, NormalizeExpectation)
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual normalization (unicode normalization, etc.)
         sentences = [s for s in ing.raw_text.split("\n") if s.strip()]
@@ -255,6 +283,8 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             sentence_count=len(out.sentences),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -262,23 +292,38 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable) -> PhaseOutcome:
             phase="normalize",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
         )
 
 
 # CHUNK
-def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
+def run_chunk(
+    cfg: ChunkConfig,
+    norm: NormalizeDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute chunk phase.
+    Execute chunk phase with mandatory metadata propagation.
 
     requires: compatible input from normalize
-    ensures: chunks not empty, chunk_index has valid resolutions
+    ensures: chunks not empty, chunk_index has valid resolutions, metadata propagated
     """
     start_time = time.time()
 
     with tracer.start_as_current_span("chunk") as span:
         # Compatibility check
         assert_compat(norm, ChunkExpectation)
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual chunking with token limits and overlap
         chunks: list[dict[str, Any]] = [
@@ -328,6 +373,8 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             chunk_count=len(out.chunks),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -335,6 +382,9 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable) -> PhaseOutcome:
             phase="chunk",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
         )
 
@@ -345,12 +395,15 @@ def run_signals(
     ch: ChunkDeliverable,
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
-    Execute signals phase (cross-cut).
+    Execute signals phase (cross-cut) with mandatory metadata propagation.
 
     requires: compatible input from chunk, registry_get callable
-    ensures: enriched_chunks not empty, used_signals recorded
+    ensures: enriched_chunks not empty, used_signals recorded, metadata propagated
     """
     start_time = time.time()
 
@@ -365,6 +418,11 @@ def run_signals(
                 "registry_get not None",
                 "registry_get must be provided",
             )
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual signal enrichment
         pack = registry_get("default")
@@ -413,6 +471,8 @@ def run_signals(
             fingerprint=fp,
             duration_ms=duration_ms,
             signals_present=used_signals["present"],
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -420,17 +480,27 @@ def run_signals(
             phase="signals",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms},
         )
 
 
 # AGGREGATE
-def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome:
+def run_aggregate(
+    cfg: AggregateConfig,
+    sig: SignalsDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute aggregate phase.
+    Execute aggregate phase with mandatory metadata propagation.
 
     requires: compatible input from signals, group_by not empty
-    ensures: features table has required columns, aggregation_meta recorded
+    ensures: features table has required columns, aggregation_meta recorded, metadata propagated
     """
     start_time = time.time()
 
@@ -445,6 +515,11 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
                 "group_by not empty",
                 "group_by must contain at least one field",
             )
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual feature engineering
         item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
@@ -491,6 +566,8 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
             fingerprint=fp,
             duration_ms=duration_ms,
             feature_count=tbl.num_rows,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -498,17 +575,27 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable) -> PhaseOutcome
             phase="aggregate",
             payload={"rows": tbl.num_rows, "meta": aggregation_meta},
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows},
         )
 
 
 # SCORE
-def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
+def run_score(
+    cfg: ScoreConfig,
+    agg: AggregateDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute score phase.
+    Execute score phase with mandatory metadata propagation.
 
     requires: compatible input from aggregate, metrics not empty
-    ensures: scores dataframe not empty, has required columns
+    ensures: scores dataframe not empty, has required columns, metadata propagated
     """
     start_time = time.time()
 
@@ -521,6 +608,11 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
             raise PreconditionError(
                 "run_score", "metrics not empty", "metrics list must not be empty"
             )
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual scoring logic
         item_ids = agg.features.column("item_id").to_pylist()
@@ -567,6 +659,8 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
             fingerprint=fp,
             duration_ms=duration_ms,
             score_count=df.height,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -574,19 +668,28 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable) -> PhaseOutcome:
             phase="score",
             payload={"n": df.height},
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "score_count": df.height},
         )
 
 
 # REPORT
 def run_report(
-    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest
+    cfg: ReportConfig,
+    sc: ScoreDeliverable,
+    manifest: DocManifest,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
-    Execute report phase.
+    Execute report phase with mandatory metadata propagation.
 
     requires: compatible input from score, manifest not None
-    ensures: artifacts not empty, summary contains required fields
+    ensures: artifacts not empty, summary contains required fields, metadata propagated
     """
     start_time = time.time()
 
@@ -599,6 +702,11 @@ def run_report(
             raise PreconditionError(
                 "run_report", "manifest not None", "manifest must be provided"
             )
+
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # TODO: Implement actual report generation
         artifacts: dict[str, str] = {}
@@ -645,6 +753,8 @@ def run_report(
             fingerprint=fp,
             duration_ms=duration_ms,
             artifact_count=len(out.artifacts),
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
         )
 
         return PhaseOutcome(
@@ -652,5 +762,8 @@ def run_report(
             phase="report",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts)},
         )
