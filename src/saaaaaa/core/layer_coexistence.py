@@ -22,7 +22,6 @@ Canonical Layer Notation (from questionnaire_monolith.json):
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Optional
 from enum import Enum
-import json
 
 
 class Layer(Enum):
