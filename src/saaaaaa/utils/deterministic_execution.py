@@ -24,7 +24,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 import numpy as np
 

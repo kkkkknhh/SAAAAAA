@@ -21,7 +21,6 @@ from saaaaaa.utils.paths import reports_dir
 from saaaaaa.utils.contract_io import ContractEnvelope
 from saaaaaa.utils.determinism_helpers import deterministic
 from saaaaaa.utils.json_logger import get_json_logger, log_io_event
-from saaaaaa.utils.domain_errors import DataContractError
 
 from .configs import (
     AggregateConfig,
