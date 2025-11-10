@@ -34,6 +34,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from .signals import SignalPack
+from .signal_consumption import generate_signal_manifests, SignalManifest
 
 
 def compute_fingerprint(content: str | bytes) -> str:
@@ -374,3 +375,30 @@ def build_all_signal_packs(
     )
     
     return signal_packs
+
+
+def build_signal_manifests(
+    monolith: dict[str, Any] | None = None,
+) -> dict[str, SignalManifest]:
+    """
+    Build signal manifests with Merkle roots for verification.
+    
+    Args:
+        monolith: Optional pre-loaded monolith data
+        
+    Returns:
+        Dict mapping policy_area_id to SignalManifest
+    """
+    if monolith is None:
+        monolith = load_questionnaire_monolith()
+    
+    monolith_path = get_monolith_path()
+    manifests = generate_signal_manifests(monolith, monolith_path)
+    
+    logger.info(
+        "signal_manifests_built",
+        count=len(manifests),
+        policy_areas=list(manifests.keys()),
+    )
+    
+    return manifests
