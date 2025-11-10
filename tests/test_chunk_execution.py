@@ -7,7 +7,6 @@ produces equivalent results to flat mode.
 """
 
 import pytest
-from dataclasses import dataclass
 
 # Import the components we're testing
 try:
