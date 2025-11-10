@@ -549,6 +549,8 @@ def run_signals(
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
     policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
     Execute signals phase (cross-cut) with mandatory metadata propagation.
