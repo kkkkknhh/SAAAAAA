@@ -1,6 +1,6 @@
 # Contract Enforcement Implementation Progress
 
-## Status: 3 of 12 Sections Complete (25%)
+## Status: 5 of 12 Sections Complete (42%)
 
 ### ✅ Completed Sections
 
@@ -36,6 +36,16 @@
 - Update executor seed usage in `executors.py` (integrate with 30+ executors)
 - Add seed fields to run_policy_pipeline_verified.py
 
+#### Section 8: Ingestion Contract Hardening
+- ✅ SPC-only enforcement with comprehensive validation
+- ✅ Enhanced PreprocessedDocument.ensure() with validation logging
+- ✅ Validates raw_text length, sentence count, chunk count
+- ✅ Logs validation results for debugging
+- ✅ Enhanced _ingest_document() to capture ingestion metadata
+- ✅ Stores ingestion_info in context for manifest integration
+- ✅ Hard-fail on empty documents, missing chunks, or invalid format
+- ✅ Preprocessed override path maintained with SPC format validation
+
 #### Section 9: Verification Manifest Contract
 - ✅ Created `schemas/verification_manifest.schema.json`
 - ✅ JSON Schema with required fields: version, timestamp, success, pipeline_hash, environment, determinism, integrity_hmac
@@ -49,6 +59,17 @@
 **Pending:**
 - Integrate with `scripts/run_policy_pipeline_verified.py`
 - Add manifest generation to orchestrator execution flow
+
+#### Section 11: Rollback Safety
+- ✅ Created `src/saaaaaa/core/orchestrator/versions.py` with centralized version tracking
+- ✅ Defined versions for: pipeline, calibration, signal, advanced_module, seed, manifest
+- ✅ Implemented `check_version_compatibility()` for backward compatibility
+- ✅ Implemented `get_all_versions()` for manifest inclusion
+- ✅ Added `MINIMUM_SUPPORTED_VERSION` to calibration_registry.py
+
+**Pending:**
+- Integrate version checks in orchestrator initialization
+- Add version mismatch handling
 
 ---
 
@@ -278,7 +299,7 @@ These ensure everything works:
 
 ## Recommendation
 
-Given the substantial scope remaining (9 sections, ~25-35 hours), consider:
+Given the substantial scope remaining (7 sections, ~18-28 hours), consider:
 
 1. **Option A - Incremental PRs:** Complete remaining sections in separate PRs
    - Pros: Easier review, less risk, incremental progress
@@ -292,4 +313,4 @@ Given the substantial scope remaining (9 sections, ~25-35 hours), consider:
    - Pros: Core contracts in place, manageable scope
    - Cons: Leaves enhancement sections (6-8, 10-12) for later
 
-**Current Status:** Foundations complete (25%). Ready to proceed with chosen approach.
+**Current Status:** Core infrastructure complete (42%). Remaining work requires extensive executor modifications (Sections 3, 5), calibration hardening (Section 4), signal/module enhancements (Sections 6, 7), CI setup (Section 10), and final testing (Section 12).
