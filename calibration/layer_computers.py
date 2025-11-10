@@ -143,8 +143,11 @@ def compute_unit_layer(method_id: str, role: MethodRole, unit_quality: float,
         return max(0.0, min(1.0, score))
     
     elif g_type == "sigmoidal":
-        # g(U) = 1 - exp(-5*(U - 0.5))
-        score = 1.0 - math.exp(-5.0 * (unit_quality - 0.5))
+        # g(U) = 1 - exp(-k*(U - x0))
+        # Parameters from config or defaults
+        k = g_spec.get("sigmoidal_k", 5.0)
+        x0 = g_spec.get("sigmoidal_x0", 0.5)
+        score = 1.0 - math.exp(-k * (unit_quality - x0))
         return max(0.0, min(1.0, score))
     
     else:

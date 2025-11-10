@@ -30,12 +30,13 @@ class CalibrationEngine:
     Spec compliance: Section 7 (Runtime Engine & Certificate)
     """
     
-    def __init__(self, config_dir: str = None):
+    def __init__(self, config_dir: str = None, monolith_path: str = None):
         """
         Initialize calibration engine and load configs.
         
         Args:
             config_dir: Path to config directory (defaults to ../config)
+            monolith_path: Path to questionnaire_monolith.json (defaults to ../data/questionnaire_monolith.json)
         """
         if config_dir is None:
             config_dir = Path(__file__).parent.parent / "config"
@@ -48,7 +49,10 @@ class CalibrationEngine:
         self.fusion_config = self._load_json(config_dir / "fusion_specification.json")
         
         # Load questionnaire monolith
-        monolith_path = config_dir.parent / "data" / "questionnaire_monolith.json"
+        if monolith_path is None:
+            monolith_path = config_dir.parent / "data" / "questionnaire_monolith.json"
+        else:
+            monolith_path = Path(monolith_path)
         self.monolith = self._load_json(monolith_path)
         
         # Compute config hash
@@ -246,14 +250,16 @@ class CalibrationEngine:
         # Total calibrated score
         calibrated_score = linear_sum + interaction_sum
         
-        # Ensure boundedness [0,1]
-        if calibrated_score < 0.0 or calibrated_score > 1.0:
-            # Normalization needed (should not happen with proper weights)
+        # Ensure boundedness [0,1] - if violated, weights are misconfigured
+        if calibrated_score < -1e-9 or calibrated_score > 1.0 + 1e-9:
             total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
-            if total_weight > 1.0 + 1e-9:
-                # Normalize
-                calibrated_score = calibrated_score / total_weight
+            raise ValueError(
+                f"Fusion weights misconfigured for role {role.value}: "
+                f"total_weight={total_weight:.6f} produced calibrated_score={calibrated_score:.6f}. "
+                f"Score must be in [0,1]. Check fusion_specification.json."
+            )
         
+        # Clamp to handle tiny numerical errors
         calibrated_score = max(0.0, min(1.0, calibrated_score))
         
         fusion_details = {
@@ -312,10 +318,17 @@ class CalibrationEngine:
         
         # Validate layer completeness
         required = REQUIRED_LAYERS.get(role, set())
-        # This validation would be more complete in production
         
         # Compute layer scores
         layer_scores = self._compute_layer_scores(subject, evidence_store)
+        
+        # Check all required layers are present
+        missing_layers = [layer for layer in required if layer.value not in layer_scores]
+        if missing_layers:
+            raise ValueError(
+                f"Missing required layers for role {role.value}: "
+                f"{[layer.value for layer in missing_layers]}"
+            )
         
         # Apply fusion
         calibrated_score, fusion_details = self._apply_fusion(role, layer_scores)
@@ -374,7 +387,8 @@ def calibrate(
     graph: ComputationGraph,
     context: Context,
     evidence_store: EvidenceStore,
-    config_dir: Optional[str] = None
+    config_dir: Optional[str] = None,
+    monolith_path: Optional[str] = None
 ) -> CalibrationCertificate:
     """
     Calibrate a method instance.
@@ -383,5 +397,5 @@ def calibrate(
     
     This is the single authoritative calibration entry point.
     """
-    engine = CalibrationEngine(config_dir=config_dir)
+    engine = CalibrationEngine(config_dir=config_dir, monolith_path=monolith_path)
     return engine.calibrate(method_id, node_id, graph, context, evidence_store)

@@ -12,7 +12,6 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import json
 from calibration import (
     calibrate,
     Context,

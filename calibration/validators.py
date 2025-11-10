@@ -9,7 +9,11 @@ Spec compliance: Section 8 (Validation & Governance)
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Set, List
+from typing import Dict, Any, Set, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .data_structures import CalibrationCertificate
+
 from .data_structures import MethodRole, LayerType, REQUIRED_LAYERS
 
 
@@ -139,14 +143,6 @@ class CalibrationValidator:
             (is_valid, error_messages)
         """
         errors = []
-        
-        # Get all questions, dimensions, policies
-        micro_questions = monolith.get("blocks", {}).get("micro_questions", [])
-        dimensions = list(monolith.get("canonical_notation", {}).get("dimensions", {}).keys())
-        policies = list(monolith.get("canonical_notation", {}).get("policy_areas", {}).keys())
-        
-        # Check if method could have 1.0 for all contexts
-        # This is a simplified check - full implementation would compute actual scores
         
         # For now, ensure policy default is < 1.0 (we set it to 0.9 in config)
         policy_areas = contextual_config.get("layer_policy", {}).get("policy_areas", {})
@@ -299,7 +295,7 @@ def validate_config_files(config_dir: str = None) -> tuple[bool, List[str]]:
 
 
 def validate_certificate(
-    certificate: Any  # CalibrationCertificate
+    certificate: 'CalibrationCertificate'
 ) -> tuple[bool, List[str]]:
     """
     Validate a calibration certificate.
