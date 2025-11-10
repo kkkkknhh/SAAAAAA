@@ -37,126 +37,164 @@ def load_canonical_catalog(catalog_path: Path) -> Dict:
         sys.exit(2)
 
 
-def extract_methods_requiring_calibration(catalog: Dict) -> Set[Tuple[str, str]]:
+def extract_all_methods_from_catalog(catalog: Dict) -> Set[str]:
     """
-    Extract set of methods requiring calibration from catalog.
+    Extract ALL methods from canonical catalog (not just those requiring calibration).
+    
+    Per canonic_calibration_methods.md: Every method must be either calibrated or excluded.
     
     Returns:
-        Set of (class_name, method_name) tuples for methods requiring calibration
+        Set of canonical_name strings for all methods in catalog
     """
-    methods_requiring_calibration = set()
+    all_methods = set()
     
     # Iterate through all layers
     for layer_name, methods in catalog.get("layers", {}).items():
         for method_info in methods:
-            if method_info.get("requires_calibration", False):
-                class_name = method_info.get("class_name", "")
-                method_name = method_info.get("method_name", "")
-                if class_name and method_name:
-                    methods_requiring_calibration.add((class_name, method_name))
+            canonical_name = method_info.get("canonical_name", "")
+            if canonical_name:
+                all_methods.add(canonical_name)
     
-    return methods_requiring_calibration
+    return all_methods
 
 
-def load_calibration_registry() -> Set[Tuple[str, str]]:
+def load_intrinsic_calibrations() -> Tuple[Set[str], Set[str]]:
     """
-    Load calibrations from calibration_registry.py.
+    Load calibrations from intrinsic_calibration.json.
+    
+    Per canonic_calibration_methods.md: This is Pillar 1, the authoritative source.
     
     Returns:
-        Set of (class_name, method_name) tuples that have calibrations
+        (calibrated_methods, excluded_methods) - both as sets of canonical_name strings
     """
-    # Import the calibration registry
     repo_root = Path(__file__).parent.parent
-    sys.path.insert(0, str(repo_root / "src"))
+    intrinsic_path = repo_root / "config" / "intrinsic_calibration.json"
     
     try:
-        from saaaaaa.core.orchestrator.calibration_registry import CALIBRATIONS
-    except ImportError as e:
-        print(f"ERROR: Could not import calibration_registry: {e}")
-        print(f"Tried path: {repo_root / 'src'}")
+        with open(intrinsic_path, 'r') as f:
+            intrinsic_data = json.load(f)
+    except FileNotFoundError:
+        print(f"ERROR: intrinsic_calibration.json not found: {intrinsic_path}")
+        sys.exit(2)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON in intrinsic_calibration.json: {e}")
         sys.exit(2)
     
-    # Extract calibrated methods
-    calibrated_methods = set()
-    for (class_name, method_name) in CALIBRATIONS.keys():
-        calibrated_methods.add((class_name, method_name))
+    methods_dict = intrinsic_data.get("methods", {})
     
-    return calibrated_methods
+    calibrated_methods = set()
+    excluded_methods = set()
+    
+    for method_id, profile in methods_dict.items():
+        # Skip template entries
+        if method_id.startswith("_"):
+            continue
+            
+        # Check if method is excluded
+        calibration_status = profile.get("calibration_status", "calibrated")
+        
+        if calibration_status == "excluded":
+            excluded_methods.add(method_id)
+        else:
+            # Has a calibration profile (b_theory, b_impl, b_deploy)
+            calibrated_methods.add(method_id)
+    
+    return calibrated_methods, excluded_methods
 
 
 def compute_coverage(
-    required_methods: Set[Tuple[str, str]],
-    calibrated_methods: Set[Tuple[str, str]]
-) -> Tuple[float, int, int, Set[Tuple[str, str]]]:
+    all_catalog_methods: Set[str],
+    calibrated_methods: Set[str],
+    excluded_methods: Set[str]
+) -> Tuple[float, int, int, int, Set[str]]:
     """
-    Compute calibration coverage.
+    Compute calibration coverage per canonic_calibration_methods.md specification.
+    
+    Every method must be either calibrated OR excluded. Missing methods are errors.
     
     Returns:
-        (coverage_percentage, calibrated_count, required_count, uncalibrated_methods)
+        (coverage_percentage, calibrated_count, excluded_count, total_count, missing_methods)
     """
-    total_required = len(required_methods)
-    if total_required == 0:
-        return 100.0, 0, 0, set()
+    total_count = len(all_catalog_methods)
+    if total_count == 0:
+        return 100.0, 0, 0, 0, set()
     
-    # Find intersection: methods that are both required and calibrated
-    calibrated_required = required_methods.intersection(calibrated_methods)
-    calibrated_count = len(calibrated_required)
+    # Find methods that are neither calibrated nor excluded
+    accounted_for = calibrated_methods.union(excluded_methods)
+    missing_methods = all_catalog_methods - accounted_for
     
-    # Find uncalibrated methods
-    uncalibrated = required_methods - calibrated_methods
+    calibrated_count = len(calibrated_methods)
+    excluded_count = len(excluded_methods)
     
-    coverage = (calibrated_count / total_required) * 100.0
+    # Coverage is calibrated / total (excluded methods don't count toward coverage)
+    coverage = (calibrated_count / total_count) * 100.0
     
-    return coverage, calibrated_count, total_required, uncalibrated
+    return coverage, calibrated_count, excluded_count, total_count, missing_methods
 
 
 def print_coverage_report(
     coverage: float,
     calibrated_count: int,
-    required_count: int,
-    uncalibrated: Set[Tuple[str, str]],
+    excluded_count: int,
+    total_count: int,
+    missing_methods: Set[str],
     threshold: float
 ):
-    """Print detailed coverage report"""
+    """Print detailed coverage report per canonic_calibration_methods.md"""
     print("=" * 80)
-    print("SIN_CARRETA CALIBRATION COVERAGE REPORT")
+    print("THREE-PILLAR CALIBRATION COVERAGE REPORT")
+    print("Per canonic_calibration_methods.md specification")
     print("=" * 80)
-    print(f"\nTotal methods requiring calibration: {required_count}")
-    print(f"Methods with calibration: {calibrated_count}")
-    print(f"Coverage: {coverage:.2f}%")
+    print(f"\nTotal methods in canonical_method_catalog.json: {total_count}")
+    print(f"Methods in intrinsic_calibration.json (calibrated): {calibrated_count}")
+    print(f"Methods in intrinsic_calibration.json (excluded): {excluded_count}")
+    print(f"Methods MISSING from intrinsic_calibration.json: {len(missing_methods)}")
+    print(f"\nCoverage: {coverage:.2f}% ({calibrated_count}/{total_count})")
     print(f"Threshold: {threshold}%")
     print()
     
+    # Check for missing methods (BLOCKER)
+    if missing_methods:
+        print(f"✗ BLOCKER: {len(missing_methods)} methods are MISSING from intrinsic_calibration.json")
+        print("Per spec: Every method must be either calibrated OR excluded with reason.")
+        print("\nMissing methods (first 20):")
+        for i, method_id in enumerate(sorted(missing_methods)[:20]):
+            print(f"  {i+1}. {method_id}")
+        if len(missing_methods) > 20:
+            print(f"  ... and {len(missing_methods) - 20} more")
+        print()
+    
+    # Check coverage threshold
     if coverage >= threshold:
-        print(f"✓ PASS: Coverage meets threshold ({coverage:.2f}% >= {threshold}%)")
+        if missing_methods:
+            print(f"⚠ Coverage {coverage:.2f}% >= {threshold}%, but MISSING methods block merge")
+        else:
+            print(f"✓ PASS: Coverage meets threshold ({coverage:.2f}% >= {threshold}%)")
+            print(f"✓ All methods accounted for (calibrated or excluded)")
     else:
         print(f"✗ FAIL: Coverage below threshold ({coverage:.2f}% < {threshold}%)")
         deficit = threshold - coverage
-        methods_needed = int((deficit / 100.0) * required_count) + 1
+        methods_needed = int((deficit / 100.0) * total_count) + 1
         print(f"\nDeficit: {deficit:.2f}%")
         print(f"Additional calibrations needed: ~{methods_needed}")
-    
-    # Show sample of uncalibrated methods
-    if uncalibrated:
-        print(f"\nUncalibrated methods: {len(uncalibrated)}")
-        print("\nSample of uncalibrated methods (first 10):")
-        for i, (class_name, method_name) in enumerate(sorted(uncalibrated)[:10]):
-            print(f"  {i+1}. {class_name}.{method_name}")
-        if len(uncalibrated) > 10:
-            print(f"  ... and {len(uncalibrated) - 10} more")
     
     print("\n" + "=" * 80)
 
 
 def validate_coverage(threshold: float = 25.0) -> int:
     """
-    Main validation function.
+    Main validation function per canonic_calibration_methods.md.
+    
+    Enforces:
+    1. Every method in catalog must be in intrinsic_calibration.json (calibrated OR excluded)
+    2. Coverage (calibrated/total) must meet threshold
     
     Args:
         threshold: Minimum coverage percentage required
         
     Returns:
-        0 if coverage >= threshold, 1 otherwise
+        0 if all checks pass
+        1 if coverage below threshold or methods missing (BLOCKER)
     """
     # Paths
     repo_root = Path(__file__).parent.parent
@@ -164,26 +202,40 @@ def validate_coverage(threshold: float = 25.0) -> int:
     
     print(f"Repository root: {repo_root}")
     print(f"Catalog path: {catalog_path}")
+    print(f"Intrinsic calibration: config/intrinsic_calibration.json")
     print()
     
     # Load data
     catalog = load_canonical_catalog(catalog_path)
-    required_methods = extract_methods_requiring_calibration(catalog)
-    calibrated_methods = load_calibration_registry()
+    all_catalog_methods = extract_all_methods_from_catalog(catalog)
+    calibrated_methods, excluded_methods = load_intrinsic_calibrations()
     
     # Compute coverage
-    coverage, calibrated_count, required_count, uncalibrated = compute_coverage(
-        required_methods, calibrated_methods
+    coverage, calibrated_count, excluded_count, total_count, missing_methods = compute_coverage(
+        all_catalog_methods, calibrated_methods, excluded_methods
     )
     
     # Print report
-    print_coverage_report(coverage, calibrated_count, required_count, uncalibrated, threshold)
+    print_coverage_report(
+        coverage, calibrated_count, excluded_count, total_count, missing_methods, threshold
+    )
     
     # Determine pass/fail
+    # BLOCKER: Missing methods
+    if missing_methods:
+        print("\n❌ VALIDATION FAILED: Methods missing from intrinsic_calibration.json")
+        print("Action required: Add all missing methods with either:")
+        print("  - Full calibration profile (b_theory, b_impl, b_deploy)")
+        print("  - Exclusion with 'calibration_status': 'excluded' and 'reason'")
+        return 1
+    
+    # Check coverage threshold
     if coverage < threshold:
-        return 1  # FAIL
-    else:
-        return 0  # PASS
+        print(f"\n❌ VALIDATION FAILED: Coverage {coverage:.2f}% < {threshold}%")
+        return 1
+    
+    print(f"\n✅ VALIDATION PASSED: All checks OK")
+    return 0
 
 
 def main():
