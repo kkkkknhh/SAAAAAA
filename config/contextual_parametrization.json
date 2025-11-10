@@ -7,8 +7,19 @@
     "purpose": "Defines computation rules for @chain, @u, @q, @d, @p, @C, @m layers"
   },
   
-  "layer_chain": {
+  "@chain": {
     "description": "Chain compatibility rules (@chain)",
+    "rules": {
+      "hard_mismatch_score": 0.0,
+      "missing_required_input_score": 0.0,
+      "soft_violation_score": 0.4,
+      "ok_with_warnings_score": 0.8,
+      "ok_score": 1.0
+    }
+  },
+  
+  "layer_chain": {
+    "description": "Chain compatibility rules (@chain) - DEPRECATED: use @chain instead",
     "discrete_mappings": {
       "hard_mismatch": 0.0,
       "missing_critical_optional": 0.3,
@@ -25,8 +36,50 @@
     }
   },
   
-  "layer_unit_of_analysis": {
+  "@u": {
     "description": "Unit-of-analysis sensitivity (@u)",
+    "methods": {
+      "INGEST_PDM": {
+        "type": "identity",
+        "formula": "U"
+      },
+      "STRUCTURE": {
+        "type": "piecewise_linear",
+        "points": [[0.0, 0.0], [0.3, 0.0], [0.8, 0.8], [1.0, 1.0]]
+      },
+      "EXTRACT": {
+        "type": "piecewise_linear",
+        "points": [[0.0, 0.0], [0.3, 0.0], [0.8, 0.8], [1.0, 1.0]]
+      },
+      "SCORE_Q": {
+        "type": "piecewise_linear",
+        "points": [[0.0, 0.0], [0.3, 0.0], [0.8, 0.8], [1.0, 1.0]]
+      },
+      "AGGREGATE": {
+        "type": "flat",
+        "value": 1.0
+      },
+      "REPORT": {
+        "type": "flat",
+        "value": 1.0
+      },
+      "META_TOOL": {
+        "type": "flat",
+        "value": 1.0
+      },
+      "TRANSFORM": {
+        "type": "flat",
+        "value": 1.0
+      },
+      "DEFAULT": {
+        "type": "flat",
+        "value": 1.0
+      }
+    }
+  },
+  
+  "layer_unit_of_analysis": {
+    "description": "Unit-of-analysis sensitivity (@u) - DEPRECATED: use @u instead",
     "U_computation": {
       "description": "How to compute U from PDT/PDM evidence",
       "components": {
@@ -99,8 +152,19 @@
     }
   },
   
-  "layer_question": {
+  "@q": {
     "description": "Question compatibility (@q)",
+    "source": "questionnaire_monolith.json",
+    "weights": {
+      "primary": 1.0,
+      "secondary": 0.7,
+      "validator": 0.5,
+      "fallback": 0.1
+    }
+  },
+  
+  "layer_question": {
+    "description": "Question compatibility (@q) - DEPRECATED: use @q instead",
     "compatibility_levels": {
       "primary": 1.0,
       "secondary": 0.7,
@@ -118,8 +182,20 @@
     }
   },
   
-  "layer_dimension": {
+  "@d": {
     "description": "Dimension compatibility (@d)",
+    "dimension_matrix": {
+      "DIM01": { "DIM01": 1.0, "DIM02": 0.7, "DIM03": 0.5, "DIM04": 0.3, "DIM05": 0.3, "DIM06": 0.4 },
+      "DIM02": { "DIM01": 0.7, "DIM02": 1.0, "DIM03": 0.8, "DIM04": 0.5, "DIM05": 0.4, "DIM06": 0.6 },
+      "DIM03": { "DIM01": 0.5, "DIM02": 0.8, "DIM03": 1.0, "DIM04": 0.8, "DIM05": 0.5, "DIM06": 0.5 },
+      "DIM04": { "DIM01": 0.3, "DIM02": 0.5, "DIM03": 0.8, "DIM04": 1.0, "DIM05": 0.7, "DIM06": 0.8 },
+      "DIM05": { "DIM01": 0.3, "DIM02": 0.4, "DIM03": 0.5, "DIM04": 0.7, "DIM05": 1.0, "DIM06": 0.9 },
+      "DIM06": { "DIM01": 0.4, "DIM02": 0.6, "DIM03": 0.5, "DIM04": 0.8, "DIM05": 0.9, "DIM06": 1.0 }
+    }
+  },
+  
+  "layer_dimension": {
+    "description": "Dimension compatibility (@d) - DEPRECATED: use @d instead",
     "alignment_matrix": {
       "DIM01": {
         "description": "INSUMOS - Diagnóstico y Recursos",
@@ -155,8 +231,24 @@
     "compatibility_function": "D_f(M, D) based on method role and dimension alignment"
   },
   
-  "layer_policy": {
+  "@p": {
     "description": "Policy area compatibility (@p)",
+    "policy_matrix": {
+      "PA01": { "PA01": 1.0, "PA02": 0.7, "PA03": 0.5, "PA04": 0.6, "PA05": 0.7, "PA06": 0.8, "PA07": 0.6, "PA08": 0.8, "PA09": 0.5, "PA10": 0.6 },
+      "PA02": { "PA01": 0.7, "PA02": 1.0, "PA03": 0.5, "PA04": 0.6, "PA05": 0.8, "PA06": 0.7, "PA07": 0.5, "PA08": 0.7, "PA09": 0.6, "PA10": 0.5 },
+      "PA03": { "PA01": 0.5, "PA02": 0.5, "PA03": 1.0, "PA04": 0.7, "PA05": 0.5, "PA06": 0.6, "PA07": 0.8, "PA08": 0.6, "PA09": 0.4, "PA10": 0.5 },
+      "PA04": { "PA01": 0.6, "PA02": 0.6, "PA03": 0.7, "PA04": 1.0, "PA05": 0.6, "PA06": 0.7, "PA07": 0.7, "PA08": 0.7, "PA09": 0.6, "PA10": 0.7 },
+      "PA05": { "PA01": 0.7, "PA02": 0.8, "PA03": 0.5, "PA04": 0.6, "PA05": 1.0, "PA06": 0.6, "PA07": 0.7, "PA08": 0.9, "PA09": 0.7, "PA10": 0.6 },
+      "PA06": { "PA01": 0.8, "PA02": 0.7, "PA03": 0.6, "PA04": 0.7, "PA05": 0.6, "PA06": 1.0, "PA07": 0.5, "PA08": 0.6, "PA09": 0.5, "PA10": 0.6 },
+      "PA07": { "PA01": 0.6, "PA02": 0.5, "PA03": 0.8, "PA04": 0.7, "PA05": 0.7, "PA06": 0.5, "PA07": 1.0, "PA08": 0.8, "PA09": 0.4, "PA10": 0.5 },
+      "PA08": { "PA01": 0.8, "PA02": 0.7, "PA03": 0.6, "PA04": 0.7, "PA05": 0.9, "PA06": 0.6, "PA07": 0.8, "PA08": 1.0, "PA09": 0.6, "PA10": 0.7 },
+      "PA09": { "PA01": 0.5, "PA02": 0.6, "PA03": 0.4, "PA04": 0.6, "PA05": 0.7, "PA06": 0.5, "PA07": 0.4, "PA08": 0.6, "PA09": 1.0, "PA10": 0.5 },
+      "PA10": { "PA01": 0.6, "PA02": 0.5, "PA03": 0.5, "PA04": 0.7, "PA05": 0.6, "PA06": 0.6, "PA07": 0.5, "PA08": 0.7, "PA09": 0.5, "PA10": 1.0 }
+    }
+  },
+  
+  "layer_policy": {
+    "description": "Policy area compatibility (@p) - DEPRECATED: use @p instead",
     "policy_areas": {
       "PA01": {
         "name": "Derechos de las mujeres e igualdad de género",
@@ -213,8 +305,18 @@
     "_note": "Default 0.9 to satisfy anti-universality constraint"
   },
   
-  "layer_interplay": {
+  "@C": {
     "description": "Interplay congruence (@C)",
+    "default": {
+      "scale_mismatch_score": 0.0,
+      "sem_mismatch_score": 0.0,
+      "no_fusion_rule_score": 0.0,
+      "ok_score": 1.0
+    }
+  },
+  
+  "layer_interplay": {
+    "description": "Interplay congruence (@C) - DEPRECATED: use @C instead",
     "components": {
       "c_scale": {
         "same_range": 1.0,
@@ -235,8 +337,17 @@
     "default_when_not_in_interplay": 1.0
   },
   
+  "@m": {
+    "description": "Meta/governance layer (@m) - contextual part",
+    "runtime": {
+      "requires_certificate": true,
+      "incomplete_certificate_penalty": 0.4,
+      "full_certificate_score": 1.0
+    }
+  },
+  
   "layer_meta": {
-    "description": "Meta/governance layer (@m)",
+    "description": "Meta/governance layer (@m) - DEPRECATED: use @m for runtime part",
     "components": {
       "m_transp": {
         "all_three_conditions": 1.0,
