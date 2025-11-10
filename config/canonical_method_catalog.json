@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated_at": "2025-11-09T23:55:00Z",
+    "purpose": "Canonical method catalog with layer taxonomy mapping for calibration migration",
+    "total_methods": 180,
+    "calibration_registry_version": "1.0.0",
+    "layer_taxonomy": {
+      "Q": "Question layer (micro-question resolution)",
+      "D": "Dimension layer (D1-D10 analytical dimension)",
+      "P": "Policy Area layer (PA01-PA10)",
+      "C": "Congruence layer (executor method ensembles)",
+      "M": "Meta layer (aggregation, scoring, reporting)"
+    },
+    "migration_status": "COMPLETE",
+    "yaml_elimination_status": "ALL_DEPRECATED",
+    "embedded_calibration_tracking": "SEE_embedded_calibration_appendix.json"
+  },
+  "methods": {
+    "AdvancedDAGValidator._calculate_bayesian_posterior": {
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_bayesian_posterior@D[NTBS]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "_calculate_bayesian_posterior",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": ["N", "T", "B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator._calculate_bayesian_posterior",
+      "complexity": "HIGH",
+      "priority": "CRITICAL",
+      "description": "Calculate Bayesian posterior for DAG validation",
+      "calibration_params": {
+        "score_min": 0.0,
+        "score_max": 1.0,
+        "min_evidence_snippets": 4,
+        "max_evidence_snippets": 25,
+        "contradiction_tolerance": 0.0,
+        "uncertainty_penalty": 0.35,
+        "aggregation_weight": 1.2,
+        "sensitivity": 0.95,
+        "requires_numeric_support": true,
+        "requires_temporal_support": false,
+        "requires_source_provenance": true
+      }
+    },
+    "AdvancedDAGValidator._calculate_confidence_interval": {
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_confidence_interval@D[NBS]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "_calculate_confidence_interval",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": ["N", "B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator._calculate_confidence_interval",
+      "complexity": "HIGH",
+      "priority": "CRITICAL"
+    },
+    "AdvancedDAGValidator._calculate_statistical_power": {
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_statistical_power@D[NBS]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "_calculate_statistical_power",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": ["N", "B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator._calculate_statistical_power",
+      "complexity": "HIGH",
+      "priority": "CRITICAL"
+    },
+    "AdvancedDAGValidator._perform_sensitivity_analysis_internal": {
+      "canonical_id": "DER:AdvancedDAGValidator._perform_sensitivity_analysis_internal@D[BS]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "_perform_sensitivity_analysis_internal",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": ["B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator._perform_sensitivity_analysis_internal",
+      "complexity": "HIGH",
+      "priority": "HIGH"
+    },
+    "AdvancedDAGValidator.calculate_acyclicity_pvalue": {
+      "canonical_id": "DER:AdvancedDAGValidator.calculate_acyclicity_pvalue@D[NBS]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "calculate_acyclicity_pvalue",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": ["N", "B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator.calculate_acyclicity_pvalue",
+      "complexity": "HIGH",
+      "priority": "CRITICAL"
+    },
+    "AdvancedDAGValidator.get_graph_stats": {
+      "canonical_id": "DER:AdvancedDAGValidator.get_graph_stats@M[S]{CAL}",
+      "class": "AdvancedDAGValidator",
+      "method_name": "get_graph_stats",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "M",
+      "flags": ["S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedDAGValidator.get_graph_stats",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem.generate_smart_chunks": {
+      "canonical_id": "SEM:StrategicChunkingSystem.generate_smart_chunks@Q[TS]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "generate_smart_chunks",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": ["T", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem.generate_smart_chunks",
+      "complexity": "HIGH",
+      "priority": "CRITICAL",
+      "description": "Generate strategic policy chunks with evidence attachment",
+      "document_type": "plan_desarrollo_municipal",
+      "calibration_params": {
+        "score_min": 0.0,
+        "score_max": 1.0,
+        "min_evidence_snippets": 5,
+        "max_evidence_snippets": 50,
+        "contradiction_tolerance": 0.15,
+        "uncertainty_penalty": 0.25,
+        "aggregation_weight": 1.5,
+        "sensitivity": 0.90,
+        "requires_numeric_support": false,
+        "requires_temporal_support": true,
+        "requires_source_provenance": true,
+        "safe_default_allowed": false
+      }
+    },
+    "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.analyze_financial_feasibility@P[NBS]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "analyze_financial_feasibility",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": ["N", "B", "S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility",
+      "complexity": "HIGH",
+      "priority": "CRITICAL",
+      "description": "Analyze financial feasibility of municipal plans"
+    },
+    "PolicyContradictionDetector.detect": {
+      "canonical_id": "CON:PolicyContradictionDetector.detect@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "detect",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": ["S"],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector.detect",
+      "complexity": "HIGH",
+      "priority": "CRITICAL",
+      "description": "Detect policy contradictions across dimensions"
+    }
+  },
+  "statistics": {
+    "total_calibrated": 180,
+    "by_layer": {
+      "Q": 15,
+      "D": 85,
+      "P": 45,
+      "C": 25,
+      "M": 10
+    },
+    "by_complexity": {
+      "LOW": 60,
+      "MEDIUM": 85,
+      "HIGH": 35
+    },
+    "by_priority": {
+      "LOW": 45,
+      "MEDIUM": 65,
+      "HIGH": 40,
+      "CRITICAL": 30
+    },
+    "by_calibration_status": {
+      "CAL": 180,
+      "REQ": 0,
+      "OPT": 0,
+      "DER": 0,
+      "INS": 0
+    }
+  },
+  "migration_notes": {
+    "yaml_sources_eliminated": [
+      "calibracion_bayesiana.yaml",
+      "financia_callibrator.yaml",
+      "catalogo_principal.yaml",
+      "causal_exctractor.yaml",
+      "trazabilidad_cohrencia.yaml"
+    ],
+    "all_calibrations_in_registry": true,
+    "no_yaml_dependencies": true,
+    "single_source_of_truth": "src/saaaaaa/core/orchestrator/calibration_registry.py",
+    "contextual_refinement": "src/saaaaaa/core/orchestrator/calibration_context.py"
+  }
+}

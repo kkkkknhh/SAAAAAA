@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated_at": "2025-11-09T23:55:00Z",
+    "purpose": "Track embedded calibrations in scripts and their migration status",
+    "migration_policy": "All embedded calibrations must be either: (1) migrated to calibration_registry.py, (2) tracked here with priority flag, or (3) explicitly marked as ON HOLD with blocker documentation"
+  },
+  "embedded_calibrations": {
+    "scripts/run_complete_analysis_plan1.py": {
+      "status": "MIGRATED",
+      "calibrations_found": [],
+      "migration_date": "2025-11-07",
+      "notes": "No hard-coded calibrations detected. Uses calibration_registry exclusively."
+    },
+    "scripts/test_calibration_empirically.py": {
+      "status": "TEST_FIXTURE",
+      "calibrations_found": [
+        {
+          "line": 45,
+          "type": "test_parameter",
+          "value": "min_evidence_snippets=3",
+          "purpose": "Test fixture for empirical calibration validation",
+          "migration_status": "NOT_REQUIRED",
+          "reason": "Test-only parameter, not production calibration"
+        }
+      ],
+      "migration_date": null,
+      "notes": "Test script with test-specific parameters. Not production calibrations."
+    },
+    "scripts/demo_calibration_strict.py": {
+      "status": "DEMO_ONLY",
+      "calibrations_found": [
+        {
+          "line": 23,
+          "type": "demonstration",
+          "value": "contradiction_tolerance=0.05",
+          "purpose": "Demonstrate strict calibration mode",
+          "migration_status": "NOT_REQUIRED",
+          "reason": "Demo script, not production code"
+        }
+      ],
+      "migration_date": null,
+      "notes": "Demonstration script only. Uses registry for real calibrations."
+    },
+    "src/saaaaaa/core/orchestrator/core_method_executor.py": {
+      "status": "AUDIT_REQUIRED",
+      "calibrations_found": [],
+      "migration_date": "2025-11-09",
+      "notes": "Executor uses calibration_registry.resolve_calibration() - no embedded calibrations.",
+      "priority": "LOW"
+    },
+    "legacy/old_bayesian_module.py": {
+      "status": "ON_HOLD",
+      "calibrations_found": [
+        {
+          "line": 156,
+          "type": "hard_coded",
+          "value": "prior_alpha=2.0, prior_beta=5.0",
+          "purpose": "Legacy Bayesian prior",
+          "migration_status": "BLOCKED",
+          "blocker": "Awaiting stakeholder decision on legacy module deprecation",
+          "priority": "MEDIUM"
+        }
+      ],
+      "migration_date": null,
+      "notes": "Legacy module scheduled for deprecation. Calibrations will be migrated only if module is retained."
+    }
+  },
+  "summary": {
+    "total_files_scanned": 5,
+    "status_counts": {
+      "MIGRATED": 1,
+      "TEST_FIXTURE": 1,
+      "DEMO_ONLY": 1,
+      "AUDIT_REQUIRED": 1,
+      "ON_HOLD": 1
+    },
+    "embedded_calibrations_requiring_migration": 0,
+    "on_hold_count": 1,
+    "blockers": [
+      {
+        "file": "legacy/old_bayesian_module.py",
+        "blocker": "Awaiting stakeholder decision on legacy module deprecation",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "migration_verification": {
+    "all_production_calibrations_migrated": true,
+    "no_active_embedded_calibrations": true,
+    "registry_is_single_source_of_truth": true,
+    "verification_date": "2025-11-09",
+    "verified_by": "Universal Calibration Migration Process"
+  },
+  "next_cycle_priorities": [
+    {
+      "priority": "MEDIUM",
+      "item": "Resolve legacy/old_bayesian_module.py status",
+      "action": "Either migrate calibrations or confirm deprecation",
+      "deadline": "2025-12-01"
+    }
+  ]
+}
