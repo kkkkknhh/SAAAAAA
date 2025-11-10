@@ -1058,17 +1058,55 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         signal_registry=None,
         config: ExecutorConfig | None = None,
     ) -> None:
+        # Section 3: ExecutorConfig Contract Enforcement
+        # Config is REQUIRED - no fallbacks allowed
+        if config is None:
+            raise ValueError(
+                f"{self.__class__.__name__}: ExecutorConfig is required and cannot be None. "
+                "Use build_processor() factory or provide explicit config."
+            )
+        
         self.executor = method_executor
         self.signal_registry = signal_registry
-        self.config = config or CONSERVATIVE_CONFIG
-
-        if self.config is None:
-            raise RuntimeError("ExecutorConfig is required and cannot be None")
+        self.config = config
+        
+        # Validate config at construction (Section 3.2)
+        self._validate_executor_config()
 
         # Get advanced module configuration from config or use default
         # Pydantic ensures type safety, so if advanced_modules is set, it's AdvancedModuleConfig
         adv_config: AdvancedModuleConfig = (
             self.config.advanced_modules or CONSERVATIVE_ADVANCED_CONFIG
+        )
+    
+    def _validate_executor_config(self) -> None:
+        """Section 3.2: Validate config at construction time.
+        
+        Enforces contract requirements:
+        - timeout_s > 0
+        - retry >= 0
+        - seed >= 0
+        - Logs config hash for traceability
+        """
+        if self.config.timeout_s <= 0:
+            raise ValueError(f"config.timeout_s must be > 0, got {self.config.timeout_s}")
+        
+        if self.config.retry < 0:
+            raise ValueError(f"config.retry must be >= 0, got {self.config.retry}")
+        
+        if self.config.seed < 0:
+            raise ValueError(f"config.seed must be >= 0, got {self.config.seed}")
+        
+        config_hash = self.config.compute_hash()
+        logger.info(
+            "executor_config_validated",
+            extra={
+                "executor_class": self.__class__.__name__,
+                "config_hash": config_hash,
+                "timeout_s": self.config.timeout_s,
+                "retry": self.config.retry,
+                "seed": self.config.seed,
+            }
         )
 
         # Log only hard facts with academic basis
@@ -1346,11 +1384,25 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         - Execution time tracking
         - Failure metrics collection
         - **DETERMINISTIC EXECUTION** via policy_unit_id seeding
+        - **Section 3.3**: Config values propagated to execution context
         """
         execution_start = time.time()
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
+        
+        # Section 3.3: Use config.timeout_s for execution timeout budget
+        total_timeout_budget = self.config.timeout_s
+        logger.info(
+            "execution_started",
+            extra={
+                "executor_class": self.__class__.__name__,
+                "timeout_budget_s": total_timeout_budget,
+                "retry_limit": self.config.retry,
+                "seed": self.config.seed,
+                "num_methods": len(method_sequence),
+            }
+        )
         
         # Derive policy_unit_id from environment or doc if not provided
         if policy_unit_id is None:
