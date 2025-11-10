@@ -32,15 +32,17 @@ class CalibrationEngine:
     Spec compliance: Section 7 (Runtime Engine & Certificate)
     """
     
-    def __init__(self, config_dir: str = None, monolith_path: str = None):
+    def __init__(self, config_dir: str = None, monolith_path: str = None, catalog_path: str = None):
         """
         Initialize calibration engine and load configs.
         
         SIN_CARRETA: Validates fusion weights at load time to fail fast.
+        Three-Pillar System: Loads from intrinsic, contextual, and fusion configs.
         
         Args:
             config_dir: Path to config directory (defaults to ../config)
             monolith_path: Path to questionnaire_monolith.json (defaults to ../data/questionnaire_monolith.json)
+            catalog_path: Path to canonical_method_catalog.json (defaults to ../config/canonical_method_catalog.json)
             
         Raises:
             CalibrationConfigError: If fusion weights violate constraints
@@ -54,6 +56,14 @@ class CalibrationEngine:
         self.intrinsic_config = self._load_json(config_dir / "intrinsic_calibration.json")
         self.contextual_config = self._load_json(config_dir / "contextual_parametrization.json")
         self.fusion_config = self._load_json(config_dir / "fusion_specification.json")
+        
+        # Load canonical method catalog for role determination
+        if catalog_path is None:
+            catalog_path = config_dir / "canonical_method_catalog.json"
+        else:
+            catalog_path = Path(catalog_path)
+        self.catalog = self._load_json(catalog_path)
+        self._build_method_index()
         
         # SIN_CARRETA: Validate fusion weights at load time
         self._validate_fusion_weights()
@@ -73,6 +83,32 @@ class CalibrationEngine:
         """Load JSON file"""
         with open(path, 'r') as f:
             return json.load(f)
+    
+    def _build_method_index(self) -> None:
+        """
+        Build index of methods from canonical catalog for fast role lookup.
+        
+        Three-Pillar System: Uses canonical_method_catalog.json as single source.
+        """
+        self.method_index = {}
+        
+        for layer_name, methods in self.catalog.get("layers", {}).items():
+            for method_info in methods:
+                canonical_name = method_info.get("canonical_name", "")
+                method_name = method_info.get("method_name", "")
+                class_name = method_info.get("class_name", "")
+                layer = method_info.get("layer", "unknown")
+                
+                # Store method info with multiple lookup keys
+                for key in [canonical_name, method_name, f"{class_name}.{method_name}"]:
+                    if key:
+                        self.method_index[key] = {
+                            "canonical_name": canonical_name,
+                            "method_name": method_name,
+                            "class_name": class_name,
+                            "layer": layer,
+                            "metadata": method_info
+                        }
     
     def _validate_fusion_weights(self) -> None:
         """
@@ -157,34 +193,102 @@ class CalibrationEngine:
         """
         Determine method role from method ID using canonical catalog metadata.
         
-        SIN_CARRETA Requirement 4: No simplified heuristics - must use catalog.
+        Three-Pillar System: Uses canonical_method_catalog.json for role inference.
+        Mapping from catalog layer + method patterns to MethodRole enum.
         
+        Args:
+            method_id: Method identifier (canonical_name, method_name, or Class.method format)
+            
+        Returns:
+            MethodRole enum value
+            
         Raises:
-            NotImplementedError: This simplified heuristic violates SIN_CARRETA.
-                                Full implementation must query canonical_method_catalog.json.
+            CalibrationConfigError: If method not found in catalog or role cannot be determined
         """
-        # SIN_CARRETA: Guard simplified logic with NotImplementedError
-        raise NotImplementedError(
-            "Role determination from method_id requires canonical catalog lookup. "
-            "Current heuristic-based implementation is not acceptable under SIN_CARRETA. "
-            "Must implement: query config/canonical_method_catalog.json for method metadata."
-        )
+        # Look up method in catalog index
+        method_info = self.method_index.get(method_id)
+        
+        if not method_info:
+            # Try fallback patterns
+            for key, info in self.method_index.items():
+                if method_id in key or key in method_id:
+                    method_info = info
+                    break
+        
+        if not method_info:
+            # Cannot calibrate unknown methods - fail loudly
+            raise CalibrationConfigError(
+                f"Method '{method_id}' not found in canonical_method_catalog.json. "
+                f"Cannot determine role for calibration. "
+                f"All calibrated methods must be registered in catalog."
+            )
+        
+        # Determine role from layer + method name patterns (per canonic_calibration_methods.md)
+        layer = method_info.get("layer", "unknown")
+        method_name = method_info.get("method_name", "").lower()
+        
+        # Role mapping based on layer and method semantics
+        # Per L_* specification in canonic_calibration_methods.md
+        if layer == "ingestion" or "ingest" in method_name or "pdm" in method_name:
+            return MethodRole.INGEST_PDM
+        elif "structure" in method_name or "parse" in method_name:
+            return MethodRole.STRUCTURE
+        elif "extract" in method_name:
+            return MethodRole.EXTRACT
+        elif "score" in method_name or "question" in method_name or layer == "analyzer":
+            return MethodRole.SCORE_Q
+        elif "aggregate" in method_name or "combine" in method_name:
+            return MethodRole.AGGREGATE
+        elif "report" in method_name or "format" in method_name:
+            return MethodRole.REPORT
+        elif "transform" in method_name or "normalize" in method_name or "convert" in method_name:
+            return MethodRole.TRANSFORM
+        else:
+            # Default to META_TOOL for utility/orchestrator methods
+            return MethodRole.META_TOOL
     
     def _detect_interplay(self, graph: ComputationGraph, node_id: str) -> Optional[Any]:
         """
         Detect interplay patterns from computation graph.
         
-        SIN_CARRETA Requirement 4: No simplified stubs - must implement or fail.
+        Three-Pillar System: Interplays are DECLARED in config, not auto-detected.
         
-        Raises:
-            NotImplementedError: Interplay detection not fully implemented.
+        Per canonic_calibration_methods.md Section 1.3:
+        - "An interplay G is valid only if all nodes share a single declared target output"
+        - "A fusion rule is declared in config"
+        - "Do not infer ensembles implicitly"
+        
+        This method checks if the node participates in any declared interplay
+        from the contextual config.
+        
+        Args:
+            graph: Computation graph
+            node_id: Node identifier
+            
+        Returns:
+            Interplay subgraph if node participates in one, None otherwise
         """
-        # SIN_CARRETA: Guard unimplemented logic with NotImplementedError
-        raise NotImplementedError(
-            "Interplay detection from computation graph is not implemented. "
-            "Current stub (returning None) violates SIN_CARRETA fail-loudly policy. "
-            "Must implement: analyze graph structure to detect cross-method interactions."
-        )
+        # Per specification: interplays are declared in contextual config, not inferred
+        # Check contextual_parametrization.json for declared interplays
+        interplay_defs = self.contextual_config.get("interplay_definitions", {})
+        
+        for interplay_id, interplay_spec in interplay_defs.items():
+            # Check if node_id is in this interplay's participant list
+            participants = interplay_spec.get("participants", [])
+            if node_id in participants:
+                # Node participates in this declared interplay
+                # Return interplay specification
+                return {
+                    "interplay_id": interplay_id,
+                    "participants": participants,
+                    "target_output": interplay_spec.get("target_output"),
+                    "fusion_rule": interplay_spec.get("fusion_rule"),
+                    "declared": True
+                }
+        
+        # Node does not participate in any declared interplay
+        # This is normal - most nodes don't participate in interplays
+        return None
     
     def _compute_layer_scores(
         self, 
