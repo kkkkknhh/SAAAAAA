@@ -13,7 +13,7 @@ from dataclasses import dataclass
 # Import the components we're testing
 try:
     from saaaaaa.core.orchestrator.core import ChunkData, PreprocessedDocument
-    from saaaaaa.core.orchestrator.chunk_router import ChunkRouter, ChunkRoute
+    from saaaaaa.core.orchestrator.chunk_router import ChunkRouter
     HAS_IMPORTS = True
 except ImportError:
     HAS_IMPORTS = False
