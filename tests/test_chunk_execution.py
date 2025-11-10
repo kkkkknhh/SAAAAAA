@@ -9,7 +9,6 @@ produces equivalent results to flat mode.
 import pytest
 from unittest.mock import Mock, MagicMock
 from dataclasses import dataclass
-from typing import Any
 
 # Import the components we're testing
 try:
