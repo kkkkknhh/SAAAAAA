@@ -1159,16 +1159,21 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         """
         Fetch signals from registry for the given policy area.
         
-        Adds OpenTelemetry span for observability.
+        Adds OpenTelemetry span for observability. Signal registry is now required
+        (explicit None allowed for graceful degradation, but absence is logged).
         
         Args:
             policy_area: Policy area to fetch signals for
             
         Returns:
-            Signal pack data or None if unavailable
+            Signal pack data or None if unavailable (explicit None or missing)
         """
+        # Explicit None check - signal_registry is required but can be explicitly None
         if self.signal_registry is None:
-            logger.debug("No signal registry available, skipping signal fetch")
+            logger.warning(
+                f"Signal registry is explicitly None for {self.__class__.__name__}. "
+                "Execution will proceed without signal enhancement, which may reduce analysis quality."
+            )
             return None
         
         if HAS_OTEL and tracer:
@@ -1183,21 +1188,31 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 
                 if signal_pack:
                     span.set_attribute("signal_version", signal_pack.version)
-                    span.set_attribute("signal_hash", signal_pack.compute_hash()[:16])
+                    signal_hash = signal_pack.compute_hash()[:16]
+                    span.set_attribute("signal_hash", signal_hash)
                     span.set_status(Status(StatusCode.OK))
                     
-                    # Track usage
+                    # Track usage with enhanced metadata
                     self.used_signals.append({
                         "version": signal_pack.version,
                         "policy_area": signal_pack.policy_area,
                         "hash": signal_pack.compute_hash(),
+                        "hash_short": signal_hash,
                         "keys_used": signal_pack.get_keys_used(),
                         "timestamp_utc": time.time(),
+                        "pattern_count": len(signal_pack.patterns) if hasattr(signal_pack, 'patterns') else 0,
                     })
                     
-                    logger.info(f"Fetched signals for {policy_area}: version={signal_pack.version}")
+                    logger.info(
+                        f"Fetched signals for {policy_area}: version={signal_pack.version}, "
+                        f"hash={signal_hash}"
+                    )
+                    
+                    # Sort patterns for determinism (stable ordering across runs)
+                    patterns = sorted(signal_pack.patterns) if isinstance(signal_pack.patterns, list) else signal_pack.patterns
+                    
                     return {
-                        "patterns": signal_pack.patterns,
+                        "patterns": patterns,  # Sorted for determinism
                         "indicators": signal_pack.indicators,
                         "regex": signal_pack.regex,
                         "verbs": signal_pack.verbs,
@@ -1212,21 +1227,39 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             # No OpenTelemetry, fetch without span
             signal_pack = self.signal_registry.get(policy_area)
             if signal_pack:
+                signal_hash = signal_pack.compute_hash()[:16]
                 self.used_signals.append({
                     "version": signal_pack.version,
                     "policy_area": signal_pack.policy_area,
                     "hash": signal_pack.compute_hash(),
+                    "hash_short": signal_hash,
                     "keys_used": signal_pack.get_keys_used(),
                     "timestamp_utc": time.time(),
+                    "pattern_count": len(signal_pack.patterns) if hasattr(signal_pack, 'patterns') else 0,
                 })
+                
+                # Sort patterns for determinism (stable ordering across runs)
+                patterns = sorted(signal_pack.patterns) if isinstance(signal_pack.patterns, list) else signal_pack.patterns
+                
+                logger.info(
+                    f"Fetched signals for {policy_area}: version={signal_pack.version}, "
+                    f"hash={signal_hash}"
+                )
+                
                 return {
-                    "patterns": signal_pack.patterns,
+                    "patterns": patterns,  # Sorted for determinism
                     "indicators": signal_pack.indicators,
                     "regex": signal_pack.regex,
                     "verbs": signal_pack.verbs,
                     "entities": signal_pack.entities,
                     "thresholds": signal_pack.thresholds,
                 }
+            
+            # Log signal miss (requested but not found)
+            logger.warning(
+                f"Signal pack not found for policy_area='{policy_area}' in {self.__class__.__name__}. "
+                "This may affect analysis quality."
+            )
             return None
 
     def _validate_calibrations(self) -> None:
