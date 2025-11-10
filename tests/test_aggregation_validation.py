@@ -7,7 +7,7 @@ Tests zero-tolerance enforcement of validation constraints.
 import pytest
 from pydantic import ValidationError
 
-from validation.aggregation_models import (
+from saaaaaa.utils.validation.aggregation_models import (
     AggregationWeights,
     AreaAggregationConfig,
     ClusterAggregationConfig,

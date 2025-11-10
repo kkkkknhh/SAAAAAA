@@ -21,7 +21,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 from pydantic import ValidationError
 
-from validation.aggregation_models import validate_weights
+from saaaaaa.utils.validation.aggregation_models import validate_weights
 
 def verify_aggregation_system():
     """

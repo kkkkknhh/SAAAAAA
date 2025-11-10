@@ -361,7 +361,7 @@ def validate_golden_rules() -> bool:
     print_header("GOLDEN RULES VALIDATION")
 
     try:
-        from validation.golden_rule import GoldenRuleValidator, GoldenRuleViolation
+        from saaaaaa.utils.validation.golden_rule import GoldenRuleValidator, GoldenRuleViolation
 
         step_catalog = ["step1", "step2", "step3"]
         questionnaire_hash = "test_hash_123"

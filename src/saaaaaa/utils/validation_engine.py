@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from validation.predicates import ValidationPredicates, ValidationResult
+from saaaaaa.utils.validation.predicates import ValidationPredicates, ValidationResult
 
 # Configure logging
 logging.basicConfig(
