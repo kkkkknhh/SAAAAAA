@@ -168,7 +168,8 @@ class CalibrationModifier:
         Returns:
             New MethodCalibration with adjusted parameters
         """
-        from .calibration_registry import MethodCalibration
+        # Import at runtime to avoid circular dependency at module load time
+        from saaaaaa.core.orchestrator.calibration_registry import MethodCalibration
         
         # Apply multipliers and clamp to valid ranges
         min_evidence = int(calibration.min_evidence_snippets * self.min_evidence_multiplier)
