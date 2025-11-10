@@ -1042,10 +1042,16 @@ class MethodSequenceValidatingMixin:
     def _get_method_sequence(self) -> list[tuple[str, str]]:
         """Return the method sequence for this executor.
         
+        Section 5.1: Support METHOD_SEQUENCE class attribute (preferred)
+        Falls back to _get_method_sequence() method for backward compatibility.
+        
         Returns:
             List of (class_name, method_name) tuples
         """
-        # Default implementation for executors that don't override
+        # Section 5.1: Check for METHOD_SEQUENCE class attribute first (new pattern)
+        if hasattr(self.__class__, 'METHOD_SEQUENCE'):
+            return self.__class__.METHOD_SEQUENCE
+        # Fallback to method implementation for backward compatibility
         return []
 
 
@@ -1459,8 +1465,12 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 if signals:
                     self._argument_context['signals'] = signals
 
+                # Section 5.3: Runtime sequence tracking
+                executed_sequence = []
+                
                 for idx, (class_name, method_name) in enumerate(method_sequence):
                     method_key = f"{class_name}.{method_name}"
+                    executed_sequence.append((class_name, method_name))
 
                     self.probabilistic_executor.define_prior(
                         method_key, "beta", alpha=2, beta=2
@@ -1570,6 +1580,17 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 span.set_attribute("used_signals_count", len(self.used_signals))
                 span.set_status(Status(StatusCode.OK))
 
+            # Section 5.3: Compare executed sequence to declared sequence
+            if executed_sequence != method_sequence:
+                logger.warning(
+                    "sequence_divergence_detected",
+                    extra={
+                        "declared_length": len(method_sequence),
+                        "executed_length": len(executed_sequence),
+                        "executor_class": self.__class__.__name__,
+                    }
+                )
+            
             result = {
                 'modality': 'TYPE_A',
                 'elements': self._extract(results),
@@ -1582,7 +1603,8 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                     'confidence_intervals': self._get_confidence_intervals(method_sequence),
                     'execution_time': total_time,
                     'metrics_summary': _global_metrics.get_summary(),
-                    'used_signals': self.used_signals  # Add signal usage metadata
+                    'used_signals': self.used_signals,  # Add signal usage metadata
+                    'executed_sequence': executed_sequence,  # Section 5.3: Add executed sequence to manifest
                 }
             }
             
