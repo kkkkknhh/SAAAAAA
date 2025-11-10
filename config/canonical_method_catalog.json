@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "generated_at": "2025-11-09T23:55:00Z",
+    "generated_at": "2025-11-10T00:05:35.304795Z",
     "purpose": "Canonical method catalog with layer taxonomy mapping for calibration migration",
     "total_methods": 180,
     "calibration_registry_version": "1.0.0",
@@ -18,139 +18,2134 @@
   },
   "methods": {
     "AdvancedDAGValidator._calculate_bayesian_posterior": {
-      "canonical_id": "DER:AdvancedDAGValidator._calculate_bayesian_posterior@D[NTBS]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_bayesian_posterior@D[BS]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "_calculate_bayesian_posterior",
       "module": "DER",
       "file": "dereck_beach.py",
       "layer": "D",
-      "flags": ["N", "T", "B", "S"],
+      "flags": [
+        "B",
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator._calculate_bayesian_posterior",
-      "complexity": "HIGH",
-      "priority": "CRITICAL",
-      "description": "Calculate Bayesian posterior for DAG validation",
-      "calibration_params": {
-        "score_min": 0.0,
-        "score_max": 1.0,
-        "min_evidence_snippets": 4,
-        "max_evidence_snippets": 25,
-        "contradiction_tolerance": 0.0,
-        "uncertainty_penalty": 0.35,
-        "aggregation_weight": 1.2,
-        "sensitivity": 0.95,
-        "requires_numeric_support": true,
-        "requires_temporal_support": false,
-        "requires_source_provenance": true
-      }
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "AdvancedDAGValidator._calculate_confidence_interval": {
-      "canonical_id": "DER:AdvancedDAGValidator._calculate_confidence_interval@D[NBS]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_confidence_interval@D[S]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "_calculate_confidence_interval",
       "module": "DER",
       "file": "dereck_beach.py",
       "layer": "D",
-      "flags": ["N", "B", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator._calculate_confidence_interval",
-      "complexity": "HIGH",
-      "priority": "CRITICAL"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "AdvancedDAGValidator._calculate_statistical_power": {
-      "canonical_id": "DER:AdvancedDAGValidator._calculate_statistical_power@D[NBS]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator._calculate_statistical_power@D[S]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "_calculate_statistical_power",
       "module": "DER",
       "file": "dereck_beach.py",
       "layer": "D",
-      "flags": ["N", "B", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator._calculate_statistical_power",
-      "complexity": "HIGH",
-      "priority": "CRITICAL"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "AdvancedDAGValidator._perform_sensitivity_analysis_internal": {
-      "canonical_id": "DER:AdvancedDAGValidator._perform_sensitivity_analysis_internal@D[BS]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator._perform_sensitivity_analysis_internal@D[S]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "_perform_sensitivity_analysis_internal",
       "module": "DER",
       "file": "dereck_beach.py",
       "layer": "D",
-      "flags": ["B", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator._perform_sensitivity_analysis_internal",
-      "complexity": "HIGH",
-      "priority": "HIGH"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "AdvancedDAGValidator.calculate_acyclicity_pvalue": {
-      "canonical_id": "DER:AdvancedDAGValidator.calculate_acyclicity_pvalue@D[NBS]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator.calculate_acyclicity_pvalue@D[S]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "calculate_acyclicity_pvalue",
       "module": "DER",
       "file": "dereck_beach.py",
       "layer": "D",
-      "flags": ["N", "B", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator.calculate_acyclicity_pvalue",
-      "complexity": "HIGH",
-      "priority": "CRITICAL"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "AdvancedDAGValidator.get_graph_stats": {
-      "canonical_id": "DER:AdvancedDAGValidator.get_graph_stats@M[S]{CAL}",
+      "canonical_id": "DER:AdvancedDAGValidator.get_graph_stats@D[S]{CAL}",
       "class": "AdvancedDAGValidator",
       "method_name": "get_graph_stats",
       "module": "DER",
       "file": "dereck_beach.py",
-      "layer": "M",
-      "flags": ["S"],
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "AdvancedDAGValidator.get_graph_stats",
       "complexity": "MEDIUM",
       "priority": "MEDIUM"
     },
+    "AdvancedSemanticChunker._infer_pdq_context": {
+      "canonical_id": "SEM:AdvancedSemanticChunker._infer_pdq_context@Q[S]{CAL}",
+      "class": "AdvancedSemanticChunker",
+      "method_name": "_infer_pdq_context",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "AdvancedSemanticChunker._infer_pdq_context",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianConfidenceCalculator.calculate_posterior": {
+      "canonical_id": "DER:BayesianConfidenceCalculator.calculate_posterior@D[BS]{CAL}",
+      "class": "BayesianConfidenceCalculator",
+      "method_name": "calculate_posterior",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianConfidenceCalculator.calculate_posterior",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianEvidenceScorer._calculate_shannon_entropy": {
+      "canonical_id": "DER:BayesianEvidenceScorer._calculate_shannon_entropy@M[BS]{CAL}",
+      "class": "BayesianEvidenceScorer",
+      "method_name": "_calculate_shannon_entropy",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "M",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianEvidenceScorer._calculate_shannon_entropy",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianEvidenceScorer.compute_evidence_score": {
+      "canonical_id": "DER:BayesianEvidenceScorer.compute_evidence_score@M[BS]{CAL}",
+      "class": "BayesianEvidenceScorer",
+      "method_name": "compute_evidence_score",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "M",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianEvidenceScorer.compute_evidence_score",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._aggregate_bayesian_confidence": {
+      "canonical_id": "DER:BayesianMechanismInference._aggregate_bayesian_confidence@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_aggregate_bayesian_confidence",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._aggregate_bayesian_confidence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._build_transition_matrix": {
+      "canonical_id": "DER:BayesianMechanismInference._build_transition_matrix@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_build_transition_matrix",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._build_transition_matrix",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._calculate_type_transition_prior": {
+      "canonical_id": "DER:BayesianMechanismInference._calculate_type_transition_prior@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_calculate_type_transition_prior",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._calculate_type_transition_prior",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._classify_mechanism_type": {
+      "canonical_id": "DER:BayesianMechanismInference._classify_mechanism_type@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_classify_mechanism_type",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._classify_mechanism_type",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._infer_activity_sequence": {
+      "canonical_id": "DER:BayesianMechanismInference._infer_activity_sequence@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_infer_activity_sequence",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._infer_activity_sequence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._test_necessity": {
+      "canonical_id": "DER:BayesianMechanismInference._test_necessity@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_test_necessity",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._test_necessity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference._test_sufficiency": {
+      "canonical_id": "DER:BayesianMechanismInference._test_sufficiency@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "_test_sufficiency",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference._test_sufficiency",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianMechanismInference.infer_mechanisms": {
+      "canonical_id": "DER:BayesianMechanismInference.infer_mechanisms@D[BS]{CAL}",
+      "class": "BayesianMechanismInference",
+      "method_name": "infer_mechanisms",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianMechanismInference.infer_mechanisms",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianNumericalAnalyzer._classify_evidence_strength": {
+      "canonical_id": "ANA:BayesianNumericalAnalyzer._classify_evidence_strength@D[NBS]{CAL}",
+      "class": "BayesianNumericalAnalyzer",
+      "method_name": "_classify_evidence_strength",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "N",
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianNumericalAnalyzer._classify_evidence_strength",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianNumericalAnalyzer._compute_coherence": {
+      "canonical_id": "ANA:BayesianNumericalAnalyzer._compute_coherence@D[NBS]{CAL}",
+      "class": "BayesianNumericalAnalyzer",
+      "method_name": "_compute_coherence",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "N",
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianNumericalAnalyzer._compute_coherence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianNumericalAnalyzer.compare_policies": {
+      "canonical_id": "ANA:BayesianNumericalAnalyzer.compare_policies@D[NBS]{CAL}",
+      "class": "BayesianNumericalAnalyzer",
+      "method_name": "compare_policies",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "N",
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianNumericalAnalyzer.compare_policies",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BayesianNumericalAnalyzer.evaluate_policy_metric": {
+      "canonical_id": "ANA:BayesianNumericalAnalyzer.evaluate_policy_metric@D[NBS]{CAL}",
+      "class": "BayesianNumericalAnalyzer",
+      "method_name": "evaluate_policy_metric",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "N",
+        "B",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BayesianNumericalAnalyzer.evaluate_policy_metric",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BeachEvidentialTest.apply_test_logic": {
+      "canonical_id": "DER:BeachEvidentialTest.apply_test_logic@D[S]{CAL}",
+      "class": "BeachEvidentialTest",
+      "method_name": "apply_test_logic",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BeachEvidentialTest.apply_test_logic",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "BeachEvidentialTest.classify_test": {
+      "canonical_id": "DER:BeachEvidentialTest.classify_test@D[S]{CAL}",
+      "class": "BeachEvidentialTest",
+      "method_name": "classify_test",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "BeachEvidentialTest.classify_test",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework._audit_causal_coherence": {
+      "canonical_id": "DER:CDAFFramework._audit_causal_coherence@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "_audit_causal_coherence",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework._audit_causal_coherence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework._generate_causal_model_json": {
+      "canonical_id": "DER:CDAFFramework._generate_causal_model_json@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "_generate_causal_model_json",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework._generate_causal_model_json",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework._generate_dnp_compliance_report": {
+      "canonical_id": "DER:CDAFFramework._generate_dnp_compliance_report@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "_generate_dnp_compliance_report",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework._generate_dnp_compliance_report",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework._generate_extraction_report": {
+      "canonical_id": "DER:CDAFFramework._generate_extraction_report@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "_generate_extraction_report",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework._generate_extraction_report",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework._validate_dnp_compliance": {
+      "canonical_id": "DER:CDAFFramework._validate_dnp_compliance@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "_validate_dnp_compliance",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework._validate_dnp_compliance",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CDAFFramework.process_document": {
+      "canonical_id": "DER:CDAFFramework.process_document@D[S]{CAL}",
+      "class": "CDAFFramework",
+      "method_name": "process_document",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CDAFFramework.process_document",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._add_node_to_graph": {
+      "canonical_id": "DER:CausalExtractor._add_node_to_graph@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_add_node_to_graph",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._add_node_to_graph",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._calculate_confidence": {
+      "canonical_id": "DER:CausalExtractor._calculate_confidence@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_calculate_confidence",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._calculate_confidence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._classify_goal_type": {
+      "canonical_id": "DER:CausalExtractor._classify_goal_type@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_classify_goal_type",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._classify_goal_type",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._extract_causal_justifications": {
+      "canonical_id": "DER:CausalExtractor._extract_causal_justifications@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_extract_causal_justifications",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._extract_causal_justifications",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._extract_causal_links": {
+      "canonical_id": "DER:CausalExtractor._extract_causal_links@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_extract_causal_links",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._extract_causal_links",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._extract_goal_text": {
+      "canonical_id": "DER:CausalExtractor._extract_goal_text@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_extract_goal_text",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._extract_goal_text",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor._extract_goals": {
+      "canonical_id": "DER:CausalExtractor._extract_goals@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "_extract_goals",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor._extract_goals",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalExtractor.extract_causal_hierarchy": {
+      "canonical_id": "DER:CausalExtractor.extract_causal_hierarchy@D[S]{CAL}",
+      "class": "CausalExtractor",
+      "method_name": "extract_causal_hierarchy",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalExtractor.extract_causal_hierarchy",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalInferenceSetup._get_dynamics_pattern": {
+      "canonical_id": "DER:CausalInferenceSetup._get_dynamics_pattern@D[S]{CAL}",
+      "class": "CausalInferenceSetup",
+      "method_name": "_get_dynamics_pattern",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalInferenceSetup._get_dynamics_pattern",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalInferenceSetup.assign_probative_value": {
+      "canonical_id": "DER:CausalInferenceSetup.assign_probative_value@D[S]{CAL}",
+      "class": "CausalInferenceSetup",
+      "method_name": "assign_probative_value",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalInferenceSetup.assign_probative_value",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalInferenceSetup.classify_goal_dynamics": {
+      "canonical_id": "DER:CausalInferenceSetup.classify_goal_dynamics@D[S]{CAL}",
+      "class": "CausalInferenceSetup",
+      "method_name": "classify_goal_dynamics",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalInferenceSetup.classify_goal_dynamics",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalInferenceSetup.identify_failure_points": {
+      "canonical_id": "DER:CausalInferenceSetup.identify_failure_points@D[S]{CAL}",
+      "class": "CausalInferenceSetup",
+      "method_name": "identify_failure_points",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalInferenceSetup.identify_failure_points",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "FinancialAuditor._calculate_sufficiency": {
+      "canonical_id": "FIN:FinancialAuditor._calculate_sufficiency@P[NS]{CAL}",
+      "class": "FinancialAuditor",
+      "method_name": "_calculate_sufficiency",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "FinancialAuditor._calculate_sufficiency",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "FinancialAuditor._detect_allocation_gaps": {
+      "canonical_id": "FIN:FinancialAuditor._detect_allocation_gaps@P[NS]{CAL}",
+      "class": "FinancialAuditor",
+      "method_name": "_detect_allocation_gaps",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "FinancialAuditor._detect_allocation_gaps",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "FinancialAuditor._match_goal_to_budget": {
+      "canonical_id": "FIN:FinancialAuditor._match_goal_to_budget@P[NS]{CAL}",
+      "class": "FinancialAuditor",
+      "method_name": "_match_goal_to_budget",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "FinancialAuditor._match_goal_to_budget",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "FinancialAuditor.trace_financial_allocation": {
+      "canonical_id": "FIN:FinancialAuditor.trace_financial_allocation@P[NS]{CAL}",
+      "class": "FinancialAuditor",
+      "method_name": "trace_financial_allocation",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "FinancialAuditor.trace_financial_allocation",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
     "StrategicChunkingSystem.generate_smart_chunks": {
-      "canonical_id": "SEM:StrategicChunkingSystem.generate_smart_chunks@Q[TS]{CAL}",
+      "canonical_id": "SEM:StrategicChunkingSystem.generate_smart_chunks@Q[S]{CAL}",
       "class": "StrategicChunkingSystem",
       "method_name": "generate_smart_chunks",
       "module": "SEM",
       "file": "semantic_chunking_policy.py",
       "layer": "Q",
-      "flags": ["T", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "StrategicChunkingSystem.generate_smart_chunks",
-      "complexity": "HIGH",
-      "priority": "CRITICAL",
-      "description": "Generate strategic policy chunks with evidence attachment",
-      "document_type": "plan_desarrollo_municipal",
-      "calibration_params": {
-        "score_min": 0.0,
-        "score_max": 1.0,
-        "min_evidence_snippets": 5,
-        "max_evidence_snippets": 50,
-        "contradiction_tolerance": 0.15,
-        "uncertainty_penalty": 0.25,
-        "aggregation_weight": 1.5,
-        "sensitivity": 0.90,
-        "requires_numeric_support": false,
-        "requires_temporal_support": true,
-        "requires_source_provenance": true,
-        "safe_default_allowed": false
-      }
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem.semantic_search_with_rerank": {
+      "canonical_id": "SEM:StrategicChunkingSystem.semantic_search_with_rerank@Q[S]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "semantic_search_with_rerank",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem.semantic_search_with_rerank",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem.evaluate_numerical_consistency": {
+      "canonical_id": "SEM:StrategicChunkingSystem.evaluate_numerical_consistency@Q[NS]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "evaluate_numerical_consistency",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem.evaluate_numerical_consistency",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem._attach_canonical_evidence": {
+      "canonical_id": "SEM:StrategicChunkingSystem._attach_canonical_evidence@Q[S]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "_attach_canonical_evidence",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem._attach_canonical_evidence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem._validate_strategic_integrity": {
+      "canonical_id": "SEM:StrategicChunkingSystem._validate_strategic_integrity@Q[S]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "_validate_strategic_integrity",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem._validate_strategic_integrity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem._intelligent_deduplication": {
+      "canonical_id": "SEM:StrategicChunkingSystem._intelligent_deduplication@Q[S]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "_intelligent_deduplication",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem._intelligent_deduplication",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._analyze_causal_dimensions": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._analyze_causal_dimensions@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_analyze_causal_dimensions",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._analyze_causal_dimensions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._build_point_patterns": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._build_point_patterns@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_build_point_patterns",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._build_point_patterns",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._compile_pattern_registry": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._compile_pattern_registry@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_compile_pattern_registry",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._compile_pattern_registry",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._construct_evidence_bundle": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._construct_evidence_bundle@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_construct_evidence_bundle",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._construct_evidence_bundle",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._extract_point_evidence": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._extract_point_evidence@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_extract_point_evidence",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._extract_point_evidence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor._match_patterns_in_sentences": {
+      "canonical_id": "POL:IndustrialPolicyProcessor._match_patterns_in_sentences@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "_match_patterns_in_sentences",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor._match_patterns_in_sentences",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "IndustrialPolicyProcessor.process": {
+      "canonical_id": "POL:IndustrialPolicyProcessor.process@P[S]{CAL}",
+      "class": "IndustrialPolicyProcessor",
+      "method_name": "process",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "IndustrialPolicyProcessor.process",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismPartExtractor._calculate_ea_confidence": {
+      "canonical_id": "DER:MechanismPartExtractor._calculate_ea_confidence@D[S]{CAL}",
+      "class": "MechanismPartExtractor",
+      "method_name": "_calculate_ea_confidence",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismPartExtractor._calculate_ea_confidence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismPartExtractor._find_action_verb": {
+      "canonical_id": "DER:MechanismPartExtractor._find_action_verb@D[S]{CAL}",
+      "class": "MechanismPartExtractor",
+      "method_name": "_find_action_verb",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismPartExtractor._find_action_verb",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismPartExtractor._find_subject_entity": {
+      "canonical_id": "DER:MechanismPartExtractor._find_subject_entity@D[S]{CAL}",
+      "class": "MechanismPartExtractor",
+      "method_name": "_find_subject_entity",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismPartExtractor._find_subject_entity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismPartExtractor._validate_entity_activity": {
+      "canonical_id": "DER:MechanismPartExtractor._validate_entity_activity@D[S]{CAL}",
+      "class": "MechanismPartExtractor",
+      "method_name": "_validate_entity_activity",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismPartExtractor._validate_entity_activity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismPartExtractor.extract_entity_activity": {
+      "canonical_id": "DER:MechanismPartExtractor.extract_entity_activity@D[S]{CAL}",
+      "class": "MechanismPartExtractor",
+      "method_name": "extract_entity_activity",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismPartExtractor.extract_entity_activity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MechanismTypeConfig.check_sum_to_one": {
+      "canonical_id": "DER:MechanismTypeConfig.check_sum_to_one@D[S]{CAL}",
+      "class": "MechanismTypeConfig",
+      "method_name": "check_sum_to_one",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MechanismTypeConfig.check_sum_to_one",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "MunicipalOntology.__init__": {
+      "canonical_id": "POL:MunicipalOntology.__init__@P[S]{CAL}",
+      "class": "MunicipalOntology",
+      "method_name": "__init__",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "MunicipalOntology.__init__",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "OperationalizationAuditor._audit_systemic_risk": {
+      "canonical_id": "AUD:OperationalizationAuditor._audit_systemic_risk@D[S]{CAL}",
+      "class": "OperationalizationAuditor",
+      "method_name": "_audit_systemic_risk",
+      "module": "AUD",
+      "file": "operationalization_auditor.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "OperationalizationAuditor._audit_systemic_risk",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "OperationalizationAuditor._generate_optimal_remediations": {
+      "canonical_id": "AUD:OperationalizationAuditor._generate_optimal_remediations@D[S]{CAL}",
+      "class": "OperationalizationAuditor",
+      "method_name": "_generate_optimal_remediations",
+      "module": "AUD",
+      "file": "operationalization_auditor.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "OperationalizationAuditor._generate_optimal_remediations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "OperationalizationAuditor._perform_counterfactual_budget_check": {
+      "canonical_id": "AUD:OperationalizationAuditor._perform_counterfactual_budget_check@D[S]{CAL}",
+      "class": "OperationalizationAuditor",
+      "method_name": "_perform_counterfactual_budget_check",
+      "module": "AUD",
+      "file": "operationalization_auditor.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "OperationalizationAuditor._perform_counterfactual_budget_check",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "OperationalizationAuditor.audit_evidence_traceability": {
+      "canonical_id": "AUD:OperationalizationAuditor.audit_evidence_traceability@D[S]{CAL}",
+      "class": "OperationalizationAuditor",
+      "method_name": "audit_evidence_traceability",
+      "module": "AUD",
+      "file": "operationalization_auditor.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "OperationalizationAuditor.audit_evidence_traceability",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "OperationalizationAuditor.bayesian_counterfactual_audit": {
+      "canonical_id": "AUD:OperationalizationAuditor.bayesian_counterfactual_audit@D[S]{CAL}",
+      "class": "OperationalizationAuditor",
+      "method_name": "bayesian_counterfactual_audit",
+      "module": "AUD",
+      "file": "operationalization_auditor.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "OperationalizationAuditor.bayesian_counterfactual_audit",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._analyze_funding_sources": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._analyze_funding_sources@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_analyze_funding_sources",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._analyze_funding_sources",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._assess_financial_sustainability": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._assess_financial_sustainability@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_assess_financial_sustainability",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._assess_financial_sustainability",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._bayesian_risk_inference": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._bayesian_risk_inference@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_bayesian_risk_inference",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._bayesian_risk_inference",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._classify_entity_type": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._classify_entity_type@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_classify_entity_type",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._classify_entity_type",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._classify_tables": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._classify_tables@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_classify_tables",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._classify_tables",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._clean_dataframe": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._clean_dataframe@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_clean_dataframe",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._clean_dataframe",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._consolidate_entities": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._consolidate_entities@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_consolidate_entities",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._consolidate_entities",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._deduplicate_tables": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._deduplicate_tables@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_deduplicate_tables",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._deduplicate_tables",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._extract_financial_amounts": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._extract_financial_amounts@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_extract_financial_amounts",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._extract_financial_amounts",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._extract_from_budget_table": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._extract_from_budget_table@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_extract_from_budget_table",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._extract_from_budget_table",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_extract_from_responsibility_tables",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._extract_from_responsibility_tables",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._find_outcome_mentions": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._find_outcome_mentions@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_find_outcome_mentions",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._find_outcome_mentions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._find_product_mentions": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._find_product_mentions@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_find_product_mentions",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._find_product_mentions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._generate_optimal_remediations": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._generate_optimal_remediations@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_generate_optimal_remediations",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._generate_optimal_remediations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._identify_causal_edges": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._identify_causal_edges@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_identify_causal_edges",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._identify_causal_edges",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._identify_causal_nodes": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._identify_causal_nodes@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_identify_causal_nodes",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._identify_causal_nodes",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._identify_funding_source": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._identify_funding_source@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_identify_funding_source",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._identify_funding_source",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._indicator_to_dict": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._indicator_to_dict@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_indicator_to_dict",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._indicator_to_dict",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._is_likely_header": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._is_likely_header@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_is_likely_header",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._is_likely_header",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_reconstruct_fragmented_tables",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._reconstruct_fragmented_tables",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer._score_entity_specificity": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer._score_entity_specificity@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "_score_entity_specificity",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer._score_entity_specificity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility": {
-      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.analyze_financial_feasibility@P[NBS]{CAL}",
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.analyze_financial_feasibility@P[S]{CAL}",
       "class": "PDETMunicipalPlanAnalyzer",
       "method_name": "analyze_financial_feasibility",
       "module": "FIN",
       "file": "financiero_viabilidad_tablas.py",
       "layer": "P",
-      "flags": ["N", "B", "S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "PDETMunicipalPlanAnalyzer.analyze_financial_feasibility",
-      "complexity": "HIGH",
-      "priority": "CRITICAL",
-      "description": "Analyze financial feasibility of municipal plans"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer.analyze_municipal_plan": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.analyze_municipal_plan@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "analyze_municipal_plan",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.analyze_municipal_plan",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer.construct_causal_dag": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.construct_causal_dag@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "construct_causal_dag",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.construct_causal_dag",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer.extract_tables": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.extract_tables@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "extract_tables",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.extract_tables",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer.generate_recommendations": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.generate_recommendations@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "generate_recommendations",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.generate_recommendations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PDETMunicipalPlanAnalyzer.identify_responsible_entities": {
+      "canonical_id": "FIN:PDETMunicipalPlanAnalyzer.identify_responsible_entities@P[S]{CAL}",
+      "class": "PDETMunicipalPlanAnalyzer",
+      "method_name": "identify_responsible_entities",
+      "module": "FIN",
+      "file": "financiero_viabilidad_tablas.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PDETMunicipalPlanAnalyzer.identify_responsible_entities",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PerformanceAnalyzer._calculate_throughput_metrics": {
+      "canonical_id": "ANA:PerformanceAnalyzer._calculate_throughput_metrics@D[S]{CAL}",
+      "class": "PerformanceAnalyzer",
+      "method_name": "_calculate_throughput_metrics",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PerformanceAnalyzer._calculate_throughput_metrics",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PerformanceAnalyzer._detect_bottlenecks": {
+      "canonical_id": "ANA:PerformanceAnalyzer._detect_bottlenecks@D[S]{CAL}",
+      "class": "PerformanceAnalyzer",
+      "method_name": "_detect_bottlenecks",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PerformanceAnalyzer._detect_bottlenecks",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PerformanceAnalyzer._generate_recommendations": {
+      "canonical_id": "ANA:PerformanceAnalyzer._generate_recommendations@D[S]{CAL}",
+      "class": "PerformanceAnalyzer",
+      "method_name": "_generate_recommendations",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PerformanceAnalyzer._generate_recommendations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyAnalysisEmbedder._extract_numerical_values": {
+      "canonical_id": "EMB:PolicyAnalysisEmbedder._extract_numerical_values@P[NS]{CAL}",
+      "class": "PolicyAnalysisEmbedder",
+      "method_name": "_extract_numerical_values",
+      "module": "EMB",
+      "file": "embedding_policy.py",
+      "layer": "P",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyAnalysisEmbedder._extract_numerical_values",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyAnalysisEmbedder._filter_by_pdq": {
+      "canonical_id": "EMB:PolicyAnalysisEmbedder._filter_by_pdq@P[S]{CAL}",
+      "class": "PolicyAnalysisEmbedder",
+      "method_name": "_filter_by_pdq",
+      "module": "EMB",
+      "file": "embedding_policy.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyAnalysisEmbedder._filter_by_pdq",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyAnalysisEmbedder.compare_policy_interventions": {
+      "canonical_id": "EMB:PolicyAnalysisEmbedder.compare_policy_interventions@P[S]{CAL}",
+      "class": "PolicyAnalysisEmbedder",
+      "method_name": "compare_policy_interventions",
+      "module": "EMB",
+      "file": "embedding_policy.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyAnalysisEmbedder.compare_policy_interventions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyAnalysisEmbedder.semantic_search": {
+      "canonical_id": "EMB:PolicyAnalysisEmbedder.semantic_search@P[S]{CAL}",
+      "class": "PolicyAnalysisEmbedder",
+      "method_name": "semantic_search",
+      "module": "EMB",
+      "file": "embedding_policy.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyAnalysisEmbedder.semantic_search",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._are_comparable_claims": {
+      "canonical_id": "CON:PolicyContradictionDetector._are_comparable_claims@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_are_comparable_claims",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._are_comparable_claims",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._are_conflicting_allocations": {
+      "canonical_id": "CON:PolicyContradictionDetector._are_conflicting_allocations@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_are_conflicting_allocations",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._are_conflicting_allocations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._build_knowledge_graph": {
+      "canonical_id": "CON:PolicyContradictionDetector._build_knowledge_graph@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_build_knowledge_graph",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._build_knowledge_graph",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_confidence_interval": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_confidence_interval@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_confidence_interval",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_confidence_interval",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_contradiction_entropy": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_contradiction_entropy@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_contradiction_entropy",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_contradiction_entropy",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_global_semantic_coherence": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_global_semantic_coherence@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_global_semantic_coherence",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_global_semantic_coherence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_graph_fragmentation": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_graph_fragmentation@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_graph_fragmentation",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_graph_fragmentation",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_numerical_divergence": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_numerical_divergence@C[NS]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_numerical_divergence",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_numerical_divergence",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_objective_alignment": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_objective_alignment@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_objective_alignment",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_objective_alignment",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_severity": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_severity@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_severity",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_severity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_similarity": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_similarity@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_similarity",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_similarity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._calculate_syntactic_complexity": {
+      "canonical_id": "CON:PolicyContradictionDetector._calculate_syntactic_complexity@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_calculate_syntactic_complexity",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._calculate_syntactic_complexity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._classify_contradiction": {
+      "canonical_id": "CON:PolicyContradictionDetector._classify_contradiction@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_classify_contradiction",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._classify_contradiction",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._detect_logical_incompatibilities": {
+      "canonical_id": "CON:PolicyContradictionDetector._detect_logical_incompatibilities@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_detect_logical_incompatibilities",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._detect_logical_incompatibilities",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._detect_numerical_inconsistencies": {
+      "canonical_id": "CON:PolicyContradictionDetector._detect_numerical_inconsistencies@C[NS]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_detect_numerical_inconsistencies",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "N",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._detect_numerical_inconsistencies",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._detect_resource_conflicts": {
+      "canonical_id": "CON:PolicyContradictionDetector._detect_resource_conflicts@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_detect_resource_conflicts",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._detect_resource_conflicts",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._detect_semantic_contradictions": {
+      "canonical_id": "CON:PolicyContradictionDetector._detect_semantic_contradictions@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_detect_semantic_contradictions",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._detect_semantic_contradictions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._detect_temporal_conflicts": {
+      "canonical_id": "CON:PolicyContradictionDetector._detect_temporal_conflicts@C[TS]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_detect_temporal_conflicts",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._detect_temporal_conflicts",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._determine_relation_type": {
+      "canonical_id": "CON:PolicyContradictionDetector._determine_relation_type@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_determine_relation_type",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._determine_relation_type",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._determine_semantic_role": {
+      "canonical_id": "CON:PolicyContradictionDetector._determine_semantic_role@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_determine_semantic_role",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._determine_semantic_role",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._extract_policy_statements": {
+      "canonical_id": "CON:PolicyContradictionDetector._extract_policy_statements@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_extract_policy_statements",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._extract_policy_statements",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._extract_quantitative_claims": {
+      "canonical_id": "CON:PolicyContradictionDetector._extract_quantitative_claims@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_extract_quantitative_claims",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._extract_quantitative_claims",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._extract_resource_mentions": {
+      "canonical_id": "CON:PolicyContradictionDetector._extract_resource_mentions@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_extract_resource_mentions",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._extract_resource_mentions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._extract_temporal_markers": {
+      "canonical_id": "CON:PolicyContradictionDetector._extract_temporal_markers@C[TS]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_extract_temporal_markers",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._extract_temporal_markers",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._generate_embeddings": {
+      "canonical_id": "CON:PolicyContradictionDetector._generate_embeddings@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_generate_embeddings",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._generate_embeddings",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._generate_resolution_recommendations": {
+      "canonical_id": "CON:PolicyContradictionDetector._generate_resolution_recommendations@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_generate_resolution_recommendations",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._generate_resolution_recommendations",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._get_context_window": {
+      "canonical_id": "CON:PolicyContradictionDetector._get_context_window@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_get_context_window",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._get_context_window",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._get_dependency_depth": {
+      "canonical_id": "CON:PolicyContradictionDetector._get_dependency_depth@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_get_dependency_depth",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._get_dependency_depth",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._get_domain_weight": {
+      "canonical_id": "CON:PolicyContradictionDetector._get_domain_weight@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_get_domain_weight",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._get_domain_weight",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._get_graph_statistics": {
+      "canonical_id": "CON:PolicyContradictionDetector._get_graph_statistics@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_get_graph_statistics",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._get_graph_statistics",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._has_logical_conflict": {
+      "canonical_id": "CON:PolicyContradictionDetector._has_logical_conflict@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_has_logical_conflict",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._has_logical_conflict",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._identify_dependencies": {
+      "canonical_id": "CON:PolicyContradictionDetector._identify_dependencies@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_identify_dependencies",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._identify_dependencies",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._parse_number": {
+      "canonical_id": "CON:PolicyContradictionDetector._parse_number@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_parse_number",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._parse_number",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._statistical_significance_test": {
+      "canonical_id": "CON:PolicyContradictionDetector._statistical_significance_test@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_statistical_significance_test",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._statistical_significance_test",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyContradictionDetector._suggest_resolutions": {
+      "canonical_id": "CON:PolicyContradictionDetector._suggest_resolutions@C[S]{CAL}",
+      "class": "PolicyContradictionDetector",
+      "method_name": "_suggest_resolutions",
+      "module": "CON",
+      "file": "contradiction_deteccion.py",
+      "layer": "C",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyContradictionDetector._suggest_resolutions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     },
     "PolicyContradictionDetector.detect": {
       "canonical_id": "CON:PolicyContradictionDetector.detect@C[S]{CAL}",
@@ -159,33 +2154,616 @@
       "module": "CON",
       "file": "contradiction_deteccion.py",
       "layer": "C",
-      "flags": ["S"],
+      "flags": [
+        "S"
+      ],
       "calibration_status": "CAL",
       "calibration_ref": "PolicyContradictionDetector.detect",
-      "complexity": "HIGH",
-      "priority": "CRITICAL",
-      "description": "Detect policy contradictions across dimensions"
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyTextProcessor.extract_contextual_window": {
+      "canonical_id": "POL:PolicyTextProcessor.extract_contextual_window@P[S]{CAL}",
+      "class": "PolicyTextProcessor",
+      "method_name": "extract_contextual_window",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyTextProcessor.extract_contextual_window",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyTextProcessor.normalize_unicode": {
+      "canonical_id": "POL:PolicyTextProcessor.normalize_unicode@P[S]{CAL}",
+      "class": "PolicyTextProcessor",
+      "method_name": "normalize_unicode",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyTextProcessor.normalize_unicode",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "PolicyTextProcessor.segment_into_sentences": {
+      "canonical_id": "POL:PolicyTextProcessor.segment_into_sentences@P[S]{CAL}",
+      "class": "PolicyTextProcessor",
+      "method_name": "segment_into_sentences",
+      "module": "POL",
+      "file": "policy_processor.py",
+      "layer": "P",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "PolicyTextProcessor.segment_into_sentences",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._calculate_semantic_complexity": {
+      "canonical_id": "ANA:SemanticAnalyzer._calculate_semantic_complexity@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_calculate_semantic_complexity",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._calculate_semantic_complexity",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._classify_cross_cutting_themes": {
+      "canonical_id": "ANA:SemanticAnalyzer._classify_cross_cutting_themes@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_classify_cross_cutting_themes",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._classify_cross_cutting_themes",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._classify_policy_domain": {
+      "canonical_id": "ANA:SemanticAnalyzer._classify_policy_domain@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_classify_policy_domain",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._classify_policy_domain",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._classify_value_chain_link": {
+      "canonical_id": "ANA:SemanticAnalyzer._classify_value_chain_link@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_classify_value_chain_link",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._classify_value_chain_link",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._process_segment": {
+      "canonical_id": "ANA:SemanticAnalyzer._process_segment@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_process_segment",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._process_segment",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer._vectorize_segments": {
+      "canonical_id": "ANA:SemanticAnalyzer._vectorize_segments@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "_vectorize_segments",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer._vectorize_segments",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticAnalyzer.extract_semantic_cube": {
+      "canonical_id": "ANA:SemanticAnalyzer.extract_semantic_cube@Q[S]{CAL}",
+      "class": "SemanticAnalyzer",
+      "method_name": "extract_semantic_cube",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticAnalyzer.extract_semantic_cube",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "SemanticProcessor._detect_table": {
+      "canonical_id": "SEM:SemanticProcessor._detect_table@Q[S]{CAL}",
+      "class": "SemanticProcessor",
+      "method_name": "_detect_table",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "SemanticProcessor._detect_table",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._build_timeline": {
+      "canonical_id": "DER:TemporalLogicVerifier._build_timeline@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_build_timeline",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._build_timeline",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._check_deadline_constraints": {
+      "canonical_id": "DER:TemporalLogicVerifier._check_deadline_constraints@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_check_deadline_constraints",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._check_deadline_constraints",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._classify_temporal_type": {
+      "canonical_id": "DER:TemporalLogicVerifier._classify_temporal_type@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_classify_temporal_type",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._classify_temporal_type",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._extract_resources": {
+      "canonical_id": "DER:TemporalLogicVerifier._extract_resources@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_extract_resources",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._extract_resources",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._has_temporal_conflict": {
+      "canonical_id": "DER:TemporalLogicVerifier._has_temporal_conflict@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_has_temporal_conflict",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._has_temporal_conflict",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier._parse_temporal_marker": {
+      "canonical_id": "DER:TemporalLogicVerifier._parse_temporal_marker@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "_parse_temporal_marker",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier._parse_temporal_marker",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalLogicVerifier.verify_temporal_consistency": {
+      "canonical_id": "DER:TemporalLogicVerifier.verify_temporal_consistency@D[TS]{CAL}",
+      "class": "TemporalLogicVerifier",
+      "method_name": "verify_temporal_consistency",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalLogicVerifier.verify_temporal_consistency",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._encontrar_caminos_completos": {
+      "canonical_id": "TEO:TeoriaCambio._encontrar_caminos_completos@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_encontrar_caminos_completos",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._encontrar_caminos_completos",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._es_conexion_valida": {
+      "canonical_id": "TEO:TeoriaCambio._es_conexion_valida@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_es_conexion_valida",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._es_conexion_valida",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._execute_generar_sugerencias_internas": {
+      "canonical_id": "TEO:TeoriaCambio._execute_generar_sugerencias_internas@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_execute_generar_sugerencias_internas",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._execute_generar_sugerencias_internas",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._extraer_categorias": {
+      "canonical_id": "TEO:TeoriaCambio._extraer_categorias@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_extraer_categorias",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._extraer_categorias",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._generar_sugerencias_internas": {
+      "canonical_id": "TEO:TeoriaCambio._generar_sugerencias_internas@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_generar_sugerencias_internas",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._generar_sugerencias_internas",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio._validar_orden_causal": {
+      "canonical_id": "TEO:TeoriaCambio._validar_orden_causal@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "_validar_orden_causal",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio._validar_orden_causal",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio.construir_grafo_causal": {
+      "canonical_id": "TEO:TeoriaCambio.construir_grafo_causal@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "construir_grafo_causal",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio.construir_grafo_causal",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TeoriaCambio.validacion_completa": {
+      "canonical_id": "TEO:TeoriaCambio.validacion_completa@D[S]{CAL}",
+      "class": "TeoriaCambio",
+      "method_name": "validacion_completa",
+      "module": "TEO",
+      "file": "teoria_cambio.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TeoriaCambio.validacion_completa",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TextMiningEngine._analyze_link_text": {
+      "canonical_id": "ANA:TextMiningEngine._analyze_link_text@D[S]{CAL}",
+      "class": "TextMiningEngine",
+      "method_name": "_analyze_link_text",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TextMiningEngine._analyze_link_text",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TextMiningEngine._assess_risks": {
+      "canonical_id": "ANA:TextMiningEngine._assess_risks@D[S]{CAL}",
+      "class": "TextMiningEngine",
+      "method_name": "_assess_risks",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TextMiningEngine._assess_risks",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TextMiningEngine._generate_interventions": {
+      "canonical_id": "ANA:TextMiningEngine._generate_interventions@D[S]{CAL}",
+      "class": "TextMiningEngine",
+      "method_name": "_generate_interventions",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TextMiningEngine._generate_interventions",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TextMiningEngine._identify_critical_links": {
+      "canonical_id": "ANA:TextMiningEngine._identify_critical_links@D[S]{CAL}",
+      "class": "TextMiningEngine",
+      "method_name": "_identify_critical_links",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TextMiningEngine._identify_critical_links",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TextMiningEngine.diagnose_critical_links": {
+      "canonical_id": "ANA:TextMiningEngine.diagnose_critical_links@D[S]{CAL}",
+      "class": "TextMiningEngine",
+      "method_name": "diagnose_critical_links",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TextMiningEngine.diagnose_critical_links",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicChunkingSystem.process_document": {
+      "canonical_id": "SEM:StrategicChunkingSystem.process_document@Q[S]{CAL}",
+      "class": "StrategicChunkingSystem",
+      "method_name": "process_document",
+      "module": "SEM",
+      "file": "semantic_chunking_policy.py",
+      "layer": "Q",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicChunkingSystem.process_document",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "CausalChainAnalyzer.extract_causal_chains": {
+      "canonical_id": "DER:CausalChainAnalyzer.extract_causal_chains@D[S]{CAL}",
+      "class": "CausalChainAnalyzer",
+      "method_name": "extract_causal_chains",
+      "module": "DER",
+      "file": "dereck_beach.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "CausalChainAnalyzer.extract_causal_chains",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "KnowledgeGraphBuilder.build_graph": {
+      "canonical_id": "ANA:KnowledgeGraphBuilder.build_graph@D[S]{CAL}",
+      "class": "KnowledgeGraphBuilder",
+      "method_name": "build_graph",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "KnowledgeGraphBuilder.build_graph",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TopicModeler.infer_topics": {
+      "canonical_id": "ANA:TopicModeler.infer_topics@D[S]{CAL}",
+      "class": "TopicModeler",
+      "method_name": "infer_topics",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TopicModeler.infer_topics",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "ArgumentAnalyzer.analyze_arguments": {
+      "canonical_id": "ANA:ArgumentAnalyzer.analyze_arguments@D[S]{CAL}",
+      "class": "ArgumentAnalyzer",
+      "method_name": "analyze_arguments",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "ArgumentAnalyzer.analyze_arguments",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "TemporalAnalyzer.analyze_temporal_dynamics": {
+      "canonical_id": "ANA:TemporalAnalyzer.analyze_temporal_dynamics@D[TS]{CAL}",
+      "class": "TemporalAnalyzer",
+      "method_name": "analyze_temporal_dynamics",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "T",
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "TemporalAnalyzer.analyze_temporal_dynamics",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "DiscourseAnalyzer.analyze_discourse": {
+      "canonical_id": "ANA:DiscourseAnalyzer.analyze_discourse@D[S]{CAL}",
+      "class": "DiscourseAnalyzer",
+      "method_name": "analyze_discourse",
+      "module": "ANA",
+      "file": "Analyzer_one.py",
+      "layer": "D",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "DiscourseAnalyzer.analyze_discourse",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
+    },
+    "StrategicIntegrator.integrate_analyses": {
+      "canonical_id": "AGG:StrategicIntegrator.integrate_analyses@M[S]{CAL}",
+      "class": "StrategicIntegrator",
+      "method_name": "integrate_analyses",
+      "module": "AGG",
+      "file": "aggregation.py",
+      "layer": "M",
+      "flags": [
+        "S"
+      ],
+      "calibration_status": "CAL",
+      "calibration_ref": "StrategicIntegrator.integrate_analyses",
+      "complexity": "MEDIUM",
+      "priority": "MEDIUM"
     }
   },
   "statistics": {
     "total_calibrated": 180,
     "by_layer": {
-      "Q": 15,
-      "D": 85,
-      "P": 45,
-      "C": 25,
-      "M": 10
-    },
-    "by_complexity": {
-      "LOW": 60,
-      "MEDIUM": 85,
-      "HIGH": 35
-    },
-    "by_priority": {
-      "LOW": 45,
-      "MEDIUM": 65,
-      "HIGH": 40,
-      "CRITICAL": 30
+      "Q": 16,
+      "D": 79,
+      "P": 46,
+      "C": 36,
+      "M": 3
     },
     "by_calibration_status": {
       "CAL": 180,

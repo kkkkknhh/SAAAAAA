@@ -1,3 +1,15 @@
+# ===============================================================================
+# DEPRECATED - DO NOT USE
+# ===============================================================================
+# This YAML calibration file is DEPRECATED and no longer loaded by the pipeline.
+# All calibrations are now managed internally in:
+#   src/saaaaaa/core/orchestrator/calibration_registry.py
+#
+# Any references to this file will raise RuntimeError.
+# Migration date: 2025-11-09
+# Migration PR: Universal Calibration Migration
+# ===============================================================================
+#
 # =============================================================================
 # CATÁLOGOS CALIBRACIÓN D1-Q1 (INSUMOS) - FARFAN 3.0
 # Planes de Desarrollo Municipal Colombia

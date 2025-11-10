@@ -1,3 +1,15 @@
+# ===============================================================================
+# DEPRECATED - DO NOT USE
+# ===============================================================================
+# This YAML calibration file is DEPRECATED and no longer loaded by the pipeline.
+# All calibrations are now managed internally in:
+#   src/saaaaaa/core/orchestrator/calibration_registry.py
+#
+# Any references to this file will raise RuntimeError.
+# Migration date: 2025-11-09
+# Migration PR: Universal Calibration Migration
+# ===============================================================================
+#
 # =============================================================================
 # TAREA 4 (VERSIÓN FINAL, EXTENDIDA): OperationalizationAuditor — CDAF
 # Auditoría post-inferencia para implementabilidad y coherencia operativa (pToC)
