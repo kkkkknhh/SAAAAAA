@@ -90,10 +90,8 @@ def compute_chain_layer(node_id: str, graph: ComputationGraph,
     
     if has_hard_mismatch:
         return mappings["hard_mismatch"]
-    elif has_soft_violation:
-        return mappings["soft_schema_violation"]
-    elif has_warnings:
-        return mappings["all_contracts_pass_with_warnings"]
+    # The following branches are unreachable because has_soft_violation and has_warnings are never set to True.
+    # If future logic is added to set these flags, restore these branches.
     else:
         return mappings["all_contracts_pass_no_warnings"]
 
