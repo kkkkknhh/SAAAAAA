@@ -1311,9 +1311,11 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        questionnaire_provider=None,
     ) -> None:
         self.executor = method_executor
         self.signal_registry = signal_registry
+        self.questionnaire_provider = questionnaire_provider
         self.config = config or CONSERVATIVE_CONFIG
 
         if self.config is None:
@@ -1409,13 +1411,12 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         # define method_sequence in execute(), not in _get_method_sequence().
         # Executors that want validation must call it explicitly in their __init__.
     
-    @staticmethod
-    def _get_policy_area_for_question(question_id: str) -> str:
+    def _get_policy_area_for_question(self, question_id: str) -> str:
         """
-        Map question ID to policy area using questionnaire monolith data.
+        Map question ID to policy area using injected questionnaire provider.
         
-        This reads the mapping from the questionnaire_monolith.json file to ensure
-        accurate policy area assignment. Falls back to PA01 if mapping not found.
+        This uses the provider's already-loaded data, avoiding direct file I/O
+        and respecting the dependency injection architecture.
         
         Args:
             question_id: Question ID (e.g., "Q001", "Q031")
@@ -1423,40 +1424,23 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         Returns:
             Policy area code (e.g., "PA01", "PA02")
         """
-        # Try to load mapping from questionnaire
-        try:
-            import json
-            from pathlib import Path
-            
-            # Try multiple possible locations for questionnaire file
-            repo_root = Path(__file__).parent.parent.parent.parent.parent
-            possible_paths = [
-                repo_root / "data" / "questionnaire_monolith.json",
-                Path("data/questionnaire_monolith.json"),
-                Path("/home/runner/work/SAAAAAA/SAAAAAA/data/questionnaire_monolith.json"),
-            ]
-            
-            for path in possible_paths:
-                if path.exists():
-                    with open(path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    
-                    questions = data.get('blocks', {}).get('micro_questions', [])
-                    
-                    # Build mapping
-                    for question in questions:
-                        qid = question.get('question_id')
-                        if qid == question_id:
-                            policy_area = question.get('policy_area_id', 'PA01')
-                            logger.debug(f"Mapped {question_id} to {policy_area}")
-                            return policy_area
-                    
-                    # Not found in mapping
-                    logger.warning(f"Question {question_id} not found in questionnaire, using PA01")
-                    return "PA01"
-        
-        except Exception as e:
-            logger.warning(f"Could not load questionnaire mapping: {e}, using PA01")
+        # Use injected provider if available
+        if self.questionnaire_provider:
+            try:
+                return self.questionnaire_provider.get_policy_area_for_question(question_id)
+            except Exception as e:
+                logger.warning(
+                    "provider_policy_area_lookup_failed",
+                    question_id=question_id,
+                    error=str(e),
+                    fallback="PA01"
+                )
+        else:
+            logger.warning(
+                "no_questionnaire_provider",
+                question_id=question_id,
+                fallback="PA01"
+            )
         
         # Fallback to PA01
         return "PA01"
