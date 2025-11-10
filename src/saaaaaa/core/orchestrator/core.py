@@ -1869,6 +1869,13 @@ class Orchestrator:
         }
 
         results: list[MicroQuestionRun] = []
+        
+        # NEW: Track chunk execution metrics
+        execution_metrics = {
+            "chunk_executions": 0,  # Actual chunk-level executions
+            "full_doc_executions": 0,  # Fallback full document executions
+            "total_chunks_processed": 0,  # Total chunks that could have been processed
+        }
 
         async def process_question(question: dict[str, Any]) -> MicroQuestionRun:
             await self.resource_limits.apply_worker_budget()
@@ -1929,7 +1936,67 @@ class Orchestrator:
                 else:
                     try:
                         executor_instance = executor_class(self.executor)
-                        evidence = await asyncio.to_thread(executor_instance.execute, document, self.executor)
+                        
+                        # NEW: Chunk-aware execution
+                        if chunk_routes and document.processing_mode == "chunked":
+                            # Find chunks relevant to this base_slot
+                            relevant_chunk_ids = [
+                                chunk_id for chunk_id, route in chunk_routes.items()
+                                if base_slot in route.executor_class or route.executor_class == base_slot
+                            ]
+                            
+                            if relevant_chunk_ids:
+                                # Track metrics
+                                execution_metrics["chunk_executions"] += len(relevant_chunk_ids)
+                                execution_metrics["total_chunks_processed"] += len(relevant_chunk_ids)
+                                
+                                # Execute on relevant chunks only
+                                chunk_evidences = []
+                                for chunk_id in relevant_chunk_ids:
+                                    try:
+                                        # Call execute_chunk if available, otherwise fall back to execute
+                                        if hasattr(executor_instance, 'execute_chunk'):
+                                            chunk_evidence = await asyncio.to_thread(
+                                                executor_instance.execute_chunk, document, chunk_id
+                                            )
+                                        else:
+                                            # Fallback: execute on full document
+                                            chunk_evidence = await asyncio.to_thread(
+                                                executor_instance.execute, document, self.executor
+                                            )
+                                        if chunk_evidence:
+                                            chunk_evidences.append(chunk_evidence)
+                                    except Exception as chunk_exc:
+                                        logger.warning(
+                                            f"Chunk {chunk_id} execution failed for {base_slot}: {chunk_exc}"
+                                        )
+                                
+                                # Aggregate chunk results
+                                if chunk_evidences:
+                                    # Use first evidence as base, merge others
+                                    evidence = chunk_evidences[0]
+                                    # Simple aggregation: combine matches/claims if available
+                                    if len(chunk_evidences) > 1 and hasattr(evidence, 'matches'):
+                                        all_matches = []
+                                        for chunk_ev in chunk_evidences:
+                                            if hasattr(chunk_ev, 'matches') and chunk_ev.matches:
+                                                all_matches.extend(chunk_ev.matches)
+                                        evidence.matches = all_matches
+                                else:
+                                    evidence = None
+                            else:
+                                # No relevant chunks for this slot, execute on full document
+                                execution_metrics["full_doc_executions"] += 1
+                                evidence = await asyncio.to_thread(
+                                    executor_instance.execute, document, self.executor
+                                )
+                        else:
+                            # Flat mode or no chunk routes - use original behavior
+                            execution_metrics["full_doc_executions"] += 1
+                            evidence = await asyncio.to_thread(
+                                executor_instance.execute, document, self.executor
+                            )
+                        
                         circuit["failures"] = 0
                     except Exception as exc:  # pragma: no cover - dependencias externas
                         circuit["failures"] += 1
@@ -1981,6 +2048,30 @@ class Orchestrator:
             for task in tasks:
                 task.cancel()
             raise
+        
+        # Log chunk execution metrics
+        if chunk_routes and document.processing_mode == "chunked":
+            total_possible = len(micro_questions) * len(document.chunks)
+            actual_executed = execution_metrics["chunk_executions"] + execution_metrics["full_doc_executions"]
+            savings_pct = ((total_possible - actual_executed) / max(total_possible, 1)) * 100 if total_possible > 0 else 0
+            
+            logger.info(
+                f"Chunk execution metrics: {execution_metrics['chunk_executions']} chunk-scoped, "
+                f"{execution_metrics['full_doc_executions']} full-doc, "
+                f"{total_possible} total possible, "
+                f"savings: {savings_pct:.1f}%"
+            )
+            
+            # Store metrics for verification manifest
+            if not hasattr(self, '_execution_metrics'):
+                self._execution_metrics = {}
+            self._execution_metrics['phase_2'] = {
+                'chunk_executions': execution_metrics['chunk_executions'],
+                'full_doc_executions': execution_metrics['full_doc_executions'],
+                'total_possible_executions': total_possible,
+                'actual_executions': actual_executed,
+                'savings_percent': savings_pct,
+            }
 
         return results
 

@@ -451,11 +451,20 @@ class VerifiedPipelineRunner:
                 "error": f"Graph analysis failed: {str(e)}"
             }
         
-        # Calculate execution savings (estimated)
-        # In a full implementation, this would track actual vs potential executions
-        if results:
-            # Estimate: chunk mode should execute ~30-70% fewer operations
-            # This is a simplified calculation; real implementation would track execution counts
+        # Calculate execution savings
+        # Use actual metrics from orchestrator if available
+        if results and hasattr(results, '_execution_metrics') and 'phase_2' in results._execution_metrics:
+            metrics = results._execution_metrics['phase_2']
+            chunk_metrics["execution_savings"] = {
+                "chunk_executions": metrics['chunk_executions'],
+                "full_doc_executions": metrics['full_doc_executions'],
+                "total_possible_executions": metrics['total_possible_executions'],
+                "actual_executions": metrics['actual_executions'],
+                "savings_percent": round(metrics['savings_percent'], 2),
+                "note": "Actual execution counts from orchestrator Phase 2"
+            }
+        elif results:
+            # Fallback to estimation if real metrics not available
             total_possible_executions = 30 * len(chunks)  # 30 executors per chunk max
             # Assume chunk routing reduces executions by using type-specific executors
             estimated_actual = len(chunks) * 10  # ~10 executors per chunk (conservative)
@@ -466,7 +475,7 @@ class VerifiedPipelineRunner:
                 "estimated_savings_percent": round(
                     (1 - estimated_actual / max(total_possible_executions, 1)) * 100, 2
                 ) if total_possible_executions > 0 else 0.0,
-                "note": "Estimated savings based on chunk-aware routing (not actual counts)"
+                "note": "Estimated savings based on chunk-aware routing (orchestrator metrics not available)"
             }
         
         return chunk_metrics
