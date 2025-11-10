@@ -151,16 +151,14 @@ def test_to_preprocessed_document_with_resolution_filter() -> None:
 
 def test_to_preprocessed_document_provenance_completeness() -> None:
     """Test provenance completeness calculation."""
-    from saaaaaa.processing.cpp_ingestion.models import Provenance, BoundingBox
-    
     # Create chunks with and without provenance
     chunk_with_prov = create_test_chunk("chunk_1", "Text with provenance", 0, 20)
-    chunk_with_prov.provenance = Provenance(
-        page_id=1,
-        bbox=BoundingBox(page_id=1, x0=0, y0=0, x1=100, y1=100),
-        parser_id="test_parser",
-        byte_range=(0, 20),
-    )
+    chunk_with_prov.provenance = {
+        "page_id": 1,
+        "bbox": {"x0": 0, "y0": 0, "x1": 100, "y1": 100},
+        "parser_id": "test_parser",
+        "byte_range": (0, 20),
+    }
     
     chunk_without_prov = create_test_chunk("chunk_2", "Text without provenance", 21, 44)
     
@@ -211,6 +209,9 @@ def test_to_preprocessed_document_empty_cpp_error() -> None:
         schema_version="CPP-2025.1",
         policy_manifest=PolicyManifest(),
         chunk_graph=ChunkGraph(),  # Empty
+        provenance_map=ProvenanceMap(),
+        quality_metrics=QualityMetrics(),
+        integrity_index=IntegrityIndex(blake3_root="test"),
     )
     
     adapter = CPPAdapter()
@@ -246,10 +247,10 @@ def test_to_preprocessed_document_invalid_resolution_filter() -> None:
 
 def test_to_preprocessed_document_with_budget_tables() -> None:
     """Test extraction of budget data into tables."""
-    from saaaaaa.processing.cpp_ingestion.models import BudgetData
+    from saaaaaa.processing.cpp_ingestion.models import BudgetInfo
     
     chunk_with_budget = create_test_chunk("chunk_1", "Budget chunk", 0, 12)
-    chunk_with_budget.budget = BudgetData(
+    chunk_with_budget.budget = BudgetInfo(
         source="Tesoro Nacional",
         use="Educación",
         amount=1_000_000.0,

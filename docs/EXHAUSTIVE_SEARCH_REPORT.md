@@ -24,10 +24,9 @@ Searched for YAML loading patterns and calibration files:
    - Line 148: `path = _REPO_ROOT / "config" / "rules" / "METODOS" / "complete_canonical_catalog.json"`
    - Status: ✅ UPDATED to canonical catalog name
 
-2. **tests/test_coreographer.py**
-   - Line 32: `self.catalog_path = Path("config/rules/METODOS/complete_canonical_catalog.json")`
-   - Line 102: `with open("config/rules/METODOS/complete_canonical_catalog.json") as f:`
-   - Status: ✅ UPDATED to canonical catalog name
+2. **tests/test_coreographer.py** [DELETED]
+   - Previously had references at lines 32 and 102
+   - Status: ❌ File deleted (deprecated typo - use choreographer instead)
 
 3. **config/rules/METODOS/ejemplo_uso_nivel3.py**
    - Line 327: Reference in documentation string
@@ -158,8 +157,8 @@ From calibration_registry.py analysis:
 
 1. src/saaaaaa/core/orchestrator/factory.py (2 locations)
 2. src/saaaaaa/core/orchestrator/core_module_factory.py (1 location)
-3. tests/test_coreographer.py (2 locations)
+3. tests/test_coreographer.py [DELETED - deprecated typo]
 4. config/rules/METODOS/ejemplo_uso_nivel3.py (1 location)
 5. config/rules/METODOS/complete_canonical_catalog.json → complete_canonical_catalog.json (renamed)
 
-Total: 5 files updated, 1 file renamed
+Total: 4 files updated, 1 file renamed, 1 file deleted
