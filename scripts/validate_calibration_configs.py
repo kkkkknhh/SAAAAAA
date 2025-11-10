@@ -9,7 +9,6 @@ Spec compliance: Section 8 (CI / QA Rules)
 """
 
 import sys
-import json
 from pathlib import Path
 
 # Add parent directory to path
