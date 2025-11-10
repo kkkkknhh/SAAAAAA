@@ -9,6 +9,8 @@ Performs exhaustive codebase scan to build usage intelligence for every method:
 - Parameterization locus (In-script, In YAML, In calibration_registry.py)
 
 Output: Machine-readable metadata for auto-calibration decision system
+
+Uses canonical method catalog: config/canonical_method_catalog.json (1,996 methods)
 """
 
 import ast
@@ -23,8 +25,6 @@ from dataclasses import dataclass, asdict
 # Add src to path
 repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / "src"))
-
-from saaaaaa.core.orchestrator.catalogo_completo_canonico import CATALOG, CanonicalMethod
 
 
 @dataclass
@@ -65,7 +65,12 @@ class MethodUsageScanner:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
         self.src_root = repo_root / "src"
-        self.catalog = CATALOG
+        
+        # Load canonical method catalog
+        catalog_path = repo_root / "config" / "canonical_method_catalog.json"
+        with open(catalog_path) as f:
+            catalog_data = json.load(f)
+        self.catalog_methods = catalog_data['methods']
         
         # Results
         self.usage_map: Dict[Tuple[str, str], MethodUsage] = {}
@@ -130,7 +135,11 @@ class MethodUsageScanner:
         print(f"  Found {len(python_files)} Python files")
         
         # Get catalog methods as a set for fast lookup
-        catalog_method_set = {(m.class_name, m.method_name) for m in self.catalog.all_methods()}
+        catalog_method_set = {
+            (m['class_name'], m['method_name']) 
+            for m in self.catalog_methods 
+            if m['class_name']
+        }
         
         for py_file in python_files:
             try:
