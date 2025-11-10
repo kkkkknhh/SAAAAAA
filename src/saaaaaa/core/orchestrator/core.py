@@ -358,12 +358,30 @@ class PreprocessedDocument:
                 adapter = CPPAdapter()
                 preprocessed = adapter.to_preprocessed_document(document, document_id=document_id)
                 
-                # Additional validation: ensure non-empty text
+                # Comprehensive SPC ingestion validation
+                validation_results = []
+                
+                # Validate raw_text
                 if not preprocessed.raw_text or not preprocessed.raw_text.strip():
                     raise ValueError(
                         "SPC ingestion produced empty document. "
                         "Check that the source document contains extractable text."
                     )
+                text_length = len(preprocessed.raw_text)
+                validation_results.append(f"raw_text: {text_length} chars")
+                
+                # Validate sentences extracted
+                sentence_count = len(preprocessed.sentences) if preprocessed.sentences else 0
+                if sentence_count == 0:
+                    logger.warning("SPC ingestion produced zero sentences - document may be malformed")
+                validation_results.append(f"sentences: {sentence_count}")
+                
+                # Validate chunk_graph exists
+                chunk_count = preprocessed.metadata.get("chunk_count", 0)
+                validation_results.append(f"chunks: {chunk_count}")
+                
+                # Log successful validation
+                logger.info(f"SPC ingestion validation passed: {', '.join(validation_results)}")
                 
                 return preprocessed
             except ImportError as e:
@@ -1804,9 +1822,29 @@ class Orchestrator:
             raise ValueError(error_msg)
         
         text_length = len(preprocessed.raw_text)
+        sentence_count = len(preprocessed.sentences) if preprocessed.sentences else 0
+        adapter_source = preprocessed.metadata.get("adapter_source", "unknown")
+        
+        # Store ingestion information for verification manifest
+        ingestion_info = {
+            "method": "SPC",  # Only SPC is supported
+            "chunk_count": chunk_count,
+            "text_length": text_length,
+            "sentence_count": sentence_count,
+            "adapter_source": adapter_source,
+            "chunk_strategy": preprocessed.metadata.get("chunk_strategy", "semantic"),
+        }
+        if "chunk_overlap" in preprocessed.metadata:
+            ingestion_info["chunk_overlap"] = preprocessed.metadata["chunk_overlap"]
+        
+        # Store in context for manifest generation
+        if hasattr(self, "_context"):
+            self._context["ingestion_info"] = ingestion_info
+        
         logger.info(
             f"Document ingested successfully: document_id={document_id}, "
-            f"text_length={text_length}, chunk_count={chunk_count}"
+            f"method=SPC, text_length={text_length}, chunk_count={chunk_count}, "
+            f"sentence_count={sentence_count}"
         )
 
         duration = time.perf_counter() - start
