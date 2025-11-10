@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import threading
+import warnings
 from collections.abc import Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
 from typing import (
@@ -88,9 +89,27 @@ class MethodSpec:
         return accepted
 
 class ArgRouter:
-    """Resolve method call payloads based on inspected signatures."""
+    """Resolve method call payloads based on inspected signatures.
+    
+    .. deprecated::
+        ArgRouter is deprecated and will be removed in a future version.
+        Use :class:`ExtendedArgRouter` from `arg_router_extended` instead.
+        ExtendedArgRouter provides:
+        - Strict validation to prevent silent parameter drops
+        - 30+ special routes for high-traffic methods
+        - Comprehensive metrics and observability
+        - **kwargs support for forward compatibility
+    """
 
     def __init__(self, class_registry: Mapping[str, type]) -> None:
+        warnings.warn(
+            "ArgRouter is deprecated. Use ExtendedArgRouter from "
+            "saaaaaa.core.orchestrator.arg_router_extended instead. "
+            "ExtendedArgRouter provides strict validation, special routes, "
+            "and comprehensive metrics.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._class_registry = dict(class_registry)
         self._spec_cache: dict[tuple[str, str], MethodSpec] = {}
         self._lock = threading.RLock()
