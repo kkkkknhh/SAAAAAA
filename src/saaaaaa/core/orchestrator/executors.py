@@ -1019,6 +1019,259 @@ class ProbabilisticExecutor:
 # ADVANCED EXECUTOR BASE CLASS
 # ============================================================================
 
+@dataclass
+class ValidationResult:
+    """Result of executor validation check."""
+    is_valid: bool
+    severity: str  # ERROR, WARNING, INFO
+    message: str
+    context: dict[str, Any] = field(default_factory=dict)
+
+
+class ExecutorBase(ABC):
+    """Base class for all executors with pre-flight validation.
+    
+    This class provides the foundational validation logic that all executors
+    must implement before execution. It ensures that:
+    1. All dependencies are available
+    2. Calibrations are properly configured
+    3. Required resources are accessible
+    """
+    
+    def validate_before_execution(self) -> ValidationResult:
+        """Perform pre-flight checks before execution.
+        
+        This method validates:
+        1. All class dependencies exist in the executor registry
+        2. All methods have proper calibration entries
+        3. Required resources (config, signal registry) are available
+        
+        Returns:
+            ValidationResult: Object indicating validation success or failure
+        """
+        errors = []
+        warnings = []
+        context_info = {}
+        
+        # Check 1: Verify all dependencies exist
+        try:
+            dependency_result = self._check_dependencies()
+            if not dependency_result.is_valid:
+                errors.append(dependency_result.message)
+                context_info.update(dependency_result.context)
+            elif dependency_result.severity == "WARNING":
+                warnings.append(dependency_result.message)
+        except Exception as e:
+            errors.append(f"Dependency check failed: {str(e)}")
+        
+        # Check 2: Verify calibration available
+        try:
+            calibration_result = self._check_calibration()
+            if not calibration_result.is_valid:
+                errors.append(calibration_result.message)
+                context_info.update(calibration_result.context)
+            elif calibration_result.severity == "WARNING":
+                warnings.append(calibration_result.message)
+        except Exception as e:
+            errors.append(f"Calibration check failed: {str(e)}")
+        
+        # Check 3: Ensure resources available
+        try:
+            resource_result = self._check_resources()
+            if not resource_result.is_valid:
+                errors.append(resource_result.message)
+                context_info.update(resource_result.context)
+            elif resource_result.severity == "WARNING":
+                warnings.append(resource_result.message)
+        except Exception as e:
+            errors.append(f"Resource check failed: {str(e)}")
+        
+        # Compile final result
+        if errors:
+            return ValidationResult(
+                is_valid=False,
+                severity="ERROR",
+                message="; ".join(errors),
+                context=context_info
+            )
+        elif warnings:
+            return ValidationResult(
+                is_valid=True,
+                severity="WARNING",
+                message="; ".join(warnings),
+                context=context_info
+            )
+        else:
+            return ValidationResult(
+                is_valid=True,
+                severity="INFO",
+                message="All pre-flight checks passed",
+                context=context_info
+            )
+    
+    def _check_dependencies(self) -> ValidationResult:
+        """Check that all class dependencies exist in executor registry.
+        
+        Returns:
+            ValidationResult indicating if dependencies are satisfied
+        """
+        if not hasattr(self, 'executor') or self.executor is None:
+            return ValidationResult(
+                is_valid=False,
+                severity="ERROR",
+                message="Method executor not initialized",
+                context={"check": "dependencies"}
+            )
+        
+        seq = self._get_method_sequence()
+        missing_classes = []
+        
+        for class_name, method_name in seq:
+            if not hasattr(self.executor, 'instances'):
+                return ValidationResult(
+                    is_valid=False,
+                    severity="ERROR",
+                    message="Executor does not have instances registry",
+                    context={"check": "dependencies"}
+                )
+            
+            if class_name not in self.executor.instances:
+                missing_classes.append(class_name)
+        
+        if missing_classes:
+            return ValidationResult(
+                is_valid=False,
+                severity="ERROR",
+                message=f"Missing class dependencies: {', '.join(missing_classes)}",
+                context={
+                    "check": "dependencies",
+                    "missing_classes": missing_classes,
+                    "total_required": len(seq)
+                }
+            )
+        
+        return ValidationResult(
+            is_valid=True,
+            severity="INFO",
+            message=f"All {len(seq)} class dependencies available",
+            context={
+                "check": "dependencies",
+                "classes_checked": len(set(c for c, _ in seq))
+            }
+        )
+    
+    def _check_calibration(self) -> ValidationResult:
+        """Check that all methods have proper calibration entries.
+        
+        Returns:
+            ValidationResult indicating if calibrations are available
+        """
+        seq = self._get_method_sequence()
+        missing_calibrations = []
+        default_calibrations = []
+        
+        for class_name, method_name in seq:
+            calib = resolve_calibration(class_name, method_name, strict=False)
+            if calib is None:
+                missing_calibrations.append(f"{class_name}.{method_name}")
+            elif calib.is_default_like():
+                default_calibrations.append(f"{class_name}.{method_name}")
+        
+        if missing_calibrations:
+            return ValidationResult(
+                is_valid=False,
+                severity="ERROR",
+                message=f"Missing calibrations for {len(missing_calibrations)} methods",
+                context={
+                    "check": "calibration",
+                    "missing_calibrations": missing_calibrations[:5],  # First 5 for brevity
+                    "total_missing": len(missing_calibrations)
+                }
+            )
+        
+        if default_calibrations:
+            return ValidationResult(
+                is_valid=True,
+                severity="WARNING",
+                message=f"Using default calibrations for {len(default_calibrations)} methods",
+                context={
+                    "check": "calibration",
+                    "default_calibrations": default_calibrations[:5],
+                    "total_defaults": len(default_calibrations)
+                }
+            )
+        
+        return ValidationResult(
+            is_valid=True,
+            severity="INFO",
+            message=f"All {len(seq)} methods have explicit calibrations",
+            context={
+                "check": "calibration",
+                "methods_checked": len(seq)
+            }
+        )
+    
+    def _check_resources(self) -> ValidationResult:
+        """Check that required resources are available.
+        
+        Returns:
+            ValidationResult indicating if resources are available
+        """
+        issues = []
+        warnings = []
+        
+        # Check config
+        if not hasattr(self, 'config') or self.config is None:
+            issues.append("ExecutorConfig not initialized")
+        
+        # Check signal registry (optional but recommended)
+        if not hasattr(self, 'signal_registry') or self.signal_registry is None:
+            warnings.append("Signal registry not available (optional)")
+        
+        # Check method executor
+        if not hasattr(self, 'executor') or self.executor is None:
+            issues.append("Method executor not initialized")
+        
+        if issues:
+            return ValidationResult(
+                is_valid=False,
+                severity="ERROR",
+                message="; ".join(issues),
+                context={
+                    "check": "resources",
+                    "issues": issues,
+                    "warnings": warnings
+                }
+            )
+        
+        if warnings:
+            return ValidationResult(
+                is_valid=True,
+                severity="WARNING",
+                message="; ".join(warnings),
+                context={
+                    "check": "resources",
+                    "warnings": warnings
+                }
+            )
+        
+        return ValidationResult(
+            is_valid=True,
+            severity="INFO",
+            message="All required resources available",
+            context={"check": "resources"}
+        )
+    
+    @abstractmethod
+    def _get_method_sequence(self) -> list[tuple[str, str]]:
+        """Return the method sequence for this executor.
+        
+        Returns:
+            List of (class_name, method_name) tuples
+        """
+        pass
+
+
 class MethodSequenceValidatingMixin:
     """Mixin for validating method sequences in executors."""
     
@@ -1049,7 +1302,7 @@ class MethodSequenceValidatingMixin:
         return []
 
 
-class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
+class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
     """Advanced executor with frontier paradigmatic capabilities"""
 
     def __init__(
@@ -3909,6 +4162,8 @@ __all__ = [
     # Main orchestrator
     'FrontierExecutorOrchestrator',
     # Base classes
+    'ExecutorBase',
+    'ValidationResult',
     'AdvancedDataFlowExecutor',
     'DataFlowExecutor',  # Backwards compatibility alias
 ]
