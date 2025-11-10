@@ -252,6 +252,18 @@ class PreprocessedDocument:
     tables: list[Any]
     metadata: dict[str, Any]
 
+    def __post_init__(self) -> None:
+        """Validate document fields after initialization.
+        
+        Raises:
+            ValueError: If raw_text is empty or whitespace-only
+        """
+        if not self.raw_text or not self.raw_text.strip():
+            raise ValueError(
+                "PreprocessedDocument cannot have empty raw_text. "
+                "Use PreprocessedDocument.ensure() to create from SPC pipeline."
+            )
+
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
         """Convert a dataclass to a dictionary if applicable."""
@@ -261,9 +273,29 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = False
+        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = True
     ) -> PreprocessedDocument:
-        """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        """Normalize arbitrary ingestion payloads into orchestrator documents.
+        
+        Args:
+            document: Document to normalize (PreprocessedDocument or CanonPolicyPackage)
+            document_id: Optional document ID override
+            use_spc_ingestion: Must be True (SPC is now the only supported ingestion method)
+            
+        Returns:
+            PreprocessedDocument instance
+            
+        Raises:
+            ValueError: If use_spc_ingestion is False
+            TypeError: If document type is not supported
+        """
+        # Enforce SPC-only ingestion
+        if not use_spc_ingestion:
+            raise ValueError(
+                "SPC ingestion is now required. Set use_spc_ingestion=True or remove the parameter. "
+                "Legacy ingestion methods (document_ingestion module) are no longer supported."
+            )
+        
         # Reject class types - only accept instances
         if isinstance(document, type):
             class_name = getattr(document, '__name__', str(document))
@@ -276,107 +308,54 @@ class PreprocessedDocument:
             return document
 
         # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
-        if use_spc_ingestion or hasattr(document, "chunk_graph"):
+        # Documents must have chunk_graph attribute (from CanonPolicyPackage)
+        if hasattr(document, "chunk_graph"):
+            # Validate chunk_graph exists and is not empty
+            chunk_graph = getattr(document, "chunk_graph", None)
+            if chunk_graph is None:
+                raise ValueError(
+                    "Document has chunk_graph attribute but it is None. "
+                    "Ensure SPC ingestion pipeline completed successfully."
+                )
+            
+            # Validate chunk_graph has chunks
+            if not hasattr(chunk_graph, 'chunks') or not chunk_graph.chunks:
+                raise ValueError(
+                    "Document chunk_graph is empty. "
+                    "Ensure SPC ingestion pipeline completed successfully and extracted chunks."
+                )
+            
             try:
                 from saaaaaa.utils.cpp_adapter import CPPAdapter
                 adapter = CPPAdapter()
-                return adapter.to_preprocessed_document(document, document_id=document_id)
+                preprocessed = adapter.to_preprocessed_document(document, document_id=document_id)
+                
+                # Additional validation: ensure non-empty text
+                if not preprocessed.raw_text or not preprocessed.raw_text.strip():
+                    raise ValueError(
+                        "SPC ingestion produced empty document. "
+                        "Check that the source document contains extractable text."
+                    )
+                
+                return preprocessed
             except ImportError as e:
                 raise ImportError(
                     "SPC ingestion requires cpp_adapter module. "
                     "Ensure saaaaaa.utils.cpp_adapter is available."
                 ) from e
+            except ValueError:
+                # Re-raise ValueError directly (e.g., empty document validation)
+                raise
             except Exception as e:
                 raise TypeError(
                     f"Failed to adapt SPC document: {e}. "
-                    "Ensure document is a valid CanonPolicyPackage instance."
+                    "Ensure document is a valid CanonPolicyPackage instance from SPC pipeline."
                 ) from e
 
-        if hasattr(document, "raw_document") and hasattr(document, "full_text"):
-            return cls._from_ingestion(document, document_id=document_id)
-
         raise TypeError(
-            "Unsupported preprocessed document payload: "
-            f"expected orchestrator, document_ingestion, or CPP schema, got {type(document)!r}"
-        )
-
-    @classmethod
-    def _from_ingestion(
-        cls,
-        document: IngestionPreprocessedDocument | Any,
-        *,
-        document_id: str | None = None,
-    ) -> PreprocessedDocument:
-        """Build an orchestrator document from the ingestion schema."""
-        raw_doc = getattr(document, "raw_document", None)
-        derived_id: str | None = document_id or getattr(document, "document_id", None)
-
-        if not derived_id and raw_doc is not None:
-            derived_id = getattr(raw_doc, "file_name", None)
-
-        if not derived_id and hasattr(document, "preprocessing_metadata"):
-            derived_id = getattr(
-                document.preprocessing_metadata, "get", lambda _key, _default=None: None
-            )("document_id")
-
-        if not derived_id and hasattr(document, "metadata"):
-            derived_id = getattr(
-                document.metadata, "get", lambda _key, _default=None: None
-            )("document_id")
-
-        if not derived_id and raw_doc is not None:
-            source_path = getattr(raw_doc, "file_path", "")
-            if source_path:
-                derived_id = os.path.splitext(os.path.basename(str(source_path)))[0]
-
-        if not derived_id:
-            derived_id = "document_1"
-
-        metadata: dict[str, Any] = {}
-        preprocessing_block: dict[str, Any] | None = None
-        if hasattr(document, "preprocessing_metadata"):
-            preprocessing_metadata = document.preprocessing_metadata
-            if isinstance(preprocessing_metadata, dict):
-                preprocessing_block = preprocessing_metadata
-            else:
-                maybe_dict = cls._dataclass_to_dict(preprocessing_metadata)
-                if isinstance(maybe_dict, dict):
-                    preprocessing_block = maybe_dict
-        if preprocessing_block:
-            metadata["preprocessing_metadata"] = preprocessing_block
-
-        sentence_metadata = getattr(document, "sentence_metadata", None)
-        if sentence_metadata is not None:
-            metadata["sentence_metadata"] = list(sentence_metadata)
-
-        indexes = getattr(document, "indexes", None)
-        if indexes is not None:
-            metadata["indexes"] = cls._dataclass_to_dict(indexes)
-
-        structured_text = getattr(document, "structured_text", None)
-        if structured_text is not None:
-            metadata["structured_text"] = cls._dataclass_to_dict(structured_text)
-
-        language = getattr(document, "language", None)
-        if language:
-            metadata["language"] = language
-
-        raw_doc_dict = cls._dataclass_to_dict(raw_doc) if raw_doc is not None else None
-        if isinstance(raw_doc_dict, dict):
-            metadata.setdefault("raw_document", raw_doc_dict)
-            source_path = raw_doc_dict.get("file_path")
-            if source_path:
-                metadata.setdefault("source_path", source_path)
-
-        metadata.setdefault("document_id", str(derived_id))
-        metadata.setdefault("adapter_source", "document_ingestion.PreprocessedDocument")
-
-        return cls(
-            document_id=str(derived_id),
-            raw_text=getattr(document, "full_text", "") or "",
-            sentences=list(getattr(document, "sentences", [])),
-            tables=list(getattr(document, "tables", [])),
-            metadata=metadata,
+            "Unsupported preprocessed document payload. "
+            f"Expected PreprocessedDocument or CanonPolicyPackage with chunk_graph, got {type(document)!r}. "
+            "Documents must be processed through the SPC ingestion pipeline first."
         )
 
 @dataclass
@@ -1761,7 +1740,7 @@ class Orchestrator:
         if override_payload is not None:
             try:
                 preprocessed = PreprocessedDocument.ensure(
-                    override_payload, document_id=document_id
+                    override_payload, document_id=document_id, use_spc_ingestion=True
                 )
             except TypeError as exc:
                 instrumentation.record_error(
@@ -1769,16 +1748,38 @@ class Orchestrator:
                 )
                 raise
         else:
-            preprocessed = PreprocessedDocument(
-                document_id=document_id,
-                raw_text="",
-                sentences=[],
-                tables=[],
-                metadata={
-                    "source_path": pdf_path,
-                    "ingested_at": datetime.utcnow().isoformat(),
-                },
+            error_msg = (
+                "No preprocessed document provided. Ingestion must be performed externally. "
+                f"Use process_development_plan_async(pdf_path='{pdf_path}', preprocessed_document=<doc>) "
+                "where <doc> is a PreprocessedDocument from SPC ingestion pipeline."
             )
+            instrumentation.record_error(
+                "ingestion", "Missing preprocessed document", reason=error_msg
+            )
+            raise ValueError(error_msg)
+
+        # Validate that the document is not empty
+        if not preprocessed.raw_text or not preprocessed.raw_text.strip():
+            error_msg = "Empty document after ingestion - raw_text is empty or whitespace-only"
+            instrumentation.record_error(
+                "ingestion", "Empty document", reason=error_msg
+            )
+            raise ValueError(error_msg)
+        
+        # Log ingestion metrics and validate chunk count
+        chunk_count = preprocessed.metadata.get("chunk_count", 0)
+        if chunk_count == 0:
+            error_msg = "No chunks extracted from document - chunk_count is 0"
+            instrumentation.record_error(
+                "ingestion", "No chunks", reason=error_msg
+            )
+            raise ValueError(error_msg)
+        
+        text_length = len(preprocessed.raw_text)
+        logger.info(
+            f"Document ingested successfully: document_id={document_id}, "
+            f"text_length={text_length}, chunk_count={chunk_count}"
+        )
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
