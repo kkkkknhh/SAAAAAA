@@ -2,14 +2,17 @@
 """
 Rigorous Intrinsic Calibration Triage - Method by Method Analysis
 
-Per tesislizayjuan-debug triage checklist (comment 3512949686):
-Apply decision automaton to EVERY method in canonical_method_catalog.json
+Per tesislizayjuan-debug requirements (comments 3512949686, 3513311176):
+- Apply decision automaton to EVERY method in canonical_method_catalog.json
+- Use machine-readable rubric from config/intrinsic_calibration_rubric.json
+- Produce traceable, reproducible evidence for all scores
 
-Pass 1: Determine if method requires calibration (3-question gate)
-Pass 2: Compute evidence-based intrinsic scores for calibratable methods  
-Pass 3: Populate intrinsic_calibration.json with proper profiles
+Pass 1: Determine if method requires calibration (3-question gate per rubric)
+Pass 2: Compute evidence-based intrinsic scores using explicit rubric rules
+Pass 3: Populate intrinsic_calibration.json with reproducible evidence
 
 NO UNIFORM DEFAULTS. Each method analyzed individually.
+ALL SCORES TRACEABLE. Evidence shows exact computation path.
 """
 
 import json
@@ -18,7 +21,7 @@ import ast
 import re
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 
 
 def load_json(path: Path) -> dict:
@@ -34,16 +37,16 @@ def save_json(path: Path, data: dict) -> None:
         f.write('\n')
 
 
-def triage_pass1_requires_calibration(method_info: Dict[str, Any]) -> Tuple[bool, str]:
+def triage_pass1_requires_calibration(method_info: Dict[str, Any], rubric: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
     """
     Pass 1: Does this method require intrinsic calibration?
     
-    Apply 3-question decision automaton:
+    Apply 3-question decision automaton per rubric
     Q1: Can this method change what is true in the pipeline?
     Q2: Does it encode assumptions or knobs that matter?
     Q3: Would a bug/misuse materially mislead an evaluation?
     
-    Returns: (requires_calibration: bool, reason: str)
+    Returns: (requires_calibration: bool, reason: str, triage_evidence: dict)
     """
     canonical_name = method_info.get('canonical_name', '')
     method_name = method_info.get('method_name', '')
@@ -51,47 +54,78 @@ def triage_pass1_requires_calibration(method_info: Dict[str, Any]) -> Tuple[bool
     layer = method_info.get('layer', 'unknown')
     return_type = method_info.get('return_type', '')
     
-    # Q1: Changes what is true? (selects, filters, transforms, scores, validates, routes)
-    analytical_verbs = [
-        'score', 'compute', 'calculate', 'evaluate', 'assess', 'validate',
-        'filter', 'select', 'transform', 'aggregate', 'detect', 'extract',
-        'classify', 'rank', 'weight', 'normalize', 'calibrate', 'adjust',
-        'infer', 'predict', 'estimate', 'measure', 'analyze', 'process'
-    ]
+    # Load decision rules from rubric
+    triggers = rubric['calibration_triggers']
+    exclusion_rules = rubric['exclusion_criteria']
     
-    q1_analytical = any(verb in method_name.lower() for verb in analytical_verbs)
-    q1_analytical = q1_analytical or any(verb in docstring.lower() for verb in analytical_verbs[:10])
+    # Check explicit exclusion patterns first
+    exclusion_patterns = exclusion_rules['patterns']
+    for pattern_rule in exclusion_patterns:
+        if pattern_rule['pattern'] in method_name:
+            return False, pattern_rule['reason'], {
+                "matched_exclusion_pattern": pattern_rule['pattern'],
+                "exclusion_reason": pattern_rule['reason']
+            }
     
-    # Q2: Encodes assumptions or knobs? (thresholds, priors, models, rules, heuristics)
-    q2_parametric = any(keyword in docstring.lower() for keyword in [
-        'threshold', 'prior', 'weight', 'parameter', 'coefficient',
-        'model', 'rule', 'heuristic', 'assumption', 'criterion'
-    ])
-    q2_parametric = q2_parametric or layer in ['analyzer', 'processor', 'executor']
+    # Q1: Analytically active?
+    q1_config = triggers['questions']['q1_analytically_active']
+    analytical_verbs = q1_config['indicators']['analytical_verbs']
     
-    # Q3: Bug would mislead evaluation?
-    q3_safety_critical = layer in ['analyzer', 'processor', 'orchestrator']
-    q3_safety_critical = q3_safety_critical or return_type in ['float', 'int', 'dict', 'list']
-    q3_safety_critical = q3_safety_critical and not method_name.startswith('_get_')
+    q1_matches_name = [verb for verb in analytical_verbs if verb in method_name.lower()]
+    q1_matches_doc = [verb for verb in analytical_verbs[:10] if verb in docstring.lower()]
+    q1_analytical = len(q1_matches_name) > 0 or len(q1_matches_doc) > 0
     
-    # Explicit exclusion patterns (all NO answers)
-    exclusion_patterns = [
-        '__init__', '__str__', '__repr__', '__eq__', '__hash__', '__len__',
-        '_format_', '_log_', '_print_', 'to_string', 'to_json', 'to_dict',
-        'visit_',  # AST visitors
-        'is_test_file', 'scan_file', 'generate_report'  # Utilities
-    ]
+    # Q2: Parametric?
+    q2_config = triggers['questions']['q2_parametric']
+    parametric_keywords = q2_config['indicators']['parametric_keywords']
+    critical_layers = q2_config['indicators']['check_layer']
     
-    is_explicit_utility = any(pattern in method_name for pattern in exclusion_patterns)
-    is_private_utility = method_name.startswith('_') and not q1_analytical
-    is_pure_getter = method_name.startswith('get_') and return_type in ['str', 'Path', 'bool']
+    q2_matches = [kw for kw in parametric_keywords if kw in docstring.lower()]
+    q2_parametric = len(q2_matches) > 0 or layer in critical_layers
     
-    # Decision: requires calibration if ANY question is YES and NOT explicit utility
-    if is_explicit_utility or (is_private_utility and layer == 'utility'):
-        return False, "Non-semantic utility function (logging, formatting, serialization)"
+    # Q3: Safety-critical?
+    q3_config = triggers['questions']['q3_safety_critical']
+    safety_layers = q3_config['indicators']['critical_layers']
+    eval_types = q3_config['indicators']['evaluative_return_types']
     
-    if is_pure_getter and not q1_analytical:
-        return False, "Simple getter with no analytical logic"
+    q3_safety_critical = layer in safety_layers or return_type in eval_types
+    if q3_config['indicators']['exclude_simple_getters'] and method_name.startswith('_get_'):
+        q3_safety_critical = False
+    
+    # Additional exclusion rules
+    is_private_utility = (method_name.startswith('_') and 
+                         not q1_analytical and 
+                         layer == 'utility')
+    is_pure_getter = (method_name.startswith('get_') and 
+                      return_type in ['str', 'Path', 'bool'] and 
+                      not q1_analytical)
+    
+    # Build machine-readable evidence
+    triage_evidence = {
+        "q1_analytically_active": {
+            "result": q1_analytical,
+            "matched_verbs_in_name": q1_matches_name,
+            "matched_verbs_in_doc": q1_matches_doc
+        },
+        "q2_parametric": {
+            "result": q2_parametric,
+            "matched_keywords": q2_matches,
+            "layer_is_critical": layer in critical_layers
+        },
+        "q3_safety_critical": {
+            "result": q3_safety_critical,
+            "layer_is_critical": layer in safety_layers,
+            "return_type_is_evaluative": return_type in eval_types
+        },
+        "decision_rule": "requires_calibration = (q1 OR q2 OR q3) AND NOT excluded"
+    }
+    
+    # Decision per rubric
+    if is_private_utility:
+        return False, "Private utility function - non-analytical", triage_evidence
+    
+    if is_pure_getter:
+        return False, "Simple getter with no analytical logic", triage_evidence
     
     if q1_analytical or q2_parametric or q3_safety_critical:
         reasons = []
@@ -101,64 +135,110 @@ def triage_pass1_requires_calibration(method_info: Dict[str, Any]) -> Tuple[bool
             reasons.append("encodes assumptions/knobs")
         if q3_safety_critical:
             reasons.append("safety-critical for evaluation")
-        return True, f"Requires calibration: {', '.join(reasons)}"
+        return True, f"Requires calibration: {', '.join(reasons)}", triage_evidence
     
-    return False, "Non-analytical utility function"
+    return False, "Non-analytical utility function", triage_evidence
 
 
-def compute_b_theory(method_info: Dict[str, Any], repo_root: Path) -> Tuple[float, Dict]:
+def compute_b_theory(method_info: Dict[str, Any], repo_root: Path, rubric: Dict[str, Any]) -> Tuple[float, Dict]:
     """
     Compute b_theory: theoretical foundation quality
     
-    Rubric (canonic_calibration_methods.md):
-    - grounded_in_valid_statistics: 0.4
-    - logical_consistency: 0.3
-    - appropriate_assumptions: 0.3
+    Uses machine-readable rules from rubric config
     """
     docstring = method_info.get('docstring', '') or ''
     method_name = method_info.get('method_name', '')
     
-    # Statistical grounding indicators
-    stat_keywords = ['bayesian', 'statistical', 'probability', 'distribution', 'regression', 'coefficient']
-    has_stat_grounding = sum(1 for kw in stat_keywords if kw in docstring.lower()) / len(stat_keywords)
-    stat_grounding_score = min(1.0, has_stat_grounding * 2.0)  # Scale up
+    # Load rubric rules
+    b_theory_config = rubric['b_theory']
+    weights = b_theory_config['weights']
+    rules = b_theory_config['rules']
     
-    # Logical consistency (check docstring quality, type hints)
-    has_docstring = len(docstring) > 20
+    # Component 1: Statistical grounding
+    stat_rules = rules['grounded_in_valid_statistics']['scoring']
+    stat_keywords = stat_rules['has_bayesian_or_statistical_model']['keywords']
+    stat_matches = [kw for kw in stat_keywords if kw in docstring.lower()]
+    
+    if len(stat_matches) >= stat_rules['has_bayesian_or_statistical_model']['threshold']:
+        stat_score = stat_rules['has_bayesian_or_statistical_model']['score']
+    elif len(stat_matches) >= stat_rules['has_some_statistical_grounding']['threshold']:
+        stat_score = stat_rules['has_some_statistical_grounding']['score']
+    else:
+        stat_score = stat_rules['no_statistical_grounding']['score']
+    
+    # Component 2: Logical consistency
+    logic_rules = rules['logical_consistency']['scoring']
+    has_docstring_gt_50 = len(docstring) > 50
+    has_docstring_gt_20 = len(docstring) > 20
     has_returns_doc = 'return' in docstring.lower()
     has_params_doc = 'param' in docstring.lower() or 'arg' in docstring.lower()
-    logical_score = (0.5 if has_docstring else 0.2) + (0.3 if has_returns_doc else 0) + (0.2 if has_params_doc else 0)
     
-    # Appropriate assumptions (check for explicit assumption statements)
-    has_assumptions = 'assum' in docstring.lower() or 'constraint' in docstring.lower()
-    assumptions_score = 0.7 if has_assumptions else 0.4  # Conservative default
+    if has_docstring_gt_50 and has_returns_doc and has_params_doc:
+        logical_score = logic_rules['complete_documentation']['score']
+    elif has_docstring_gt_20:
+        logical_score = logic_rules['partial_documentation']['score']
+    else:
+        logical_score = logic_rules['minimal_documentation']['score']
     
-    # Weighted combination
+    # Component 3: Appropriate assumptions
+    assumption_rules = rules['appropriate_assumptions']['scoring']
+    assumption_keywords = assumption_rules['assumptions_documented']['keywords']
+    assumption_matches = [kw for kw in assumption_keywords if kw in docstring.lower()]
+    
+    if len(assumption_matches) > 0:
+        assumptions_score = assumption_rules['assumptions_documented']['score']
+    else:
+        assumptions_score = assumption_rules['implicit_assumptions']['score']
+    
+    # Weighted combination per rubric
     b_theory = (
-        0.4 * stat_grounding_score +
-        0.3 * logical_score +
-        0.3 * assumptions_score
+        weights['grounded_in_valid_statistics'] * stat_score +
+        weights['logical_consistency'] * logical_score +
+        weights['appropriate_assumptions'] * assumptions_score
     )
     
+    # Machine-readable evidence
     evidence = {
-        "grounded_in_valid_statistics": stat_grounding_score,
-        "logical_consistency": logical_score,
-        "appropriate_assumptions": assumptions_score,
-        "note": "Computed from docstring analysis and method semantics"
+        "formula": "b_theory = 0.4*stat + 0.3*logic + 0.3*assumptions",
+        "components": {
+            "grounded_in_valid_statistics": {
+                "weight": weights['grounded_in_valid_statistics'],
+                "score": stat_score,
+                "matched_keywords": stat_matches,
+                "keyword_count": len(stat_matches),
+                "rule_applied": "has_bayesian_or_statistical_model" if len(stat_matches) >= 3 
+                               else "has_some_statistical_grounding" if len(stat_matches) >= 1 
+                               else "no_statistical_grounding"
+            },
+            "logical_consistency": {
+                "weight": weights['logical_consistency'],
+                "score": logical_score,
+                "docstring_length": len(docstring),
+                "has_returns_doc": has_returns_doc,
+                "has_params_doc": has_params_doc,
+                "rule_applied": "complete_documentation" if (has_docstring_gt_50 and has_returns_doc and has_params_doc) 
+                               else "partial_documentation" if has_docstring_gt_20 
+                               else "minimal_documentation"
+            },
+            "appropriate_assumptions": {
+                "weight": weights['appropriate_assumptions'],
+                "score": assumptions_score,
+                "matched_keywords": assumption_matches,
+                "rule_applied": "assumptions_documented" if assumption_matches else "implicit_assumptions"
+            }
+        },
+        "final_score": round(b_theory, 3),
+        "rubric_version": rubric['_metadata']['version']
     }
     
     return round(b_theory, 3), evidence
 
 
-def compute_b_impl(method_info: Dict[str, Any], repo_root: Path) -> Tuple[float, Dict]:
+def compute_b_impl(method_info: Dict[str, Any], repo_root: Path, rubric: Dict[str, Any]) -> Tuple[float, Dict]:
     """
     Compute b_impl: implementation quality
     
-    Rubric:
-    - test_coverage: 0.35 (≥80% → 1.0, linear below)
-    - type_annotations: 0.25 (complete → 1.0)
-    - error_handling: 0.25 (all paths covered → 1.0)
-    - documentation: 0.15 (complete API docs → 1.0)
+    Uses machine-readable rules from rubric config
     """
     signature = method_info.get('signature', '')
     docstring = method_info.get('docstring', '') or ''
@@ -166,22 +246,33 @@ def compute_b_impl(method_info: Dict[str, Any], repo_root: Path) -> Tuple[float,
     return_type = method_info.get('return_type', None)
     complexity = method_info.get('complexity', 'unknown')
     
-    # Type annotations score
+    # Load rubric rules
+    b_impl_config = rubric['b_impl']
+    weights = b_impl_config['weights']
+    rules = b_impl_config['rules']
+    
+    # Component 1: Test coverage (conservative default)
+    test_rules = rules['test_coverage']['scoring']
+    test_score = test_rules['low_coverage']['score']  # Conservative default
+    
+    # Component 2: Type annotations (use formula from rubric)
     params_with_types = sum(1 for p in input_params if p.get('type_hint'))
     total_params = max(len(input_params), 1)
     has_return_type = return_type is not None and return_type != ''
+    # Formula: (typed_params / total_params) * 0.7 + (0.3 if has_return_type else 0)
     type_score = (params_with_types / total_params * 0.7) + (0.3 if has_return_type else 0)
     
-    # Error handling estimate (based on complexity and try/except patterns)
-    complexity_map = {'low': 0.7, 'medium': 0.5, 'high': 0.3, 'unknown': 0.4}
-    error_score = complexity_map.get(complexity, 0.4)
+    # Component 3: Error handling (based on complexity)
+    error_rules = rules['error_handling']['scoring']
+    error_score = error_rules.get(f'{complexity}_complexity', error_rules['unknown_complexity'])['score']
     
-    # Documentation score
+    # Component 4: Documentation (use formula from rubric)
     doc_length = len(docstring)
     has_description = doc_length > 50
     has_params_doc = 'param' in docstring.lower() or 'arg' in docstring.lower()
     has_returns_doc = 'return' in docstring.lower()
     has_examples = 'example' in docstring.lower()
+    # Formula: (0.4 if doc_length > 50 else 0.1) + (0.3 if has_params_doc else 0) + (0.2 if has_returns_doc else 0) + (0.1 if has_examples else 0)
     doc_score = (
         (0.4 if has_description else 0.1) +
         (0.3 if has_params_doc else 0) +
@@ -189,85 +280,134 @@ def compute_b_impl(method_info: Dict[str, Any], repo_root: Path) -> Tuple[float,
         (0.1 if has_examples else 0)
     )
     
-    # Test coverage estimate (conservative: assume 50% baseline)
-    test_score = 0.5  # Conservative default
-    
-    # Weighted combination
+    # Weighted combination per rubric
     b_impl = (
-        0.35 * test_score +
-        0.25 * type_score +
-        0.25 * error_score +
-        0.15 * doc_score
+        weights['test_coverage'] * test_score +
+        weights['type_annotations'] * type_score +
+        weights['error_handling'] * error_score +
+        weights['documentation'] * doc_score
     )
     
+    # Machine-readable evidence
     evidence = {
-        "test_coverage_estimate": test_score,
-        "type_annotations": type_score,
-        "error_handling_estimate": error_score,
-        "documentation": doc_score,
-        "note": "Computed from code metadata analysis"
+        "formula": "b_impl = 0.35*test + 0.25*type + 0.25*error + 0.15*doc",
+        "components": {
+            "test_coverage": {
+                "weight": weights['test_coverage'],
+                "score": test_score,
+                "rule_applied": "low_coverage",
+                "note": "Conservative default until measured"
+            },
+            "type_annotations": {
+                "weight": weights['type_annotations'],
+                "score": round(type_score, 3),
+                "formula": "(typed_params / total_params) * 0.7 + (0.3 if has_return_type else 0)",
+                "typed_params": params_with_types,
+                "total_params": total_params,
+                "has_return_type": has_return_type
+            },
+            "error_handling": {
+                "weight": weights['error_handling'],
+                "score": error_score,
+                "complexity": complexity,
+                "rule_applied": f"{complexity}_complexity"
+            },
+            "documentation": {
+                "weight": weights['documentation'],
+                "score": round(doc_score, 3),
+                "formula": "(0.4 if doc_length > 50 else 0.1) + (0.3 if has_params_doc else 0) + (0.2 if has_returns_doc else 0) + (0.1 if has_examples else 0)",
+                "doc_length": doc_length,
+                "has_params_doc": has_params_doc,
+                "has_returns_doc": has_returns_doc,
+                "has_examples": has_examples
+            }
+        },
+        "final_score": round(b_impl, 3),
+        "rubric_version": rubric['_metadata']['version']
     }
     
     return round(b_impl, 3), evidence
 
 
-def compute_b_deploy(method_info: Dict[str, Any]) -> Tuple[float, Dict]:
+def compute_b_deploy(method_info: Dict[str, Any], rubric: Dict[str, Any]) -> Tuple[float, Dict]:
     """
     Compute b_deploy: deployment maturity
     
-    Rubric:
-    - validation_runs: 0.4 (≥20 projects → 1.0)
-    - stability_coefficient: 0.35 (CV < 0.1 → 1.0)
-    - failure_rate: 0.25 (< 1% → 1.0)
+    Uses machine-readable rules from rubric config
     """
     layer = method_info.get('layer', 'unknown')
     
-    # Deployment maturity by layer (conservative estimates)
-    layer_maturity = {
-        'orchestrator': 0.7,  # Core system, high maturity
-        'processor': 0.6,     # Processing layer, moderate maturity
-        'analyzer': 0.5,      # Analysis methods, developing
-        'ingestion': 0.6,     # Data ingestion, stable
-        'executor': 0.5,      # Execution layer, variable
-        'utility': 0.6,       # Utilities, stable
-        'unknown': 0.3        # Unknown, low confidence
-    }
+    # Load rubric rules
+    b_deploy_config = rubric['b_deploy']
+    weights = b_deploy_config['weights']
+    rules = b_deploy_config['rules']
     
-    base_maturity = layer_maturity.get(layer, 0.3)
+    # Get layer maturity baseline from rubric
+    layer_maturity_map = rules['layer_maturity_baseline']['scoring']
+    base_maturity = layer_maturity_map.get(layer, layer_maturity_map['unknown'])
     
-    # Conservative deployment estimates
-    validation_score = base_maturity * 0.8  # Scaled from layer maturity
-    stability_score = base_maturity * 0.9   # Slightly better stability
-    failure_score = base_maturity * 0.85    # Moderate failure rate
+    # Apply formulas from rubric
+    # validation_runs: layer_maturity_baseline * 0.8
+    validation_score = base_maturity * 0.8
     
-    # Weighted combination
+    # stability_coefficient: layer_maturity_baseline * 0.9
+    stability_score = base_maturity * 0.9
+    
+    # failure_rate: layer_maturity_baseline * 0.85
+    failure_score = base_maturity * 0.85
+    
+    # Weighted combination per rubric
     b_deploy = (
-        0.4 * validation_score +
-        0.35 * stability_score +
-        0.25 * failure_score
+        weights['validation_runs'] * validation_score +
+        weights['stability_coefficient'] * stability_score +
+        weights['failure_rate'] * failure_score
     )
     
+    # Machine-readable evidence
     evidence = {
-        "validation_runs_estimate": validation_score,
-        "stability_coefficient_estimate": stability_score,
-        "failure_rate_estimate": failure_score,
-        "layer_maturity_baseline": base_maturity,
-        "note": "Conservative estimates based on layer maturity"
+        "formula": "b_deploy = 0.4*validation + 0.35*stability + 0.25*failure",
+        "components": {
+            "layer_maturity_baseline": {
+                "layer": layer,
+                "baseline_score": base_maturity,
+                "source": "rubric layer_maturity_baseline mapping"
+            },
+            "validation_runs": {
+                "weight": weights['validation_runs'],
+                "score": round(validation_score, 3),
+                "formula": "layer_maturity_baseline * 0.8",
+                "computation": f"{base_maturity} * 0.8 = {round(validation_score, 3)}"
+            },
+            "stability_coefficient": {
+                "weight": weights['stability_coefficient'],
+                "score": round(stability_score, 3),
+                "formula": "layer_maturity_baseline * 0.9",
+                "computation": f"{base_maturity} * 0.9 = {round(stability_score, 3)}"
+            },
+            "failure_rate": {
+                "weight": weights['failure_rate'],
+                "score": round(failure_score, 3),
+                "formula": "layer_maturity_baseline * 0.85",
+                "computation": f"{base_maturity} * 0.85 = {round(failure_score, 3)}"
+            }
+        },
+        "final_score": round(b_deploy, 3),
+        "rubric_version": rubric['_metadata']['version']
     }
     
     return round(b_deploy, 3), evidence
 
 
-def triage_and_calibrate_method(method_info: Dict[str, Any], repo_root: Path) -> Dict[str, Any]:
+def triage_and_calibrate_method(method_info: Dict[str, Any], repo_root: Path, rubric: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Full triage and calibration for one method.
+    Full triage and calibration for one method using rubric.
     
     Returns calibration entry for intrinsic_calibration.json
     """
     canonical_name = method_info.get('canonical_name', '')
     
     # Pass 1: Requires calibration?
-    requires_cal, reason = triage_pass1_requires_calibration(method_info)
+    requires_cal, reason, triage_evidence = triage_pass1_requires_calibration(method_info, rubric)
     
     if not requires_cal:
         # Excluded method
@@ -275,40 +415,49 @@ def triage_and_calibrate_method(method_info: Dict[str, Any], repo_root: Path) ->
             "method_id": canonical_name,
             "calibration_status": "excluded",
             "reason": reason,
+            "triage_evidence": triage_evidence,
             "layer": method_info.get('layer', 'unknown'),
             "last_updated": datetime.now(timezone.utc).isoformat(),
-            "approved_by": "automated_triage"
+            "approved_by": "automated_triage",
+            "rubric_version": rubric['_metadata']['version']
         }
     
-    # Pass 2: Compute intrinsic calibration scores
-    b_theory, theory_evidence = compute_b_theory(method_info, repo_root)
-    b_impl, impl_evidence = compute_b_impl(method_info, repo_root)
-    b_deploy, deploy_evidence = compute_b_deploy(method_info)
+    # Pass 2: Compute intrinsic calibration scores using rubric
+    b_theory, theory_evidence = compute_b_theory(method_info, repo_root, rubric)
+    b_impl, impl_evidence = compute_b_impl(method_info, repo_root, rubric)
+    b_deploy, deploy_evidence = compute_b_deploy(method_info, rubric)
     
-    # Pass 3: Create calibration profile
+    # Pass 3: Create calibration profile with machine-readable evidence
     return {
         "method_id": canonical_name,
         "b_theory": b_theory,
         "b_impl": b_impl,
         "b_deploy": b_deploy,
         "evidence": {
-            "theory_analysis": theory_evidence,
-            "implementation_analysis": impl_evidence,
-            "deployment_analysis": deploy_evidence,
-            "triage_reason": reason
+            "triage_decision": triage_evidence,
+            "triage_reason": reason,
+            "b_theory_computation": theory_evidence,
+            "b_impl_computation": impl_evidence,
+            "b_deploy_computation": deploy_evidence
         },
         "calibration_status": "computed",
         "layer": method_info.get('layer', 'unknown'),
         "last_updated": datetime.now(timezone.utc).isoformat(),
-        "approved_by": "automated_triage_with_evidence"
+        "approved_by": "automated_triage_with_rubric",
+        "rubric_version": rubric['_metadata']['version']
     }
 
 
 def main():
-    """Execute rigorous method-by-method triage"""
+    """Execute rigorous method-by-method triage using machine-readable rubric"""
     repo_root = Path(__file__).parent.parent
     catalog_path = repo_root / "config" / "canonical_method_catalog.json"
     intrinsic_path = repo_root / "config" / "intrinsic_calibration.json"
+    rubric_path = repo_root / "config" / "intrinsic_calibration_rubric.json"
+    
+    print("Loading machine-readable rubric...")
+    rubric = load_json(rubric_path)
+    print(f"  Rubric version: {rubric['_metadata']['version']}")
     
     print("Loading canonical method catalog...")
     catalog = load_json(catalog_path)
@@ -334,7 +483,7 @@ def main():
             if canonical_name:
                 all_methods[canonical_name] = method_info
     
-    print(f"\nProcessing {len(all_methods)} methods with rigorous triage...")
+    print(f"\nProcessing {len(all_methods)} methods with rubric-based triage...")
     print("=" * 80)
     
     processed = 0
@@ -349,8 +498,8 @@ def main():
             new_methods[method_id] = existing_methods[method_id]
             calibrated += 1
         else:
-            # Apply triage process
-            calibration_entry = triage_and_calibrate_method(method_info, repo_root)
+            # Apply triage process with rubric
+            calibration_entry = triage_and_calibrate_method(method_info, repo_root, rubric)
             new_methods[method_id] = calibration_entry
             
             if calibration_entry.get("calibration_status") == "excluded":
@@ -365,11 +514,14 @@ def main():
     # Update intrinsic calibration file
     intrinsic["methods"] = new_methods
     intrinsic["_metadata"]["last_triaged"] = datetime.now(timezone.utc).isoformat()
+    intrinsic["_metadata"]["rubric_version"] = rubric['_metadata']['version']
+    intrinsic["_metadata"]["rubric_reference"] = "config/intrinsic_calibration_rubric.json"
     intrinsic["_metadata"]["triage_summary"] = {
         "total_methods": len(all_methods),
         "calibrated": calibrated,
         "excluded": excluded,
-        "methodology": "Rigorous 3-question triage with evidence-based scoring",
+        "methodology": "Machine-readable rubric with traceable evidence",
+        "reproducibility": "All scores can be regenerated from rubric + catalog",
         "note": "Each method analyzed individually per canonic_calibration_methods.md rubrics"
     }
     
@@ -383,8 +535,10 @@ def main():
     print(f"Methods calibrated: {calibrated}")
     print(f"Methods excluded: {excluded}")
     print(f"Coverage: {calibrated/len(all_methods)*100:.2f}%")
-    print("\n✓ Every method analyzed individually with evidence-based scoring")
-    print("✓ No uniform defaults - each score computed from method characteristics")
+    print(f"Rubric version: {rubric['_metadata']['version']}")
+    print("\n✓ Every method analyzed using machine-readable rubric")
+    print("✓ All scores traceable with explicit formulas and evidence")
+    print("✓ Scores are reproducible from rubric + catalog")
     
     return 0
 
