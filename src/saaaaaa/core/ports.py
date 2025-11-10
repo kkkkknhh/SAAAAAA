@@ -291,7 +291,7 @@ class PortSPCAdapter(Protocol):
     This is the preferred terminology for new code.
     """
     
-    def to_preprocessed(self, spc: Any, document_id: str) -> Any:
+    def to_preprocessed_document(self, spc: Any, document_id: str) -> Any:
         """Convert SPC to PreprocessedDocument.
         
         Args:
