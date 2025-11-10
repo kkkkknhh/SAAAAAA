@@ -216,7 +216,8 @@ class VerifiedPipelineRunner:
             from saaaaaa.utils.cpp_adapter import CPPAdapter
             
             adapter = CPPAdapter()
-            preprocessed = adapter.adapt(cpp)
+            # Use the correct method name from CPPAdapter API
+            preprocessed = adapter.to_preprocessed_document(cpp)
             
             self.phases_completed += 1
             self.log_claim("complete", "cpp_adapter", 

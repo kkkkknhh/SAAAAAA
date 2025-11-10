@@ -1,18 +1,28 @@
-"""CPP (Canon Policy Package) ingestion models and interfaces."""
+"""
+CPP (Canon Policy Package) Ingestion Models
+
+This module provides data models for the Canon Policy Package format.
+These models are used by the CPP adapter to convert ingested documents
+into the orchestrator's PreprocessedDocument format.
+"""
 
 from .models import (
     CanonPolicyPackage,
     Chunk,
     ChunkGraph,
     ChunkResolution,
-    ChunkConfidence,
-    TextSpan,
-    BudgetData,
-    KPIData,
-    ProvenanceData,
+    Confidence,
+    PolicyFacet,
     PolicyManifest,
+    ProvenanceMap,
     QualityMetrics,
+    TextSpan,
+    TimeFacet,
+    GeoFacet,
     IntegrityIndex,
+    BudgetInfo,
+    KPIInfo,
+    EntityInfo,
 )
 
 __all__ = [
@@ -20,12 +30,16 @@ __all__ = [
     "Chunk",
     "ChunkGraph",
     "ChunkResolution",
-    "ChunkConfidence",
-    "TextSpan",
-    "BudgetData",
-    "KPIData",
-    "ProvenanceData",
+    "Confidence",
+    "PolicyFacet",
     "PolicyManifest",
+    "ProvenanceMap",
     "QualityMetrics",
+    "TextSpan",
+    "TimeFacet",
+    "GeoFacet",
     "IntegrityIndex",
+    "BudgetInfo",
+    "KPIInfo",
+    "EntityInfo",
 ]
