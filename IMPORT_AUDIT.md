@@ -539,7 +539,6 @@ These files should be migrated or removed:
 - orchestrator/__init__.py
 - orchestrator/arg_router.py
 - orchestrator/choreographer_dispatch.py
-- orchestrator/coreographer.py
 - orchestrator/executors.py
 - orchestrator/factory.py
 - orchestrator/provider.py

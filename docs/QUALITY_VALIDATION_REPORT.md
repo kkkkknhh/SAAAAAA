@@ -317,7 +317,7 @@ tests/
 ├── test_concurrency.py ✅
 ├── test_contracts.py ✅
 ├── test_contracts_comprehensive.py ✅ (NEW)
-├── test_coreographer.py
+├── test_coreographer.py [DELETED - deprecated typo]
 ├── test_embedding_policy_contracts.py
 ├── test_enhanced_recommendations.py
 ├── test_gold_canario_integration.py

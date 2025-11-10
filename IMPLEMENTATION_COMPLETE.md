@@ -77,7 +77,7 @@ make preflight         # Pre-execution checklist
 8. test_contract_snapshots.py → snapshot deprecated
 9. test_core_expected_counts.py → use structure_verification
 10. test_core_monolith_hash.py → in questionnaire_validation
-11. test_coreographer.py → coreographer deprecated
+11. test_coreographer.py → coreographer deleted (deprecated typo)
 12. test_enhanced_argument_resolution.py → in arg_router_extended
 13. test_class_registry_paths.py → registry refactored
 14. test_graph_resolution.py → in cpp_ingestion.ChunkGraph
