@@ -47,14 +47,6 @@ except ImportError:
     from src.saaaaaa.processing.semantic_chunking_policy import SemanticChunkingProducer
     from src.saaaaaa.processing.policy_processor import create_policy_processor
 
-# Optional language detection for multi-language support
-try:
-    from langdetect import detect
-    LANGDETECT_AVAILABLE = True
-except ImportError:
-    LANGDETECT_AVAILABLE = False
-    logger.warning("langdetect not available - defaulting to Spanish models")
-
 # =============================================================================
 # LOGGING CONFIGURADO
 # =============================================================================
@@ -68,6 +60,14 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("SPC")
+
+# Optional language detection for multi-language support
+try:
+    from langdetect import detect
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    logger.warning("langdetect not available - defaulting to Spanish models")
 
 # =============================================================================
 # UTILITY FUNCTIONS - Serialization, Hashing, Text Safety
