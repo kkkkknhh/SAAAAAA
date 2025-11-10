@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 # third-party (pinned in pyproject)
-import structlog
 from pydantic import BaseModel
 
-log = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 
 class QualityGateResult(BaseModel):

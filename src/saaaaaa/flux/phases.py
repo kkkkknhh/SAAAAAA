@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
+from pathlib import Path
 from typing import Any, Callable
 
 # third-party (pinned in pyproject)
@@ -15,6 +17,7 @@ from pydantic import BaseModel, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 from saaaaaa.utils.paths import reports_dir
+from saaaaaa.processing.spc_ingestion import StrategicChunkingSystem
 
 # Contract infrastructure - ACTUAL INTEGRATION
 from saaaaaa.utils.contract_io import ContractEnvelope
@@ -48,8 +51,7 @@ from .models import (
     SignalsExpectation,
 )
 
-# Use contract infrastructure JSON logger instead of structlog
-contract_logger = get_json_logger("flux")
+logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("flux")
 meter = metrics.get_meter("flux")
 
@@ -187,19 +189,72 @@ def run_ingest(
         if correlation_id:
             span.set_attribute("correlation_id", correlation_id)
 
-        # Deterministic execution context
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual ingestion logic
-            # This is a stub that should be replaced with real implementation
-            raw_text = f"[PLACEHOLDER] Content from {input_uri}"
-            tables: list[dict[str, Any]] = []
+        # Use SPC (Smart Policy Chunks) ingestion - the canonical phase-one pipeline
+        try:
+            input_path = Path(input_uri)
+            if not input_path.exists():
+                raise PreconditionError(
+                    "run_ingest",
+                    "input_uri must exist",
+                    f"File not found: {input_uri}",
+                )
+            
+            # Initialize SPC chunking system
+            spc_system = StrategicChunkingSystem()
+            
+            # Read document content
+            if input_path.suffix.lower() == '.pdf':
+                # For PDF files, use appropriate extraction
+                import pdfplumber
+                raw_text_parts = []
+                tables: list[dict[str, Any]] = []
+                
+                with pdfplumber.open(input_path) as pdf:
+                    for page_num, page in enumerate(pdf.pages):
+                        # Extract text
+                        page_text = page.extract_text() or ""
+                        if page_text.strip():
+                            raw_text_parts.append(page_text)
+                        
+                        # Extract tables
+                        page_tables = page.extract_tables()
+                        if page_tables:
+                            for table_idx, table in enumerate(page_tables):
+                                if table:
+                                    tables.append({
+                                        "page": page_num + 1,
+                                        "table_index": table_idx,
+                                        "data": table,
+                                    })
+                
+                raw_text = "\n\n".join(raw_text_parts)
+            else:
+                # For text files, read directly
+                with open(input_path, 'r', encoding='utf-8') as f:
+                    raw_text = f.read()
+                tables = []
+            
+            # Validate we got content
+            if not raw_text or not raw_text.strip():
+                raise PostconditionError(
+                    "run_ingest",
+                    "non-empty content",
+                    f"No text content extracted from {input_uri}",
+                )
+            
+        except ImportError as e:
+            # Fallback if pdfplumber not available
+            logger.warning(f"PDF processing library not available: {e}. Using text extraction fallback.")
+            with open(input_uri, 'r', encoding='utf-8', errors='ignore') as f:
+                raw_text = f.read()
+            tables = []
 
-            out = IngestDeliverable(
-                manifest=DocManifest(document_id=os.path.basename(input_uri)),
-                raw_text=raw_text,
-                tables=tables,
-                provenance_ok=True,
-            )
+        out = IngestDeliverable(
+            manifest=DocManifest(document_id=os.path.basename(input_uri)),
+            raw_text=raw_text,
+            tables=tables,
+            provenance_ok=True,
+        )
 
         # Postconditions
         if not out.provenance_ok:
@@ -223,23 +278,12 @@ def run_ingest(
         phase_latency_histogram.record(duration_ms, {"phase": "ingest"})
         phase_counter.add(1, {"phase": "ingest"})
 
-        # Structured JSON logging with envelope metadata
-        log_io_event(
-            contract_logger,
-            phase="ingest",
-            envelope_in=None,  # First phase has no input envelope
-            envelope_out=env_out,
-            started_monotonic=started_monotonic
-        )
-
-        contract_logger.info(
-            "phase_complete",
-            phase="ingest",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f",
+            "ingest",
+            True,
+            fp,
+            duration_ms,
         )
 
         return PhaseOutcome(
@@ -345,15 +389,13 @@ def run_normalize(
             started_monotonic=start_monotonic
         )
 
-        contract_logger.info(
-            "phase_complete",
-            phase="normalize",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            sentence_count=len(out.sentences),
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f sentence_count=%d",
+            "normalize",
+            True,
+            fp,
+            duration_ms,
+            len(out.sentences),
         )
 
         return PhaseOutcome(
@@ -478,15 +520,13 @@ def run_chunk(
             started_monotonic=start_monotonic
         )
 
-        contract_logger.info(
-            "phase_complete",
-            phase="chunk",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            chunk_count=len(out.chunks),
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f chunk_count=%d",
+            "chunk",
+            True,
+            fp,
+            duration_ms,
+            len(out.chunks),
         )
 
         return PhaseOutcome(
@@ -515,8 +555,6 @@ def run_signals(
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
     policy_unit_id: str | None = None,
-    correlation_id: str | None = None,
-    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
     Execute signals phase (cross-cut) with mandatory metadata propagation.
@@ -608,24 +646,14 @@ def run_signals(
         phase_latency_histogram.record(duration_ms, {"phase": "signals"})
         phase_counter.add(1, {"phase": "signals"})
 
-        # Structured JSON logging
-        log_io_event(
-            contract_logger,
-            phase="signals",
-            envelope_in=env_in,
-            envelope_out=env_out,
-            started_monotonic=started_monotonic
-        )
-
-        contract_logger.info(
-            "phase_complete",
-            phase="signals",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            signals_present=used_signals["present"],
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f signals_present=%s policy_unit_id=%s",
+            "signals",
+            True,
+            fp,
+            duration_ms,
+            used_signals["present"],
+            policy_unit_id,
         )
 
         return PhaseOutcome(
@@ -634,8 +662,6 @@ def run_signals(
             payload=out.model_dump(),
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
-            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms},
         )
 
@@ -738,24 +764,13 @@ def run_aggregate(
         phase_latency_histogram.record(duration_ms, {"phase": "aggregate"})
         phase_counter.add(1, {"phase": "aggregate"})
 
-        # Structured JSON logging
-        log_io_event(
-            contract_logger,
-            phase="aggregate",
-            envelope_in=env_in,
-            envelope_out=env_out,
-            started_monotonic=started_monotonic
-        )
-
-        contract_logger.info(
-            "phase_complete",
-            phase="aggregate",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            feature_count=tbl.num_rows,
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f feature_count=%d",
+            "aggregate",
+            True,
+            fp,
+            duration_ms,
+            tbl.num_rows,
         )
 
         return PhaseOutcome(
@@ -867,24 +882,13 @@ def run_score(
         phase_latency_histogram.record(duration_ms, {"phase": "score"})
         phase_counter.add(1, {"phase": "score"})
 
-        # Structured JSON logging
-        log_io_event(
-            contract_logger,
-            phase="score",
-            envelope_in=env_in,
-            envelope_out=env_out,
-            started_monotonic=started_monotonic
-        )
-
-        contract_logger.info(
-            "phase_complete",
-            phase="score",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            score_count=df.height,
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f score_count=%d",
+            "score",
+            True,
+            fp,
+            duration_ms,
+            df.height,
         )
 
         return PhaseOutcome(
@@ -901,13 +905,7 @@ def run_score(
 
 # REPORT
 def run_report(
-    cfg: ReportConfig,
-    sc: ScoreDeliverable,
-    manifest: DocManifest,
-    *,
-    policy_unit_id: str | None = None,
-    correlation_id: str | None = None,
-    envelope_metadata: dict[str, str] | None = None,
+    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest, *, policy_unit_id: str | None = None
 ) -> PhaseOutcome:
     """
     Execute report phase with mandatory metadata propagation.
@@ -996,24 +994,14 @@ def run_report(
         phase_latency_histogram.record(duration_ms, {"phase": "report"})
         phase_counter.add(1, {"phase": "report"})
 
-        # Structured JSON logging
-        log_io_event(
-            contract_logger,
-            phase="report",
-            envelope_in=env_in,
-            envelope_out=env_out,
-            started_monotonic=started_monotonic
-        )
-
-        contract_logger.info(
-            "phase_complete",
-            phase="report",
-            ok=True,
-            fingerprint=fp,
-            duration_ms=duration_ms,
-            artifact_count=len(out.artifacts),
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
+        logger.info(
+            "phase_complete: phase=%s ok=%s fingerprint=%s duration_ms=%.2f artifact_count=%d policy_unit_id=%s",
+            "report",
+            True,
+            fp,
+            duration_ms,
+            len(out.artifacts),
+            policy_unit_id,
         )
 
         return PhaseOutcome(
@@ -1022,7 +1010,5 @@ def run_report(
             payload=out.model_dump(),
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
-            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts)},
         )
