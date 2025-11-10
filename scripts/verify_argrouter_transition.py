@@ -19,41 +19,41 @@ sys.path.insert(0, str(repo_root / 'src'))
 def check_imports() -> tuple[bool, str]:
     """Verify ExtendedArgRouter can be imported."""
     try:
-        from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+        from saaaaaa.core.orchestrator.arg_router import ExtendedArgRouter
         return True, "ExtendedArgRouter import successful"
     except ImportError as e:
         return False, f"Failed to import ExtendedArgRouter: {e}"
 
 
-def check_deprecation() -> tuple[bool, str]:
-    """Verify deprecation warning is active."""
-    import warnings
-    
+def check_phase4_complete() -> tuple[bool, str]:
+    """Verify Phase 4 completion - consolidated arg_router.py exists."""
     try:
-        from saaaaaa.core.orchestrator.arg_router import ArgRouter
+        from saaaaaa.core.orchestrator.arg_router import ArgRouter, ExtendedArgRouter
         
+        # Check that both classes are available from the single module
+        assert ArgRouter is not None
+        assert ExtendedArgRouter is not None
+        
+        # Verify ArgRouter base class doesn't emit deprecation warnings (Phase 4 complete)
+        import warnings
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             router = ArgRouter({})
             
-            if len(w) == 0:
-                return False, "No deprecation warning raised"
-            
-            if not issubclass(w[0].category, DeprecationWarning):
-                return False, f"Wrong warning type: {w[0].category}"
-            
-            if "deprecated" not in str(w[0].message).lower():
-                return False, "Warning message doesn't mention deprecation"
-            
-            return True, "Deprecation warning working correctly"
+            # Should have NO deprecation warnings in Phase 4
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            if deprecation_warnings:
+                return False, f"Unexpected deprecation warnings found (Phase 4 should remove these)"
+        
+        return True, "Phase 4 complete - consolidated arg_router.py"
     except Exception as e:
-        return False, f"Error checking deprecation: {e}"
+        return False, f"Error checking Phase 4 completion: {e}"
 
 
 def check_special_routes() -> tuple[bool, str]:
     """Verify special routes are defined."""
     try:
-        from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+        from saaaaaa.core.orchestrator.arg_router import ExtendedArgRouter
         
         router = ExtendedArgRouter({})
         coverage = router.get_special_route_coverage()
@@ -69,7 +69,7 @@ def check_special_routes() -> tuple[bool, str]:
 def check_metrics() -> tuple[bool, str]:
     """Verify metrics are available."""
     try:
-        from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+        from saaaaaa.core.orchestrator.arg_router import ExtendedArgRouter
         
         router = ExtendedArgRouter({})
         metrics = router.get_metrics()
@@ -120,7 +120,7 @@ def main() -> int:
     
     checks = [
         ("Import ExtendedArgRouter", check_imports),
-        ("Deprecation Warning", check_deprecation),
+        ("Phase 4 Complete", check_phase4_complete),
         ("Special Routes", check_special_routes),
         ("Metrics Structure", check_metrics),
         ("Required Files", check_files),

@@ -11,14 +11,17 @@ This document provides guidance for the transition from the legacy `ArgRouter` t
 
 ## Current Status
 
-✅ **Phases 1-3 Complete**
+✅ **All Phases Complete**
 - Phase 1: ExtendedArgRouter integrated into MethodExecutor
 - Phase 2: Metrics collection and CI integration
-- Phase 3: Deprecation warnings active
+- Phase 3: Deprecation warnings (completed)
+- Phase 4: Final consolidation into single arg_router.py module
 
-⏳ **Phase 4 Pending**
-- Scheduled after 1 sprint (2-4 weeks) deprecation period
-- Final removal of legacy ArgRouter code
+**What Changed in Phase 4:**
+- Consolidated all routing code into `src/saaaaaa/core/orchestrator/arg_router.py`
+- Removed `arg_router_extended.py` (merged into main module)
+- Removed compatibility shim at `orchestrator/arg_router.py`
+- Both `ArgRouter` and `ExtendedArgRouter` now available from single import
 
 ## For Application Developers
 
@@ -26,23 +29,20 @@ This document provides guidance for the transition from the legacy `ArgRouter` t
 
 If you're using the orchestrator through standard APIs, **no changes are needed**. The `MethodExecutor` automatically uses `ExtendedArgRouter` as of Phase 1.
 
-### Handling Deprecation Warnings
+### Using the Router (Post Phase 4)
 
-If you see deprecation warnings in your tests:
-
-```
-DeprecationWarning: ArgRouter is deprecated. Use ExtendedArgRouter from 
-saaaaaa.core.orchestrator.arg_router_extended instead.
-```
-
-**Action**: Update your imports:
+All routing functionality is now in a single module:
 
 ```python
-# Old (deprecated) ❌
-from saaaaaa.core.orchestrator.arg_router import ArgRouter
+# Import from consolidated module
+from saaaaaa.core.orchestrator.arg_router import ArgRouter, ExtendedArgRouter
 
-# New (recommended) ✅
-from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+# Both classes available from same import
+# ExtendedArgRouter is recommended for new code
+router = ExtendedArgRouter(class_registry)
+
+# ArgRouter base class still available for compatibility
+base_router = ArgRouter(class_registry)
 ```
 
 ### Handling Validation Errors

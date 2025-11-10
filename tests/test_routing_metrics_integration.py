@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+from saaaaaa.core.orchestrator.arg_router import ExtendedArgRouter
 from scripts.report_routing_metrics import format_metrics_report, report_metrics
 
 
