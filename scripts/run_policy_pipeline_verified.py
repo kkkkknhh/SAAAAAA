@@ -29,6 +29,7 @@ import asyncio
 import hashlib
 import json
 import os
+import platform
 import sys
 import time
 import traceback
@@ -40,6 +41,14 @@ from typing import Any, Dict, List, Optional
 # Ensure src/ is in Python path
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
+
+# Import contract enforcement infrastructure
+from saaaaaa.core.orchestrator.seed_registry import get_global_seed_registry
+from saaaaaa.core.orchestrator.verification_manifest import (
+    VerificationManifestBuilder,
+    verify_manifest_integrity
+)
+from saaaaaa.core.orchestrator.versions import get_all_versions
 
 
 @dataclass
@@ -96,6 +105,15 @@ class VerifiedPipelineRunner:
         self.phases_completed = 0
         self.phases_failed = 0
         self.errors: List[str] = []
+        
+        # Initialize seed registry for deterministic execution
+        self.seed_registry = get_global_seed_registry()
+        self.seed_registry.set_policy_unit_id(f"plan1_{self.execution_id}")
+        self.seed_registry.set_correlation_id(self.execution_id)
+        
+        # Initialize verification manifest builder
+        self.manifest_builder = VerificationManifestBuilder()
+        self.manifest_builder.set_versions(get_all_versions())
         
         # Ensure artifacts directory exists
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -486,7 +504,7 @@ class VerifiedPipelineRunner:
                                        preprocessed_doc: Any = None,
                                        results: Any = None) -> Path:
         """
-        Generate final verification manifest with SPC utilization metrics.
+        Generate final verification manifest with SPC utilization metrics and cryptographic integrity.
         
         Args:
             artifacts: List of artifact paths
@@ -499,8 +517,9 @@ class VerifiedPipelineRunner:
         """
         end_time = datetime.utcnow().isoformat()
         
-        # NEW: Calculate chunk utilization metrics
+        # Calculate chunk utilization metrics
         chunk_metrics = self._calculate_chunk_metrics(preprocessed_doc, results)
+        
         # Determine success based on strict criteria
         success = (
             self.phases_failed == 0 and
@@ -509,35 +528,92 @@ class VerifiedPipelineRunner:
             len(artifacts) > 0
         )
         
-        manifest = VerificationManifest(
-            success=success,
-            execution_id=self.execution_id,
-            start_time=self.start_time,
-            end_time=end_time,
-            input_pdf_path=str(self.plan_pdf_path),
-            input_pdf_sha256=getattr(self, 'input_pdf_sha256', ''),
-            artifacts_generated=artifacts,
-            artifact_hashes=artifact_hashes,
-            phases_completed=self.phases_completed,
-            phases_failed=self.phases_failed,
-            total_claims=len(self.claims),
-            errors=self.errors
+        # Build manifest using VerificationManifestBuilder with HMAC integrity
+        self.manifest_builder.set_success(success)
+        self.manifest_builder.set_pipeline_hash(getattr(self, 'input_pdf_sha256', ''))
+        
+        # Add environment information
+        self.manifest_builder.add_environment_info()
+        
+        # Add determinism information from seed registry
+        seed_manifest = self.seed_registry.get_manifest_entry()
+        self.manifest_builder.set_determinism_info(seed_manifest)
+        
+        # Add ingestion information
+        if preprocessed_doc and hasattr(preprocessed_doc, 'metadata'):
+            chunk_count = len(preprocessed_doc.metadata.get('chunks', []))
+            text_length = len(preprocessed_doc.raw_text) if hasattr(preprocessed_doc, 'raw_text') else 0
+            sentence_count = len(preprocessed_doc.sentences) if hasattr(preprocessed_doc, 'sentences') else 0
+            
+            self.manifest_builder.add_ingestion_info({
+                "method": "SPC",
+                "chunk_count": chunk_count,
+                "text_length": text_length,
+                "sentence_count": sentence_count,
+                "chunk_strategy": "semantic",
+                "chunk_overlap": 50
+            })
+        
+        # Add phase information
+        self.manifest_builder.add_phase_info({
+            "phase_name": "complete_pipeline",
+            "status": "success" if success else "failed",
+            "phases_completed": self.phases_completed,
+            "phases_failed": self.phases_failed,
+            "duration_seconds": (datetime.fromisoformat(end_time) - datetime.fromisoformat(self.start_time)).total_seconds()
+        })
+        
+        # Add artifacts
+        for artifact_path, artifact_hash in artifact_hashes.items():
+            self.manifest_builder.add_artifact(artifact_path, artifact_hash)
+        
+        # Add SPC utilization metrics
+        if chunk_metrics:
+            self.manifest_builder.manifest_data["spc_utilization"] = chunk_metrics
+        
+        # Add legacy fields for backward compatibility
+        self.manifest_builder.manifest_data.update({
+            "execution_id": self.execution_id,
+            "start_time": self.start_time,
+            "end_time": end_time,
+            "input_pdf_path": str(self.plan_pdf_path),
+            "total_claims": len(self.claims),
+            "errors": self.errors
+        })
+        
+        # Build and save manifest with HMAC integrity
+        manifest_path = self.artifacts_dir / "verification_manifest.json"
+        manifest_json = self.manifest_builder.build(
+            secret_key=os.environ.get("MANIFEST_SECRET_KEY", "default-dev-key-change-in-production")
         )
         
-        manifest_path = self.artifacts_dir / "verification_manifest.json"
-        # Add chunk metrics to manifest dict before saving
-        manifest_dict = manifest.to_dict()
-        if chunk_metrics:
-            manifest_dict["spc_utilization"] = chunk_metrics
-        
         with open(manifest_path, 'w') as f:
-            json.dump(manifest_dict, f, indent=2)
+            f.write(manifest_json)
         
-        # Compute manifest hash
-        manifest_hash = self.compute_sha256(manifest_path)
-        self.log_claim("hash", "verification_manifest", 
-                      f"Manifest SHA256: {manifest_hash}",
-                      {"file": str(manifest_path), "hash": manifest_hash})
+        # Verify manifest integrity immediately
+        manifest_dict = json.loads(manifest_json)
+        is_valid, message = verify_manifest_integrity(
+            manifest_dict,
+            secret_key=os.environ.get("MANIFEST_SECRET_KEY", "default-dev-key-change-in-production")
+        )
+        
+        if not is_valid:
+            self.log_claim("error", "verification_manifest", 
+                          f"Manifest integrity verification failed: {message}")
+        else:
+            self.log_claim("hash", "verification_manifest", 
+                          f"Manifest integrity verified: {message}",
+                          {"file": str(manifest_path), "hmac_present": True})
+        
+        # Print verification banner
+        if success and is_valid:
+            print("\n" + "="*80)
+            print("PIPELINE_VERIFIED=1")
+            print(f"Manifest: {manifest_path}")
+            print(f"HMAC: {manifest_dict.get('integrity_hmac', 'N/A')[:16]}...")
+            print(f"Phases: {self.phases_completed} completed, {self.phases_failed} failed")
+            print(f"Artifacts: {len(artifacts)}")
+            print("="*80 + "\n")
         
         return manifest_path
     
