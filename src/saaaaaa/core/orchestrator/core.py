@@ -1822,6 +1822,27 @@ class Orchestrator:
         micro_questions = config.get("micro_questions", [])
         instrumentation.items_total = len(micro_questions)
         ordered_questions: list[dict[str, Any]] = []
+        
+        # NEW: Initialize chunk router for chunk-aware execution
+        chunk_routes: dict[int, Any] = {}
+        if document.processing_mode == "chunked" and document.chunks:
+            try:
+                from saaaaaa.core.orchestrator.chunk_router import ChunkRouter
+                router = ChunkRouter()
+                
+                # Route chunks to executors
+                for chunk in document.chunks:
+                    route = router.route_chunk(chunk)
+                    if not route.skip_reason:
+                        chunk_routes[chunk.id] = route
+                
+                logger.info(
+                    f"Chunk-aware execution enabled: routed {len(chunk_routes)} chunks "
+                    f"from {len(document.chunks)} total chunks"
+                )
+            except ImportError:
+                logger.warning("ChunkRouter not available, falling back to flat mode")
+                chunk_routes = {}
 
         questions_by_slot: dict[str, deque] = {}
         for question in micro_questions:
