@@ -114,16 +114,17 @@ class CalibrationEngine:
         """
         Validate fusion weight constraints at config load time.
         
-        SIN_CARRETA Requirement 3: Weight validation with fail-loudly.
+        Per canonic_calibration_methods.md specification.
         
         Constraints:
         1. All weights must be non-negative: a_ℓ ≥ 0, a_ℓk ≥ 0
-        2. Total weight sum ≤ 1: Σ(a_ℓ) + Σ(a_ℓk) ≤ 1 (ensures boundedness)
+        2. Total weight sum MUST equal 1: Σ(a_ℓ) + Σ(a_ℓk) = 1 (tolerance 1e-9)
         
         Raises:
             CalibrationConfigError: If any weight constraint is violated
         """
         role_params_dict = self.fusion_config.get("role_fusion_parameters", {})
+        TOLERANCE = 1e-9
         
         for role_name, role_params in role_params_dict.items():
             linear_weights = role_params.get("linear_weights", {})
@@ -144,13 +145,13 @@ class CalibrationEngine:
                         f"weight={weight}. All weights must be ≥ 0."
                     )
             
-            # Constraint 2: Bounded sum
+            # Constraint 2: Must sum to exactly 1.0
             total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
-            if total_weight > 1.0:
+            if abs(total_weight - 1.0) > TOLERANCE:
                 raise CalibrationConfigError(
-                    f"Weight sum exceeds 1.0 for role={role_name}: "
-                    f"total_weight={total_weight:.6f}. "
-                    f"Constraint: Σ(a_ℓ) + Σ(a_ℓk) ≤ 1.0 must hold."
+                    f"Weight sum must equal 1.0 for role={role_name}: "
+                    f"total_weight={total_weight:.15f} (deviation: {abs(total_weight - 1.0):.15f}). "
+                    f"Constraint: Σ(a_ℓ) + Σ(a_ℓk) = 1.0 (tolerance {TOLERANCE})."
                 )
     
     def _compute_config_hash(self) -> str:
