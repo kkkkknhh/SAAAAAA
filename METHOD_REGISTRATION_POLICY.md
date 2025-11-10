@@ -23,7 +23,7 @@ A symbolic link to `config/rules/METODOS/catalogo_completo_canonico.json` for ba
 
 **Rationale:**
 - The sin-carreta guardrails check references `metodos_completos_nivel3.json`
-- The custom agent documentation (`./github/agents/my-agent.md`) references this filename
+- The custom agent documentation (`.github/agents/my-agent.md`) references this filename
 - Creating a symlink maintains compatibility while keeping the canonical file in its proper location
 
 ## Related Files
