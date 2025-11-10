@@ -26,7 +26,7 @@ from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, ParamSpec, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Literal, ParamSpec, TypedDict, TypeVar
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
