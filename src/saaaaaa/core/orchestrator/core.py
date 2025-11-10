@@ -796,10 +796,16 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, 
+        dispatcher: Any | None = None, 
+        calibrations: dict[str, Any] | None = None,
+        signal_registry: Any | None = None,
+    ) -> None:
         # Build the class registry
         self.degraded_mode = False
         self.degraded_reasons: list[str] = []
+        self.signal_registry = signal_registry
         
         try:
             registry = build_class_registry()
