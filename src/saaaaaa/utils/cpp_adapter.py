@@ -260,7 +260,7 @@ class CPPAdapter:
                 )
         
         # NEW: Build chunk objects for SPC exploitation
-        chunk_data_list = self._build_chunk_objects(chunks, cpp.chunk_graph.edges)
+        chunk_data_list = self._build_chunk_objects(chunks, cpp.chunk_graph.edges, sentences, tables)
         chunk_index = self._build_chunk_index(chunk_data_list, sentences, tables)
         
         # Expose chunk graph for downstream processing
@@ -309,13 +309,21 @@ class CPPAdapter:
         
         return chunks_with_provenance / len(chunks)
     
-    def _build_chunk_objects(self, cpp_chunks: list[Chunk], graph_edges: list[dict[str, Any]]) -> list[ChunkData]:
+    def _build_chunk_objects(
+        self, 
+        cpp_chunks: list[Chunk], 
+        graph_edges: list[dict[str, Any]],
+        sentences: list[dict[str, Any]],
+        tables: list[dict[str, Any]]
+    ) -> list[ChunkData]:
         """
         Convert CPP chunks to ChunkData objects for orchestrator.
         
         Args:
             cpp_chunks: List of CPP Chunk objects
             graph_edges: List of graph edges from chunk_graph
+            sentences: List of sentence dictionaries for mapping
+            tables: List of table dictionaries for mapping
             
         Returns:
             List of ChunkData objects preserving structure
@@ -338,6 +346,38 @@ class CPPAdapter:
                 edge_map_out.setdefault(source_id, []).append(target_idx)
                 edge_map_in.setdefault(target_id, []).append(source_idx)
         
+        # Build sentence and table mappings per chunk
+        chunk_sentences: dict[int, list[int]] = {idx: [] for idx in range(len(cpp_chunks))}
+        chunk_tables: dict[int, list[int]] = {idx: [] for idx in range(len(cpp_chunks))}
+        
+        # Map sentences to chunks by chunk_id
+        for sent_idx, sentence in enumerate(sentences):
+            chunk_id = sentence.get("chunk_id")
+            if chunk_id is not None:
+                # Convert chunk_id to integer index if needed
+                if isinstance(chunk_id, str):
+                    # Try to find matching chunk by ID
+                    for idx, chunk in enumerate(cpp_chunks):
+                        if chunk.id == chunk_id:
+                            chunk_sentences[idx].append(sent_idx)
+                            break
+                elif isinstance(chunk_id, int) and chunk_id < len(cpp_chunks):
+                    chunk_sentences[chunk_id].append(sent_idx)
+        
+        # Map tables to chunks by chunk_id
+        for table_idx, table in enumerate(tables):
+            chunk_id = table.get("chunk_id")
+            if chunk_id is not None:
+                # Convert chunk_id to integer index if needed
+                if isinstance(chunk_id, str):
+                    # Try to find matching chunk by ID
+                    for idx, chunk in enumerate(cpp_chunks):
+                        if chunk.id == chunk_id:
+                            chunk_tables[idx].append(table_idx)
+                            break
+                elif isinstance(chunk_id, int) and chunk_id < len(cpp_chunks):
+                    chunk_tables[chunk_id].append(table_idx)
+        
         # Build ChunkData objects
         chunk_data_list = []
         for idx, chunk in enumerate(cpp_chunks):
@@ -352,8 +392,8 @@ class CPPAdapter:
                 id=idx,
                 text=chunk.text,
                 chunk_type=chunk.chunk_type,  # Already normalized to expected types
-                sentences=[],  # Will be populated by _build_chunk_index
-                tables=[],     # Will be populated by _build_chunk_index
+                sentences=chunk_sentences[idx],  # Populated from sentence mapping
+                tables=chunk_tables[idx],       # Populated from table mapping
                 start_pos=chunk.text_span.start,
                 end_pos=chunk.text_span.end,
                 confidence=avg_confidence,

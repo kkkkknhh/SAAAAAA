@@ -437,7 +437,7 @@ class VerifiedPipelineRunner:
                 if chunk_metrics["graph_metrics"]["is_connected"]:
                     try:
                         chunk_metrics["graph_metrics"]["diameter"] = nx.diameter(G.to_undirected())
-                    except:
+                    except Exception:
                         chunk_metrics["graph_metrics"]["diameter"] = -1
                 else:
                     chunk_metrics["graph_metrics"]["diameter"] = -1
