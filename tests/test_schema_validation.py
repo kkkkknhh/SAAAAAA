@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from validation.schema_validator import (
+from saaaaaa.utils.validation.schema_validator import (
     MonolithIntegrityReport,
     MonolithSchemaValidator,
     SchemaInitializationError,

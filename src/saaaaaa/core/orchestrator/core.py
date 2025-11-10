@@ -26,7 +26,7 @@ from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterable, ParamSpec, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Literal, ParamSpec, TypedDict, TypeVar
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
@@ -239,18 +239,58 @@ class MacroEvaluation:
     clusters: list[ClusterScoreData]
 
 
+@dataclass(frozen=True)
+class ChunkData:
+    """Single semantic chunk from SPC (Smart Policy Chunks).
+    
+    Preserves chunk structure and metadata from the ingestion pipeline,
+    enabling chunk-aware executor routing and scoped processing.
+    """
+    id: int
+    text: str
+    chunk_type: Literal["diagnostic", "activity", "indicator", "resource", "temporal", "entity"]
+    sentences: list[int]  # Global sentence IDs in this chunk
+    tables: list[int]     # Global table IDs in this chunk
+    start_pos: int
+    end_pos: int
+    confidence: float
+    edges_out: list[int] = field(default_factory=list)  # Chunk IDs this connects to
+    edges_in: list[int] = field(default_factory=list)   # Chunk IDs connecting to this
+
+
 @dataclass
 class PreprocessedDocument:
     """Orchestrator representation of a processed document.
 
     This is the normalized document format used internally by the orchestrator.
     It can be constructed from ingestion payloads or created directly.
+    
+    New in SPC exploitation: Preserves chunk structure when processing_mode='chunked',
+    enabling chunk-aware executor routing and reducing redundant processing.
     """
     document_id: str
     raw_text: str
     sentences: list[Any]
     tables: list[Any]
     metadata: dict[str, Any]
+    
+    # NEW CHUNK FIELDS for SPC exploitation
+    chunks: list[ChunkData] = field(default_factory=list)
+    chunk_index: dict[str, int] = field(default_factory=dict)  # Fast lookup: entity_id → chunk_id
+    chunk_graph: dict[str, Any] = field(default_factory=dict)  # Exposed graph structure
+    processing_mode: Literal["flat", "chunked"] = "flat"  # Mode flag for backward compatibility
+
+    def __post_init__(self) -> None:
+        """Validate document fields after initialization.
+        
+        Raises:
+            ValueError: If raw_text is empty or whitespace-only
+        """
+        if not self.raw_text or not self.raw_text.strip():
+            raise ValueError(
+                "PreprocessedDocument cannot have empty raw_text. "
+                "Use PreprocessedDocument.ensure() to create from SPC pipeline."
+            )
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
@@ -261,9 +301,29 @@ class PreprocessedDocument:
 
     @classmethod
     def ensure(
-        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = False
+        cls, document: Any, *, document_id: str | None = None, use_spc_ingestion: bool = True
     ) -> PreprocessedDocument:
-        """Normalize arbitrary ingestion payloads into orchestrator documents."""
+        """Normalize arbitrary ingestion payloads into orchestrator documents.
+        
+        Args:
+            document: Document to normalize (PreprocessedDocument or CanonPolicyPackage)
+            document_id: Optional document ID override
+            use_spc_ingestion: Must be True (SPC is now the only supported ingestion method)
+            
+        Returns:
+            PreprocessedDocument instance
+            
+        Raises:
+            ValueError: If use_spc_ingestion is False
+            TypeError: If document type is not supported
+        """
+        # Enforce SPC-only ingestion
+        if not use_spc_ingestion:
+            raise ValueError(
+                "SPC ingestion is now required. Set use_spc_ingestion=True or remove the parameter. "
+                "Legacy ingestion methods (document_ingestion module) are no longer supported."
+            )
+        
         # Reject class types - only accept instances
         if isinstance(document, type):
             class_name = getattr(document, '__name__', str(document))
@@ -276,107 +336,54 @@ class PreprocessedDocument:
             return document
 
         # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
-        if use_spc_ingestion or hasattr(document, "chunk_graph"):
+        # Documents must have chunk_graph attribute (from CanonPolicyPackage)
+        if hasattr(document, "chunk_graph"):
+            # Validate chunk_graph exists and is not empty
+            chunk_graph = getattr(document, "chunk_graph", None)
+            if chunk_graph is None:
+                raise ValueError(
+                    "Document has chunk_graph attribute but it is None. "
+                    "Ensure SPC ingestion pipeline completed successfully."
+                )
+            
+            # Validate chunk_graph has chunks
+            if not hasattr(chunk_graph, 'chunks') or not chunk_graph.chunks:
+                raise ValueError(
+                    "Document chunk_graph is empty. "
+                    "Ensure SPC ingestion pipeline completed successfully and extracted chunks."
+                )
+            
             try:
                 from saaaaaa.utils.cpp_adapter import CPPAdapter
                 adapter = CPPAdapter()
-                return adapter.to_preprocessed_document(document, document_id=document_id)
+                preprocessed = adapter.to_preprocessed_document(document, document_id=document_id)
+                
+                # Additional validation: ensure non-empty text
+                if not preprocessed.raw_text or not preprocessed.raw_text.strip():
+                    raise ValueError(
+                        "SPC ingestion produced empty document. "
+                        "Check that the source document contains extractable text."
+                    )
+                
+                return preprocessed
             except ImportError as e:
                 raise ImportError(
                     "SPC ingestion requires cpp_adapter module. "
                     "Ensure saaaaaa.utils.cpp_adapter is available."
                 ) from e
+            except ValueError:
+                # Re-raise ValueError directly (e.g., empty document validation)
+                raise
             except Exception as e:
                 raise TypeError(
                     f"Failed to adapt SPC document: {e}. "
-                    "Ensure document is a valid CanonPolicyPackage instance."
+                    "Ensure document is a valid CanonPolicyPackage instance from SPC pipeline."
                 ) from e
 
-        if hasattr(document, "raw_document") and hasattr(document, "full_text"):
-            return cls._from_ingestion(document, document_id=document_id)
-
         raise TypeError(
-            "Unsupported preprocessed document payload: "
-            f"expected orchestrator, document_ingestion, or CPP schema, got {type(document)!r}"
-        )
-
-    @classmethod
-    def _from_ingestion(
-        cls,
-        document: IngestionPreprocessedDocument | Any,
-        *,
-        document_id: str | None = None,
-    ) -> PreprocessedDocument:
-        """Build an orchestrator document from the ingestion schema."""
-        raw_doc = getattr(document, "raw_document", None)
-        derived_id: str | None = document_id or getattr(document, "document_id", None)
-
-        if not derived_id and raw_doc is not None:
-            derived_id = getattr(raw_doc, "file_name", None)
-
-        if not derived_id and hasattr(document, "preprocessing_metadata"):
-            derived_id = getattr(
-                document.preprocessing_metadata, "get", lambda _key, _default=None: None
-            )("document_id")
-
-        if not derived_id and hasattr(document, "metadata"):
-            derived_id = getattr(
-                document.metadata, "get", lambda _key, _default=None: None
-            )("document_id")
-
-        if not derived_id and raw_doc is not None:
-            source_path = getattr(raw_doc, "file_path", "")
-            if source_path:
-                derived_id = os.path.splitext(os.path.basename(str(source_path)))[0]
-
-        if not derived_id:
-            derived_id = "document_1"
-
-        metadata: dict[str, Any] = {}
-        preprocessing_block: dict[str, Any] | None = None
-        if hasattr(document, "preprocessing_metadata"):
-            preprocessing_metadata = document.preprocessing_metadata
-            if isinstance(preprocessing_metadata, dict):
-                preprocessing_block = preprocessing_metadata
-            else:
-                maybe_dict = cls._dataclass_to_dict(preprocessing_metadata)
-                if isinstance(maybe_dict, dict):
-                    preprocessing_block = maybe_dict
-        if preprocessing_block:
-            metadata["preprocessing_metadata"] = preprocessing_block
-
-        sentence_metadata = getattr(document, "sentence_metadata", None)
-        if sentence_metadata is not None:
-            metadata["sentence_metadata"] = list(sentence_metadata)
-
-        indexes = getattr(document, "indexes", None)
-        if indexes is not None:
-            metadata["indexes"] = cls._dataclass_to_dict(indexes)
-
-        structured_text = getattr(document, "structured_text", None)
-        if structured_text is not None:
-            metadata["structured_text"] = cls._dataclass_to_dict(structured_text)
-
-        language = getattr(document, "language", None)
-        if language:
-            metadata["language"] = language
-
-        raw_doc_dict = cls._dataclass_to_dict(raw_doc) if raw_doc is not None else None
-        if isinstance(raw_doc_dict, dict):
-            metadata.setdefault("raw_document", raw_doc_dict)
-            source_path = raw_doc_dict.get("file_path")
-            if source_path:
-                metadata.setdefault("source_path", source_path)
-
-        metadata.setdefault("document_id", str(derived_id))
-        metadata.setdefault("adapter_source", "document_ingestion.PreprocessedDocument")
-
-        return cls(
-            document_id=str(derived_id),
-            raw_text=getattr(document, "full_text", "") or "",
-            sentences=list(getattr(document, "sentences", [])),
-            tables=list(getattr(document, "tables", [])),
-            metadata=metadata,
+            "Unsupported preprocessed document payload. "
+            f"Expected PreprocessedDocument or CanonPolicyPackage with chunk_graph, got {type(document)!r}. "
+            "Documents must be processed through the SPC ingestion pipeline first."
         )
 
 @dataclass
@@ -1761,7 +1768,7 @@ class Orchestrator:
         if override_payload is not None:
             try:
                 preprocessed = PreprocessedDocument.ensure(
-                    override_payload, document_id=document_id
+                    override_payload, document_id=document_id, use_spc_ingestion=True
                 )
             except TypeError as exc:
                 instrumentation.record_error(
@@ -1769,16 +1776,38 @@ class Orchestrator:
                 )
                 raise
         else:
-            preprocessed = PreprocessedDocument(
-                document_id=document_id,
-                raw_text="",
-                sentences=[],
-                tables=[],
-                metadata={
-                    "source_path": pdf_path,
-                    "ingested_at": datetime.utcnow().isoformat(),
-                },
+            error_msg = (
+                "No preprocessed document provided. Ingestion must be performed externally. "
+                f"Use process_development_plan_async(pdf_path='{pdf_path}', preprocessed_document=<doc>) "
+                "where <doc> is a PreprocessedDocument from SPC ingestion pipeline."
             )
+            instrumentation.record_error(
+                "ingestion", "Missing preprocessed document", reason=error_msg
+            )
+            raise ValueError(error_msg)
+
+        # Validate that the document is not empty
+        if not preprocessed.raw_text or not preprocessed.raw_text.strip():
+            error_msg = "Empty document after ingestion - raw_text is empty or whitespace-only"
+            instrumentation.record_error(
+                "ingestion", "Empty document", reason=error_msg
+            )
+            raise ValueError(error_msg)
+        
+        # Log ingestion metrics and validate chunk count
+        chunk_count = preprocessed.metadata.get("chunk_count", 0)
+        if chunk_count == 0:
+            error_msg = "No chunks extracted from document - chunk_count is 0"
+            instrumentation.record_error(
+                "ingestion", "No chunks", reason=error_msg
+            )
+            raise ValueError(error_msg)
+        
+        text_length = len(preprocessed.raw_text)
+        logger.info(
+            f"Document ingested successfully: document_id={document_id}, "
+            f"text_length={text_length}, chunk_count={chunk_count}"
+        )
 
         duration = time.perf_counter() - start
         instrumentation.increment(latency=duration)
@@ -1794,6 +1823,27 @@ class Orchestrator:
         micro_questions = config.get("micro_questions", [])
         instrumentation.items_total = len(micro_questions)
         ordered_questions: list[dict[str, Any]] = []
+        
+        # NEW: Initialize chunk router for chunk-aware execution
+        chunk_routes: dict[int, Any] = {}
+        if document.processing_mode == "chunked" and document.chunks:
+            try:
+                from saaaaaa.core.orchestrator.chunk_router import ChunkRouter
+                router = ChunkRouter()
+                
+                # Route chunks to executors
+                for chunk in document.chunks:
+                    route = router.route_chunk(chunk)
+                    if not route.skip_reason:
+                        chunk_routes[chunk.id] = route
+                
+                logger.info(
+                    f"Chunk-aware execution enabled: routed {len(chunk_routes)} chunks "
+                    f"from {len(document.chunks)} total chunks"
+                )
+            except ImportError:
+                logger.warning("ChunkRouter not available, falling back to flat mode")
+                chunk_routes = {}
 
         questions_by_slot: dict[str, deque] = {}
         for question in micro_questions:
@@ -1820,6 +1870,13 @@ class Orchestrator:
         }
 
         results: list[MicroQuestionRun] = []
+        
+        # NEW: Track chunk execution metrics
+        execution_metrics = {
+            "chunk_executions": 0,  # Actual chunk-level executions
+            "full_doc_executions": 0,  # Fallback full document executions
+            "total_chunks_processed": 0,  # Total chunks that could have been processed
+        }
 
         async def process_question(question: dict[str, Any]) -> MicroQuestionRun:
             await self.resource_limits.apply_worker_budget()
@@ -1880,7 +1937,67 @@ class Orchestrator:
                 else:
                     try:
                         executor_instance = executor_class(self.executor)
-                        evidence = await asyncio.to_thread(executor_instance.execute, document, self.executor)
+                        
+                        # NEW: Chunk-aware execution
+                        if chunk_routes and document.processing_mode == "chunked":
+                            # Find chunks relevant to this base_slot
+                            relevant_chunk_ids = [
+                                chunk_id for chunk_id, route in chunk_routes.items()
+                                if base_slot in route.executor_class or route.executor_class == base_slot
+                            ]
+                            
+                            if relevant_chunk_ids:
+                                # Track metrics
+                                execution_metrics["chunk_executions"] += len(relevant_chunk_ids)
+                                execution_metrics["total_chunks_processed"] += len(relevant_chunk_ids)
+                                
+                                # Execute on relevant chunks only
+                                chunk_evidences = []
+                                for chunk_id in relevant_chunk_ids:
+                                    try:
+                                        # Call execute_chunk if available, otherwise fall back to execute
+                                        if hasattr(executor_instance, 'execute_chunk'):
+                                            chunk_evidence = await asyncio.to_thread(
+                                                executor_instance.execute_chunk, document, chunk_id
+                                            )
+                                        else:
+                                            # Fallback: execute on full document
+                                            chunk_evidence = await asyncio.to_thread(
+                                                executor_instance.execute, document, self.executor
+                                            )
+                                        if chunk_evidence:
+                                            chunk_evidences.append(chunk_evidence)
+                                    except Exception as chunk_exc:
+                                        logger.warning(
+                                            f"Chunk {chunk_id} execution failed for {base_slot}: {chunk_exc}"
+                                        )
+                                
+                                # Aggregate chunk results
+                                if chunk_evidences:
+                                    # Use first evidence as base, merge others
+                                    evidence = chunk_evidences[0]
+                                    # Simple aggregation: combine matches/claims if available
+                                    if len(chunk_evidences) > 1 and hasattr(evidence, 'matches'):
+                                        all_matches = []
+                                        for chunk_ev in chunk_evidences:
+                                            if hasattr(chunk_ev, 'matches') and chunk_ev.matches:
+                                                all_matches.extend(chunk_ev.matches)
+                                        evidence.matches = all_matches
+                                else:
+                                    evidence = None
+                            else:
+                                # No relevant chunks for this slot, execute on full document
+                                execution_metrics["full_doc_executions"] += 1
+                                evidence = await asyncio.to_thread(
+                                    executor_instance.execute, document, self.executor
+                                )
+                        else:
+                            # Flat mode or no chunk routes - use original behavior
+                            execution_metrics["full_doc_executions"] += 1
+                            evidence = await asyncio.to_thread(
+                                executor_instance.execute, document, self.executor
+                            )
+                        
                         circuit["failures"] = 0
                     except Exception as exc:  # pragma: no cover - dependencias externas
                         circuit["failures"] += 1
@@ -1932,6 +2049,30 @@ class Orchestrator:
             for task in tasks:
                 task.cancel()
             raise
+        
+        # Log chunk execution metrics
+        if chunk_routes and document.processing_mode == "chunked":
+            total_possible = len(micro_questions) * len(document.chunks)
+            actual_executed = execution_metrics["chunk_executions"] + execution_metrics["full_doc_executions"]
+            savings_pct = ((total_possible - actual_executed) / max(total_possible, 1)) * 100 if total_possible > 0 else 0
+            
+            logger.info(
+                f"Chunk execution metrics: {execution_metrics['chunk_executions']} chunk-scoped, "
+                f"{execution_metrics['full_doc_executions']} full-doc, "
+                f"{total_possible} total possible, "
+                f"savings: {savings_pct:.1f}%"
+            )
+            
+            # Store metrics for verification manifest
+            if not hasattr(self, '_execution_metrics'):
+                self._execution_metrics = {}
+            self._execution_metrics['phase_2'] = {
+                'chunk_executions': execution_metrics['chunk_executions'],
+                'full_doc_executions': execution_metrics['full_doc_executions'],
+                'total_possible_executions': total_possible,
+                'actual_executions': actual_executed,
+                'savings_percent': savings_pct,
+            }
 
         return results
 
