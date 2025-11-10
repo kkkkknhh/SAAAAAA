@@ -328,5 +328,4 @@ def adapt_spc_to_orchestrator(
 
 
 # Deprecated alias for backwards compatibility
-CPPAdapter = SPCAdapter
-adapt_cpp_to_orchestrator = adapt_spc_to_orchestrator
+# Removed: CPPAdapter and adapt_cpp_to_orchestrator aliases moved to cpp_adapter.py for clearer separation
