@@ -9,7 +9,7 @@ Spec compliance: Section 3 (Layer Architecture)
 
 import math
 from typing import Dict, Any, Optional
-from .data_structures import MethodRole, ComputationGraph, InterplaySubgraph
+from .data_structures import MethodRole, ComputationGraph, InterplaySubgraph, CalibrationConfigError
 
 
 def compute_base_layer(method_id: str, intrinsic_config: Dict[str, Any]) -> float:
@@ -142,7 +142,7 @@ def compute_unit_layer(method_id: str, role: MethodRole, unit_quality: float,
         
         # Validate that config produces valid result
         if score < 0.0 or score > 1.0:
-            raise ValueError(
+            raise CalibrationConfigError(
                 f"Unit layer g_function produced out-of-range score: {score} "
                 f"for unit_quality={unit_quality}. Config must be adjusted to ensure [0,1] output."
             )
@@ -157,7 +157,7 @@ def compute_unit_layer(method_id: str, role: MethodRole, unit_quality: float,
         
         # Validate that config produces valid result
         if score < 0.0 or score > 1.0:
-            raise ValueError(
+            raise CalibrationConfigError(
                 f"Unit layer g_function produced out-of-range score: {score} "
                 f"for unit_quality={unit_quality}, k={k}, x0={x0}. "
                 f"Config must be adjusted to ensure [0,1] output."

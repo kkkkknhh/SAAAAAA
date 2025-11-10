@@ -221,7 +221,11 @@ class CalibrationEngine:
             raise CalibrationConfigError(
                 f"Method '{method_id}' not found in canonical_method_catalog.json. "
                 f"Cannot determine role for calibration. "
-                f"All calibrated methods must be registered in catalog."
+                f"All calibrated methods must be registered in catalog.\n"
+                f"To resolve:\n"
+                f"  1. Add method to config/canonical_method_catalog.json with proper metadata\n"
+                f"  2. Run scripts/rigorous_calibration_triage.py to generate intrinsic calibration\n"
+                f"  3. Ensure method has correct layer, role, and signature information"
             )
         
         # Determine role from layer + method name patterns (per canonic_calibration_methods.md)

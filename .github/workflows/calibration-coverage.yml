@@ -48,9 +48,9 @@ jobs:
           echo ""
           echo "Actions required:"
           echo "  1. Review uncalibrated methods in validator output above"
-          echo "  2. Add calibrations to src/saaaaaa/core/orchestrator/calibration_registry.py"
+          echo "  2. Add entries to config/intrinsic_calibration.json using scripts/rigorous_calibration_triage.py"
           echo "  3. Focus on critical intrinsic profiles first"
-          echo "  4. Ensure calibrations follow MethodCalibration dataclass structure"
+          echo "  4. Ensure calibrations follow the Three-Pillar system guidelines"
           echo ""
-          echo "See CALIBRATION_SYSTEM.md for calibration guidelines"
+          echo "See SIN_CARRETA_COMPLIANCE.md for calibration guidelines"
           exit 1
