@@ -365,20 +365,142 @@ class VerifiedPipelineRunner:
             self.errors.append(error_msg)
             return artifacts, artifact_hashes
     
-    def generate_verification_manifest(self, artifacts: List[str],
-                                       artifact_hashes: Dict[str, str]) -> Path:
+    def _calculate_chunk_metrics(self, preprocessed_doc: Any, results: Any) -> Dict[str, Any]:
         """
-        Generate final verification manifest.
+        Calculate SPC utilization metrics for verification manifest.
+        
+        Args:
+            preprocessed_doc: PreprocessedDocument with chunk information
+            results: Orchestrator execution results
+            
+        Returns:
+            Dictionary with chunk metrics
+        """
+        if preprocessed_doc is None:
+            return {}
+        
+        processing_mode = getattr(preprocessed_doc, 'processing_mode', 'flat')
+        
+        if processing_mode != 'chunked':
+            return {
+                "processing_mode": "flat",
+                "note": "Document processed in flat mode (no chunk utilization)"
+            }
+        
+        chunks = getattr(preprocessed_doc, 'chunks', [])
+        chunk_graph = getattr(preprocessed_doc, 'chunk_graph', {})
+        
+        chunk_metrics = {
+            "processing_mode": "chunked",
+            "total_chunks": len(chunks),
+            "chunk_types": {},
+            "chunk_routing": {},
+            "graph_metrics": {},
+            "execution_savings": {}
+        }
+        
+        # Count chunk types
+        for chunk in chunks:
+            chunk_type = getattr(chunk, 'chunk_type', 'unknown')
+            chunk_metrics["chunk_types"][chunk_type] = \
+                chunk_metrics["chunk_types"].get(chunk_type, 0) + 1
+        
+        # Calculate graph metrics if networkx available
+        try:
+            import networkx as nx
+            
+            if chunk_graph and isinstance(chunk_graph, dict):
+                nodes = chunk_graph.get("nodes", [])
+                edges = chunk_graph.get("edges", [])
+                
+                # Build networkx graph for analysis
+                G = nx.DiGraph()
+                for node in nodes:
+                    node_id = node.get("id")
+                    if node_id is not None:
+                        G.add_node(node_id)
+                
+                for edge in edges:
+                    source = edge.get("source")
+                    target = edge.get("target")
+                    if source is not None and target is not None:
+                        G.add_edge(source, target)
+                
+                chunk_metrics["graph_metrics"] = {
+                    "nodes": G.number_of_nodes(),
+                    "edges": G.number_of_edges(),
+                    "is_dag": nx.is_directed_acyclic_graph(G),
+                    "is_connected": nx.is_weakly_connected(G) if G.number_of_nodes() > 0 else False,
+                    "density": round(nx.density(G), 4) if G.number_of_nodes() > 0 else 0.0,
+                }
+                
+                # Calculate diameter if connected
+                if chunk_metrics["graph_metrics"]["is_connected"]:
+                    try:
+                        chunk_metrics["graph_metrics"]["diameter"] = nx.diameter(G.to_undirected())
+                    except Exception:
+                        chunk_metrics["graph_metrics"]["diameter"] = -1
+                else:
+                    chunk_metrics["graph_metrics"]["diameter"] = -1
+                    
+        except ImportError:
+            chunk_metrics["graph_metrics"] = {
+                "note": "NetworkX not available for graph analysis"
+            }
+        except Exception as e:
+            chunk_metrics["graph_metrics"] = {
+                "error": f"Graph analysis failed: {str(e)}"
+            }
+        
+        # Calculate execution savings
+        # Use actual metrics from orchestrator if available
+        if results and hasattr(results, '_execution_metrics') and 'phase_2' in results._execution_metrics:
+            metrics = results._execution_metrics['phase_2']
+            chunk_metrics["execution_savings"] = {
+                "chunk_executions": metrics['chunk_executions'],
+                "full_doc_executions": metrics['full_doc_executions'],
+                "total_possible_executions": metrics['total_possible_executions'],
+                "actual_executions": metrics['actual_executions'],
+                "savings_percent": round(metrics['savings_percent'], 2),
+                "note": "Actual execution counts from orchestrator Phase 2"
+            }
+        elif results:
+            # Fallback to estimation if real metrics not available
+            total_possible_executions = 30 * len(chunks)  # 30 executors per chunk max
+            # Assume chunk routing reduces executions by using type-specific executors
+            estimated_actual = len(chunks) * 10  # ~10 executors per chunk (conservative)
+            
+            chunk_metrics["execution_savings"] = {
+                "total_possible_executions": total_possible_executions,
+                "estimated_actual_executions": estimated_actual,
+                "estimated_savings_percent": round(
+                    (1 - estimated_actual / max(total_possible_executions, 1)) * 100, 2
+                ) if total_possible_executions > 0 else 0.0,
+                "note": "Estimated savings based on chunk-aware routing (orchestrator metrics not available)"
+            }
+        
+        return chunk_metrics
+    
+    def generate_verification_manifest(self, artifacts: List[str],
+                                       artifact_hashes: Dict[str, str],
+                                       preprocessed_doc: Any = None,
+                                       results: Any = None) -> Path:
+        """
+        Generate final verification manifest with SPC utilization metrics.
         
         Args:
             artifacts: List of artifact paths
             artifact_hashes: Dictionary mapping paths to SHA256 hashes
+            preprocessed_doc: PreprocessedDocument (optional, for chunk metrics)
+            results: Orchestrator results (optional, for execution metrics)
             
         Returns:
             Path to verification_manifest.json
         """
         end_time = datetime.utcnow().isoformat()
         
+        # NEW: Calculate chunk utilization metrics
+        chunk_metrics = self._calculate_chunk_metrics(preprocessed_doc, results)
         # Determine success based on strict criteria
         success = (
             self.phases_failed == 0 and
@@ -403,8 +525,13 @@ class VerifiedPipelineRunner:
         )
         
         manifest_path = self.artifacts_dir / "verification_manifest.json"
+        # Add chunk metrics to manifest dict before saving
+        manifest_dict = manifest.to_dict()
+        if chunk_metrics:
+            manifest_dict["spc_utilization"] = chunk_metrics
+        
         with open(manifest_path, 'w') as f:
-            json.dump(manifest.to_dict(), f, indent=2)
+            json.dump(manifest_dict, f, indent=2)
         
         # Compute manifest hash
         manifest_hash = self.compute_sha256(manifest_path)
@@ -449,8 +576,10 @@ class VerifiedPipelineRunner:
         # Step 5: Save artifacts
         artifacts, artifact_hashes = self.save_artifacts(cpp, preprocessed_doc, results)
         
-        # Step 6: Generate verification manifest
-        manifest_path = self.generate_verification_manifest(artifacts, artifact_hashes)
+        # Step 6: Generate verification manifest with chunk metrics
+        manifest_path = self.generate_verification_manifest(
+            artifacts, artifact_hashes, preprocessed_doc, results
+        )
         
         self.log_claim("complete", "pipeline", 
                       "Pipeline execution completed",
