@@ -5,6 +5,7 @@ This module implements the main calibrate() function and fusion operator
 as specified in the SUPERPROMPT Three-Pillar Calibration System.
 
 Spec compliance: Section 5 (Fusion Operator), Section 6 (Runtime Engine)
+SIN_CARRETA Compliance: Pure fusion operator, fail-loudly on misconfiguration
 """
 
 import json
@@ -14,7 +15,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from .data_structures import (
     CalibrationCertificate, CalibrationSubject, Context, 
-    ComputationGraph, EvidenceStore, LayerType, MethodRole, REQUIRED_LAYERS
+    ComputationGraph, EvidenceStore, LayerType, MethodRole, REQUIRED_LAYERS,
+    CalibrationConfigError
 )
 from .layer_computers import (
     compute_base_layer, compute_chain_layer, compute_unit_layer,
@@ -30,13 +32,20 @@ class CalibrationEngine:
     Spec compliance: Section 7 (Runtime Engine & Certificate)
     """
     
-    def __init__(self, config_dir: str = None, monolith_path: str = None):
+    def __init__(self, config_dir: str = None, monolith_path: str = None, catalog_path: str = None):
         """
         Initialize calibration engine and load configs.
+        
+        SIN_CARRETA: Validates fusion weights at load time to fail fast.
+        Three-Pillar System: Loads from intrinsic, contextual, and fusion configs.
         
         Args:
             config_dir: Path to config directory (defaults to ../config)
             monolith_path: Path to questionnaire_monolith.json (defaults to ../data/questionnaire_monolith.json)
+            catalog_path: Path to canonical_method_catalog.json (defaults to ../config/canonical_method_catalog.json)
+            
+        Raises:
+            CalibrationConfigError: If fusion weights violate constraints
         """
         if config_dir is None:
             config_dir = Path(__file__).parent.parent / "config"
@@ -47,6 +56,17 @@ class CalibrationEngine:
         self.intrinsic_config = self._load_json(config_dir / "intrinsic_calibration.json")
         self.contextual_config = self._load_json(config_dir / "contextual_parametrization.json")
         self.fusion_config = self._load_json(config_dir / "fusion_specification.json")
+        
+        # Load canonical method catalog for role determination
+        if catalog_path is None:
+            catalog_path = config_dir / "canonical_method_catalog.json"
+        else:
+            catalog_path = Path(catalog_path)
+        self.catalog = self._load_json(catalog_path)
+        self._build_method_index()
+        
+        # SIN_CARRETA: Validate fusion weights at load time
+        self._validate_fusion_weights()
         
         # Load questionnaire monolith
         if monolith_path is None:
@@ -63,6 +83,76 @@ class CalibrationEngine:
         """Load JSON file"""
         with open(path, 'r') as f:
             return json.load(f)
+    
+    def _build_method_index(self) -> None:
+        """
+        Build index of methods from canonical catalog for fast role lookup.
+        
+        Three-Pillar System: Uses canonical_method_catalog.json as single source.
+        """
+        self.method_index = {}
+        
+        for layer_name, methods in self.catalog.get("layers", {}).items():
+            for method_info in methods:
+                canonical_name = method_info.get("canonical_name", "")
+                method_name = method_info.get("method_name", "")
+                class_name = method_info.get("class_name", "")
+                layer = method_info.get("layer", "unknown")
+                
+                # Store method info with multiple lookup keys
+                for key in [canonical_name, method_name, f"{class_name}.{method_name}"]:
+                    if key:
+                        self.method_index[key] = {
+                            "canonical_name": canonical_name,
+                            "method_name": method_name,
+                            "class_name": class_name,
+                            "layer": layer,
+                            "metadata": method_info
+                        }
+    
+    def _validate_fusion_weights(self) -> None:
+        """
+        Validate fusion weight constraints at config load time.
+        
+        Per canonic_calibration_methods.md specification.
+        
+        Constraints:
+        1. All weights must be non-negative: a_ℓ ≥ 0, a_ℓk ≥ 0
+        2. Total weight sum MUST equal 1: Σ(a_ℓ) + Σ(a_ℓk) = 1 (tolerance 1e-9)
+        
+        Raises:
+            CalibrationConfigError: If any weight constraint is violated
+        """
+        role_params_dict = self.fusion_config.get("role_fusion_parameters", {})
+        TOLERANCE = 1e-9
+        
+        for role_name, role_params in role_params_dict.items():
+            linear_weights = role_params.get("linear_weights", {})
+            interaction_weights = role_params.get("interaction_weights", {})
+            
+            # Constraint 1: Non-negativity
+            for layer, weight in linear_weights.items():
+                if weight < 0:
+                    raise CalibrationConfigError(
+                        f"Negative weight for role={role_name}, layer={layer}: "
+                        f"weight={weight}. All weights must be ≥ 0."
+                    )
+            
+            for pair, weight in interaction_weights.items():
+                if weight < 0:
+                    raise CalibrationConfigError(
+                        f"Negative interaction weight for role={role_name}, pair={pair}: "
+                        f"weight={weight}. All weights must be ≥ 0."
+                    )
+            
+            # Constraint 2: Must sum to exactly 1.0
+            total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
+            if abs(total_weight - 1.0) > TOLERANCE:
+                raise CalibrationConfigError(
+                    f"Weight sum must equal 1.0 for role={role_name}: "
+                    f"total_weight={total_weight:.15f} (deviation: {abs(total_weight - 1.0):.15f}). "
+                    f"Constraint: Σ(a_ℓ) + Σ(a_ℓk) = 1.0 (tolerance {TOLERANCE})."
+                )
     
     def _compute_config_hash(self) -> str:
         """
@@ -102,26 +192,108 @@ class CalibrationEngine:
     
     def _determine_role(self, method_id: str) -> MethodRole:
         """
-        Determine method role from method ID.
-        Simplified heuristic - full implementation would use catalog metadata.
+        Determine method role from method ID using canonical catalog metadata.
+        
+        Three-Pillar System: Uses canonical_method_catalog.json for role inference.
+        Mapping from catalog layer + method patterns to MethodRole enum.
+        
+        Args:
+            method_id: Method identifier (canonical_name, method_name, or Class.method format)
+            
+        Returns:
+            MethodRole enum value
+            
+        Raises:
+            CalibrationConfigError: If method not found in catalog or role cannot be determined
         """
-        # Heuristic based on method name
-        if "ingest" in method_id.lower() or "pdm" in method_id.lower():
+        # Look up method in catalog index
+        method_info = self.method_index.get(method_id)
+        
+        if not method_info:
+            # Try fallback patterns
+            for key, info in self.method_index.items():
+                if method_id in key or key in method_id:
+                    method_info = info
+                    break
+        
+        if not method_info:
+            # Cannot calibrate unknown methods - fail loudly
+            raise CalibrationConfigError(
+                f"Method '{method_id}' not found in canonical_method_catalog.json. "
+                f"Cannot determine role for calibration. "
+                f"All calibrated methods must be registered in catalog.\n"
+                f"To resolve:\n"
+                f"  1. Add method to config/canonical_method_catalog.json with proper metadata\n"
+                f"  2. Run scripts/rigorous_calibration_triage.py to generate intrinsic calibration\n"
+                f"  3. Ensure method has correct layer, role, and signature information"
+            )
+        
+        # Determine role from layer + method name patterns (per canonic_calibration_methods.md)
+        layer = method_info.get("layer", "unknown")
+        method_name = method_info.get("method_name", "").lower()
+        
+        # Role mapping based on layer and method semantics
+        # Per L_* specification in canonic_calibration_methods.md
+        if layer == "ingestion" or "ingest" in method_name or "pdm" in method_name:
             return MethodRole.INGEST_PDM
-        elif "structure" in method_id.lower():
+        elif "structure" in method_name or "parse" in method_name:
             return MethodRole.STRUCTURE
-        elif "extract" in method_id.lower():
+        elif "extract" in method_name:
             return MethodRole.EXTRACT
-        elif "score" in method_id.lower() or "question" in method_id.lower():
+        elif "score" in method_name or "question" in method_name or layer == "analyzer":
             return MethodRole.SCORE_Q
-        elif "aggregate" in method_id.lower():
+        elif "aggregate" in method_name or "combine" in method_name:
             return MethodRole.AGGREGATE
-        elif "report" in method_id.lower():
+        elif "report" in method_name or "format" in method_name:
             return MethodRole.REPORT
-        elif "transform" in method_id.lower() or "normalize" in method_id.lower():
+        elif "transform" in method_name or "normalize" in method_name or "convert" in method_name:
             return MethodRole.TRANSFORM
         else:
+            # Default to META_TOOL for utility/orchestrator methods
             return MethodRole.META_TOOL
+    
+    def _detect_interplay(self, graph: ComputationGraph, node_id: str) -> Optional[Any]:
+        """
+        Detect interplay patterns from computation graph.
+        
+        Three-Pillar System: Interplays are DECLARED in config, not auto-detected.
+        
+        Per canonic_calibration_methods.md Section 1.3:
+        - "An interplay G is valid only if all nodes share a single declared target output"
+        - "A fusion rule is declared in config"
+        - "Do not infer ensembles implicitly"
+        
+        This method checks if the node participates in any declared interplay
+        from the contextual config.
+        
+        Args:
+            graph: Computation graph
+            node_id: Node identifier
+            
+        Returns:
+            Interplay subgraph if node participates in one, None otherwise
+        """
+        # Per specification: interplays are declared in contextual config, not inferred
+        # Check contextual_parametrization.json for declared interplays
+        interplay_defs = self.contextual_config.get("interplay_definitions", {})
+        
+        for interplay_id, interplay_spec in interplay_defs.items():
+            # Check if node_id is in this interplay's participant list
+            participants = interplay_spec.get("participants", [])
+            if node_id in participants:
+                # Node participates in this declared interplay
+                # Return interplay specification
+                return {
+                    "interplay_id": interplay_id,
+                    "participants": participants,
+                    "target_output": interplay_spec.get("target_output"),
+                    "fusion_rule": interplay_spec.get("fusion_rule"),
+                    "declared": True
+                }
+        
+        # Node does not participate in any declared interplay
+        # This is normal - most nodes don't participate in interplays
+        return None
     
     def _compute_layer_scores(
         self, 
@@ -194,13 +366,22 @@ class CalibrationEngine:
         layer_scores: Dict[str, float]
     ) -> tuple[float, Dict[str, Any]]:
         """
-        Apply fusion operator to combine layer scores.
+        Apply pure fusion operator to combine layer scores.
         
         Spec compliance: Section 5 (Fusion Operator)
+        SIN_CARRETA Compliance: Pure mathematical formula, no clamping/normalization
+        
         Formula: Cal(I) = Σ(a_ℓ · x_ℓ) + Σ(a_ℓk · min(x_ℓ, x_k))
+        
+        Weight constraints (enforced at load time):
+        - All weights a_ℓ, a_ℓk ≥ 0
+        - Σ(a_ℓ) + Σ(a_ℓk) ≤ 1 (ensures boundedness)
         
         Returns:
             (calibrated_score, fusion_details)
+            
+        Raises:
+            CalibrationConfigError: If score violates [0,1] bounds (weight misconfiguration)
         """
         role_params = self.fusion_config["role_fusion_parameters"].get(
             role.value,
@@ -247,17 +428,18 @@ class CalibrationEngine:
                     "contribution": contribution
                 })
         
-        # Total calibrated score
+        # Total calibrated score (PURE FUSION - no clamping or normalization)
         calibrated_score = linear_sum + interaction_sum
         
-        # Ensure boundedness [0,1] - if violated, weights are misconfigured
-        # NO clamping or normalization - fail loudly on misconfiguration
+        # SIN_CARRETA: Fail loudly on weight misconfiguration
+        # NEVER clamp or normalize - that would hide misconfiguration
         if calibrated_score < 0.0 or calibrated_score > 1.0:
             total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
-            raise ValueError(
+            raise CalibrationConfigError(
                 f"Fusion weights misconfigured for role {role.value}: "
                 f"total_weight={total_weight:.6f} produced calibrated_score={calibrated_score:.6f}. "
-                f"Score must be in [0,1]. Check fusion_specification.json."
+                f"Score must be in [0,1]. Weight constraints violated. "
+                f"Check fusion_specification.json and ensure Σ(a_ℓ) + Σ(a_ℓk) ≤ 1."
             )
         
         fusion_details = {
@@ -304,12 +486,15 @@ class CalibrationEngine:
         # Determine role
         role = self._determine_role(method_id)
         
+        # SIN_CARRETA: Detect interplay from graph (fail if not implemented)
+        interplay = self._detect_interplay(graph, node_id)
+        
         # Create calibration subject
         subject = CalibrationSubject(
             method_id=method_id,
             node_id=node_id,
             graph=graph,
-            interplay=None,  # Simplified - would detect from graph
+            interplay=interplay,
             context=context,
             role=role
         )
