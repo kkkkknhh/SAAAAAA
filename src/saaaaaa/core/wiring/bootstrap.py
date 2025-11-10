@@ -20,7 +20,7 @@ from typing import Any
 
 import structlog
 
-from saaaaaa.core.orchestrator.arg_router_extended import ExtendedArgRouter
+from saaaaaa.core.orchestrator.arg_router import ExtendedArgRouter
 from saaaaaa.core.orchestrator.class_registry import build_class_registry
 from saaaaaa.core.orchestrator.core_module_factory import CoreModuleFactory
 from saaaaaa.core.orchestrator.executor_config import ExecutorConfig
