@@ -34,6 +34,12 @@ from typing import Optional, List, Dict
 repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / "src"))
 
+# Import canonical enums
+from saaaaaa.core.orchestrator.catalogo_completo_canonico import (
+    MethodPriority,
+    MethodComplexity,
+)
+
 
 class CalibrationDecision(Enum):
     """Calibration requirement decision"""
