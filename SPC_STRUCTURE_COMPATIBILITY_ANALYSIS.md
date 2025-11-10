@@ -182,7 +182,9 @@ def ensure(
     # Check for SPC (Smart Policy Chunks) ingestion - canonical phase-one
     if use_spc_ingestion or hasattr(document, "chunk_graph"):
         try:
-            from saaaaaa.utils.cpp_adapter import CPPAdapter  # Now SPCAdapter
+            # For backward compatibility, import CPPAdapter. The new preferred adapter is SPCAdapter:
+            # from saaaaaa.utils.spc_adapter import SPCAdapter
+            from saaaaaa.utils.cpp_adapter import CPPAdapter
             adapter = CPPAdapter()
             return adapter.to_preprocessed_document(document, document_id=document_id)
         except ImportError as e:
