@@ -1,11 +1,12 @@
-"""Coreographer compatibility module for orchestrator single-question execution.
+"""Choreographer module for orchestrator single-question execution.
 
-The original repository exposed a ``coreographer`` module that provided a
-lightweight façade around the micro-question execution pipeline.  The
-refactoring moved orchestrator code under ``saaaaaa.core.orchestrator``, but
-several tests (and external integrations) still import the legacy module.  We
-re-implement the minimal data structures and helpers exercised by the test
-suite so that the modern package remains backwards compatible.
+This module provides a lightweight façade around the micro-question execution 
+pipeline. The refactoring consolidated orchestrator code under 
+``saaaaaa.core.orchestrator``.
+
+Historical note: The original repository had a ``coreographer`` module (a typo 
+of "choreographer") which has been deprecated and removed. This is the correct
+implementation.
 
 The implementation intentionally focuses on deterministic, easily-testable
 behaviour:

@@ -14,15 +14,16 @@ src/saaaaaa/core/orchestrator/
 
 Las carpetas confusas en el nivel raíz (`orchestrator/`, `executors/`, etc.) son **solo capas de compatibilidad** (shims) que redirigen al código real. Son necesarias para mantener la compatibilidad con código antiguo.
 
-### 2. ¿Qué hacen esos dos archivos de coreografía?
+### 2. ¿Qué hacen esos archivos de coreografía?
 
-Los dos archivos son:
-- **`orchestrator/coreographer.py`** - Contiene un error tipográfico ("coreographer" en lugar de "choreographer") pero se mantiene para compatibilidad
+El archivo:
 - **`orchestrator/choreographer_dispatch.py`** - Expone la clase `ChoreographerDispatcher`
 
-**Ambos apuntan al MISMO archivo fuente:** `src/saaaaaa/core/orchestrator/choreographer.py`
+**Apunta al archivo fuente:** `src/saaaaaa/core/orchestrator/choreographer.py`
 
-Son solo wrappers de compatibilidad. El código real está en `src/saaaaaa/core/orchestrator/choreographer.py`.
+Es solo un wrapper de compatibilidad. El código real está en `src/saaaaaa/core/orchestrator/choreographer.py`.
+
+**Nota:** El archivo `orchestrator/coreographer.py` (que contenía un error tipográfico) ha sido eliminado ya que era un wrapper innecesario.
 
 ### 3. ¿Por qué hay tantos __init__.py?
 
@@ -85,7 +86,6 @@ executors/         ← Shims que redirigen a src/saaaaaa/core/orchestrator/execu
 ### Código Viejo (todavía funciona)
 ```python
 from orchestrator import Orchestrator
-from orchestrator.coreographer import Choreographer
 from concurrency import WorkerPool
 ```
 

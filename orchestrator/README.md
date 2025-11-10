@@ -18,23 +18,12 @@ This directory contains thin compatibility shims that redirect imports to the re
 | File | Purpose | Redirects To |
 |------|---------|-------------|
 | `__init__.py` | Main orchestrator API | `src/saaaaaa/core/orchestrator/` |
-| `coreographer.py` | Legacy typo (should be choreographer) | `src/saaaaaa/core/orchestrator/choreographer.py` |
 | `choreographer_dispatch.py` | Dispatcher component | `src/saaaaaa/core/orchestrator/choreographer.py` |
 | `executors.py` | Executor utilities | `src/saaaaaa/core/orchestrator/executors.py` |
 | `arg_router.py` | Argument routing | `src/saaaaaa/core/orchestrator/arg_router.py` |
 | `factory.py` | Component factories | `src/saaaaaa/core/orchestrator/factory.py` |
 | `provider.py` | Configuration providers | Local implementation (to be migrated) |
 | `settings.py` | Settings | Local implementation (to be migrated) |
-
-## Why Two Choreographer Files?
-
-You may notice `coreographer.py` and `choreographer_dispatch.py` both exist:
-
-- **`coreographer.py`** - Contains a typo (should be "choreographer") but is preserved for backward compatibility with existing code
-- **`choreographer_dispatch.py`** - Provides the `ChoreographerDispatcher` class
-- **Both redirect to the SAME source file**: `src/saaaaaa/core/orchestrator/choreographer.py`
-
-This appears confusing but maintains compatibility with legacy code that imported from either location.
 
 ## For New Code
 
@@ -50,7 +39,6 @@ from saaaaaa.core.orchestrator.executors import MethodExecutor
 Old code (still works):
 ```python
 from orchestrator import Orchestrator
-from orchestrator.coreographer import Choreographer
 from orchestrator.choreographer_dispatch import ChoreographerDispatcher
 ```
 

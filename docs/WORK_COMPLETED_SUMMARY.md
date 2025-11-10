@@ -88,7 +88,7 @@
 - Renamed catalog file
 - Updated factory.py (2 locations)
 - Updated core_module_factory.py (1 location)
-- Updated test_coreographer.py (2 locations)
+- Updated test_coreographer.py (2 locations) [NOTE: This file was later deleted as deprecated]
 - Updated ejemplo_uso_nivel3.py (1 location)
 
 ### Commit 2: ad5b89c  

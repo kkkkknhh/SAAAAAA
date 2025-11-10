@@ -141,11 +141,12 @@ Modules with main() function but not in packaging config:
 
 **Ambiguity:** Has main() function; might be CLI entry point not in packaging config
 
-### Orchestrator Modules (8 files)
+### Orchestrator Modules (7 files)
 Orchestrator modules not clearly reachable:
 - `orchestrator/choreographer_dispatch.py` - Usage unclear
-- `orchestrator/coreographer.py` - Not in import graph
 - `orchestrator/executors.py` - Unclear relationship to src/
+
+**Note:** `orchestrator/coreographer.py` has been deleted (was a deprecated typo shim)
 
 **Ambiguity:** Python module not in import graph; usage unclear
 
