@@ -28,8 +28,8 @@ from typing import Dict, List, Any, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from saaaaaa.utils.paths import data_dir
-from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
-from saaaaaa.utils.cpp_adapter import CPPAdapter
+from saaaaaa.processing.spc_ingestion import CPPIngestionPipeline
+from saaaaaa.utils.spc_adapter import SPCAdapter
 from saaaaaa.core.orchestrator import Orchestrator
 from saaaaaa.core.orchestrator.factory import build_processor
 from saaaaaa.core.orchestrator.calibration_registry import (
@@ -89,7 +89,7 @@ class CalibrationTester:
         """
         self.plan_path = plan_path
         self.cpp_pipeline = None
-        self.cpp_adapter = CPPAdapter()
+        self.spc_adapter = SPCAdapter()
     
     async def run_with_base_calibration(self) -> Dict[str, Any]:
         """Run pipeline with base calibration (no context).
@@ -101,28 +101,31 @@ class CalibrationTester:
         start_time = time.time()
         
         # Ingest document
-        cpp = await self._ingest_document()
+        spc = await self._ingest_document()
         
         # Convert to orchestrator format
-        doc = self.cpp_adapter.to_preprocessed_document(cpp)
+        doc = self.spc_adapter.to_preprocessed_document(spc)
         
         # Build processor and create orchestrator
         processor = build_processor()
-        orchestrator = Orchestrator(processor.method_executor)
+        orchestrator = Orchestrator(monolith=processor.questionnaire)
         
         # Monkey-patch to use base calibration only
-        # Monkey-patch module-level resolver instead of non-existent class attribute
         import saaaaaa.core.orchestrator.calibration_registry as _calib_reg
         original_resolve = _calib_reg.resolve_calibration
         
         def base_only(class_name, method_name):
             return resolve_calibration(class_name, method_name)
         
-        orchestrator._method_executor.__class__.resolve_calibration = base_only
+        # Monkey-patch the module-level function
+        _calib_reg.resolve_calibration_with_context = base_only
         
         # Run orchestration
         try:
-            results = await orchestrator.orchestrate_async(doc)
+            results = await orchestrator.process_development_plan_async(
+                str(self.plan_path), 
+                preprocessed_document=doc
+            )
             execution_time = time.time() - start_time
             
             # Compute metrics
@@ -134,7 +137,7 @@ class CalibrationTester:
             }
         finally:
             # Restore original
-            orchestrator._method_executor.__class__.resolve_calibration = original_resolve
+            _calib_reg.resolve_calibration_with_context = original_resolve
     
     async def run_with_contextual_calibration(self) -> Dict[str, Any]:
         """Run pipeline with context-aware calibration.
@@ -146,34 +149,37 @@ class CalibrationTester:
         start_time = time.time()
         
         # Ingest document
-        cpp = await self._ingest_document()
+        spc = await self._ingest_document()
         
         # Convert to orchestrator format
-        doc = self.cpp_adapter.to_preprocessed_document(cpp)
+        doc = self.spc_adapter.to_preprocessed_document(spc)
         
         # Build processor and create orchestrator
         processor = build_processor()
-        orchestrator = Orchestrator(processor.method_executor)
+        orchestrator = Orchestrator(monolith=processor.questionnaire)
         
-        # Monkey-patch to use contextual calibration
-        original_resolve = orchestrator._method_executor.__class__.resolve_calibration
+        # Monkey-patch to use contextual calibration with tracking
+        import saaaaaa.core.orchestrator.calibration_registry as _calib_reg
+        original_resolve_with_context = _calib_reg.resolve_calibration_with_context
+        
         # Use list as mutable container to track usage in closure
-        # (integers are immutable in Python, so we can't use += directly)
         context_usage_count = [0]
         
         def contextual_with_tracking(class_name, method_name, question_id=None, **kwargs):
             if question_id:
                 context_usage_count[0] += 1
-                return resolve_calibration_with_context(
-                    class_name, method_name, question_id=question_id, **kwargs
-                )
-            return resolve_calibration(class_name, method_name)
+            return original_resolve_with_context(
+                class_name, method_name, question_id=question_id, **kwargs
+            )
         
-        orchestrator._method_executor.__class__.resolve_calibration = contextual_with_tracking
+        _calib_reg.resolve_calibration_with_context = contextual_with_tracking
         
         # Run orchestration
         try:
-            results = await orchestrator.orchestrate_async(doc)
+            results = await orchestrator.process_development_plan_async(
+                str(self.plan_path),
+                preprocessed_document=doc
+            )
             execution_time = time.time() - start_time
             
             # Compute metrics
@@ -190,21 +196,21 @@ class CalibrationTester:
             }
         finally:
             # Restore original
-            orchestrator._method_executor.__class__.resolve_calibration = original_resolve
+            _calib_reg.resolve_calibration_with_context = original_resolve_with_context
     
     async def _ingest_document(self):
-        """Ingest document using CPP pipeline."""
+        """Ingest document using SPC/CPP pipeline."""
         if self.cpp_pipeline is None:
             self.cpp_pipeline = CPPIngestionPipeline()
         
         print(f"Ingesting {self.plan_path.name}...")
-        cpp = await self.cpp_pipeline.process(self.plan_path)
-        print(f"Ingestion complete: {len(cpp.get('chunks', []))} chunks")
-        return cpp
+        spc = await self.cpp_pipeline.process(self.plan_path)
+        print(f"Ingestion complete: {len(spc.get('chunks', []))} chunks")
+        return spc
     
     def _compute_metrics(
         self,
-        results: Dict[str, Any],
+        results: List[Any],  # List of PhaseResult objects
         execution_time: float,
         use_context: bool,
         context_count: int = 0,
@@ -212,7 +218,7 @@ class CalibrationTester:
         """Compute calibration effectiveness metrics from results.
         
         Args:
-            results: Pipeline execution results
+            results: Pipeline execution results (list of PhaseResult objects)
             execution_time: Total execution time in seconds
             use_context: Whether contextual calibration was used
             context_count: Number of times context was applied
@@ -220,10 +226,17 @@ class CalibrationTester:
         Returns:
             Computed metrics
         """
-        # Extract micro question results (Phase 2)
-        micro_results = results.get("phase_2_results", {})
-        if isinstance(micro_results, dict):
-            micro_results = micro_results.get("results", [])
+        # Extract micro question results from Phase 2 (if available)
+        micro_results = []
+        
+        # Results is a list of PhaseResult objects
+        if isinstance(results, list):
+            for phase_result in results:
+                # Phase 2 is micro questions
+                if hasattr(phase_result, 'phase_id') and phase_result.phase_id == 2:
+                    if hasattr(phase_result, 'data') and phase_result.data:
+                        micro_results = phase_result.data if isinstance(phase_result.data, list) else []
+                    break
         
         if not micro_results:
             # Fallback: empty metrics
