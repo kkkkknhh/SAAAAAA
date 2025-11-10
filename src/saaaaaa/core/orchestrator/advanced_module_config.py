@@ -104,7 +104,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 @dataclass(frozen=True)
@@ -143,6 +143,7 @@ class AdvancedModuleConfig(BaseModel):
     """
     Research-based configuration for advanced executor modules.
     
+    Section 7.1: All academic-derived parameters are immutable (frozen).
     All parameters are grounded in peer-reviewed academic literature.
     Each field includes academic justification and citation.
     
@@ -315,8 +316,14 @@ class AdvancedModuleConfig(BaseModel):
         description="Max points for TDA (VERIFIED: Carlsson 2009 - <1000 practical for Vietoris-Rips)"
     )
     
+    # Section 7.3: Module version control
+    advanced_module_version: str = Field(
+        default="1.0.0",
+        description="Version of advanced module configuration (Section 7.3)"
+    )
+    
     model_config = {
-        "frozen": True,
+        "frozen": True,  # Section 7.1: Lock academic parameters
         "validate_assignment": False,
         "extra": "forbid",
     }

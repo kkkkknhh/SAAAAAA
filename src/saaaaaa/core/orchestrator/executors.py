@@ -1115,6 +1115,15 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
             }
         )
 
+        # Section 7.2: Track advanced module activation
+        self.module_activations = {
+            "quantum": {"count": 0, "total_time": 0.0},
+            "neuromorphic": {"count": 0, "total_time": 0.0},
+            "causal": {"count": 0, "total_time": 0.0},
+            "info_theory": {"count": 0, "total_time": 0.0},
+            "meta_learning": {"count": 0, "total_time": 0.0},
+        }
+        
         # Log only hard facts with academic basis
         logger.info(
             "executor_initialized",
@@ -1124,6 +1133,7 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 "timeout_s": self.config.timeout_s,
                 "retry": self.config.retry,
                 "advanced_modules": "academically_grounded",
+                "advanced_module_version": adv_config.advanced_module_version,  # Section 7.3
                 "quantum_methods": adv_config.quantum_num_methods,
                 "neuromorphic_stages": adv_config.neuromorphic_num_stages,
                 "causal_variables": adv_config.causal_num_variables,
