@@ -5,6 +5,7 @@ This module implements the main calibrate() function and fusion operator
 as specified in the SUPERPROMPT Three-Pillar Calibration System.
 
 Spec compliance: Section 5 (Fusion Operator), Section 6 (Runtime Engine)
+SIN_CARRETA Compliance: Pure fusion operator, fail-loudly on misconfiguration
 """
 
 import json
@@ -14,7 +15,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from .data_structures import (
     CalibrationCertificate, CalibrationSubject, Context, 
-    ComputationGraph, EvidenceStore, LayerType, MethodRole, REQUIRED_LAYERS
+    ComputationGraph, EvidenceStore, LayerType, MethodRole, REQUIRED_LAYERS,
+    CalibrationConfigError
 )
 from .layer_computers import (
     compute_base_layer, compute_chain_layer, compute_unit_layer,
@@ -34,9 +36,14 @@ class CalibrationEngine:
         """
         Initialize calibration engine and load configs.
         
+        SIN_CARRETA: Validates fusion weights at load time to fail fast.
+        
         Args:
             config_dir: Path to config directory (defaults to ../config)
             monolith_path: Path to questionnaire_monolith.json (defaults to ../data/questionnaire_monolith.json)
+            
+        Raises:
+            CalibrationConfigError: If fusion weights violate constraints
         """
         if config_dir is None:
             config_dir = Path(__file__).parent.parent / "config"
@@ -47,6 +54,9 @@ class CalibrationEngine:
         self.intrinsic_config = self._load_json(config_dir / "intrinsic_calibration.json")
         self.contextual_config = self._load_json(config_dir / "contextual_parametrization.json")
         self.fusion_config = self._load_json(config_dir / "fusion_specification.json")
+        
+        # SIN_CARRETA: Validate fusion weights at load time
+        self._validate_fusion_weights()
         
         # Load questionnaire monolith
         if monolith_path is None:
@@ -63,6 +73,49 @@ class CalibrationEngine:
         """Load JSON file"""
         with open(path, 'r') as f:
             return json.load(f)
+    
+    def _validate_fusion_weights(self) -> None:
+        """
+        Validate fusion weight constraints at config load time.
+        
+        SIN_CARRETA Requirement 3: Weight validation with fail-loudly.
+        
+        Constraints:
+        1. All weights must be non-negative: a_ℓ ≥ 0, a_ℓk ≥ 0
+        2. Total weight sum ≤ 1: Σ(a_ℓ) + Σ(a_ℓk) ≤ 1 (ensures boundedness)
+        
+        Raises:
+            CalibrationConfigError: If any weight constraint is violated
+        """
+        role_params_dict = self.fusion_config.get("role_fusion_parameters", {})
+        
+        for role_name, role_params in role_params_dict.items():
+            linear_weights = role_params.get("linear_weights", {})
+            interaction_weights = role_params.get("interaction_weights", {})
+            
+            # Constraint 1: Non-negativity
+            for layer, weight in linear_weights.items():
+                if weight < 0:
+                    raise CalibrationConfigError(
+                        f"Negative weight for role={role_name}, layer={layer}: "
+                        f"weight={weight}. All weights must be ≥ 0."
+                    )
+            
+            for pair, weight in interaction_weights.items():
+                if weight < 0:
+                    raise CalibrationConfigError(
+                        f"Negative interaction weight for role={role_name}, pair={pair}: "
+                        f"weight={weight}. All weights must be ≥ 0."
+                    )
+            
+            # Constraint 2: Bounded sum
+            total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
+            if total_weight > 1.0:
+                raise CalibrationConfigError(
+                    f"Weight sum exceeds 1.0 for role={role_name}: "
+                    f"total_weight={total_weight:.6f}. "
+                    f"Constraint: Σ(a_ℓ) + Σ(a_ℓk) ≤ 1.0 must hold."
+                )
     
     def _compute_config_hash(self) -> str:
         """
@@ -102,26 +155,36 @@ class CalibrationEngine:
     
     def _determine_role(self, method_id: str) -> MethodRole:
         """
-        Determine method role from method ID.
-        Simplified heuristic - full implementation would use catalog metadata.
+        Determine method role from method ID using canonical catalog metadata.
+        
+        SIN_CARRETA Requirement 4: No simplified heuristics - must use catalog.
+        
+        Raises:
+            NotImplementedError: This simplified heuristic violates SIN_CARRETA.
+                                Full implementation must query canonical_method_catalog.json.
         """
-        # Heuristic based on method name
-        if "ingest" in method_id.lower() or "pdm" in method_id.lower():
-            return MethodRole.INGEST_PDM
-        elif "structure" in method_id.lower():
-            return MethodRole.STRUCTURE
-        elif "extract" in method_id.lower():
-            return MethodRole.EXTRACT
-        elif "score" in method_id.lower() or "question" in method_id.lower():
-            return MethodRole.SCORE_Q
-        elif "aggregate" in method_id.lower():
-            return MethodRole.AGGREGATE
-        elif "report" in method_id.lower():
-            return MethodRole.REPORT
-        elif "transform" in method_id.lower() or "normalize" in method_id.lower():
-            return MethodRole.TRANSFORM
-        else:
-            return MethodRole.META_TOOL
+        # SIN_CARRETA: Guard simplified logic with NotImplementedError
+        raise NotImplementedError(
+            "Role determination from method_id requires canonical catalog lookup. "
+            "Current heuristic-based implementation is not acceptable under SIN_CARRETA. "
+            "Must implement: query config/canonical_method_catalog.json for method metadata."
+        )
+    
+    def _detect_interplay(self, graph: ComputationGraph, node_id: str) -> Optional[Any]:
+        """
+        Detect interplay patterns from computation graph.
+        
+        SIN_CARRETA Requirement 4: No simplified stubs - must implement or fail.
+        
+        Raises:
+            NotImplementedError: Interplay detection not fully implemented.
+        """
+        # SIN_CARRETA: Guard unimplemented logic with NotImplementedError
+        raise NotImplementedError(
+            "Interplay detection from computation graph is not implemented. "
+            "Current stub (returning None) violates SIN_CARRETA fail-loudly policy. "
+            "Must implement: analyze graph structure to detect cross-method interactions."
+        )
     
     def _compute_layer_scores(
         self, 
@@ -194,13 +257,22 @@ class CalibrationEngine:
         layer_scores: Dict[str, float]
     ) -> tuple[float, Dict[str, Any]]:
         """
-        Apply fusion operator to combine layer scores.
+        Apply pure fusion operator to combine layer scores.
         
         Spec compliance: Section 5 (Fusion Operator)
+        SIN_CARRETA Compliance: Pure mathematical formula, no clamping/normalization
+        
         Formula: Cal(I) = Σ(a_ℓ · x_ℓ) + Σ(a_ℓk · min(x_ℓ, x_k))
+        
+        Weight constraints (enforced at load time):
+        - All weights a_ℓ, a_ℓk ≥ 0
+        - Σ(a_ℓ) + Σ(a_ℓk) ≤ 1 (ensures boundedness)
         
         Returns:
             (calibrated_score, fusion_details)
+            
+        Raises:
+            CalibrationConfigError: If score violates [0,1] bounds (weight misconfiguration)
         """
         role_params = self.fusion_config["role_fusion_parameters"].get(
             role.value,
@@ -247,17 +319,18 @@ class CalibrationEngine:
                     "contribution": contribution
                 })
         
-        # Total calibrated score
+        # Total calibrated score (PURE FUSION - no clamping or normalization)
         calibrated_score = linear_sum + interaction_sum
         
-        # Ensure boundedness [0,1] - if violated, weights are misconfigured
-        # NO clamping or normalization - fail loudly on misconfiguration
+        # SIN_CARRETA: Fail loudly on weight misconfiguration
+        # NEVER clamp or normalize - that would hide misconfiguration
         if calibrated_score < 0.0 or calibrated_score > 1.0:
             total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
-            raise ValueError(
+            raise CalibrationConfigError(
                 f"Fusion weights misconfigured for role {role.value}: "
                 f"total_weight={total_weight:.6f} produced calibrated_score={calibrated_score:.6f}. "
-                f"Score must be in [0,1]. Check fusion_specification.json."
+                f"Score must be in [0,1]. Weight constraints violated. "
+                f"Check fusion_specification.json and ensure Σ(a_ℓ) + Σ(a_ℓk) ≤ 1."
             )
         
         fusion_details = {
@@ -304,12 +377,15 @@ class CalibrationEngine:
         # Determine role
         role = self._determine_role(method_id)
         
+        # SIN_CARRETA: Detect interplay from graph (fail if not implemented)
+        interplay = self._detect_interplay(graph, node_id)
+        
         # Create calibration subject
         subject = CalibrationSubject(
             method_id=method_id,
             node_id=node_id,
             graph=graph,
-            interplay=None,  # Simplified - would detect from graph
+            interplay=interplay,
             context=context,
             role=role
         )
