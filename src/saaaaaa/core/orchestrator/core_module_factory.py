@@ -24,6 +24,12 @@ from saaaaaa.core.orchestrator.questionnaire_resource_provider import (
     Pattern,
     ValidationSpec,
 )
+from saaaaaa.core.orchestrator.signals import (
+    SignalClient,
+    SignalRegistry,
+    InMemorySignalSource,
+)
+from saaaaaa.core.orchestrator.signal_loader import build_all_signal_packs
 
 
 logger = structlog.get_logger(__name__)
@@ -63,16 +69,24 @@ class CoreModuleFactory:
         scorer = factory.create_bayesian_evidence_scorer()
     """
     
-    def __init__(self, questionnaire_data: dict[str, Any], signal_registry=None):
+    def __init__(
+        self,
+        questionnaire_data: dict[str, Any],
+        signal_registry=None,
+        signal_client=None,
+        enable_signals: bool = True,
+    ):
         """
-        Initialize factory with questionnaire data and optional signal registry.
+        Initialize factory with questionnaire data and optional signal infrastructure.
         
         Args:
             questionnaire_data: Parsed questionnaire monolith JSON
             signal_registry: Optional SignalRegistry for cross-cut signal propagation
+            signal_client: Optional SignalClient for fetching signals
+            enable_signals: Enable automatic signal infrastructure (default: True)
         """
         self._provider = QuestionnaireResourceProvider(questionnaire_data)
-        self._signal_registry = signal_registry
+        self._questionnaire_data = questionnaire_data
         self._instances: dict[str, Any] = {}
         
         # Extract resources upfront
@@ -83,6 +97,61 @@ class CoreModuleFactory:
         self._territorial_patterns = self._provider.get_territorial_patterns()
         self._validations = self._provider.extract_all_validations()
         
+        # Auto-create signal infrastructure if enabled
+        if enable_signals:
+            if signal_client is None:
+                # Create in-memory signal source
+                memory_source = InMemorySignalSource()
+                
+                # Load ALL 10 policy areas from monolith
+                logger.info("loading_signal_packs_from_monolith")
+                all_packs = build_all_signal_packs(questionnaire_data)
+                
+                for pa_code, signal_pack in all_packs.items():
+                    memory_source.register(pa_code, signal_pack)
+                    logger.debug(
+                        "signal_pack_registered",
+                        policy_area=pa_code,
+                        patterns=len(signal_pack.patterns),
+                    )
+                
+                self.signal_client = SignalClient(
+                    base_url="memory://",
+                    memory_source=memory_source,
+                )
+                logger.info(
+                    "signal_client_created",
+                    transport="memory",
+                    policy_areas=len(all_packs),
+                )
+            else:
+                self.signal_client = signal_client
+            
+            if signal_registry is None:
+                # Create and pre-populate registry
+                self._signal_registry = SignalRegistry(max_size=100, default_ttl_s=86400)
+                
+                # Pre-populate registry with all policy areas
+                for pa_code in [f"PA{i:02d}" for i in range(1, 11)]:
+                    pack = self.signal_client.fetch_signal_pack(pa_code)
+                    if pack:
+                        self._signal_registry.put(pa_code, pack)
+                        logger.debug(
+                            "signal_registry_preloaded",
+                            policy_area=pa_code,
+                        )
+                
+                logger.info(
+                    "signal_registry_created",
+                    size=len(self._signal_registry._cache),
+                    max_size=100,
+                )
+            else:
+                self._signal_registry = signal_registry
+        else:
+            self.signal_client = signal_client
+            self._signal_registry = signal_registry
+        
         logger.info(
             "core_module_factory_initialized",
             total_patterns=len(self._all_patterns),
@@ -90,7 +159,8 @@ class CoreModuleFactory:
             indicators=len(self._indicator_patterns),
             sources=len(self._source_patterns),
             validations=len(self._validations),
-            has_signal_registry=signal_registry is not None,
+            has_signal_registry=self._signal_registry is not None,
+            signals_enabled=enable_signals,
         )
     
     @classmethod
