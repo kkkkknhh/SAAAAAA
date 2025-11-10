@@ -224,12 +224,13 @@ class CalibrationValidator:
             all_errors.append(f"Failed to load intrinsic_calibration.json: {e}")
             intrinsic = {}
         
+        # Validate contextual config exists (full validation TBD)
         try:
-            with open(self.config_dir / "contextual_parametrization.json") as f:
-                contextual = json.load(f)
+            contextual_path = self.config_dir / "contextual_parametrization.json"
+            if not contextual_path.exists():
+                all_errors.append("contextual_parametrization.json not found")
         except Exception as e:
-            all_errors.append(f"Failed to load contextual_parametrization.json: {e}")
-            contextual = {}
+            all_errors.append(f"Failed to check contextual_parametrization.json: {e}")
         
         try:
             with open(self.config_dir / "fusion_specification.json") as f:

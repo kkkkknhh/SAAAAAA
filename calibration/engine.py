@@ -251,16 +251,14 @@ class CalibrationEngine:
         calibrated_score = linear_sum + interaction_sum
         
         # Ensure boundedness [0,1] - if violated, weights are misconfigured
-        if calibrated_score < -1e-9 or calibrated_score > 1.0 + 1e-9:
+        # NO clamping or normalization - fail loudly on misconfiguration
+        if calibrated_score < 0.0 or calibrated_score > 1.0:
             total_weight = sum(linear_weights.values()) + sum(interaction_weights.values())
             raise ValueError(
                 f"Fusion weights misconfigured for role {role.value}: "
                 f"total_weight={total_weight:.6f} produced calibrated_score={calibrated_score:.6f}. "
                 f"Score must be in [0,1]. Check fusion_specification.json."
             )
-        
-        # Clamp to handle tiny numerical errors
-        calibrated_score = max(0.0, min(1.0, calibrated_score))
         
         fusion_details = {
             "symbolic": "Σ(a_ℓ·x_ℓ) + Σ(a_ℓk·min(x_ℓ,x_k))",

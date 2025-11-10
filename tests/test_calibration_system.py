@@ -13,6 +13,12 @@ from calibration import (
 )
 
 
+# Test constants
+TEST_METHOD_SCORE = "src.saaaaaa.flux.phases.run_score"
+TEST_METHOD_AGGREGATE = "src.saaaaaa.flux.phases.run_aggregate"
+TEST_METHOD_NORMALIZE = "src.saaaaaa.flux.phases.run_normalize"
+
+
 class TestConfigValidation:
     """Test configuration file validation"""
     
@@ -151,8 +157,7 @@ class TestLayerComputation:
         from calibration.layer_computers import compute_base_layer
         
         # Use a method that exists in config
-        method_id = "src.saaaaaa.flux.phases.run_score"
-        score = compute_base_layer(method_id, engine.intrinsic_config)
+        score = compute_base_layer(TEST_METHOD_SCORE, engine.intrinsic_config)
         
         assert 0.0 <= score <= 1.0
         assert score > 0.0  # Should have some positive score
@@ -218,7 +223,7 @@ class TestCalibrationEngine:
         
         # Calibrate using a method that exists in intrinsic config
         certificate = calibrate(
-            method_id="src.saaaaaa.flux.phases.run_score",
+            method_id=TEST_METHOD_SCORE,
             node_id="node1",
             graph=graph,
             context=ctx,
@@ -227,7 +232,7 @@ class TestCalibrationEngine:
         
         # Validate certificate
         assert certificate is not None
-        assert certificate.method_id == "src.saaaaaa.flux.phases.run_score"
+        assert certificate.method_id == TEST_METHOD_SCORE
         assert certificate.node_id == "node1"
         assert 0.0 <= certificate.calibrated_score <= 1.0
         assert 0.0 <= certificate.intrinsic_score <= 1.0
@@ -269,7 +274,7 @@ class TestCalibrationEngine:
         evidence = EvidenceStore()
         
         certificate = calibrate(
-            method_id="src.saaaaaa.flux.phases.run_score",
+            method_id=TEST_METHOD_SCORE,
             node_id="n1",
             graph=graph,
             context=ctx,
@@ -297,7 +302,7 @@ class TestCalibrationEngine:
         
         # Run calibration twice
         cert1 = calibrate(
-            method_id="src.saaaaaa.flux.phases.run_score",
+            method_id=TEST_METHOD_SCORE,
             node_id="n1",
             graph=graph,
             context=ctx,
@@ -305,7 +310,7 @@ class TestCalibrationEngine:
         )
         
         cert2 = calibrate(
-            method_id="src.saaaaaa.flux.phases.run_score",
+            method_id=TEST_METHOD_SCORE,
             node_id="n1",
             graph=graph,
             context=ctx,
@@ -324,9 +329,7 @@ class TestCalibrationEngine:
         evidence = EvidenceStore()
         
         # Test with different methods
-        for method_id in ["src.saaaaaa.flux.phases.run_score",
-                         "src.saaaaaa.flux.phases.run_aggregate",
-                         "src.saaaaaa.flux.phases.run_normalize"]:
+        for method_id in [TEST_METHOD_SCORE, TEST_METHOD_AGGREGATE, TEST_METHOD_NORMALIZE]:
             certificate = calibrate(
                 method_id=method_id,
                 node_id="n1",
