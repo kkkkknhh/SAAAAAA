@@ -2,9 +2,15 @@
 
 from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Calibration version for tracking changes
 CALIBRATION_VERSION = "1.0.0"
+
+# Minimum supported calibration version
+MINIMUM_SUPPORTED_VERSION = "1.0.0"
 
 
 class MissingCalibrationError(Exception):
