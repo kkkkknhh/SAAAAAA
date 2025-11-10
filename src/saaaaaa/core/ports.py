@@ -261,7 +261,7 @@ class PortCPPAdapter(Protocol):
     Note: CPP is the legacy name. Use PortSPCAdapter for new code.
     """
     
-    def to_preprocessed(self, cpp: Any, document_id: str) -> Any:
+    def to_preprocessed_document(self, cpp: Any, document_id: str) -> Any:
         """Convert CPP to PreprocessedDocument.
         
         Args:
