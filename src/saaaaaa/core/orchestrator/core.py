@@ -41,7 +41,8 @@ from saaaaaa.processing.aggregation import (
     ScoredResult,
 )
 
-from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
+from .arg_router import ArgRouterError, ArgumentValidationError
+from .arg_router_extended import ExtendedArgRouter
 from .calibration_registry import resolve_calibration, get_calibration_hash, CALIBRATION_VERSION
 from .class_registry import ClassRegistryError, build_class_registry
 from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
@@ -838,8 +839,8 @@ class MethodExecutor:
             except Exception as exc:
                 logger.error("Failed to instantiate %s: %s", class_name, exc)
 
-        # Create ArgRouter with the registry
-        self._router = ArgRouter(registry)
+        # Create ExtendedArgRouter with the registry for enhanced validation and metrics
+        self._router = ExtendedArgRouter(registry)
         
         # Check for critical degradation
         if len(self.instances) == 0 and len(registry) > 0:
@@ -910,6 +911,20 @@ class MethodExecutor:
         except Exception:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
+
+    def get_routing_metrics(self) -> dict[str, Any]:
+        """Get routing metrics from ExtendedArgRouter.
+        
+        Returns:
+            Dict with routing statistics including:
+            - total_routes: Total number of routes processed
+            - special_routes_hit: Count of special route invocations
+            - validation_errors: Count of validation failures
+            - silent_drops_prevented: Count of silent parameter drops prevented
+        """
+        if hasattr(self._router, 'get_metrics'):
+            return self._router.get_metrics()
+        return {}
 
 def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orchestrator_class: type) -> None:
     """Validate phase definitions for structural coherence.
