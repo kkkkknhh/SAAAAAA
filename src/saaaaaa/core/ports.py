@@ -257,6 +257,8 @@ class PortCPPAdapter(Protocol):
     """Port for CPP to PreprocessedDocument adaptation.
     
     Converts Canon Policy Package to orchestrator's PreprocessedDocument format.
+    
+    Note: CPP is the legacy name. Use PortSPCAdapter for new code.
     """
     
     def to_preprocessed(self, cpp: Any, document_id: str) -> Any:
@@ -272,6 +274,36 @@ class PortCPPAdapter(Protocol):
         Requires:
             - cpp with valid chunk_graph
             - cpp.policy_manifest exists
+            - document_id is non-empty
+            
+        Ensures:
+            - sentence_metadata is not empty
+            - resolution_index is consistent
+            - provenance_completeness == 1.0
+        """
+        ...
+
+
+class PortSPCAdapter(Protocol):
+    """Port for SPC (Smart Policy Chunks) to PreprocessedDocument adaptation.
+    
+    Converts Smart Policy Chunks to orchestrator's PreprocessedDocument format.
+    This is the preferred terminology for new code.
+    """
+    
+    def to_preprocessed(self, spc: Any, document_id: str) -> Any:
+        """Convert SPC to PreprocessedDocument.
+        
+        Args:
+            spc: Smart Policy Chunks package from ingestion
+            document_id: Unique document identifier
+            
+        Returns:
+            PreprocessedDocument for orchestrator
+            
+        Requires:
+            - spc with valid chunk_graph
+            - spc.policy_manifest exists
             - document_id is non-empty
             
         Ensures:
@@ -497,6 +529,7 @@ __all__ = [
     'LogPort',
     'PortCPPIngest',
     'PortCPPAdapter',
+    'PortSPCAdapter',
     'PortSignalsClient',
     'PortSignalsRegistry',
     'PortArgRouter',
