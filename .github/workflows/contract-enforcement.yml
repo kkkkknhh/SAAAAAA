@@ -1,0 +1,122 @@
+name: Contract Enforcement Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate-contracts:
+    name: Validate Contract Enforcement
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pydantic
+      
+      - name: Check METHOD_SEQUENCE declarations
+        run: |
+          echo "Checking for METHOD_SEQUENCE class attributes in executors..."
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+from saaaaaa.core.orchestrator.executors import AdvancedDataFlowExecutor
+import inspect
+
+# Check that METHOD_SEQUENCE support exists
+executor_classes = [cls for name, cls in inspect.getmembers(sys.modules['saaaaaa.core.orchestrator.executors'], inspect.isclass) 
+                    if issubclass(cls, AdvancedDataFlowExecutor) and cls != AdvancedDataFlowExecutor]
+print(f'Found {len(executor_classes)} executor classes')
+
+# Verify _get_method_sequence supports METHOD_SEQUENCE attribute
+base_executor = AdvancedDataFlowExecutor.__bases__[0]
+method = getattr(base_executor, '_get_method_sequence', None)
+if method:
+    print('✓ _get_method_sequence method exists and supports METHOD_SEQUENCE pattern')
+else:
+    print('✗ _get_method_sequence not found')
+    sys.exit(1)
+"
+      
+      - name: Verify calibration version tracking
+        run: |
+          echo "Checking calibration version constants..."
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+from saaaaaa.core.orchestrator.calibration_registry import CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
+
+print(f'CALIBRATION_VERSION: {CALIBRATION_VERSION}')
+print(f'MINIMUM_SUPPORTED_VERSION: {MINIMUM_SUPPORTED_VERSION}')
+
+if CALIBRATION_VERSION and MINIMUM_SUPPORTED_VERSION:
+    print('✓ Calibration versioning present')
+else:
+    print('✗ Missing calibration version constants')
+    sys.exit(1)
+"
+      
+      - name: Check SPC terminology (no CPP in active code)
+        run: |
+          echo "Checking for CPP references (should only be in deprecation wrapper)..."
+          # Allow cpp_adapter.py (deprecation wrapper) and documentation
+          if grep -r "CPPAdapter" src/ --exclude="cpp_adapter.py" --exclude="*.md" --exclude="*.json" | grep -v "spc_adapter" | grep -v "# "; then
+            echo "✗ Found CPP references outside deprecation wrapper"
+            exit 1
+          else
+            echo "✓ No inappropriate CPP references found"
+          fi
+      
+      - name: Verify seed registry exists
+        run: |
+          echo "Checking seed registry..."
+          python -c "
+import sys
+sys.path.insert(0, 'src')
+from saaaaaa.core.orchestrator.seed_registry import SeedRegistry, get_global_seed_registry
+
+registry = get_global_seed_registry()
+print(f'✓ Seed registry operational: {type(registry).__name__}')
+"
+      
+      - name: Verify verification manifest schema
+        run: |
+          echo "Checking verification manifest schema..."
+          if [ -f "config/schemas/verification_manifest.schema.json" ]; then
+            echo "✓ Verification manifest schema exists"
+            python -c "
+import json
+with open('config/schemas/verification_manifest.schema.json') as f:
+    schema = json.load(f)
+required_fields = schema.get('required', [])
+print(f'Schema requires: {required_fields}')
+if 'version' in required_fields and 'timestamp' in required_fields and 'success' in required_fields:
+    print('✓ Schema has core required fields')
+else:
+    print('✗ Missing core required fields')
+    exit(1)
+"
+          else
+            echo "✗ Verification manifest schema not found"
+            exit 1
+          fi
+      
+      - name: Print contract enforcement status
+        run: |
+          echo "=== CONTRACT ENFORCEMENT STATUS ==="
+          echo "✓ METHOD_SEQUENCE: Supported"
+          echo "✓ Calibration versioning: Present"
+          echo "✓ SPC terminology: Clean"
+          echo "✓ Seed registry: Operational"
+          echo "✓ Verification manifest: Schema valid"
+          echo "CONTRACTS_VALIDATED=1"

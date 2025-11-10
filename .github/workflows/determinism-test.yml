@@ -1,0 +1,162 @@
+name: Determinism Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2am UTC
+
+jobs:
+  test-determinism:
+    name: Test Pipeline Determinism
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy
+      
+      - name: Run determinism tests
+        run: |
+          echo "Running determinism test suite..."
+          if [ -f "tests/test_determinism.py" ]; then
+            python -m pytest tests/test_determinism.py -v --tb=short
+            echo "✓ All determinism tests passed"
+          else
+            echo "✗ Determinism tests not found"
+            exit 1
+          fi
+      
+      - name: Test seed reproducibility
+        run: |
+          echo "Testing seed reproducibility..."
+          python -c "
+import sys
+import os
+sys.path.insert(0, 'src')
+os.chdir('src')
+
+from saaaaaa.core.orchestrator.seed_registry import SeedRegistry
+
+# Create two registries with same inputs
+registry1 = SeedRegistry(policy_unit_id='test-policy', correlation_id='test-correlation')
+registry2 = SeedRegistry(policy_unit_id='test-policy', correlation_id='test-correlation')
+
+# Get seeds for same component
+seed1_np = registry1.get_seed('numpy')
+seed2_np = registry2.get_seed('numpy')
+
+seed1_py = registry1.get_seed('python')
+seed2_py = registry2.get_seed('python')
+
+print(f'Registry 1 numpy seed: {seed1_np}')
+print(f'Registry 2 numpy seed: {seed2_np}')
+print(f'Registry 1 python seed: {seed1_py}')
+print(f'Registry 2 python seed: {seed2_py}')
+
+if seed1_np == seed2_np and seed1_py == seed2_py:
+    print('✓ Seeds are deterministic (same inputs → same seeds)')
+else:
+    print('✗ Seeds are not deterministic')
+    sys.exit(1)
+
+# Verify different components get different seeds
+if seed1_np != seed1_py:
+    print('✓ Different components get different seeds')
+else:
+    print('✗ Components not properly differentiated')
+    sys.exit(1)
+"
+      
+      - name: Test NumPy RNG reproducibility
+        run: |
+          echo "Testing NumPy RNG reproducibility with deterministic context..."
+          python -c "
+import sys
+import os
+sys.path.insert(0, 'src')
+os.chdir('src')
+
+import numpy as np
+from saaaaaa.utils.determinism_helpers import deterministic
+
+# Run twice with same seed context
+results1 = []
+results2 = []
+
+with deterministic('test-policy', 'test-correlation') as seeds:
+    rng = np.random.default_rng(seeds.np)
+    results1 = rng.random(10).tolist()
+
+with deterministic('test-policy', 'test-correlation') as seeds:
+    rng = np.random.default_rng(seeds.np)
+    results2 = rng.random(10).tolist()
+
+print(f'Run 1: {results1[:3]}...')
+print(f'Run 2: {results2[:3]}...')
+
+if results1 == results2:
+    print('✓ NumPy RNG is deterministic')
+else:
+    print('✗ NumPy RNG is not deterministic')
+    sys.exit(1)
+"
+      
+      - name: Manifest HMAC integrity test
+        run: |
+          echo "Testing manifest HMAC integrity..."
+          python -c "
+import sys
+import os
+import json
+import hashlib
+sys.path.insert(0, 'src')
+os.chdir('src')
+
+from saaaaaa.core.orchestrator.verification_manifest import VerificationManifest, verify_manifest_integrity
+
+# Create a test manifest
+manifest_builder = VerificationManifest(policy_unit_id='test', correlation_id='test-123')
+manifest_builder.set_success(True, 'Test manifest')
+manifest_builder.set_pipeline_hash('abc123')
+
+manifest_dict = manifest_builder.build(hmac_secret='test-secret')
+
+print(f'Manifest created with HMAC: {manifest_dict[\"integrity_hmac\"][:16]}...')
+
+# Verify integrity
+if verify_manifest_integrity(manifest_dict, 'test-secret'):
+    print('✓ Manifest HMAC verification passed')
+else:
+    print('✗ Manifest HMAC verification failed')
+    sys.exit(1)
+
+# Test tamper detection
+manifest_dict_tampered = manifest_dict.copy()
+manifest_dict_tampered['success'] = not manifest_dict_tampered['success']
+
+if verify_manifest_integrity(manifest_dict_tampered, 'test-secret'):
+    print('✗ Tampered manifest not detected!')
+    sys.exit(1)
+else:
+    print('✓ Tamper detection working')
+"
+      
+      - name: Print determinism validation status
+        run: |
+          echo "=== DETERMINISM VALIDATION STATUS ==="
+          echo "✓ Determinism test suite: PASSED"
+          echo "✓ Seed reproducibility: VERIFIED"
+          echo "✓ NumPy RNG determinism: VERIFIED"
+          echo "✓ Manifest HMAC integrity: VERIFIED"
+          echo "DETERMINISM_VALIDATED=1"
