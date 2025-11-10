@@ -202,33 +202,33 @@ class VerifiedPipelineRunner:
     
     async def run_cpp_adapter(self, cpp: Any) -> Optional[Any]:
         """
-        Run CPP adapter to convert to PreprocessedDocument.
+        Run SPC adapter to convert to PreprocessedDocument.
         
         Args:
-            cpp: CPP object from ingestion
+            cpp: CPP/SPC object from ingestion
             
         Returns:
             PreprocessedDocument if successful, None otherwise
         """
-        self.log_claim("start", "cpp_adapter", "Starting CPP adaptation")
+        self.log_claim("start", "spc_adapter", "Starting SPC adaptation")
         
         try:
-            from saaaaaa.utils.cpp_adapter import CPPAdapter
+            from saaaaaa.utils.spc_adapter import SPCAdapter
             
-            adapter = CPPAdapter()
-            # Use the correct method name from CPPAdapter API
+            adapter = SPCAdapter()
+            # Use the correct method name from SPCAdapter API
             preprocessed = adapter.to_preprocessed_document(cpp)
             
             self.phases_completed += 1
-            self.log_claim("complete", "cpp_adapter", 
-                          "CPP adaptation completed successfully",
+            self.log_claim("complete", "spc_adapter", 
+                          "SPC adaptation completed successfully",
                           {"phases_completed": self.phases_completed})
             return preprocessed
             
         except Exception as e:
             self.phases_failed += 1
-            error_msg = f"CPP adaptation failed: {str(e)}"
-            self.log_claim("error", "cpp_adapter", error_msg,
+            error_msg = f"SPC adaptation failed: {str(e)}"
+            self.log_claim("error", "spc_adapter", error_msg,
                           {"traceback": traceback.format_exc()})
             self.errors.append(error_msg)
             return None
