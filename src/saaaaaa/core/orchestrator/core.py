@@ -258,10 +258,11 @@ class PreprocessedDocument:
         Raises:
             ValueError: If raw_text is empty or whitespace-only
         """
-        # Note: We allow empty raw_text during construction for testing purposes,
-        # but the _ingest_document method will enforce non-empty validation
-        # when actually processing documents through the pipeline.
-        pass
+        if not self.raw_text or not self.raw_text.strip():
+            raise ValueError(
+                "PreprocessedDocument cannot have empty raw_text. "
+                "Use PreprocessedDocument.ensure() to create from SPC pipeline."
+            )
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
@@ -315,6 +316,13 @@ class PreprocessedDocument:
                 raise ValueError(
                     "Document has chunk_graph attribute but it is None. "
                     "Ensure SPC ingestion pipeline completed successfully."
+                )
+            
+            # Validate chunk_graph has chunks
+            if not hasattr(chunk_graph, 'chunks') or not chunk_graph.chunks:
+                raise ValueError(
+                    "Document chunk_graph is empty. "
+                    "Ensure SPC ingestion pipeline completed successfully and extracted chunks."
                 )
             
             try:
@@ -1758,8 +1766,15 @@ class Orchestrator:
             )
             raise ValueError(error_msg)
         
-        # Log ingestion metrics
+        # Log ingestion metrics and validate chunk count
         chunk_count = preprocessed.metadata.get("chunk_count", 0)
+        if chunk_count == 0:
+            error_msg = "No chunks extracted from document - chunk_count is 0"
+            instrumentation.record_error(
+                "ingestion", "No chunks", reason=error_msg
+            )
+            raise ValueError(error_msg)
+        
         text_length = len(preprocessed.raw_text)
         logger.info(
             f"Document ingested successfully: document_id={document_id}, "
