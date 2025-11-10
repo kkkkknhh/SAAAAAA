@@ -326,8 +326,8 @@ class PreprocessedDocument:
                 )
             
             try:
-                from saaaaaa.utils.cpp_adapter import CPPAdapter
-                adapter = CPPAdapter()
+                from saaaaaa.utils.spc_adapter import SPCAdapter
+                adapter = SPCAdapter()
                 preprocessed = adapter.to_preprocessed_document(document, document_id=document_id)
                 
                 # Additional validation: ensure non-empty text
@@ -340,8 +340,8 @@ class PreprocessedDocument:
                 return preprocessed
             except ImportError as e:
                 raise ImportError(
-                    "SPC ingestion requires cpp_adapter module. "
-                    "Ensure saaaaaa.utils.cpp_adapter is available."
+                    "SPC ingestion requires spc_adapter module. "
+                    "Ensure saaaaaa.utils.spc_adapter is available."
                 ) from e
             except ValueError:
                 # Re-raise ValueError directly (e.g., empty document validation)

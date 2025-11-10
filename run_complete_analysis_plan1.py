@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Complete System Execution: CPP + Orchestrator for Plan_1.pdf
+"""Complete System Execution: SPC + Orchestrator for Plan_1.pdf
 
 This script demonstrates the complete end-to-end processing pipeline:
 1. CPP Ingestion: Preprocess Plan_1.pdf using Canon Policy Package pipeline
-2. CPP Adaptation: Convert CPP to PreprocessedDocument format
+2. SPC Adaptation: Convert CPP to PreprocessedDocument format using SPCAdapter
 3. Orchestrator Execution: Run all 11 phases of the orchestration pipeline
 4. Results Display: Show comprehensive results from each phase
 
@@ -25,7 +25,7 @@ from pathlib import Path
 
 from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
-from saaaaaa.utils.cpp_adapter import CPPAdapter
+from saaaaaa.utils.spc_adapter import SPCAdapter
 from saaaaaa.core.orchestrator import Orchestrator
 from saaaaaa.core.orchestrator.factory import build_processor
 from saaaaaa.processing.cpp_ingestion.models import CanonPolicyPackage
@@ -220,7 +220,7 @@ async def main():
     print(f'  ✅ Schema: {cpp.schema_version}')
     
     print('  🔄 Converting CPP to PreprocessedDocument...')
-    adapter = CPPAdapter()
+    adapter = SPCAdapter()
     preprocessed_doc = adapter.to_preprocessed_document(
         cpp,
         document_id='Plan_1'

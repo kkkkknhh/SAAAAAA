@@ -2,7 +2,7 @@
 """
 Equipment script for CPP subsystem.
 
-Runs smoke tests for CPPAdapter and CPPIngestionPipeline.
+Runs smoke tests for SPCAdapter and CPPIngestionPipeline.
 """
 
 import sys
@@ -12,12 +12,12 @@ from typing import Dict, Any
 
 
 def test_cpp_adapter_import() -> Dict[str, Any]:
-    """Test CPPAdapter can be imported."""
+    """Test SPCAdapter can be imported."""
     try:
-        from saaaaaa.utils.cpp_adapter import CPPAdapter, adapt_cpp_to_orchestrator
+        from saaaaaa.utils.spc_adapter import SPCAdapter, adapt_spc_to_orchestrator
         return {
             "success": True,
-            "message": "CPPAdapter importable"
+            "message": "SPCAdapter importable"
         }
     except ImportError as e:
         return {
@@ -50,9 +50,9 @@ def test_cpp_ingestion_pipeline() -> Dict[str, Any]:
 
 
 def test_cpp_adapter_conversion() -> Dict[str, Any]:
-    """Test CPPAdapter conversion with minimal CPP document."""
+    """Test SPCAdapter conversion with minimal CPP document."""
     try:
-        from saaaaaa.utils.cpp_adapter import CPPAdapter
+        from saaaaaa.utils.spc_adapter import SPCAdapter
         from saaaaaa.processing.cpp_ingestion.models import (
             CanonPolicyPackage,
             ChunkGraph,
@@ -116,7 +116,7 @@ def test_cpp_adapter_conversion() -> Dict[str, Any]:
         )
         
         # Test conversion
-        adapter = CPPAdapter()
+        adapter = SPCAdapter()
         preprocessed = adapter.adapt(cpp)
         
         return {
@@ -134,20 +134,20 @@ def test_cpp_adapter_conversion() -> Dict[str, Any]:
 
 
 def test_cpp_ensure() -> Dict[str, Any]:
-    """Test CPPAdapter.ensure() method."""
+    """Test SPCAdapter.ensure() method."""
     try:
-        from saaaaaa.utils.cpp_adapter import CPPAdapter
+        from saaaaaa.utils.spc_adapter import SPCAdapter
         from saaaaaa.processing.cpp_ingestion.models import CanonPolicyPackage
         
         # Create adapter
-        adapter = CPPAdapter()
+        adapter = SPCAdapter()
         
         # Test with None (should raise)
         try:
             adapter.ensure(None)
             return {
                 "success": False,
-                "message": "ensure(None) should raise CPPAdapterError"
+                "message": "ensure(None) should raise SPCAdapterError"
             }
         except Exception:
             pass  # Expected
@@ -171,10 +171,10 @@ def main():
     print()
     
     tests = [
-        ("CPPAdapter import", test_cpp_adapter_import),
+        ("SPCAdapter import", test_cpp_adapter_import),
         ("CPPIngestionPipeline init", test_cpp_ingestion_pipeline),
-        ("CPPAdapter conversion", test_cpp_adapter_conversion),
-        ("CPPAdapter ensure()", test_cpp_ensure),
+        ("SPCAdapter conversion", test_cpp_adapter_conversion),
+        ("SPCAdapter ensure()", test_cpp_ensure),
     ]
     
     results = []

@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
-from saaaaaa.utils.cpp_adapter import CPPAdapter
+from saaaaaa.utils.spc_adapter import SPCAdapter
 from saaaaaa.core.orchestrator import Orchestrator
 from saaaaaa.core.orchestrator.factory import build_processor
 from saaaaaa.core.orchestrator.calibration_registry import (
@@ -89,7 +89,7 @@ class CalibrationTester:
         """
         self.plan_path = plan_path
         self.cpp_pipeline = None
-        self.cpp_adapter = CPPAdapter()
+        self.cpp_adapter = SPCAdapter()
     
     async def run_with_base_calibration(self) -> Dict[str, Any]:
         """Run pipeline with base calibration (no context).
@@ -104,7 +104,7 @@ class CalibrationTester:
         cpp = await self._ingest_document()
         
         # Convert to orchestrator format
-        doc = self.cpp_adapter.adapt_to_orchestrator_format(cpp)
+        doc = self.cpp_adapter.to_preprocessed_document(cpp)
         
         # Build processor and create orchestrator
         processor = build_processor()
@@ -149,7 +149,7 @@ class CalibrationTester:
         cpp = await self._ingest_document()
         
         # Convert to orchestrator format
-        doc = self.cpp_adapter.adapt_to_orchestrator_format(cpp)
+        doc = self.cpp_adapter.to_preprocessed_document(cpp)
         
         # Build processor and create orchestrator
         processor = build_processor()

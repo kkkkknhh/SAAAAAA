@@ -24,14 +24,14 @@ OLD (deprecated):
     
 NEW (canonical):
     from saaaaaa.processing.cpp_ingestion import CPPIngestionPipeline
-    from saaaaaa.utils.cpp_adapter import CPPAdapter
+    from saaaaaa.utils.spc_adapter import SPCAdapter
     
     # Ingest document
     pipeline = CPPIngestionPipeline()
     outcome = pipeline.ingest(input_path, output_dir)
     
     # Convert to PreprocessedDocument for orchestrator
-    adapter = CPPAdapter()
+    adapter = SPCAdapter()
     doc = adapter.to_preprocessed_document(outcome.cpp)
 
 See: docs/CPP_ARCHITECTURE.md for complete documentation
