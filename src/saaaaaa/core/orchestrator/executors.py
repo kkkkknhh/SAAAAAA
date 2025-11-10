@@ -1694,12 +1694,26 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                 if name in {'sentences', 'relevant_sentences', 'sentence_list'}:
                     if chunk.sentences and doc.sentences:
                         return [doc.sentences[i] for i in chunk.sentences if i < len(doc.sentences)]
+                    elif doc.sentences:
+                        # Fallback: extract sentences whose offsets are within chunk boundaries
+                        return [
+                            s for s in doc.sentences
+                            if hasattr(s, 'start') and hasattr(s, 'end')
+                            and s.start >= chunk.start_pos and s.end <= chunk.end_pos
+                        ]
                     return []
                 
                 # Provide chunk-scoped tables
                 if name in {'tables', 'table_data', 'raw_tables'}:
                     if chunk.tables and doc.tables:
                         return [doc.tables[i] for i in chunk.tables if i < len(doc.tables)]
+                    elif doc.tables:
+                        # Fallback: extract tables whose offsets are within chunk boundaries
+                        return [
+                            t for t in doc.tables
+                            if hasattr(t, 'start') and hasattr(t, 'end')
+                            and t.start >= chunk.start_pos and t.end <= chunk.end_pos
+                        ]
                     return []
                 
                 # Restrict window size to chunk boundaries
