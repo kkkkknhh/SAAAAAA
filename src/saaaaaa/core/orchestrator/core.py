@@ -26,7 +26,7 @@ from collections import deque
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Iterable, ParamSpec, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, ParamSpec, TypedDict, TypeVar
 
 from saaaaaa.analysis.recommendation_engine import RecommendationEngine
 from saaaaaa.processing.aggregation import (
@@ -239,18 +239,46 @@ class MacroEvaluation:
     clusters: list[ClusterScoreData]
 
 
+@dataclass(frozen=True)
+class ChunkData:
+    """Single semantic chunk from SPC (Smart Policy Chunks).
+    
+    Preserves chunk structure and metadata from the ingestion pipeline,
+    enabling chunk-aware executor routing and scoped processing.
+    """
+    id: int
+    text: str
+    chunk_type: Literal["diagnostic", "activity", "indicator", "resource", "temporal", "entity"]
+    sentences: list[int]  # Global sentence IDs in this chunk
+    tables: list[int]     # Global table IDs in this chunk
+    start_pos: int
+    end_pos: int
+    confidence: float
+    edges_out: list[int] = field(default_factory=list)  # Chunk IDs this connects to
+    edges_in: list[int] = field(default_factory=list)   # Chunk IDs connecting to this
+
+
 @dataclass
 class PreprocessedDocument:
     """Orchestrator representation of a processed document.
 
     This is the normalized document format used internally by the orchestrator.
     It can be constructed from ingestion payloads or created directly.
+    
+    New in SPC exploitation: Preserves chunk structure when processing_mode='chunked',
+    enabling chunk-aware executor routing and reducing redundant processing.
     """
     document_id: str
     raw_text: str
     sentences: list[Any]
     tables: list[Any]
     metadata: dict[str, Any]
+    
+    # NEW CHUNK FIELDS for SPC exploitation
+    chunks: list[ChunkData] = field(default_factory=list)
+    chunk_index: dict[str, int] = field(default_factory=dict)  # Fast lookup: entity_id → chunk_id
+    chunk_graph: dict[str, Any] = field(default_factory=dict)  # Exposed graph structure
+    processing_mode: Literal["flat", "chunked"] = "flat"  # Mode flag for backward compatibility
 
     @staticmethod
     def _dataclass_to_dict(value: Any) -> Any:
