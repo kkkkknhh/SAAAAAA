@@ -7,7 +7,6 @@ produces equivalent results to flat mode.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
 from dataclasses import dataclass
 
 # Import the components we're testing
