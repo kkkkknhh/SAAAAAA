@@ -56,7 +56,7 @@ RESPONSABILIDADES DEL ORQUESTADOR:
 
 1. ✓ Cargar y validar configuración
    - questionnaire_monolith.json
-   - catalogo_completo_canonico.json
+   - complete_canonical_catalog.json
    - Verificar integrity hashes
 
 2. ✓ Gestionar el ciclo de vida completo
@@ -107,7 +107,7 @@ RESPONSABILIDADES DEL ORQUESTADOR:
   
   * MÉTODO: __init__(
       monolith_path: str = 'questionnaire_monolith.json',
-      catalog_path: str = 'catalogo_completo_canonico.json',
+      catalog_path: str = 'complete_canonical_catalog.json',
       config: dict = None
     )
     """
@@ -561,7 +561,7 @@ RESPONSABILIDADES DEL COREÓGRAFO:
     Inicializa un Coreógrafo
     
     Args:
-      method_catalog: catalogo_completo_canonico.json
+      method_catalog: complete_canonical_catalog.json
       monolith: questionnaire_monolith.json
       config: Configuración (timeouts, etc)
     

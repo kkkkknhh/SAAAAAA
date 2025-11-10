@@ -3,7 +3,7 @@
 Catalog-Registry-Usage Alignment Audit
 
 Comprehensive audit to verify alignment between:
-1. catalogo_completo_canonico.json (canonical method universe)
+1. canonical_method_catalog.json (canonical method universe - 1,996 methods)
 2. calibration_registry.py (calibration metadata)
 3. Actual codebase usage
 
@@ -22,7 +22,6 @@ from collections import defaultdict
 repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root / "src"))
 
-from saaaaaa.core.orchestrator.catalogo_completo_canonico import CATALOG
 from saaaaaa.core.orchestrator.calibration_registry import CALIBRATIONS
 
 
@@ -30,6 +29,13 @@ def main():
     print("="*80)
     print("CATALOG-REGISTRY-USAGE ALIGNMENT AUDIT")
     print("="*80)
+    
+    # Load canonical method catalog
+    catalog_path = repo_root / "config" / "canonical_method_catalog.json"
+    with open(catalog_path) as f:
+        catalog_data = json.load(f)
+    
+    print(f"\nCanonical catalog: {catalog_data['summary']['total_methods']} methods (v{catalog_data['metadata']['version']})")
     
     # Load usage intelligence
     usage_path = repo_root / "config" / "method_usage_intelligence.json"
@@ -42,7 +48,11 @@ def main():
         decisions_data = json.load(f)
     
     # Build method sets
-    catalog_methods = {(m.class_name, m.method_name) for m in CATALOG.all_methods()}
+    catalog_methods = {
+        (m['class_name'], m['method_name']) 
+        for m in catalog_data['methods'] 
+        if m['class_name']
+    }
     registry_methods = set(CALIBRATIONS.keys())
     used_methods = set()
     

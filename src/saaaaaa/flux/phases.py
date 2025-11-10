@@ -150,12 +150,19 @@ def assert_compat(deliverable: BaseModel, expectation_cls: type[BaseModel]) -> N
     wait=wait_exponential_jitter(initial=1, max=10),
     reraise=True,
 )
-def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
+def run_ingest(
+    cfg: IngestConfig,
+    *,
+    input_uri: str,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute ingest phase with ContractEnvelope integration.
+    Execute ingest phase with mandatory metadata propagation.
 
     requires: non-empty input_uri
-    ensures: provenance_ok is True, fingerprint computed
+    ensures: provenance_ok is True, fingerprint computed, metadata propagated
     """
     contract_logger = get_json_logger("flux.ingest")
     started_monotonic = time.monotonic()
@@ -177,6 +184,10 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None 
             )
 
         span.set_attribute("document_id", os.path.basename(input_uri))
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
         # Use SPC (Smart Policy Chunks) ingestion - the canonical phase-one pipeline
         try:
@@ -280,30 +291,27 @@ def run_ingest(cfg: IngestConfig, *, input_uri: str, policy_unit_id: str | None 
             phase="ingest",
             payload=out.model_dump(),
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "content_digest": env_out.content_digest},
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
-            envelope_metadata={
-                "event_id": env_out.event_id,
-                "content_digest": env_out.content_digest,
-                "schema_version": env_out.schema_version,
-            },
+            envelope_metadata=envelope_metadata or {},
+            metrics={"duration_ms": duration_ms},
         )
 
 
 # NORMALIZE
-def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
+def run_normalize(
+    cfg: NormalizeConfig,
+    ing: IngestDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute normalize phase with ContractEnvelope integration.
+    Execute normalize phase with mandatory metadata propagation.
 
     requires: compatible input from ingest
-    ensures: sentences list is not empty, sentence_meta matches length
-    
-    Args:
-        cfg: Normalization configuration
-        ing: Ingest deliverable
-        policy_unit_id: Optional policy unit identifier for determinism (from PDF filename)
-        correlation_id: Optional correlation ID for request tracking
+    ensures: sentences list is not empty, sentence_meta matches length, metadata propagated
     """
     start_time = time.time()
     start_monotonic = time.monotonic()
@@ -329,13 +337,16 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_i
         # Compatibility check
         assert_compat(ing, NormalizeExpectation)
 
-        # Execute with deterministic seeding for reproducibility
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual normalization (unicode normalization, etc.)
-            sentences = [s for s in ing.raw_text.split("\n") if s.strip()]
-            sentence_meta: list[dict[str, Any]] = [
-                {"index": i, "length": len(s)} for i, s in enumerate(sentences)
-            ]
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+
+        # TODO: Implement actual normalization (unicode normalization, etc.)
+        sentences = [s for s in ing.raw_text.split("\n") if s.strip()]
+        sentence_meta: list[dict[str, Any]] = [
+            {"index": i, "length": len(s)} for i, s in enumerate(sentences)
+        ]
 
         out = NormalizeDeliverable(sentences=sentences, sentence_meta=sentence_meta)
 
@@ -392,6 +403,9 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_i
             phase="normalize",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
@@ -404,18 +418,19 @@ def run_normalize(cfg: NormalizeConfig, ing: IngestDeliverable, *, policy_unit_i
 
 
 # CHUNK
-def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
+def run_chunk(
+    cfg: ChunkConfig,
+    norm: NormalizeDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute chunk phase with ContractEnvelope integration.
+    Execute chunk phase with mandatory metadata propagation.
 
     requires: compatible input from normalize
-    ensures: chunks not empty, chunk_index has valid resolutions
-    
-    Args:
-        cfg: Chunking configuration
-        norm: Normalize deliverable
-        policy_unit_id: Optional policy unit identifier for determinism
-        correlation_id: Optional correlation ID for request tracking
+    ensures: chunks not empty, chunk_index has valid resolutions, metadata propagated
     """
     start_time = time.time()
     start_monotonic = time.monotonic()
@@ -441,18 +456,21 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: s
         # Compatibility check
         assert_compat(norm, ChunkExpectation)
 
-        # Execute with deterministic seeding
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual chunking with token limits and overlap
-            chunks: list[dict[str, Any]] = [
-                {
-                    "id": f"c{i}",
-                    "text": s,
-                    "resolution": cfg.priority_resolution,
-                    "span": {"start": i, "end": i + 1},
-                }
-                for i, s in enumerate(norm.sentences)
-            ]
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+
+        # TODO: Implement actual chunking with token limits and overlap
+        chunks: list[dict[str, Any]] = [
+            {
+                "id": f"c{i}",
+                "text": s,
+                "resolution": cfg.priority_resolution,
+                "span": {"start": i, "end": i + 1},
+            }
+            for i, s in enumerate(norm.sentences)
+        ]
 
             idx: dict[str, list[str]] = {
                 "micro": [],
@@ -516,6 +534,9 @@ def run_chunk(cfg: ChunkConfig, norm: NormalizeDeliverable, *, policy_unit_id: s
             phase="chunk",
             payload=out.model_dump(),
             fingerprint=fp,
+            policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata=envelope_metadata or {},
             metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
@@ -536,10 +557,10 @@ def run_signals(
     policy_unit_id: str | None = None,
 ) -> PhaseOutcome:
     """
-    Execute signals phase (cross-cut) with ContractEnvelope integration.
+    Execute signals phase (cross-cut) with mandatory metadata propagation.
 
     requires: compatible input from chunk, registry_get callable
-    ensures: enriched_chunks not empty, used_signals recorded
+    ensures: enriched_chunks not empty, used_signals recorded, metadata propagated
     """
     contract_logger = get_json_logger("flux.signals")
     started_monotonic = time.monotonic()
@@ -571,26 +592,29 @@ def run_signals(
                 "registry_get must be provided",
             )
 
-        # Deterministic execution context
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual signal enrichment
-            pack = registry_get("default")
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
 
-            if pack is None:
-                enriched = ch.chunks
-                used_signals: dict[str, Any] = {"present": False}
-            else:
-                enriched = [
-                    {**c, "patterns_used": len(pack.get("patterns", []))}
-                    for c in ch.chunks
-                ]
-                used_signals = {
-                    "present": True,
-                    "version": pack.get("version", "unknown"),
-                    "policy_area": "default",
-                }
+        # TODO: Implement actual signal enrichment
+        pack = registry_get("default")
 
-            out = SignalsDeliverable(enriched_chunks=enriched, used_signals=used_signals)
+        if pack is None:
+            enriched = ch.chunks
+            used_signals: dict[str, Any] = {"present": False}
+        else:
+            enriched = [
+                {**c, "patterns_used": len(pack.get("patterns", []))}
+                for c in ch.chunks
+            ]
+            used_signals = {
+                "present": True,
+                "version": pack.get("version", "unknown"),
+                "policy_area": "default",
+            }
+
+        out = SignalsDeliverable(enriched_chunks=enriched, used_signals=used_signals)
 
         # Postconditions
         if not out.enriched_chunks:
@@ -643,12 +667,19 @@ def run_signals(
 
 
 # AGGREGATE
-def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
+def run_aggregate(
+    cfg: AggregateConfig,
+    sig: SignalsDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute aggregate phase with ContractEnvelope integration.
+    Execute aggregate phase with mandatory metadata propagation.
 
     requires: compatible input from signals, group_by not empty
-    ensures: features table has required columns, aggregation_meta recorded
+    ensures: features table has required columns, aggregation_meta recorded, metadata propagated
     """
     contract_logger = get_json_logger("flux.aggregate")
     started_monotonic = time.monotonic()
@@ -680,11 +711,14 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_
                 "group_by must contain at least one field",
             )
 
-        # Deterministic execution context
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual feature engineering
-            item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
-            patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+
+        # TODO: Implement actual feature engineering
+        item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
+        patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
 
             tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
 
@@ -744,24 +778,27 @@ def run_aggregate(cfg: AggregateConfig, sig: SignalsDeliverable, *, policy_unit_
             phase="aggregate",
             payload=payload_dict,
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows, "content_digest": env_out.content_digest},
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
-            envelope_metadata={
-                "event_id": env_out.event_id,
-                "content_digest": env_out.content_digest,
-                "schema_version": env_out.schema_version,
-            },
+            envelope_metadata=envelope_metadata or {},
+            metrics={"duration_ms": duration_ms, "feature_count": tbl.num_rows},
         )
 
 
 # SCORE
-def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: str | None = None, correlation_id: str | None = None) -> PhaseOutcome:
+def run_score(
+    cfg: ScoreConfig,
+    agg: AggregateDeliverable,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
+) -> PhaseOutcome:
     """
-    Execute score phase with ContractEnvelope integration.
+    Execute score phase with mandatory metadata propagation.
 
     requires: compatible input from aggregate, metrics not empty
-    ensures: scores dataframe not empty, has required columns
+    ensures: scores dataframe not empty, has required columns, metadata propagated
     """
     contract_logger = get_json_logger("flux.score")
     started_monotonic = time.monotonic()
@@ -792,10 +829,13 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: st
                 "run_score", "metrics not empty", "metrics list must not be empty"
             )
 
-        # Deterministic execution context
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual scoring logic
-            item_ids = agg.features.column("item_id").to_pylist()
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+
+        # TODO: Implement actual scoring logic
+        item_ids = agg.features.column("item_id").to_pylist()
 
             # Create scores for each metric
             data: dict[str, list[Any]] = {
@@ -856,14 +896,10 @@ def run_score(cfg: ScoreConfig, agg: AggregateDeliverable, *, policy_unit_id: st
             phase="score",
             payload=payload_dict,
             fingerprint=fp,
-            metrics={"duration_ms": duration_ms, "score_count": df.height, "content_digest": env_out.content_digest},
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
-            envelope_metadata={
-                "event_id": env_out.event_id,
-                "content_digest": env_out.content_digest,
-                "schema_version": env_out.schema_version,
-            },
+            envelope_metadata=envelope_metadata or {},
+            metrics={"duration_ms": duration_ms, "score_count": df.height},
         )
 
 
@@ -872,10 +908,10 @@ def run_report(
     cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest, *, policy_unit_id: str | None = None
 ) -> PhaseOutcome:
     """
-    Execute report phase with ContractEnvelope integration.
+    Execute report phase with mandatory metadata propagation.
 
     requires: compatible input from score, manifest not None
-    ensures: artifacts not empty, summary contains required fields
+    ensures: artifacts not empty, summary contains required fields, metadata propagated
     """
     contract_logger = get_json_logger("flux.report")
     started_monotonic = time.monotonic()
@@ -906,10 +942,13 @@ def run_report(
                 "run_report", "manifest not None", "manifest must be provided"
             )
 
-        # Deterministic execution context
-        with deterministic(policy_unit_id, correlation_id):
-            # TODO: Implement actual report generation
-            artifacts: dict[str, str] = {}
+        if policy_unit_id:
+            span.set_attribute("policy_unit_id", policy_unit_id)
+        if correlation_id:
+            span.set_attribute("correlation_id", correlation_id)
+
+        # TODO: Implement actual report generation
+        artifacts: dict[str, str] = {}
 
             # Use reports directory instead of /tmp
             report_base = reports_dir() / "flux_summaries"

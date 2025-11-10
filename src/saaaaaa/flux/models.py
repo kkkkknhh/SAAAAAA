@@ -20,7 +20,11 @@ class DocManifest(BaseModel):
 
 
 class PhaseOutcome(BaseModel):
-    """Outcome from a pipeline phase execution."""
+    """Outcome from a pipeline phase execution.
+    
+    Authoritative boundary contract between phases and orchestrators.
+    All metadata must be preserved across phase boundaries.
+    """
 
     model_config = ConfigDict(frozen=True)
 

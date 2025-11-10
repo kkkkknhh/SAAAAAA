@@ -17,13 +17,16 @@ sys.path.insert(0, str(repo_root / "src"))
 
 
 def check_catalog():
-    """Verify catalog module loads"""
+    """Verify canonical method catalog loads"""
     try:
-        from saaaaaa.core.orchestrator.catalogo_completo_canonico import CATALOG
-        print(f"✅ Catalog loaded: {CATALOG.total_methods} methods")
+        catalog_path = repo_root / "config" / "canonical_method_catalog.json"
+        with open(catalog_path) as f:
+            catalog = json.load(f)
+        total = catalog['summary']['total_methods']
+        print(f"✅ Canonical catalog loaded: {total} methods (v{catalog['metadata']['version']})")
         return True
     except Exception as e:
-        print(f"❌ Catalog failed to load: {e}")
+        print(f"❌ Canonical catalog failed to load: {e}")
         return False
 
 

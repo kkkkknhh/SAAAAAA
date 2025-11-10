@@ -381,7 +381,8 @@ class MonolithForge:
         # Load real method catalog from canonical source
         from saaaaaa.core.orchestrator.factory import load_catalog
         
-        catalog_path = self.repo_root / "config" / "rules" / "METODOS" / "catalogo_completo_canonico.json"
+        # Load canonical method catalog (1,996 methods)
+        catalog_path = self.repo_root / "config" / "canonical_method_catalog.json"
         try:
             catalog = load_catalog()
             logger.info(f"Loaded method catalog with {catalog.get('summary', {}).get('total_methods', 0)} methods")
