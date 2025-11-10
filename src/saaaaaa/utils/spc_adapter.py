@@ -45,7 +45,7 @@ class SPCAdapterError(Exception):
 
 
 # Deprecated alias for backwards compatibility
-CPPAdapterError = SPCAdapterError
+# Removed: CPPAdapterError alias moved to cpp_adapter.py for clearer separation
 
 
 class SPCAdapter:
