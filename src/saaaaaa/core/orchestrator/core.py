@@ -335,6 +335,9 @@ class PreprocessedDocument:
                     "SPC ingestion requires cpp_adapter module. "
                     "Ensure saaaaaa.utils.cpp_adapter is available."
                 ) from e
+            except ValueError:
+                # Re-raise ValueError directly (e.g., empty document validation)
+                raise
             except Exception as e:
                 raise TypeError(
                     f"Failed to adapt SPC document: {e}. "
