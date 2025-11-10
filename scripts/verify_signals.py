@@ -216,6 +216,65 @@ def verify_pattern_counts():
         return False
 
 
+def verify_consumption_infrastructure():
+    """Verify consumption tracking infrastructure exists."""
+    print("\n" + "=" * 70)
+    print("TEST 5: Verify Consumption Infrastructure")
+    print("=" * 70)
+    
+    try:
+        # Check signal_consumption module exists and works
+        from saaaaaa.core.orchestrator.signal_consumption import (
+            SignalConsumptionProof,
+            SignalManifest,
+            build_merkle_tree,
+        )
+        
+        print("✓ signal_consumption module imported")
+        
+        # Test proof creation
+        proof = SignalConsumptionProof(
+            executor_id="TestExecutor",
+            question_id="Q001",
+            policy_area="PA01",
+        )
+        proof.record_pattern_match("test.*pattern", "test text")
+        
+        if len(proof.consumed_patterns) != 1:
+            print("❌ FAIL: Proof did not record pattern match")
+            return False
+        
+        if not proof.proof_chain:
+            print("❌ FAIL: Proof chain not generated")
+            return False
+        
+        print(f"✓ SignalConsumptionProof working: 1 match, chain length {len(proof.proof_chain)}")
+        
+        # Test Merkle tree
+        merkle_root = build_merkle_tree(["p1", "p2", "p3"])
+        if not merkle_root or len(merkle_root) != 64:  # SHA256 hex length
+            print("❌ FAIL: Invalid Merkle root")
+            return False
+        
+        print(f"✓ Merkle tree builder working: root {merkle_root[:16]}...")
+        
+        # Check verification script exists
+        verify_script = REPO_ROOT / "scripts" / "verify_signal_consumption.py"
+        if not verify_script.exists():
+            print(f"❌ FAIL: Verification script not found at {verify_script}")
+            return False
+        
+        print(f"✓ Consumption verification script exists")
+        
+        return True
+    
+    except Exception as e:
+        print(f"❌ FAIL: Consumption infrastructure test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def main():
     """Run all verification tests."""
     print("\n" + "=" * 70)
@@ -227,6 +286,7 @@ def main():
         verify_signal_pack_building,
         verify_signal_registry,
         verify_pattern_counts,
+        verify_consumption_infrastructure,
     ]
     
     results = []
@@ -253,6 +313,8 @@ def main():
     if all(results):
         print("\n✓ ALL VERIFICATIONS PASSED")
         print("SIGNALS_VERIFIED=1")
+        print("\nNote: To verify signal CONSUMPTION during execution:")
+        print("  python scripts/verify_signal_consumption.py")
         return 0
     else:
         print("\n❌ SOME VERIFICATIONS FAILED")
