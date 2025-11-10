@@ -1407,6 +1407,58 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         # NOTE: Validation NOT called in base class because most executors
         # define method_sequence in execute(), not in _get_method_sequence().
         # Executors that want validation must call it explicitly in their __init__.
+    
+    @staticmethod
+    def _get_policy_area_for_question(question_id: str) -> str:
+        """
+        Map question ID to policy area using questionnaire monolith data.
+        
+        This reads the mapping from the questionnaire_monolith.json file to ensure
+        accurate policy area assignment. Falls back to PA01 if mapping not found.
+        
+        Args:
+            question_id: Question ID (e.g., "Q001", "Q031")
+            
+        Returns:
+            Policy area code (e.g., "PA01", "PA02")
+        """
+        # Try to load mapping from questionnaire
+        try:
+            import json
+            from pathlib import Path
+            
+            # Try multiple possible locations for questionnaire file
+            repo_root = Path(__file__).parent.parent.parent.parent.parent
+            possible_paths = [
+                repo_root / "data" / "questionnaire_monolith.json",
+                Path("data/questionnaire_monolith.json"),
+                Path("/home/runner/work/SAAAAAA/SAAAAAA/data/questionnaire_monolith.json"),
+            ]
+            
+            for path in possible_paths:
+                if path.exists():
+                    with open(path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    questions = data.get('blocks', {}).get('micro_questions', [])
+                    
+                    # Build mapping
+                    for question in questions:
+                        qid = question.get('question_id')
+                        if qid == question_id:
+                            policy_area = question.get('policy_area_id', 'PA01')
+                            logger.debug(f"Mapped {question_id} to {policy_area}")
+                            return policy_area
+                    
+                    # Not found in mapping
+                    logger.warning(f"Question {question_id} not found in questionnaire, using PA01")
+                    return "PA01"
+        
+        except Exception as e:
+            logger.warning(f"Could not load questionnaire mapping: {e}, using PA01")
+        
+        # Fallback to PA01
+        return "PA01"
 
     def _fetch_signals(self, policy_area: str = "fiscal") -> dict[str, Any] | None:
         """
