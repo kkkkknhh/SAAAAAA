@@ -1459,6 +1459,90 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         finally:
             if span_context:
                 span_context.__exit__(None, None, None)
+    
+    def execute_chunk(self, chunk_doc, chunk_id: int):
+        """
+        Execute on single chunk with restricted scope.
+        
+        This method enables chunk-aware processing by executing only on the
+        relevant chunk data, avoiding redundant full-document processing.
+        
+        Args:
+            chunk_doc: PreprocessedDocument containing the chunk
+            chunk_id: ID of the chunk to process
+            
+        Returns:
+            Execution results scoped to the chunk
+        """
+        # Store chunk context for argument resolution
+        self._current_chunk_id = chunk_id
+        self._chunk_mode = True
+        
+        try:
+            # Get method sequence for this executor
+            method_sequence = self._get_method_sequence()
+            
+            # Filter methods based on chunk type if available
+            if chunk_doc.chunks and chunk_id < len(chunk_doc.chunks):
+                chunk_type = chunk_doc.chunks[chunk_id].chunk_type
+                method_sequence = self._filter_methods_for_chunk(method_sequence, chunk_type)
+            
+            # Execute with chunk boundaries enforced
+            return self.execute_with_optimization(
+                chunk_doc,
+                self.executor,
+                method_sequence,
+            )
+        finally:
+            # Clean up chunk context
+            self._chunk_mode = False
+            self._current_chunk_id = None
+    
+    def _filter_methods_for_chunk(
+        self, 
+        methods: list[tuple[str, str]], 
+        chunk_type: str
+    ) -> list[tuple[str, str]]:
+        """
+        Filter methods based on chunk type relevance.
+        
+        Args:
+            methods: Full method sequence
+            chunk_type: Type of chunk being processed
+            
+        Returns:
+            Filtered method sequence relevant to chunk type
+        """
+        # Mapping of chunk types to relevant method patterns
+        # This is a simplified version - full implementation would use
+        # more sophisticated matching based on executor configuration
+        CHUNK_METHOD_PATTERNS = {
+            "diagnostic": ["baseline", "gap", "diagnostic", "problem"],
+            "activity": ["activity", "intervention", "action", "program"],
+            "indicator": ["metric", "indicator", "kpi", "measure"],
+            "resource": ["budget", "financial", "resource", "funding"],
+            "temporal": ["timeline", "temporal", "schedule", "phase"],
+            "entity": ["entity", "responsible", "stakeholder", "actor"],
+        }
+        
+        patterns = CHUNK_METHOD_PATTERNS.get(chunk_type, [])
+        if not patterns:
+            # No filtering if chunk type unknown
+            return methods
+        
+        # Filter methods that match chunk type patterns
+        filtered = []
+        for class_name, method_name in methods:
+            method_lower = method_name.lower()
+            class_lower = class_name.lower()
+            
+            # Check if method or class name matches any pattern
+            if any(pattern in method_lower or pattern in class_lower for pattern in patterns):
+                filtered.append((class_name, method_name))
+        
+        # If filtering results in empty list, return original
+        # (better to execute all than execute none)
+        return filtered if filtered else methods
 
     def _assess_data_quality(self, data: Any) -> float:
         """Assess quality of data output"""
@@ -1590,6 +1674,54 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
     ) -> Any:
         """Enhanced argument resolution with sophisticated graph and segment handling"""
         ctx = self._argument_context
+        
+        # ========================================================================
+        # NEW: CHUNK-AWARE ARGUMENT RESOLUTION
+        # ========================================================================
+        
+        # Check if in chunk mode
+        if hasattr(self, '_chunk_mode') and self._chunk_mode:
+            chunk_id = getattr(self, '_current_chunk_id', None)
+            
+            if chunk_id is not None and doc.chunks and chunk_id < len(doc.chunks):
+                chunk = doc.chunks[chunk_id]
+                
+                # Provide chunk-scoped text
+                if name in {'text', 'raw_text', 'document_text'}:
+                    return chunk.text
+                
+                # Provide chunk-scoped sentences
+                if name in {'sentences', 'relevant_sentences', 'sentence_list'}:
+                    if chunk.sentences and doc.sentences:
+                        return [doc.sentences[i] for i in chunk.sentences if i < len(doc.sentences)]
+                    elif doc.sentences:
+                        # Fallback: extract sentences whose offsets are within chunk boundaries
+                        return [
+                            s for s in doc.sentences
+                            if hasattr(s, 'start') and hasattr(s, 'end')
+                            and s.start >= chunk.start_pos and s.end <= chunk.end_pos
+                        ]
+                    return []
+                
+                # Provide chunk-scoped tables
+                if name in {'tables', 'table_data', 'raw_tables'}:
+                    if chunk.tables and doc.tables:
+                        return [doc.tables[i] for i in chunk.tables if i < len(doc.tables)]
+                    elif doc.tables:
+                        # Fallback: extract tables whose offsets are within chunk boundaries
+                        return [
+                            t for t in doc.tables
+                            if hasattr(t, 'start') and hasattr(t, 'end')
+                            and t.start >= chunk.start_pos and t.end <= chunk.end_pos
+                        ]
+                    return []
+                
+                # Restrict window size to chunk boundaries
+                if name in {'window_size', 'context_window'}:
+                    max_window = chunk.end_pos - chunk.start_pos
+                    # Get configured window size from instance config if available
+                    requested = getattr(getattr(instance, 'config', None), 'context_window_chars', 400)
+                    return min(requested, max_window)
 
         # ========================================================================
         # SIGNAL CHANNEL INTEGRATION - Inject signals into method arguments

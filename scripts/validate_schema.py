@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
-from validation.schema_validator import MonolithSchemaValidator, SchemaInitializationError
+from saaaaaa.utils.validation.schema_validator import MonolithSchemaValidator, SchemaInitializationError
 
 # Try to import orchestrator, but make it optional
 try:
