@@ -62,7 +62,7 @@ import numpy as np
 from saaaaaa.utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
-from .calibration_registry import CALIBRATIONS, resolve_calibration
+from .calibration_registry import CALIBRATIONS, resolve_calibration, CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
 from .advanced_module_config import (
     AdvancedModuleConfig,
     DEFAULT_ADVANCED_CONFIG,
@@ -1234,7 +1234,23 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
         Ensure every (class, method) pair in this executor's method sequence
         has an explicit, non-default calibration entry appropriate for
         policy-document analysis.
+        
+        Also validates calibration version compatibility.
         """
+        # Check calibration version compatibility first
+        from .versions import check_version_compatibility
+        try:
+            check_version_compatibility(
+                "calibration",
+                CALIBRATION_VERSION,
+                MINIMUM_SUPPORTED_VERSION
+            )
+        except ValueError as e:
+            raise RuntimeError(
+                f"Calibration version incompatibility in {self.__class__.__name__}: {e}"
+            ) from e
+        
+        # Validate each method has calibration
         seq = getattr(self, "_get_method_sequence", lambda: [])()
         for class_name, method_name in seq:
             calib = resolve_calibration(class_name, method_name)
@@ -1248,6 +1264,37 @@ class AdvancedDataFlowExecutor(ABC, MethodSequenceValidatingMixin):
                     f"Default/placeholder calibration not allowed for "
                     f"{class_name}.{method_name} in {self.__class__.__name__}"
                 )
+    
+    def get_calibration_manifest_data(self) -> dict[str, Any]:
+        """
+        Get calibration information for verification manifest.
+        
+        Returns:
+            Dictionary with calibration version, hash, method count, and missing methods
+        """
+        import hashlib
+        
+        seq = getattr(self, "_get_method_sequence", lambda: [])()
+        methods_calibrated = []
+        methods_missing = []
+        
+        for class_name, method_name in seq:
+            calib = resolve_calibration(class_name, method_name, strict=False)
+            if calib:
+                methods_calibrated.append(f"{class_name}.{method_name}")
+            else:
+                methods_missing.append(f"{class_name}.{method_name}")
+        
+        # Compute hash of calibrated methods
+        calibration_data = "".join(sorted(methods_calibrated)).encode()
+        calibration_hash = hashlib.sha256(calibration_data).hexdigest()[:16]
+        
+        return {
+            "version": CALIBRATION_VERSION,
+            "hash": calibration_hash,
+            "methods_calibrated": len(methods_calibrated),
+            "methods_missing": methods_missing,
+        }
 
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]], 
