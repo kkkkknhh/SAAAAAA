@@ -431,6 +431,33 @@ class QuestionnaireResourceProvider:
         all_patterns = self.extract_all_patterns()
         return [p for p in all_patterns if p.question_id == question_id]
     
+    def get_policy_area_for_question(self, question_id: str) -> str:
+        """
+        Get the policy area for a given question ID.
+        
+        This method uses the provider's already-loaded data, avoiding file I/O.
+        
+        Args:
+            question_id: Question identifier (e.g., "Q001")
+            
+        Returns:
+            Policy area code (e.g., "PA01") or "PA01" as default
+        """
+        blocks = self._data.get("blocks", {})
+        micro_questions = blocks.get("micro_questions", [])
+        
+        for question in micro_questions:
+            if question.get("question_id") == question_id:
+                return question.get("policy_area_id", "PA01")
+        
+        # Default fallback
+        logger.warning(
+            "question_not_found_in_provider",
+            question_id=question_id,
+            fallback="PA01"
+        )
+        return "PA01"
+    
     def get_pattern_statistics(self) -> dict[str, Any]:
         """
         Get statistics about extracted patterns.
