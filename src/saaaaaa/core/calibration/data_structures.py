@@ -11,10 +11,8 @@ Design Principles:
 4. Serializability: Support to_dict() for JSON export
 """
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 from enum import Enum
-import hashlib
-import json
 
 
 class LayerID(str, Enum):

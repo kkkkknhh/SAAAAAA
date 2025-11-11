@@ -132,7 +132,7 @@ class TestCompatibilityMapping:
         )
         
         # Average: Q=0.67, D=0.85, P=0.65 → NOT universal
-        assert mapping.check_anti_universality(threshold=0.9) == True
+        assert mapping.check_anti_universality(threshold=0.9)
     
     def test_anti_universality_violation(self):
         """Should fail if universal."""
@@ -144,7 +144,7 @@ class TestCompatibilityMapping:
         )
         
         # Average: Q=1.0, D=1.0, P=1.0 → UNIVERSAL (violation)
-        assert mapping.check_anti_universality(threshold=0.9) == False
+        assert not mapping.check_anti_universality(threshold=0.9)
 
 
 class TestInteractionTerm:

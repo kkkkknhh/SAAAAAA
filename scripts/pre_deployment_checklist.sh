@@ -27,10 +27,8 @@ echo "✅ All required files present"
 
 # 2. Run unit tests
 echo "[2/10] Running unit tests..."
-python3 -m pytest tests/calibration/test_data_structures.py -v --tb=short || {
-    echo "⚠️  Some tests failed, but continuing..."
-}
-echo "✅ Unit tests completed"
+python3 -m pytest tests/calibration/test_data_structures.py -v --tb=short || exit 1
+echo "✅ Unit tests passed"
 
 # 3. Validate configuration normalization
 echo "[3/10] Validating configuration..."

@@ -166,8 +166,21 @@ class ChoquetAggregator:
         # Cal(I) = linear + interaction
         final_score = linear_contribution + interaction_contribution
         
-        # Clamp to [0.0, 1.0] (should already be in range due to normalization)
-        final_score = max(0.0, min(1.0, final_score))
+        # Verify final_score is in [0.0, 1.0] (should already be in range due to normalization)
+        if not (0.0 <= final_score <= 1.0):
+            logger.error(
+                "final_score_out_of_bounds",
+                extra={
+                    "final_score": final_score,
+                    "linear_contribution": linear_contribution,
+                    "interaction_contribution": interaction_contribution,
+                    "method": subject.method_id,
+                }
+            )
+            raise ValueError(
+                f"Final score {final_score:.6f} out of bounds [0.0, 1.0]. "
+                f"This indicates a bug in weight normalization or layer score validation."
+            )
         
         logger.info(
             "final_calibration_computed",

@@ -130,10 +130,13 @@ class CalibrationOrchestrator:
         
         # Layer 1: Base (@b) - ASSUMED COMPLETE
         # This comes from intrinsic calibration (already done)
+        # TODO: This should come from actual base layer evaluation, not hardcoded
+        base_score = 0.9  # Placeholder until base layer integration complete
         layer_scores[LayerID.BASE] = LayerScore(
             layer=LayerID.BASE,
-            score=0.9,  # TODO: Get from actual base layer evaluation
-            rationale="Base layer (intrinsic quality) - from prior calibration"
+            score=base_score,
+            rationale=f"Base layer (intrinsic quality) - STUB using {base_score}",
+            metadata={"stub": True, "warning": "Hardcoded value pending integration"}
         )
         
         # Layer 2: Unit (@u)

@@ -72,20 +72,10 @@ from .signal_consumption import SignalConsumptionProof
 
 # NEW: Calibration system imports
 try:
-    from saaaaaa.core.calibration import (
-        CalibrationOrchestrator,
-        ContextTuple,
-        CalibrationResult,
-        DEFAULT_CALIBRATION_CONFIG,
-    )
-    from saaaaaa.core.calibration.pdt_structure import PDTStructure
+    from saaaaaa.core.calibration import CalibrationOrchestrator
     HAS_CALIBRATION = True
 except ImportError:
     CalibrationOrchestrator = None  # type: ignore
-    ContextTuple = None  # type: ignore
-    CalibrationResult = None  # type: ignore
-    DEFAULT_CALIBRATION_CONFIG = None  # type: ignore
-    PDTStructure = None  # type: ignore
     HAS_CALIBRATION = False
 
 try:
@@ -1357,8 +1347,7 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         # NEW: Store calibration results for current execution
         self.calibration_results: dict[str, "CalibrationResult"] = {}
 
-        if self.config is None:
-            raise RuntimeError("ExecutorConfig is required and cannot be None")
+
 
         # Get advanced module configuration from config or use default
         # Pydantic ensures type safety, so if advanced_modules is set, it's AdvancedModuleConfig

@@ -49,11 +49,14 @@ class UnitLayerEvaluator:
             }
         )
         
-        # STUB: Return fixed score
+        # STUB: Return stub score from configuration
+        stub_score = self.config.w_S + self.config.w_M + self.config.w_I + self.config.w_P  # = 1.0
+        stub_score = stub_score * 0.75  # Scale to reasonable stub value
+        
         return LayerScore(
             layer=LayerID.UNIT,
-            score=0.75,
+            score=stub_score,
             components={"S": 0.75, "M": 0.75, "I": 0.75, "P": 0.75},
-            rationale="Unit layer (STUB - fixed score 0.75)",
-            metadata={"stub": True}
+            rationale=f"Unit layer (STUB IMPLEMENTATION - not data-driven, returns {stub_score:.2f})",
+            metadata={"stub": True, "warning": "This is a placeholder implementation"}
         )
