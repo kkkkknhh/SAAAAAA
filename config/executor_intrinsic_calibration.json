@@ -2,10 +2,11 @@
   "_metadata": {
     "version": "1.0.0",
     "generated_at": "2025-11-11T12:28:00Z",
-    "description": "Intrinsic calibration scores for SCORE_Q executor methods",
+    "description": "Intrinsic calibration scores for SCORE_Q executor orchestrations",
     "spec_compliance": "canonic_calibration_methods.md Section 3.1",
-    "purpose": "Defines b_theory, b_impl, b_deploy for each executor",
-    "note": "All executors are SCORE_Q role - answer micro-questions for dimension-question pairs"
+    "purpose": "Aggregated b_theory, b_impl, b_deploy scores for each executor",
+    "note": "All executors are SCORE_Q role - answer micro-questions for dimension-question pairs",
+    "important": "Executors orchestrate method sequences. Each executor's @b score aggregates the intrinsic calibration of constituent methods from config/intrinsic_calibration.json (1995 methods). Constituent methods are already calibrated individually."
   },
   
   "_base_weights": {

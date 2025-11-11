@@ -3,6 +3,23 @@
 ## Objective
 Implement rigorous calibration for executor methods following canonic_calibration_methods.md specification.
 
+## Critical Understanding (Updated)
+
+**Executors are NOT methods themselves - they are orchestrations of methods.**
+
+- Each executor (e.g., D1Q1_Executor) orchestrates a **sequence of analytical methods**
+- These underlying methods are already calibrated in `config/intrinsic_calibration.json` (1995 methods)
+- Example: D1Q1_Executor uses methods like:
+  - IndustrialPolicyProcessor.process
+  - BayesianEvidenceScorer.compute_evidence_score
+  - PolicyContradictionDetector._extract_quantitative_claims
+  - etc.
+
+**Calibration Strategy:**
+1. **@b layer**: Aggregate intrinsic scores from constituent methods
+2. **Contextual layers**: Apply to executor as orchestration unit
+3. **Fusion operator**: Combine all layers
+
 ## Scope
 Focus on executor methods in `src/saaaaaa/core/orchestrator/executors.py`:
 - D1Q1_Executor through D6Q5_Executor (30 question-dimension executors)
