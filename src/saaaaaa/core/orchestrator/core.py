@@ -1278,17 +1278,25 @@ class Orchestrator:
         # Initialize RecommendationEngine for 3-level recommendations
         try:
             # Try to load enhanced rules first (v2.0), fallback to v1.0
+            # Import questionnaire provider for dependency injection
+            from . import get_questionnaire_provider
+            questionnaire_provider = get_questionnaire_provider()
+            
             try:
                 self.recommendation_engine = RecommendationEngine(
                     rules_path="config/recommendation_rules_enhanced.json",
-                    schema_path="rules/recommendation_rules_enhanced.schema.json"
+                    schema_path="rules/recommendation_rules_enhanced.schema.json",
+                    questionnaire_provider=questionnaire_provider,
+                    orchestrator=self
                 )
                 logger.info("RecommendationEngine initialized with enhanced v2.0 rules")
             except Exception as e_enhanced:
                 logger.info(f"Enhanced rules not available ({e_enhanced}), falling back to v1.0")
                 self.recommendation_engine = RecommendationEngine(
                     rules_path="config/recommendation_rules.json",
-                    schema_path="rules/recommendation_rules.schema.json"
+                    schema_path="rules/recommendation_rules.schema.json",
+                    questionnaire_provider=questionnaire_provider,
+                    orchestrator=self
                 )
                 logger.info("RecommendationEngine initialized with v1.0 rules")
         except Exception as e:
