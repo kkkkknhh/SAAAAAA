@@ -22,7 +22,7 @@ Python: 3.10+
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 
@@ -908,17 +908,30 @@ class RecommendationEngine:
                 'approval_required',
                 'approver',
                 'due_date',
+                'required_sections',
+                'automated_check',
             )
             for key in required_artifact_fields:
-                if key not in artifact or not artifact[key]:
+                if key not in artifact:
                     raise ValueError(
                         f"Rule {rule_id} verification artifact missing required field '{key}'"
                     )
-            if 'required_sections' in artifact:
-                sections = artifact['required_sections']
-                if not isinstance(sections, list) or not all(isinstance(s, str) and s.strip() for s in sections):
+                # Special handling for boolean fields - they can be False
+                if key in ('approval_required', 'automated_check'):
+                    if not isinstance(artifact[key], bool):
+                        raise ValueError(
+                            f"Rule {rule_id} verification artifact field '{key}' must be a boolean"
+                        )
+                # Special handling for required_sections - must be a list
+                elif key == 'required_sections':
+                    if not isinstance(artifact[key], list) or not all(isinstance(s, str) and s.strip() for s in artifact[key]):
+                        raise ValueError(
+                            f"Rule {rule_id} verification required_sections must be a list of non-empty strings"
+                        )
+                # For other non-boolean fields, check for empty values
+                elif not artifact[key]:
                     raise ValueError(
-                        f"Rule {rule_id} verification required_sections must be a list of non-empty strings"
+                        f"Rule {rule_id} verification artifact field '{key}' cannot be empty"
                     )
 
     def _validate_execution(self, rule_id: str, execution: Dict[str, Any]) -> None:
