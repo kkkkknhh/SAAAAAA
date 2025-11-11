@@ -39,7 +39,7 @@ executor_classes = [cls for name, cls in inspect.getmembers(sys.modules['saaaaaa
 print(f'Found {len(executor_classes)} executor classes')
 
 # Verify _get_method_sequence supports METHOD_SEQUENCE attribute
-base_executor = AdvancedDataFlowExecutor.__bases__[0]
+          base_executor = AdvancedDataFlowExecutor
 method = getattr(base_executor, '_get_method_sequence', None)
 if method:
     print('✓ _get_method_sequence method exists and supports METHOD_SEQUENCE pattern')
