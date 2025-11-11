@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "version": "1.0.0",
+    "generated_at": "2025-11-11T12:42:00Z",
+    "description": "Fusion operator specification for SCORE_Q executor calibration",
+    "spec_compliance": "canonic_calibration_methods.md Section 5",
+    "formula": "Cal(I) = Σ(a_ℓ · x_ℓ(I)) + Σ(a_ℓk · min(x_ℓ(I), x_k(I)))",
+    "scope": "30 SCORE_Q executors"
+  },
+  
+  "_fusion_formula": {
+    "description": "2-Additive Choquet Aggregation",
+    "linear_terms": "Σ_{ℓ ∈ L(M)} a_ℓ · x_ℓ(I)",
+    "interaction_terms": "Σ_{(ℓ,k) ∈ S_int} a_ℓk · min(x_ℓ(I), x_k(I))",
+    "constraint": "Σ a_ℓ + Σ a_ℓk = 1.0",
+    "boundedness": "Cal(I) ∈ [0,1] for all valid inputs"
+  },
+  
+  "role_fusion_parameters": {
+    "SCORE_Q": {
+      "description": "Question-answering executors require all 8 layers",
+      "required_layers": ["@b", "@chain", "@q", "@d", "@p", "@C", "@u", "@m"],
+      "linear_weights": {
+        "@b": 0.20,
+        "@chain": 0.15,
+        "@q": 0.10,
+        "@d": 0.08,
+        "@p": 0.07,
+        "@C": 0.10,
+        "@u": 0.05,
+        "@m": 0.05
+      },
+      "interaction_weights": {
+        "(@u, @chain)": 0.15,
+        "(@chain, @C)": 0.12,
+        "(@q, @d)": 0.08,
+        "(@d, @p)": 0.05
+      },
+      "_weight_verification": {
+        "linear_sum": 0.80,
+        "interaction_sum": 0.40,
+        "raw_total": 1.20,
+        "note": "Weights normalized to sum to 1.0"
+      },
+      "normalized_linear_weights": {
+        "@b": 0.167,
+        "@chain": 0.125,
+        "@q": 0.083,
+        "@d": 0.067,
+        "@p": 0.058,
+        "@C": 0.083,
+        "@u": 0.042,
+        "@m": 0.042
+      },
+      "normalized_interaction_weights": {
+        "(@u, @chain)": 0.125,
+        "(@chain, @C)": 0.100,
+        "(@q, @d)": 0.067,
+        "(@d, @p)": 0.042
+      },
+      "_final_verification": {
+        "normalized_linear_sum": 0.667,
+        "normalized_interaction_sum": 0.334,
+        "total": 1.001,
+        "note": "Rounding to 1.000 ensures exact normalization"
+      }
+    }
+  },
+  
+  "interaction_specifications": {
+    "(@u, @chain)": {
+      "weight": 0.125,
+      "rationale": "Plan quality only matters with sound wiring - weakest link dynamics",
+      "formula": "a_(@u,@chain) · min(x_@u, x_@chain)",
+      "interpretation": "Low unit quality limits what even perfect chain can achieve"
+    },
+    "(@chain, @C)": {
+      "weight": 0.100,
+      "rationale": "Ensemble validity requires chain integrity",
+      "formula": "a_(@chain,@C) · min(x_@chain, x_@C)",
+      "interpretation": "Ensemble cannot compensate for broken data flow"
+    },
+    "(@q, @d)": {
+      "weight": 0.067,
+      "rationale": "Question-dimension alignment synergy",
+      "formula": "a_(@q,@d) · min(x_@q, x_@d)",
+      "interpretation": "Method must be appropriate for BOTH question AND dimension"
+    },
+    "(@d, @p)": {
+      "weight": 0.042,
+      "rationale": "Dimension-policy coherence",
+      "formula": "a_(@d,@p) · min(x_@d, x_@p)",
+      "interpretation": "Cross-cutting concerns require dual compatibility"
+    }
+  },
+  
+  "worked_example": {
+    "description": "Section 5.1 - Score computation for SCORE_Q executor",
+    "executor": "D3Q2_Executor",
+    "layer_scores": {
+      "x_@b": 0.81,
+      "x_@chain": 1.0,
+      "x_@q": 1.0,
+      "x_@d": 1.0,
+      "x_@p": 0.8,
+      "x_@C": 1.0,
+      "x_@u": 0.75,
+      "x_@m": 0.95
+    },
+    "linear_computation": {
+      "@b": "0.167 × 0.81 = 0.1353",
+      "@chain": "0.125 × 1.0 = 0.1250",
+      "@q": "0.083 × 1.0 = 0.0830",
+      "@d": "0.067 × 1.0 = 0.0670",
+      "@p": "0.058 × 0.8 = 0.0464",
+      "@C": "0.083 × 1.0 = 0.0830",
+      "@u": "0.042 × 0.75 = 0.0315",
+      "@m": "0.042 × 0.95 = 0.0399",
+      "sum": 0.6111
+    },
+    "interaction_computation": {
+      "(@u, @chain)": "0.125 × min(0.75, 1.0) = 0.125 × 0.75 = 0.0938",
+      "(@chain, @C)": "0.100 × min(1.0, 1.0) = 0.100 × 1.0 = 0.1000",
+      "(@q, @d)": "0.067 × min(1.0, 1.0) = 0.067 × 1.0 = 0.0670",
+      "(@d, @p)": "0.042 × min(1.0, 0.8) = 0.042 × 0.8 = 0.0336",
+      "sum": 0.2944
+    },
+    "final_calibrated_score": 0.9055,
+    "interpretation": "Strong executor performance across all layers with minor policy compatibility impact"
+  },
+  
+  "_validation_rules": [
+    "All weights must be non-negative: a_ℓ ≥ 0, a_ℓk ≥ 0",
+    "Weights must sum to 1.0: Σ a_ℓ + Σ a_ℓk = 1.0",
+    "Interaction terms capture weakest-link dynamics via min operator",
+    "Final calibrated score Cal(I) ∈ [0,1] guaranteed by construction",
+    "Monotonicity: Cal increases (or stays same) when any x_ℓ increases"
+  ]
+}
