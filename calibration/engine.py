@@ -190,35 +190,6 @@ class CalibrationEngine:
         hasher.update(graph_repr.encode('utf-8'))
         return f"sha256:{hasher.hexdigest()}"
     
-    def _get_method_metadata(self, method_id: str) -> Dict[str, Any]:
-        """
-        Get method metadata from catalog.
-        
-        Args:
-            method_id: Method identifier
-            
-        Returns:
-            Method metadata dict
-            
-        Raises:
-            CalibrationConfigError: If method not found
-        """
-        method_info = self.method_index.get(method_id)
-        
-        if not method_info:
-            # Try fallback patterns
-            for key, info in self.method_index.items():
-                if method_id in key or key in method_id:
-                    method_info = info
-                    break
-        
-        if not method_info:
-            raise CalibrationConfigError(
-                f"Method '{method_id}' not found in canonical_method_catalog.json."
-            )
-        
-        return method_info.get("metadata", {})
-    
     def _determine_role(self, method_id: str) -> MethodRole:
         """
         Determine method role from method ID using canonical catalog metadata.
@@ -337,15 +308,6 @@ class CalibrationEngine:
         ctx = subject.context
         scores = {}
         
-        # Get method metadata for dimension/policy info
-        try:
-            method_meta = self._get_method_metadata(subject.method_id)
-        except CalibrationConfigError:
-            method_meta = {}
-        
-        method_dimensions = method_meta.get("dimensions", [])
-        method_policies = method_meta.get("policies", [])
-        
         # @b: Base layer (always required)
         scores[LayerType.BASE.value] = compute_base_layer(
             subject.method_id, self.intrinsic_config
@@ -369,14 +331,12 @@ class CalibrationEngine:
         
         # @d: Dimension compatibility
         scores[LayerType.DIMENSION.value] = compute_dimension_layer(
-            subject.method_id, ctx.dimension_id, self.contextual_config,
-            method_dimensions=method_dimensions
+            subject.method_id, ctx.dimension_id, self.contextual_config
         )
         
         # @p: Policy compatibility
         scores[LayerType.POLICY.value] = compute_policy_layer(
-            subject.method_id, ctx.policy_id, self.contextual_config,
-            method_policies=method_policies
+            subject.method_id, ctx.policy_id, self.contextual_config
         )
         
         # @C: Interplay congruence

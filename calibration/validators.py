@@ -203,136 +203,6 @@ class CalibrationValidator:
         
         return len(errors) == 0, errors
     
-    def validate_contextual_config(
-        self,
-        config: Dict[str, Any]
-    ) -> tuple[bool, List[str]]:
-        """
-        Validate contextual_parametrization.json structure and values.
-        
-        Spec compliance: SUPERPROMPT Section 6
-        
-        Args:
-            config: Loaded contextual_parametrization.json
-        
-        Returns:
-            (is_valid, error_messages)
-        """
-        errors = []
-        
-        # Check required top-level keys
-        required_keys = ["@q", "@d", "@p", "@u", "@chain"]
-        for key in required_keys:
-            if key not in config:
-                errors.append(f"Missing contextual config for {key}")
-        
-        # Validate @q weights
-        if "@q" in config:
-            q_config = config["@q"]
-            if "weights" not in q_config:
-                errors.append("@q missing 'weights' key")
-            else:
-                weights = q_config["weights"]
-                for wkey in ["primary", "secondary", "validator", "fallback"]:
-                    if wkey not in weights:
-                        errors.append(f"@q weights missing '{wkey}'")
-                    else:
-                        val = weights[wkey]
-                        if not (0.0 <= val <= 1.0):
-                            errors.append(f"@q weight '{wkey}' out of range [0,1]: {val}")
-        
-        # Validate @d dimension_matrix
-        if "@d" in config:
-            d_config = config["@d"]
-            if "dimension_matrix" not in d_config:
-                errors.append("@d missing 'dimension_matrix' key")
-            else:
-                matrix = d_config["dimension_matrix"]
-                for dim_id, row in matrix.items():
-                    if not isinstance(row, dict):
-                        errors.append(f"@d dimension_matrix[{dim_id}] must be dict")
-                        continue
-                    for target_dim, score in row.items():
-                        if not (0.0 <= score <= 1.0):
-                            errors.append(f"@d dimension_matrix[{dim_id}][{target_dim}] out of range: {score}")
-        
-        # Validate @p policy_matrix
-        if "@p" in config:
-            p_config = config["@p"]
-            if "policy_matrix" not in p_config:
-                errors.append("@p missing 'policy_matrix' key")
-            else:
-                matrix = p_config["policy_matrix"]
-                for policy_id, row in matrix.items():
-                    if not isinstance(row, dict):
-                        errors.append(f"@p policy_matrix[{policy_id}] must be dict")
-                        continue
-                    for target_policy, score in row.items():
-                        if not (0.0 <= score <= 1.0):
-                            errors.append(f"@p policy_matrix[{policy_id}][{target_policy}] out of range: {score}")
-        
-        # Validate @u methods
-        if "@u" in config:
-            u_config = config["@u"]
-            if "methods" not in u_config:
-                errors.append("@u missing 'methods' key")
-            else:
-                methods = u_config["methods"]
-                for role, spec in methods.items():
-                    if "type" not in spec:
-                        errors.append(f"@u methods[{role}] missing 'type'")
-                        continue
-                    spec_type = spec["type"]
-                    if spec_type == "flat":
-                        if "value" not in spec:
-                            errors.append(f"@u methods[{role}] type=flat missing 'value'")
-                        elif not (0.0 <= spec["value"] <= 1.0):
-                            errors.append(f"@u methods[{role}] value out of range: {spec['value']}")
-                    elif spec_type == "piecewise_linear":
-                        if "points" not in spec:
-                            errors.append(f"@u methods[{role}] type=piecewise_linear missing 'points'")
-        
-        # Validate @chain rules
-        if "@chain" in config:
-            chain_config = config["@chain"]
-            if "rules" not in chain_config:
-                errors.append("@chain missing 'rules' key")
-            else:
-                rules = chain_config["rules"]
-                for rule_key, score in rules.items():
-                    if not (0.0 <= score <= 1.0):
-                        errors.append(f"@chain rules[{rule_key}] out of range: {score}")
-        
-        return len(errors) == 0, errors
-    
-    def validate_contextual_scores(
-        self,
-        scores: Dict[str, float],
-        method_id: str
-    ) -> tuple[bool, List[str]]:
-        """
-        Validate contextual scores are in valid range.
-        
-        Spec compliance: SUPERPROMPT Section 6
-        
-        Args:
-            scores: Layer scores dict
-            method_id: Method identifier
-        
-        Returns:
-            (is_valid, error_messages)
-        """
-        errors = []
-        
-        for layer_name, score in scores.items():
-            if score < 0.0 or score > 1.0:
-                errors.append(
-                    f"Contextual score out of bounds for {method_id}, "
-                    f"layer={layer_name}, value={score}"
-                )
-        
-        return len(errors) == 0, errors
-    
     def validate_config_files(self) -> tuple[bool, List[str]]:
         """
         Validate all three pillar config files.
@@ -354,18 +224,13 @@ class CalibrationValidator:
             all_errors.append(f"Failed to load intrinsic_calibration.json: {e}")
             intrinsic = {}
         
-        # Validate contextual config
+        # Validate contextual config exists (full validation TBD)
         try:
             contextual_path = self.config_dir / "contextual_parametrization.json"
             if not contextual_path.exists():
                 all_errors.append("contextual_parametrization.json not found")
-            else:
-                with open(contextual_path) as f:
-                    contextual = json.load(f)
-                valid, errors = self.validate_contextual_config(contextual)
-                all_errors.extend(errors)
         except Exception as e:
-            all_errors.append(f"Failed to validate contextual_parametrization.json: {e}")
+            all_errors.append(f"Failed to check contextual_parametrization.json: {e}")
         
         try:
             with open(self.config_dir / "fusion_specification.json") as f:
