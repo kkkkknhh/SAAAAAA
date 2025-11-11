@@ -926,7 +926,7 @@ class RecommendationEngine:
                 elif key == 'required_sections':
                     if not isinstance(artifact[key], list) or not all(isinstance(s, str) and s.strip() for s in artifact[key]):
                         raise ValueError(
-                            f"Rule {rule_id} verification required_sections must be a list of non-empty strings"
+                            f"Rule {rule_id} verification required_sections must be a list of strings (may be empty)"
                         )
                 # For other non-boolean fields, check for empty values
                 elif not artifact[key]:
