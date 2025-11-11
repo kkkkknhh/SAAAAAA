@@ -40,7 +40,7 @@ class RuntimeValidator:
             "saaaaaa.processing.document_ingestion",
             "saaaaaa.core.orchestrator.signals",
             "saaaaaa.core.orchestrator.arg_router",
-            "saaaaaa.utils.cpp_adapter",
+            "saaaaaa.utils.spc_adapter",
             "saaaaaa.analysis.recommendation_engine",
         ]
         
@@ -129,20 +129,20 @@ class RuntimeValidator:
         return result
     
     def test_cpp_adapter_conversion(self) -> Dict[str, Any]:
-        """Test CPPAdapter conversion logic."""
-        print("🔍 Testing CPP adapter conversion...")
+        """Test SPCAdapter conversion logic."""
+        print("🔍 Testing SPC adapter conversion...")
         result = {
-            "test": "cpp_adapter_conversion",
+            "test": "spc_adapter_conversion",
             "status": "pass",
             "features_tested": [],
             "errors": [],
         }
         
         try:
-            from saaaaaa.utils.cpp_adapter import CPPAdapter
+            from saaaaaa.utils.spc_adapter import SPCAdapter
             
-            adapter = CPPAdapter()
-            result["features_tested"].append("CPPAdapter instantiation")
+            adapter = SPCAdapter()
+            result["features_tested"].append("SPCAdapter instantiation")
             
             # Check for key methods
             if hasattr(adapter, "to_preprocessed_document"):

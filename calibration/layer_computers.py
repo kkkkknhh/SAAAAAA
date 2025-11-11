@@ -9,7 +9,7 @@ Spec compliance: Section 3 (Layer Architecture)
 
 import math
 from typing import Dict, Any, Optional
-from .data_structures import MethodRole, ComputationGraph, InterplaySubgraph
+from .data_structures import MethodRole, ComputationGraph, InterplaySubgraph, CalibrationConfigError
 
 
 def compute_base_layer(method_id: str, intrinsic_config: Dict[str, Any]) -> float:
@@ -133,20 +133,36 @@ def compute_unit_layer(method_id: str, role: MethodRole, unit_quality: float,
         return 1.0
     
     elif g_type == "piecewise_linear":
-        # g(U) = max(0, min(1, 2*U - 0.6)) if U >= 0.3 else 0
+        # g(U) = 2*U - 0.6 if U >= 0.3 else 0
+        # Per canonic_calibration_methods.md: NO clamping - weights must be configured correctly
         abort_threshold = g_spec.get("abort_threshold", 0.3)
         if unit_quality < abort_threshold:
             return 0.0
         score = 2.0 * unit_quality - 0.6
-        return max(0.0, min(1.0, score))
+        
+        # Validate that config produces valid result
+        if score < 0.0 or score > 1.0:
+            raise CalibrationConfigError(
+                f"Unit layer g_function produced out-of-range score: {score} "
+                f"for unit_quality={unit_quality}. Config must be adjusted to ensure [0,1] output."
+            )
+        return score
     
     elif g_type == "sigmoidal":
         # g(U) = 1 - exp(-k*(U - x0))
-        # Parameters from config or defaults
+        # Per canonic_calibration_methods.md: NO clamping - config must produce [0,1]
         k = g_spec.get("sigmoidal_k", 5.0)
         x0 = g_spec.get("sigmoidal_x0", 0.5)
         score = 1.0 - math.exp(-k * (unit_quality - x0))
-        return max(0.0, min(1.0, score))
+        
+        # Validate that config produces valid result
+        if score < 0.0 or score > 1.0:
+            raise CalibrationConfigError(
+                f"Unit layer g_function produced out-of-range score: {score} "
+                f"for unit_quality={unit_quality}, k={k}, x0={x0}. "
+                f"Config must be adjusted to ensure [0,1] output."
+            )
+        return score
     
     else:
         raise ValueError(f"Unknown g_function type: {g_type}")

@@ -1,131 +1,156 @@
-"""Context-aware calibration system for policy analysis executors.
+"""Calibration Context Module.
 
-This module implements a multi-dimensional calibration resolver that addresses
-calibration gaps by considering:
-- Question context (dimension + question number, e.g., "D1Q1", "D6Q3")
-- Policy area (fiscal, social, health, infrastructure, etc.)
-- Unit of analysis (baseline_gap, indicator, activity, impact, etc.)
-- Method sequence/context
+This module provides context-aware calibration capabilities for the orchestrator.
+It defines context types, modifiers, and functions to adjust calibration parameters
+based on question context, policy area, and unit of analysis.
 
-The system maintains backward compatibility while adding contextual refinement.
+Design Principles:
+- Context is immutable and copied on modification
+- Modifiers are composable and applied in sequence
+- Context inference from question IDs is deterministic
+- All adjustments are traceable and reversible
 """
 
-from dataclasses import dataclass, replace
+from __future__ import annotations
+
+import logging
+import re
+from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Optional, Literal
+from typing import Optional
 
-from .calibration_registry import MethodCalibration
+logger = logging.getLogger(__name__)
 
 
-class PolicyArea(str, Enum):
-    """Policy domain classification."""
+class PolicyArea(Enum):
+    """Policy area classifications for context-aware calibration."""
+    UNKNOWN = "unknown"
     FISCAL = "fiscal"
     SOCIAL = "social"
-    HEALTH = "health"
-    EDUCATION = "education"
     INFRASTRUCTURE = "infrastructure"
-    ENVIRONMENT = "environment"
-    AGRICULTURE = "agriculture"
-    SECURITY = "security"
+    ENVIRONMENTAL = "environmental"
     GOVERNANCE = "governance"
     ECONOMIC = "economic"
+    HEALTH = "health"
+    EDUCATION = "education"
+    SECURITY = "security"
+    CULTURE = "culture"
+
+
+class UnitOfAnalysis(Enum):
+    """Unit of analysis for question context."""
     UNKNOWN = "unknown"
-
-
-class UnitOfAnalysis(str, Enum):
-    """Analysis focus classification."""
     BASELINE_GAP = "baseline_gap"
-    INDICATOR = "indicator"
-    ACTIVITY = "activity"
-    PRODUCT = "product"
-    RESULT = "result"
-    IMPACT = "impact"
-    QUANTITATIVE = "quantitative"
-    QUALITATIVE = "qualitative"
-    FINANCIAL = "financial"
-    TEMPORAL = "temporal"
-    UNKNOWN = "unknown"
-
-
-class DocumentType(str, Enum):
-    """Document type classification for policy analysis.
-    
-    Different document types require different calibration approaches:
-    - Plan de desarrollo municipal: Comprehensive, multi-sector, long-term planning
-    - Política pública: Focused intervention, specific sector
-    - Plan sectorial: Sector-specific planning
-    """
-    PLAN_DESARROLLO_MUNICIPAL = "plan_desarrollo_municipal"
-    POLITICA_PUBLICA = "politica_publica"
-    PLAN_SECTORIAL = "plan_sectorial"
-    PLAN_ESTRATEGICO = "plan_estrategico"
-    UNKNOWN = "unknown"
+    INTERVENTION = "intervention"
+    OUTCOME = "outcome"
+    MECHANISM = "mechanism"
+    CONTEXT = "context"
+    TIMEFRAME = "timeframe"
+    STAKEHOLDER = "stakeholder"
+    RESOURCE = "resource"
+    RISK = "risk"
+    ASSUMPTION = "assumption"
 
 
 @dataclass(frozen=True)
 class CalibrationContext:
-    """Complete context for calibration resolution.
+    """Context information for calibration adjustment.
     
     Attributes:
-        question_id: Question identifier (e.g., "D1Q1", "D6Q3")
+        question_id: Question identifier (e.g., "D1Q1")
         dimension: Dimension number (1-10)
         question_num: Question number within dimension
-        policy_area: Policy domain being analyzed
-        unit_of_analysis: Type of analysis unit
-        document_type: Type of policy document being analyzed
-        method_position: Position in method sequence (0-indexed)
-        total_methods: Total methods in sequence
+        policy_area: Policy area classification
+        unit_of_analysis: Unit of analysis for the question
+        method_position: Position of method in execution sequence (0-based)
+        total_methods: Total number of methods to execute
     """
     question_id: str
-    dimension: int
-    question_num: int
+    dimension: int = 0
+    question_num: int = 0
     policy_area: PolicyArea = PolicyArea.UNKNOWN
     unit_of_analysis: UnitOfAnalysis = UnitOfAnalysis.UNKNOWN
-    document_type: DocumentType = DocumentType.UNKNOWN
     method_position: int = 0
-    total_methods: int = 1
+    total_methods: int = 0
     
     @classmethod
-    def from_question_id(cls, question_id: str) -> "CalibrationContext":
-        """Create context from question ID like 'D1Q1'."""
-        try:
-            parts = question_id.upper().replace("D", "").split("Q")
-            if len(parts) == 2:
-                dimension = int(parts[0])
-                question_num = int(parts[1])
-                return cls(
-                    question_id=question_id,
-                    dimension=dimension,
-                    question_num=question_num
-                )
-        except (ValueError, IndexError):
-            pass
+    def from_question_id(cls, question_id: str) -> CalibrationContext:
+        """Create context from question ID.
         
-        # Fallback for invalid format
-        return cls(question_id=question_id, dimension=0, question_num=0)
+        Parses question IDs in format "D{dimension}Q{question}" (case-insensitive).
+        Examples: "D1Q1", "d2q5", "D10Q25"
+        
+        Args:
+            question_id: Question identifier string
+            
+        Returns:
+            CalibrationContext with parsed dimension and question number
+        """
+        # Parse question ID format: D{dimension}Q{question}
+        pattern = r"[dD](\d+)[qQ](\d+)"
+        match = re.match(pattern, question_id)
+        
+        if match:
+            dimension = int(match.group(1))
+            question_num = int(match.group(2))
+            return cls(
+                question_id=question_id,
+                dimension=dimension,
+                question_num=question_num
+            )
+        else:
+            logger.warning(f"Invalid question ID format: {question_id}")
+            return cls(question_id=question_id, dimension=0, question_num=0)
     
-    def with_policy_area(self, policy_area: PolicyArea) -> "CalibrationContext":
-        """Create new context with specified policy area."""
+    def with_policy_area(self, policy_area: PolicyArea) -> CalibrationContext:
+        """Create a copy with updated policy area.
+        
+        Args:
+            policy_area: New policy area
+            
+        Returns:
+            New CalibrationContext with updated policy_area
+        """
         return replace(self, policy_area=policy_area)
     
-    def with_unit_of_analysis(self, unit: UnitOfAnalysis) -> "CalibrationContext":
-        """Create new context with specified unit of analysis."""
-        return replace(self, unit_of_analysis=unit)
+    def with_unit_of_analysis(self, unit_of_analysis: UnitOfAnalysis) -> CalibrationContext:
+        """Create a copy with updated unit of analysis.
+        
+        Args:
+            unit_of_analysis: New unit of analysis
+            
+        Returns:
+            New CalibrationContext with updated unit_of_analysis
+        """
+        return replace(self, unit_of_analysis=unit_of_analysis)
     
-    def with_document_type(self, doc_type: DocumentType) -> "CalibrationContext":
-        """Create new context with specified document type."""
-        return replace(self, document_type=doc_type)
-    
-    def with_method_position(self, position: int, total: int) -> "CalibrationContext":
-        """Create new context with method sequence position."""
+    def with_method_position(self, position: int, total: int) -> CalibrationContext:
+        """Create a copy with updated method position.
+        
+        Args:
+            position: Position in method execution sequence (0-based)
+            total: Total number of methods
+            
+        Returns:
+            New CalibrationContext with updated method_position and total_methods
+        """
         return replace(self, method_position=position, total_methods=total)
 
 
 @dataclass(frozen=True)
 class CalibrationModifier:
-    """Multiplicative modifiers for calibration parameters.
+    """Modifier for adjusting calibration parameters based on context.
     
-    All modifiers are multiplicative (1.0 = no change).
+    All multipliers default to 1.0 (no change). Values outside valid ranges
+    are clamped during application.
+    
+    Attributes:
+        min_evidence_multiplier: Multiplier for min_evidence_snippets
+        max_evidence_multiplier: Multiplier for max_evidence_snippets
+        contradiction_tolerance_multiplier: Multiplier for contradiction_tolerance
+        uncertainty_penalty_multiplier: Multiplier for uncertainty_penalty
+        aggregation_weight_multiplier: Multiplier for aggregation_weight
+        sensitivity_multiplier: Multiplier for sensitivity
     """
     min_evidence_multiplier: float = 1.0
     max_evidence_multiplier: float = 1.0
@@ -134,405 +159,183 @@ class CalibrationModifier:
     aggregation_weight_multiplier: float = 1.0
     sensitivity_multiplier: float = 1.0
     
-    def _apply_evidence_multiplier(self, value: int, multiplier: float) -> int:
-        """Apply multiplier to evidence snippet count with minimum bound (round up)."""
-        import math
-        return max(1, int(math.ceil(value * multiplier)))
-    
-    def apply(self, base: MethodCalibration) -> MethodCalibration:
-        """Apply modifiers to base calibration."""
+    def apply(self, calibration: "MethodCalibration") -> "MethodCalibration":
+        """Apply modifier to a calibration.
+        
+        Args:
+            calibration: Base MethodCalibration to modify
+            
+        Returns:
+            New MethodCalibration with adjusted parameters
+        """
+        # Import at runtime to avoid circular dependency at module load time
+        from saaaaaa.core.orchestrator.calibration_registry import MethodCalibration
+        
+        # Apply multipliers and clamp to valid ranges
+        min_evidence = int(calibration.min_evidence_snippets * self.min_evidence_multiplier)
+        max_evidence = int(calibration.max_evidence_snippets * self.max_evidence_multiplier)
+        
+        # Ensure min <= max
+        if min_evidence > max_evidence:
+            min_evidence, max_evidence = max_evidence, min_evidence
+        
+        # Clamp evidence counts to reasonable ranges
+        min_evidence = max(1, min_evidence)
+        max_evidence = max(min_evidence, min(100, max_evidence))
+        
+        # Apply multipliers and clamp to [0.0, 1.0]
+        contradiction_tolerance = max(0.0, min(1.0,
+            calibration.contradiction_tolerance * self.contradiction_tolerance_multiplier
+        ))
+        
+        uncertainty_penalty = max(0.0, min(1.0,
+            calibration.uncertainty_penalty * self.uncertainty_penalty_multiplier
+        ))
+        
+        aggregation_weight = max(0.0,
+            calibration.aggregation_weight * self.aggregation_weight_multiplier
+        )
+        
+        sensitivity = max(0.0, min(1.0,
+            calibration.sensitivity * self.sensitivity_multiplier
+        ))
+        
         return MethodCalibration(
-            score_min=base.score_min,
-            score_max=base.score_max,
-            min_evidence_snippets=self._apply_evidence_multiplier(
-                base.min_evidence_snippets, self.min_evidence_multiplier
-            ),
-            max_evidence_snippets=self._apply_evidence_multiplier(
-                base.max_evidence_snippets, self.max_evidence_multiplier
-            ),
-            contradiction_tolerance=_clamp(
-                base.contradiction_tolerance * self.contradiction_tolerance_multiplier, 0.0, 1.0
-            ),
-            uncertainty_penalty=_clamp(
-                base.uncertainty_penalty * self.uncertainty_penalty_multiplier, 0.0, 1.0
-            ),
-            aggregation_weight=max(0.1, base.aggregation_weight * self.aggregation_weight_multiplier),
-            sensitivity=_clamp(base.sensitivity * self.sensitivity_multiplier, 0.0, 1.0),
-            requires_numeric_support=base.requires_numeric_support,
-            requires_temporal_support=base.requires_temporal_support,
-            requires_source_provenance=base.requires_source_provenance,
+            score_min=calibration.score_min,
+            score_max=calibration.score_max,
+            min_evidence_snippets=min_evidence,
+            max_evidence_snippets=max_evidence,
+            contradiction_tolerance=contradiction_tolerance,
+            uncertainty_penalty=uncertainty_penalty,
+            aggregation_weight=aggregation_weight,
+            sensitivity=sensitivity,
+            requires_numeric_support=calibration.requires_numeric_support,
+            requires_temporal_support=calibration.requires_temporal_support,
+            requires_source_provenance=calibration.requires_source_provenance,
         )
 
 
-def _clamp(value: float, min_val: float, max_val: float) -> float:
-    """Clamp value to range [min_val, max_val]."""
-    return max(min_val, min(max_val, value))
-
-
-# =============================================================================
-# DIMENSION-SPECIFIC MODIFIERS
-# =============================================================================
-
+# Dimension-specific modifiers
 _DIMENSION_MODIFIERS = {
-    # D1: Baseline gaps - requires high evidence, quantitative focus
-    1: CalibrationModifier(
-        min_evidence_multiplier=1.3,  # Need more evidence for gap analysis
-        uncertainty_penalty_multiplier=0.8,  # More tolerant of uncertainty
-        sensitivity_multiplier=1.1,  # Higher sensitivity to detect gaps
-    ),
-    
-    # D2: Indicators - quantitative, needs precision
-    2: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        contradiction_tolerance_multiplier=0.7,  # Less tolerant of contradictions
-        sensitivity_multiplier=1.15,
-    ),
-    
-    # D3: Activities - operational, mid-range evidence
-    3: CalibrationModifier(
-        min_evidence_multiplier=1.0,
-        aggregation_weight_multiplier=1.05,
-    ),
-    
-    # D4: Products - concrete outputs, moderate requirements
-    4: CalibrationModifier(
-        min_evidence_multiplier=1.1,
-        uncertainty_penalty_multiplier=0.9,
-    ),
-    
-    # D5: Results - outcome focus, higher evidence needs
-    5: CalibrationModifier(
-        min_evidence_multiplier=1.25,
-        sensitivity_multiplier=1.1,
-    ),
-    
-    # D6: Logical framework - structural coherence, high sensitivity
-    6: CalibrationModifier(
-        contradiction_tolerance_multiplier=0.5,  # Very intolerant of contradictions
-        aggregation_weight_multiplier=1.2,
-        sensitivity_multiplier=1.2,
-    ),
-    
-    # D7: Causal mechanisms - needs strong evidence chains
-    7: CalibrationModifier(
-        min_evidence_multiplier=1.4,
-        contradiction_tolerance_multiplier=0.6,
-        sensitivity_multiplier=1.25,
-    ),
-    
-    # D8: Temporal consistency - timeline focus
-    8: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        contradiction_tolerance_multiplier=0.7,
-    ),
-    
-    # D9: Financial coherence - precision critical
-    9: CalibrationModifier(
-        min_evidence_multiplier=1.35,
-        contradiction_tolerance_multiplier=0.5,
-        uncertainty_penalty_multiplier=1.2,
-        sensitivity_multiplier=1.3,
-    ),
-    
-    # D10: Operationalization - implementation feasibility
-    10: CalibrationModifier(
-        min_evidence_multiplier=1.25,
-        aggregation_weight_multiplier=1.15,
-        sensitivity_multiplier=1.15,
-    ),
+    1: CalibrationModifier(min_evidence_multiplier=1.3, sensitivity_multiplier=1.1),
+    2: CalibrationModifier(max_evidence_multiplier=1.2, contradiction_tolerance_multiplier=0.8),
+    3: CalibrationModifier(min_evidence_multiplier=1.2, uncertainty_penalty_multiplier=0.9),
+    4: CalibrationModifier(sensitivity_multiplier=1.2),
+    5: CalibrationModifier(min_evidence_multiplier=1.1, max_evidence_multiplier=1.1),
+    6: CalibrationModifier(contradiction_tolerance_multiplier=0.9),
+    7: CalibrationModifier(uncertainty_penalty_multiplier=0.85),
+    8: CalibrationModifier(aggregation_weight_multiplier=1.15),
+    9: CalibrationModifier(sensitivity_multiplier=1.15),
+    10: CalibrationModifier(min_evidence_multiplier=1.4, sensitivity_multiplier=1.2),
 }
 
-
-# =============================================================================
-# POLICY-AREA-SPECIFIC MODIFIERS
-# =============================================================================
-
+# Policy area modifiers
 _POLICY_AREA_MODIFIERS = {
     PolicyArea.FISCAL: CalibrationModifier(
-        min_evidence_multiplier=1.3,  # Financial requires more evidence
-        contradiction_tolerance_multiplier=0.6,  # Less tolerance for contradictions
-        uncertainty_penalty_multiplier=1.2,  # Higher penalty for uncertainty
-        sensitivity_multiplier=1.2,
-    ),
-    
-    PolicyArea.SOCIAL: CalibrationModifier(
-        min_evidence_multiplier=1.1,
-        contradiction_tolerance_multiplier=0.9,
-        uncertainty_penalty_multiplier=0.9,  # More tolerant of qualitative uncertainty
-    ),
-    
-    PolicyArea.HEALTH: CalibrationModifier(
-        min_evidence_multiplier=1.25,
-        sensitivity_multiplier=1.15,
-    ),
-    
-    PolicyArea.EDUCATION: CalibrationModifier(
-        min_evidence_multiplier=1.15,
-        aggregation_weight_multiplier=1.05,
-    ),
-    
-    PolicyArea.INFRASTRUCTURE: CalibrationModifier(
-        min_evidence_multiplier=1.4,  # Infrastructure needs concrete evidence
-        contradiction_tolerance_multiplier=0.5,
-        sensitivity_multiplier=1.25,
-    ),
-    
-    PolicyArea.ENVIRONMENT: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        uncertainty_penalty_multiplier=0.85,
-    ),
-    
-    PolicyArea.AGRICULTURE: CalibrationModifier(
-        min_evidence_multiplier=1.15,
-        sensitivity_multiplier=1.1,
-    ),
-    
-    PolicyArea.SECURITY: CalibrationModifier(
-        min_evidence_multiplier=1.35,
-        contradiction_tolerance_multiplier=0.6,
-        sensitivity_multiplier=1.2,
-    ),
-    
-    PolicyArea.GOVERNANCE: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        aggregation_weight_multiplier=1.1,
-    ),
-    
-    PolicyArea.ECONOMIC: CalibrationModifier(
         min_evidence_multiplier=1.3,
-        sensitivity_multiplier=1.15,
+        sensitivity_multiplier=1.1
+    ),
+    PolicyArea.SOCIAL: CalibrationModifier(
+        max_evidence_multiplier=1.2,
+        uncertainty_penalty_multiplier=0.9
+    ),
+    PolicyArea.INFRASTRUCTURE: CalibrationModifier(
+        contradiction_tolerance_multiplier=0.8,
+        sensitivity_multiplier=1.1
+    ),
+    PolicyArea.ENVIRONMENTAL: CalibrationModifier(
+        min_evidence_multiplier=1.2,
+        uncertainty_penalty_multiplier=0.85
     ),
 }
 
-
-# =============================================================================
-# UNIT-OF-ANALYSIS-SPECIFIC MODIFIERS
-# =============================================================================
-
+# Unit of analysis modifiers
 _UNIT_OF_ANALYSIS_MODIFIERS = {
     UnitOfAnalysis.BASELINE_GAP: CalibrationModifier(
-        min_evidence_multiplier=1.3,
-        sensitivity_multiplier=1.2,
-    ),
-    
-    UnitOfAnalysis.INDICATOR: CalibrationModifier(
-        min_evidence_multiplier=1.25,
-        contradiction_tolerance_multiplier=0.7,
-        sensitivity_multiplier=1.15,
-    ),
-    
-    UnitOfAnalysis.ACTIVITY: CalibrationModifier(
-        min_evidence_multiplier=1.1,
-        aggregation_weight_multiplier=1.05,
-    ),
-    
-    UnitOfAnalysis.PRODUCT: CalibrationModifier(
-        min_evidence_multiplier=1.15,
-    ),
-    
-    UnitOfAnalysis.RESULT: CalibrationModifier(
-        min_evidence_multiplier=1.25,
-        sensitivity_multiplier=1.1,
-    ),
-    
-    UnitOfAnalysis.IMPACT: CalibrationModifier(
         min_evidence_multiplier=1.4,
-        sensitivity_multiplier=1.2,
+        sensitivity_multiplier=1.2
     ),
-    
-    UnitOfAnalysis.QUANTITATIVE: CalibrationModifier(
-        contradiction_tolerance_multiplier=0.6,
-        uncertainty_penalty_multiplier=1.2,
-        sensitivity_multiplier=1.15,
+    UnitOfAnalysis.INTERVENTION: CalibrationModifier(
+        contradiction_tolerance_multiplier=0.9,
+        sensitivity_multiplier=1.1
     ),
-    
-    UnitOfAnalysis.QUALITATIVE: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        contradiction_tolerance_multiplier=1.1,
-        uncertainty_penalty_multiplier=0.8,
+    UnitOfAnalysis.OUTCOME: CalibrationModifier(
+        min_evidence_multiplier=1.3,
+        uncertainty_penalty_multiplier=0.8
     ),
-    
-    UnitOfAnalysis.FINANCIAL: CalibrationModifier(
-        min_evidence_multiplier=1.35,
-        contradiction_tolerance_multiplier=0.5,
-        uncertainty_penalty_multiplier=1.3,
-        sensitivity_multiplier=1.25,
-    ),
-    
-    UnitOfAnalysis.TEMPORAL: CalibrationModifier(
-        min_evidence_multiplier=1.2,
-        contradiction_tolerance_multiplier=0.75,
+    UnitOfAnalysis.MECHANISM: CalibrationModifier(
+        max_evidence_multiplier=1.2,
+        sensitivity_multiplier=1.15
     ),
 }
 
-
-# =============================================================================
-# DOCUMENT-TYPE-SPECIFIC MODIFIERS
-# =============================================================================
-
-_DOCUMENT_TYPE_MODIFIERS = {
-    DocumentType.PLAN_DESARROLLO_MUNICIPAL: CalibrationModifier(
-        min_evidence_multiplier=1.4,  # Municipal plans are extensive, need more evidence
-        contradiction_tolerance_multiplier=0.6,  # Less tolerance due to multi-sector complexity
-        uncertainty_penalty_multiplier=1.1,  # Higher penalty for vague statements
-        sensitivity_multiplier=1.25,  # High sensitivity to detect cross-sector issues
-        aggregation_weight_multiplier=1.15,  # Higher weight due to strategic importance
-    ),
-    
-    DocumentType.POLITICA_PUBLICA: CalibrationModifier(
-        min_evidence_multiplier=1.25,  # Focused intervention needs clear evidence
-        contradiction_tolerance_multiplier=0.7,
-        uncertainty_penalty_multiplier=1.05,
-        sensitivity_multiplier=1.15,
-        aggregation_weight_multiplier=1.1,
-    ),
-    
-    DocumentType.PLAN_SECTORIAL: CalibrationModifier(
-        min_evidence_multiplier=1.3,  # Sector-specific needs domain evidence
-        contradiction_tolerance_multiplier=0.65,
-        sensitivity_multiplier=1.2,
-        aggregation_weight_multiplier=1.05,
-    ),
-    
-    DocumentType.PLAN_ESTRATEGICO: CalibrationModifier(
-        min_evidence_multiplier=1.35,  # Strategic plans need high-level evidence
-        contradiction_tolerance_multiplier=0.6,
-        uncertainty_penalty_multiplier=1.15,
-        sensitivity_multiplier=1.3,  # Very sensitive to strategic gaps
-        aggregation_weight_multiplier=1.2,
-    ),
-}
-
-
-# =============================================================================
-# METHOD-POSITION-SPECIFIC MODIFIERS
-# =============================================================================
-
-def _get_position_modifier(position: int, total: int) -> CalibrationModifier:
-    """Get modifier based on method position in sequence.
-    
-    Early methods: Build foundation, need more evidence
-    Middle methods: Balance aggregation
-    Late methods: Synthesis, higher weights
-    """
-    if total <= 1:
-        return CalibrationModifier()  # No adjustment for single methods
-    
-    # Calculate position ratio: 0.0 (first) to 1.0 (last)
-    position_ratio = position / (total - 1) if total > 1 else 0.0
-    
-    if position_ratio < 0.33:  # Early methods
-        return CalibrationModifier(
-            min_evidence_multiplier=1.15,
-            aggregation_weight_multiplier=0.95,
-        )
-    elif position_ratio < 0.67:  # Middle methods
-        return CalibrationModifier(
-            aggregation_weight_multiplier=1.0,
-        )
-    else:  # Late methods (synthesis)
-        return CalibrationModifier(
-            min_evidence_multiplier=0.9,  # Can rely on earlier work
-            aggregation_weight_multiplier=1.15,  # Higher weight for final synthesis
-            sensitivity_multiplier=1.05,
-        )
-
-
-# =============================================================================
-# CONTEXTUAL CALIBRATION RESOLVER
-# =============================================================================
 
 def resolve_contextual_calibration(
-    base_calibration: MethodCalibration,
-    context: Optional[CalibrationContext] = None,
-) -> MethodCalibration:
-    """Resolve calibration with contextual refinements.
+    base_calibration: "MethodCalibration",
+    context: Optional[CalibrationContext] = None
+) -> "MethodCalibration":
+    """Resolve calibration with context-aware adjustments.
+    
+    Applies modifiers based on:
+    1. Dimension (if context.dimension > 0)
+    2. Policy area (if not UNKNOWN)
+    3. Unit of analysis (if not UNKNOWN)
     
     Args:
-        base_calibration: Base calibration from registry
-        context: Optional execution context for refinement
+        base_calibration: Base MethodCalibration
+        context: Optional CalibrationContext with adjustment information
         
     Returns:
-        Refined calibration with context-aware adjustments
-        
-    The refinement process:
-    1. Start with base calibration
-    2. Apply dimension-specific modifier (if dimension known)
-    3. Apply policy-area modifier (if area known)
-    4. Apply unit-of-analysis modifier (if unit known)
-    5. Apply document-type modifier (if document type known)
-    6. Apply method-position modifier (if position known)
-    
-    All modifiers are multiplicative and cumulative.
+        Adjusted MethodCalibration
     """
     if context is None:
         return base_calibration
     
-    calibration = base_calibration
+    result = base_calibration
     
     # Apply dimension modifier
-    if context.dimension in _DIMENSION_MODIFIERS:
+    if context.dimension > 0 and context.dimension in _DIMENSION_MODIFIERS:
         modifier = _DIMENSION_MODIFIERS[context.dimension]
-        calibration = modifier.apply(calibration)
+        result = modifier.apply(result)
+        logger.debug(f"Applied dimension {context.dimension} modifier")
     
     # Apply policy area modifier
-    if context.policy_area in _POLICY_AREA_MODIFIERS:
-        modifier = _POLICY_AREA_MODIFIERS[context.policy_area]
-        calibration = modifier.apply(calibration)
+    if context.policy_area != PolicyArea.UNKNOWN:
+        if context.policy_area in _POLICY_AREA_MODIFIERS:
+            modifier = _POLICY_AREA_MODIFIERS[context.policy_area]
+            result = modifier.apply(result)
+            logger.debug(f"Applied policy area {context.policy_area.value} modifier")
     
     # Apply unit of analysis modifier
-    if context.unit_of_analysis in _UNIT_OF_ANALYSIS_MODIFIERS:
-        modifier = _UNIT_OF_ANALYSIS_MODIFIERS[context.unit_of_analysis]
-        calibration = modifier.apply(calibration)
+    if context.unit_of_analysis != UnitOfAnalysis.UNKNOWN:
+        if context.unit_of_analysis in _UNIT_OF_ANALYSIS_MODIFIERS:
+            modifier = _UNIT_OF_ANALYSIS_MODIFIERS[context.unit_of_analysis]
+            result = modifier.apply(result)
+            logger.debug(f"Applied unit of analysis {context.unit_of_analysis.value} modifier")
     
-    # Apply document type modifier
-    if context.document_type in _DOCUMENT_TYPE_MODIFIERS:
-        modifier = _DOCUMENT_TYPE_MODIFIERS[context.document_type]
-        calibration = modifier.apply(calibration)
-    
-    # Apply method position modifier
-    if context.total_methods > 1:
-        modifier = _get_position_modifier(context.method_position, context.total_methods)
-        calibration = modifier.apply(calibration)
-    
-    return calibration
+    return result
 
-
-# =============================================================================
-# QUESTION-ID TO CONTEXT INFERENCE
-# =============================================================================
 
 def infer_context_from_question_id(question_id: str) -> CalibrationContext:
-    """Infer calibration context from question ID.
+    """Infer context from question ID.
     
-    This provides reasonable defaults for policy area and unit of analysis
-    based on dimension and question patterns.
+    This is a convenience function that creates a CalibrationContext from
+    a question ID. Additional context can be added using the with_* methods.
+    
+    Args:
+        question_id: Question identifier (e.g., "D1Q1")
+        
+    Returns:
+        CalibrationContext with inferred dimension and question number
     """
-    context = CalibrationContext.from_question_id(question_id)
-    
-    # Infer policy area and unit based on dimension
-    if context.dimension == 1:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.BASELINE_GAP)
-    elif context.dimension == 2:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.INDICATOR)
-    elif context.dimension == 3:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.ACTIVITY)
-    elif context.dimension == 4:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.PRODUCT)
-    elif context.dimension == 5:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.RESULT)
-    elif context.dimension == 6:
-        # D6 is about logical framework - qualitative
-        context = context.with_unit_of_analysis(UnitOfAnalysis.QUALITATIVE)
-    elif context.dimension == 7:
-        # D7 is causal mechanisms - qualitative
-        context = context.with_unit_of_analysis(UnitOfAnalysis.QUALITATIVE)
-    elif context.dimension == 8:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.TEMPORAL)
-    elif context.dimension == 9:
-        context = context.with_unit_of_analysis(UnitOfAnalysis.FINANCIAL)
-    elif context.dimension == 10:
-        # D10 is operationalization - impact focus
-        context = context.with_unit_of_analysis(UnitOfAnalysis.IMPACT)
-    
-    return context
+    return CalibrationContext.from_question_id(question_id)
+
+
+__all__ = [
+    "CalibrationContext",
+    "CalibrationModifier",
+    "PolicyArea",
+    "UnitOfAnalysis",
+    "resolve_contextual_calibration",
+    "infer_context_from_question_id",
+]

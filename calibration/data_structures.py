@@ -12,6 +12,21 @@ from typing import Dict, Any, Optional, List, Set, Tuple
 from enum import Enum
 
 
+class CalibrationConfigError(Exception):
+    """
+    Raised when calibration configuration violates mathematical constraints.
+    
+    This error indicates:
+    - Fusion weights don't sum to valid range
+    - Weight constraints violated (must be ≥ 0)
+    - Invalid layer configuration
+    - Misconfigured calibration parameters
+    
+    SIN_CARRETA Policy: Fail loudly on misconfiguration, never silently clamp.
+    """
+    pass
+
+
 class LayerType(Enum):
     """Eight fixed calibration layers - NO RENAMING ALLOWED"""
     BASE = "@b"                    # Intrinsic quality

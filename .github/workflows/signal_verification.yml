@@ -1,0 +1,120 @@
+name: Signal Consumption Verification
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  verify-signal-infrastructure:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install structlog pydantic blake3
+      
+      - name: Verify Signal Infrastructure
+        run: |
+          python scripts/verify_signals.py
+          echo "Signal infrastructure verified"
+      
+      - name: Check for consumption verification script
+        run: |
+          if [ ! -f scripts/verify_signal_consumption.py ]; then
+            echo "❌ ERROR: Signal consumption verification script missing"
+            exit 1
+          fi
+          echo "✓ Consumption verification script exists"
+      
+      - name: Verify Signal Consumption (if artifacts exist)
+        continue-on-error: true
+        run: |
+          if [ -d artifacts/signal_proofs ] && [ "$(ls -A artifacts/signal_proofs)" ]; then
+            python scripts/verify_signal_consumption.py
+          else
+            echo "ℹ️ No signal proof artifacts found (expected if pipeline hasn't run)"
+            echo "To generate proofs, run: python scripts/run_policy_pipeline_verified.py"
+          fi
+      
+      - name: Upload Signal Infrastructure Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: signal-verification-report
+          path: |
+            artifacts/signal_proofs/
+            artifacts/plan1/verification_manifest.json
+          if-no-files-found: ignore
+
+  # Optional: Full pipeline test (can be expensive)
+  full-pipeline-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-test')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install structlog pydantic blake3
+          # Add other dependencies as needed
+      
+      - name: Run Policy Pipeline (if test data exists)
+        run: |
+          if [ -f data/plan1.pdf ]; then
+            SIGNAL_TRACKING=1 python scripts/run_policy_pipeline_verified.py \
+              --input data/plan1.pdf \
+              --output artifacts/plan1/ || true
+          else
+            echo "ℹ️ Test data (data/plan1.pdf) not found, skipping pipeline test"
+          fi
+      
+      - name: Verify Signal Consumption
+        run: |
+          if [ -d artifacts/signal_proofs ]; then
+            python scripts/verify_signal_consumption.py
+          else
+            echo "❌ ERROR: No signal consumption proofs generated"
+            echo "Expected: artifacts/signal_proofs/Q001.json ... Q300.json"
+            exit 1
+          fi
+      
+      - name: Upload Proof Artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: signal-consumption-proofs
+          path: artifacts/signal_proofs/
+          if-no-files-found: error
+      
+      - name: Validate Proof Coverage
+        run: |
+          proof_count=$(ls -1 artifacts/signal_proofs/*.json 2>/dev/null | wc -l)
+          echo "Proof files found: $proof_count"
+          
+          if [ "$proof_count" -lt 270 ]; then
+            echo "❌ ERROR: Insufficient coverage ($proof_count/300 proofs)"
+            echo "Minimum required: 270 (90%)"
+            exit 1
+          fi
+          
+          echo "✅ PASS: Adequate proof coverage ($proof_count/300)"

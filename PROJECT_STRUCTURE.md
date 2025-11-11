@@ -37,7 +37,6 @@ src/saaaaaa/
 
 - **`orchestrator/`** - Compatibility shims for orchestrator imports
   - `__init__.py` - Main orchestrator compatibility layer
-  - `coreographer.py` - Legacy name for choreographer (typo preserved for compatibility)
   - `choreographer_dispatch.py` - Dispatcher component shim
   - `executors.py`, `arg_router.py`, `factory.py` - Component shims
   - `provider.py`, `settings.py` - Configuration shims
@@ -82,7 +81,6 @@ Old code can import from `orchestrator`, `concurrency`, etc. at the root level. 
 **Old (still works):**
 ```python
 from orchestrator import Orchestrator
-from orchestrator.coreographer import Choreographer
 from concurrency import WorkerPool
 ```
 
@@ -98,9 +96,8 @@ from saaaaaa.concurrency import WorkerPool
 All orchestration-related code is in **one place**: `src/saaaaaa/core/orchestrator/`
 
 The confusing root-level `orchestrator/` directory is just a compatibility layer with multiple shims:
-- `coreographer.py` - Typo preserved for backward compatibility (should be "choreographer")
 - `choreographer_dispatch.py` - Dispatcher component
-- Both redirect to the same source: `src/saaaaaa/core/orchestrator/choreographer.py`
+- Redirects to the real source: `src/saaaaaa/core/orchestrator/choreographer.py`
 
 ## Adding New Features
 

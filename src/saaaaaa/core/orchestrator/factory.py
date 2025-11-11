@@ -632,6 +632,7 @@ def build_processor(
     questionnaire_path: Path | None = None,
     data_dir: Path | None = None,
     factory: Optional["CoreModuleFactory"] = None,
+    enable_signals: bool = True,
 ) -> ProcessorBundle:
     """Create a processor bundle with orchestrator dependencies wired together.
 
@@ -643,6 +644,7 @@ def build_processor(
             directories.
         factory: Pre-existing :class:`CoreModuleFactory` instance. When omitted
             the function creates a new factory configured with ``data_dir``.
+        enable_signals: Enable signal infrastructure (default: True)
 
     Returns:
         A :class:`ProcessorBundle` containing a ready-to-use method executor,
@@ -661,7 +663,33 @@ def build_processor(
 
     questionnaire_snapshot = MappingProxyType(copy.deepcopy(questionnaire_data))
 
-    executor = MethodExecutor()
+    # Build signal infrastructure if enabled
+    signal_registry = None
+    if enable_signals:
+        try:
+            from .core_module_factory import CoreModuleFactory as SignalFactory
+            
+            # Create signal-enabled factory
+            signal_factory = SignalFactory(
+                questionnaire_data=questionnaire_data,
+                enable_signals=True,
+            )
+            signal_registry = signal_factory._signal_registry
+            
+            logger.info(
+                "signals_enabled_in_processor",
+                enabled=True,
+                registry_size=len(signal_registry._cache) if signal_registry else 0,
+            )
+        except Exception as e:
+            logger.warning(
+                "signal_initialization_failed",
+                error=str(e),
+                fallback="continuing without signals"
+            )
+            signal_registry = None
+
+    executor = MethodExecutor(signal_registry=signal_registry)
 
     return ProcessorBundle(
         method_executor=executor,

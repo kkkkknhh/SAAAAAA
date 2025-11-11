@@ -41,7 +41,7 @@ from saaaaaa.processing.aggregation import (
     ScoredResult,
 )
 
-from .arg_router import ArgRouter, ArgRouterError, ArgumentValidationError
+from .arg_router import ArgRouterError, ArgumentValidationError, ExtendedArgRouter
 from .calibration_registry import resolve_calibration, get_calibration_hash, CALIBRATION_VERSION
 from .class_registry import ClassRegistryError, build_class_registry
 from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
@@ -354,8 +354,8 @@ class PreprocessedDocument:
                 )
             
             try:
-                from saaaaaa.utils.cpp_adapter import CPPAdapter
-                adapter = CPPAdapter()
+                from saaaaaa.utils.spc_adapter import SPCAdapter
+                adapter = SPCAdapter()
                 preprocessed = adapter.to_preprocessed_document(document, document_id=document_id)
                 
                 # Comprehensive SPC ingestion validation
@@ -386,8 +386,8 @@ class PreprocessedDocument:
                 return preprocessed
             except ImportError as e:
                 raise ImportError(
-                    "SPC ingestion requires cpp_adapter module. "
-                    "Ensure saaaaaa.utils.cpp_adapter is available."
+                    "SPC ingestion requires spc_adapter module. "
+                    "Ensure saaaaaa.utils.spc_adapter is available."
                 ) from e
             except ValueError:
                 # Re-raise ValueError directly (e.g., empty document validation)
@@ -814,10 +814,16 @@ class MethodExecutor:
     and delegates signature/kwargs handling to ArgRouter. No hardcoded logic.
     """
 
-    def __init__(self, dispatcher: Any | None = None, calibrations: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, 
+        dispatcher: Any | None = None, 
+        calibrations: dict[str, Any] | None = None,
+        signal_registry: Any | None = None,
+    ) -> None:
         # Build the class registry
         self.degraded_mode = False
         self.degraded_reasons: list[str] = []
+        self.signal_registry = signal_registry
         
         try:
             registry = build_class_registry()
@@ -884,8 +890,8 @@ class MethodExecutor:
             except Exception as exc:
                 logger.error("Failed to instantiate %s: %s", class_name, exc)
 
-        # Create ArgRouter with the registry
-        self._router = ArgRouter(registry)
+        # Create ExtendedArgRouter with the registry for enhanced validation and metrics
+        self._router = ExtendedArgRouter(registry)
         
         # Check for critical degradation
         if len(self.instances) == 0 and len(registry) > 0:
@@ -956,6 +962,20 @@ class MethodExecutor:
         except Exception:
             logger.exception("Method execution failed for %s.%s", class_name, method_name)
             raise
+
+    def get_routing_metrics(self) -> dict[str, Any]:
+        """Get routing metrics from ExtendedArgRouter.
+        
+        Returns:
+            Dict with routing statistics including:
+            - total_routes: Total number of routes processed
+            - special_routes_hit: Count of special route invocations
+            - validation_errors: Count of validation failures
+            - silent_drops_prevented: Count of silent parameter drops prevented
+        """
+        if hasattr(self._router, 'get_metrics'):
+            return self._router.get_metrics()
+        return {}
 
 def validate_phase_definitions(phase_list: list[tuple[int, str, str, str]], orchestrator_class: type) -> None:
     """Validate phase definitions for structural coherence.

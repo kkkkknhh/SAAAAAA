@@ -174,9 +174,10 @@
       },
       {
         "file": "tests/test_coreographer.py",
-        "reason": "Coreographer functionality migrated to Orchestrator",
+        "reason": "DELETED - Coreographer was a deprecated typo (should be choreographer)",
         "deprecated_since": "2025-09",
-        "marker": "@pytest.mark.skip(reason='outdated - coreographer deprecated')"
+        "deleted_on": "2025-11",
+        "marker": "FILE DELETED"
       },
       {
         "file": "tests/test_enhanced_argument_resolution.py",

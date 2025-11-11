@@ -405,15 +405,12 @@ def run_normalize(
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
-            envelope_metadata=envelope_metadata or {},
-            metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
             envelope_metadata={
                 "event_id": env_out.event_id,
                 "content_digest": env_out.content_digest,
                 "schema_version": env_out.schema_version,
             },
+            metrics={"duration_ms": duration_ms, "sentence_count": len(out.sentences)},
         )
 
 
@@ -472,11 +469,11 @@ def run_chunk(
             for i, s in enumerate(norm.sentences)
         ]
 
-            idx: dict[str, list[str]] = {
-                "micro": [],
-                "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
-                "macro": [],
-            }
+        idx: dict[str, list[str]] = {
+            "micro": [],
+            "meso": [c["id"] for c in chunks if c["resolution"] == "MESO"],
+            "macro": [],
+        }
 
         out = ChunkDeliverable(chunks=chunks, chunk_index=idx)
 
@@ -536,15 +533,12 @@ def run_chunk(
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
             correlation_id=correlation_id,
-            envelope_metadata=envelope_metadata or {},
-            metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
-            policy_unit_id=policy_unit_id,
-            correlation_id=correlation_id,
             envelope_metadata={
                 "event_id": env_out.event_id,
                 "content_digest": env_out.content_digest,
                 "schema_version": env_out.schema_version,
             },
+            metrics={"duration_ms": duration_ms, "chunk_count": len(out.chunks)},
         )
 
 
@@ -555,6 +549,8 @@ def run_signals(
     *,
     registry_get: Callable[[str], dict[str, Any] | None],
     policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
     Execute signals phase (cross-cut) with mandatory metadata propagation.
@@ -662,6 +658,12 @@ def run_signals(
             payload=out.model_dump(),
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
             metrics={"duration_ms": duration_ms},
         )
 
@@ -720,15 +722,15 @@ def run_aggregate(
         item_ids = [c.get("id", f"c{i}") for i, c in enumerate(sig.enriched_chunks)]
         patterns = [c.get("patterns_used", 0) for c in sig.enriched_chunks]
 
-            tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
+        tbl = pa.table({"item_id": item_ids, "patterns_used": patterns})
 
-            aggregation_meta: dict[str, Any] = {
-                "rows": tbl.num_rows,
-                "group_by": cfg.group_by,
-                "feature_set": cfg.feature_set,
-            }
+        aggregation_meta: dict[str, Any] = {
+            "rows": tbl.num_rows,
+            "group_by": cfg.group_by,
+            "feature_set": cfg.feature_set,
+        }
 
-            out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
+        out = AggregateDeliverable(features=tbl, aggregation_meta=aggregation_meta)
 
         # Postconditions
         if out.features.num_rows == 0:
@@ -837,18 +839,18 @@ def run_score(
         # TODO: Implement actual scoring logic
         item_ids = agg.features.column("item_id").to_pylist()
 
-            # Create scores for each metric
-            data: dict[str, list[Any]] = {
-                "item_id": item_ids * len(cfg.metrics),
-                "metric": [m for m in cfg.metrics for _ in item_ids],
-                "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
-            }
+        # Create scores for each metric
+        data: dict[str, list[Any]] = {
+            "item_id": item_ids * len(cfg.metrics),
+            "metric": [m for m in cfg.metrics for _ in item_ids],
+            "value": [1.0] * (len(item_ids) * len(cfg.metrics)),
+        }
 
-            df = pl.DataFrame(data)
+        df = pl.DataFrame(data)
 
-            calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
+        calibration: dict[str, Any] = {"mode": cfg.calibration_mode}
 
-            out = ScoreDeliverable(scores=df, calibration=calibration)
+        out = ScoreDeliverable(scores=df, calibration=calibration)
 
         # Postconditions
         if out.scores.height == 0:
@@ -905,7 +907,13 @@ def run_score(
 
 # REPORT
 def run_report(
-    cfg: ReportConfig, sc: ScoreDeliverable, manifest: DocManifest, *, policy_unit_id: str | None = None
+    cfg: ReportConfig,
+    sc: ScoreDeliverable,
+    manifest: DocManifest,
+    *,
+    policy_unit_id: str | None = None,
+    correlation_id: str | None = None,
+    envelope_metadata: dict[str, str] | None = None,
 ) -> PhaseOutcome:
     """
     Execute report phase with mandatory metadata propagation.
@@ -950,21 +958,21 @@ def run_report(
         # TODO: Implement actual report generation
         artifacts: dict[str, str] = {}
 
-            # Use reports directory instead of /tmp
-            report_base = reports_dir() / "flux_summaries"
-            report_base.mkdir(parents=True, exist_ok=True)
+        # Use reports directory instead of /tmp
+        report_base = reports_dir() / "flux_summaries"
+        report_base.mkdir(parents=True, exist_ok=True)
 
-            for fmt in cfg.formats:
-                artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
-                artifacts[f"summary.{fmt}"] = artifact_path
+        for fmt in cfg.formats:
+            artifact_path = str(report_base / f"{manifest.document_id}.summary.{fmt}")
+            artifacts[f"summary.{fmt}"] = artifact_path
 
-            summary: dict[str, Any] = {
-                "items": sc.scores.height,
-                "document_id": manifest.document_id,
-                "include_provenance": cfg.include_provenance,
-            }
+        summary: dict[str, Any] = {
+            "items": sc.scores.height,
+            "document_id": manifest.document_id,
+            "include_provenance": cfg.include_provenance,
+        }
 
-            out = ReportDeliverable(artifacts=artifacts, summary=summary)
+        out = ReportDeliverable(artifacts=artifacts, summary=summary)
 
         # Postconditions
         if not out.artifacts:
@@ -1010,5 +1018,11 @@ def run_report(
             payload=out.model_dump(),
             fingerprint=fp,
             policy_unit_id=policy_unit_id,
+            correlation_id=correlation_id,
+            envelope_metadata={
+                "event_id": env_out.event_id,
+                "content_digest": env_out.content_digest,
+                "schema_version": env_out.schema_version,
+            },
             metrics={"duration_ms": duration_ms, "artifact_count": len(out.artifacts)},
         )

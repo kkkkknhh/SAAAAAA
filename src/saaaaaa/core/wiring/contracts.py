@@ -12,7 +12,11 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class CPPDeliverable(BaseModel):
-    """Contract for CPP ingestion output (Deliverable)."""
+    """Contract for CPP ingestion output (Deliverable).
+    
+    Note: CPP (Canon Policy Package) is the legacy name for SPC (Smart Policy Chunks).
+    Use SPCDeliverable for new code.
+    """
     
     chunk_graph: dict[str, Any] = Field(
         description="Chunk graph with all chunks"
@@ -42,6 +46,44 @@ class CPPDeliverable(BaseModel):
             raise ValueError(
                 f"provenance_completeness must be 1.0, got {v}. "
                 "Ensure ingestion pipeline completed successfully."
+            )
+        return v
+
+
+class SPCDeliverable(BaseModel):
+    """Contract for SPC (Smart Policy Chunks) ingestion output (Deliverable).
+    
+    This is the preferred terminology for new code. SPC is the successor to CPP.
+    """
+    
+    chunk_graph: dict[str, Any] = Field(
+        description="Chunk graph with all chunks"
+    )
+    policy_manifest: dict[str, Any] = Field(
+        description="Policy metadata manifest"
+    )
+    provenance_completeness: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Provenance completeness score (must be 1.0)"
+    )
+    schema_version: str = Field(
+        description="SPC schema version"
+    )
+    
+    model_config = {
+        "frozen": True,
+        "extra": "forbid",
+    }
+    
+    @field_validator("provenance_completeness")
+    @classmethod
+    def validate_completeness(cls, v: float) -> float:
+        """Ensure provenance is 100% complete."""
+        if v != 1.0:
+            raise ValueError(
+                f"provenance_completeness must be 1.0, got {v}. "
+                "Ensure SPC ingestion pipeline completed successfully."
             )
         return v
 
@@ -355,6 +397,7 @@ class ReportDeliverable(BaseModel):
 
 __all__ = [
     'CPPDeliverable',
+    'SPCDeliverable',
     'AdapterExpectation',
     'PreprocessedDocumentDeliverable',
     'OrchestratorExpectation',

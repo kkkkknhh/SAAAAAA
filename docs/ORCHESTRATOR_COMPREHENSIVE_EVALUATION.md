@@ -375,7 +375,7 @@ Status: OK
 
 #### ⚠️ Tests Requiring pytest
 - test_concurrency.py
-- test_coreographer.py
+- test_coreographer.py [DELETED - deprecated typo]
 - test_embedding_policy_contracts.py
 - test_integration_failures.py
 - test_scoring.py
