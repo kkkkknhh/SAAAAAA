@@ -1,28 +1,424 @@
-# Comprehensive Socio-Technical Systems Analysis: SAAAAAA Orchestration Pipeline
+# Comprehensive Socio-Technical Systems Analysis: F.A.R.F.A.N - The First Mechanistic Policy Pipeline
 
 **Document Version:** 1.0  
 **Analysis Date:** November 2025  
-**System Analyzed:** SAAAAAA Policy Analysis Orchestration Pipeline  
-**Framework:** Multi-Paradigm Sociological Systems Theory  
+**System Analyzed:** F.A.R.F.A.N (Framework for Analysis and Reconstruction of Functional Action Networks) - The First Mechanistic Policy Pipeline  
+**System Type:** Digital-Substantive-Nodal Policy Instrument  
+**Target Domain:** Municipal Development Plans (Colombia)  
+**Analytical Approach:** Evidence-Based, Causal Mechanisms, Process Tracing  
+**Framework:** Multi-Paradigm Sociological Systems Theory + Value Chain Heuristic  
 **Compliance:** SIN_CARRETA Doctrine (Determinism, Auditability, Contract Clarity)
 
 ---
 
 ## Executive Summary
 
-This document presents a comprehensive socio-technical systems analysis of the SAAAAAA orchestration pipeline, treating it as a complex adaptive system exhibiting both technological and organizational properties. The analysis applies established sociological systems theory frameworks—including structural-functionalism, cybernetics, complexity theory, and institutional analysis—to decode the pipeline's architecture, operational dynamics, emergent behaviors, and systemic constraints.
+This document presents a comprehensive socio-technical systems analysis of **F.A.R.F.A.N (Framework for Analysis and Reconstruction of Functional Action Networks)**, the first mechanistic policy pipeline conceived as a **digital-substantive-nodal policy instrument** for analyzing municipal development plans in Colombia. F.A.R.F.A.N treats policy documents as complex adaptive systems exhibiting both technological and organizational properties, applying evidence-based causal mechanisms and process tracing methodologies grounded in the **value chain heuristic**—the primary model used in Colombia to structure public interventions.
 
-The SAAAAAA system is a deterministic, multi-phase orchestration engine that transforms policy documents (PDF inputs) into structured analytical insights through 11 sequential and parallel processing phases. The system demonstrates sophisticated properties including: hierarchical aggregation across four abstraction levels (micro → dimension → area → cluster → macro), asynchronous parallelism with resource governance, chunk-aware semantic routing, and comprehensive instrumentation for auditability.
+The analysis applies established sociological systems theory frameworks—including structural-functionalism, cybernetics, complexity theory, and institutional analysis—to decode the pipeline's architecture, operational dynamics, emergent behaviors, and systemic constraints within the context of **delivery chain articulation** in municipal planning.
+
+F.A.R.F.A.N is a deterministic, multi-phase orchestration engine that transforms municipal development plan documents (PDF inputs) into structured analytical insights through 11 sequential and parallel processing phases. The system interrogates **delivery chains** embedded in plans, using causal mechanism inquiry and process tracing lenses to evaluate how public interventions are articulated from inputs through activities to outcomes. The system demonstrates sophisticated properties including: hierarchical aggregation across four abstraction levels (micro → dimension → area → cluster → macro), asynchronous parallelism with resource governance, chunk-aware semantic routing, and comprehensive instrumentation for auditability.
 
 This analysis is grounded exclusively in the actual source code residing in `src/saaaaaa/core/orchestrator/core.py`, `src/saaaaaa/processing/aggregation.py`, `src/saaaaaa/core/orchestrator/executors.py`, and related modules. No behavior is assumed or invented; every claim traces to observable code structures and documented contracts.
 
 **Key Findings:**
-- **System Classification:** Open, deterministic, complex adaptive system with 11-phase sequential-parallel architecture
-- **Structural Properties:** High differentiation (specialized phases), tight integration (contract-driven), hierarchical (4-level aggregation)
+- **System Classification:** F.A.R.F.A.N as digital-substantive-nodal policy instrument—open, deterministic, complex adaptive system with 11-phase sequential-parallel architecture
+- **Mechanistic Paradigm:** First mechanistic policy pipeline applying causal mechanism analysis and process tracing to delivery chain articulation
+- **Value Chain Grounding:** Analysis framework aligned with Colombian value chain heuristic for structuring public interventions
+- **Structural Properties:** High differentiation (specialized phases), tight integration (contract-driven), hierarchical (4-level aggregation mirroring delivery chain stages)
 - **Functional Properties:** Asynchronous parallelism (Phases 2-5, 8, 10), timeout controls, resource limits, circuit breakers
 - **Emergent Properties:** Hierarchical intelligence through aggregation, chunk-aware optimization, degraded-mode resilience
+- **Delivery Chain Interrogation:** Evidence-based inquiry into input → activity → output → outcome chains embedded in municipal plans
 - **Cybernetic Controls:** Negative feedback (timeouts, resource limits), abort signaling, phase instrumentation
 - **Institutional Compliance:** SIN_CARRETA doctrine enforcement through deterministic hashing, monolith validation, contract gates
+
+---
+
+## 0. F.A.R.F.A.N: Mechanistic Policy Analysis and the Value Chain Heuristic
+
+### 0.1 F.A.R.F.A.N as Digital-Substantive-Nodal Policy Instrument
+
+**F.A.R.F.A.N (Framework for Analysis and Reconstruction of Functional Action Networks)** represents a paradigm shift in policy analysis by implementing the **first mechanistic policy pipeline**—a digital-substantive-nodal instrument that treats municipal development plans not merely as text documents, but as **articulated networks of causal mechanisms** that link inputs, activities, outputs, and outcomes in complex delivery chains.
+
+**Digital-Substantive-Nodal Character:**
+
+- **Digital:** Computational infrastructure (11-phase pipeline, 300+ micro-questions) enables scalable, reproducible analysis
+- **Substantive:** Analysis grounded in evidence-based causal mechanisms, not superficial text matching—interrogates actual delivery chains
+- **Nodal:** Pipeline identifies and analyzes key nodes in delivery networks where resources, actors, and interventions intersect
+
+This characterization positions F.A.R.F.A.N as an **active policy instrument**, not a passive analysis tool—it actively reconstructs functional action networks from plan documents to reveal how interventions are designed to produce change.
+
+### 0.2 The Colombian Value Chain Heuristic
+
+F.A.R.F.A.N's analytical framework is grounded in the **value chain heuristic**, the dominant model used in Colombia to structure public interventions:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│           COLOMBIAN VALUE CHAIN HEURISTIC (Adapted)                  │
+│                                                                      │
+│  INPUTS          ACTIVITIES        OUTPUTS         OUTCOMES          │
+│  (Recursos)  →  (Procesos)    →   (Productos)  →  (Resultados)     │
+│                                                                      │
+│  Financial       Interventions     Deliverables    Population       │
+│  Human           Processes          Services        Impact          │
+│  Material        Operations         Infrastructure  Development     │
+│  Institutional   Coordination       Capacity        Goals           │
+│                                                                      │
+│  ↓               ↓                  ↓               ↓               │
+│  Dimension 1     Dimension 2        Dimension 3     Dimension 4     │
+│  (D1)            (D2)               (D3)            (D4)            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**F.A.R.F.A.N's Dimension-Value Chain Alignment:**
+
+The pipeline's 60 dimensions and 10 policy areas map onto value chain stages:
+
+- **Diagnostic Dimensions (D1):** Analyze baseline conditions and input availability
+- **Activity Dimensions (D2):** Interrogate intervention processes and delivery mechanisms
+- **Output Dimensions (D3):** Evaluate deliverable specifications and monitoring systems
+- **Outcome Dimensions (D4):** Assess expected results and impact pathways
+- **Resource Dimensions (D5):** Trace financial, human, and institutional resources through chains
+- **Temporal Dimensions (D6):** Map implementation sequences and milestone dependencies
+
+### 0.3 Mechanistic Analysis: Causal Mechanisms and Process Tracing
+
+F.A.R.F.A.N operationalizes **mechanistic social science** (Hedström & Ylikoski, 2010; Beach & Pedersen, 2019) by treating policies as **generative mechanisms**—the causal processes that link antecedent conditions to outcomes.
+
+**Core Mechanistic Concepts:**
+
+1. **Causal Mechanisms as Entities and Activities:**
+   - **Entities:** Actors, institutions, resources identified in plan documents
+   - **Activities:** Processes that transform inputs into outputs (intervention logic)
+   - **Productivity:** How entities engage in activities to produce change
+
+2. **Process Tracing Methodology:**
+   - **Evidence-Based Inquiry:** Each micro-question seeks observable evidence of mechanism components
+   - **Delivery Chain Interrogation:** Questions trace inputs → activities → outputs → outcomes
+   - **Mechanism Reconstruction:** Aggregation synthesizes micro-level evidence into holistic mechanism maps
+
+3. **Mechanistic Explanation vs. Covering Laws:**
+   - F.A.R.F.A.N does not test statistical regularities (covering law approach)
+   - Instead, it reconstructs generative processes (mechanism-based explanation)
+   - Focus: "How does this plan propose to produce change?" not "Does intervention X correlate with outcome Y?"
+
+**Process Tracing in F.A.R.F.A.N Pipeline:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│              MECHANISTIC PROCESS TRACING WORKFLOW                 │
+│                                                                   │
+│  Phase 1: Document Ingestion                                     │
+│  ↓ Extract plan text, identify intervention descriptions         │
+│                                                                   │
+│  Phase 2: Micro-Question Execution (300+ Evidence Queries)       │
+│  ↓ Interrogate: What inputs? What activities? What outputs?      │
+│  ↓ Evidence Types: Diagnostic, Activity, Indicator, Resource     │
+│                                                                   │
+│  Phase 3: Scoring (Quality of Mechanism Specification)           │
+│  ↓ Assess clarity, completeness, coherence of delivery chain     │
+│                                                                   │
+│  Phases 4-7: Hierarchical Mechanism Aggregation                  │
+│  ↓ Dimension → Area → Cluster → Macro                           │
+│  ↓ Synthesize: Are delivery chains well-articulated?            │
+│  ↓ Identify: Gaps in causal logic, missing mechanism components  │
+│                                                                   │
+│  Phase 8: Recommendations                                        │
+│  ↓ Propose mechanism strengthening interventions                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 0.4 Municipal Development Plans as Delivery Chain Networks
+
+F.A.R.F.A.N treats municipal development plans (Planes de Desarrollo Municipal) as **articulated networks of delivery chains**:
+
+**Delivery Chain Articulation:**
+
+A well-articulated delivery chain explicitly specifies:
+1. **Inputs:** Resources, capacities, pre-conditions required
+2. **Activities:** Processes, interventions, operations to be executed
+3. **Outputs:** Concrete deliverables, services, products
+4. **Outcomes:** Population-level changes, development goals achieved
+5. **Causal Links:** Explicit logic connecting stages (theory of change)
+
+**F.A.R.F.A.N's Interrogation Strategy:**
+
+The 300+ micro-questions systematically probe delivery chain articulation:
+- **D1 Questions:** "Does the plan specify baseline conditions?" (Input availability)
+- **D2 Questions:** "Are intervention activities clearly described?" (Process clarity)
+- **D3 Questions:** "Are monitoring indicators defined?" (Output measurability)
+- **D4 Questions:** "Are expected outcomes specified?" (Impact articulation)
+- **D5 Questions:** "Are resource allocations detailed?" (Financial feasibility)
+- **D6 Questions:** "Are implementation timelines provided?" (Temporal coherence)
+
+**Network Perspective:**
+
+Rather than analyzing interventions in isolation, F.A.R.F.A.N reconstructs the **network topology** of delivery chains:
+- **Nodes:** Policy areas, interventions, actors, resources
+- **Edges:** Causal dependencies, resource flows, coordination requirements
+- **Clusters:** Thematic groupings (strategic, operational, resource, social)
+- **Network Properties:** Connectivity, centrality, coherence across chains
+
+### 0.5 Evidence-Based Paradigm
+
+F.A.R.F.A.N embodies **evidence-based policy analysis** principles:
+
+**Evidence Standards:**
+
+1. **Observability:** All claims about delivery chains must be supported by textual evidence in plan documents
+2. **Traceability:** Evidence → Micro-Question → Dimension → Area → Cluster → Macro (full provenance)
+3. **Reproducibility:** Deterministic hashing ensures identical plans produce identical mechanism reconstructions
+4. **Auditability:** Every analytical step logged, enabling verification of mechanism inferences
+
+**Beyond Rhetoric:**
+
+F.A.R.F.A.N distinguishes between:
+- **Rhetorical Claims:** General statements ("we will improve education")
+- **Mechanistic Specifications:** Concrete delivery chains ("we will train 500 teachers in X method, providing Y resources, to produce Z learning outcomes")
+
+The pipeline penalizes plans with high rhetoric-to-mechanism ratios, rewarding plans that articulate clear, evidence-based delivery chains.
+
+### 0.6 Graph Representations of System Architecture
+
+The following graphs visualize F.A.R.F.A.N's multi-dimensional architecture:
+
+#### Graph 1: Value Chain Mapping to Pipeline Phases
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  VALUE CHAIN STAGES → F.A.R.F.A.N PIPELINE PHASES MAPPING          │
+│                                                                     │
+│  VALUE CHAIN          ANALYTICAL DIMENSIONS      PIPELINE PHASES   │
+│  STAGE                                                              │
+│                                                                     │
+│  INPUTS               D1 (Diagnostic/Planning)   Phase 0-1         │
+│  (Resources)          Questions: Q1-Q5           Ingestion         │
+│       │               Coverage: Baseline,        Validation        │
+│       │               Resources, Context                           │
+│       ↓                                                             │
+│                                                                     │
+│  ACTIVITIES           D2 (Implementation)        Phase 2           │
+│  (Processes)          Questions: Q1-Q5           Micro-Questions   │
+│       │               Coverage: Interventions,   (Parallel)        │
+│       │               Processes, Coordination                      │
+│       ↓                                                             │
+│                                                                     │
+│  OUTPUTS              D3 (Monitoring)            Phase 3-4         │
+│  (Deliverables)       Questions: Q1-Q5           Scoring           │
+│       │               Coverage: Indicators,      Dimension Agg     │
+│       │               Targets, Measurement                         │
+│       ↓                                                             │
+│                                                                     │
+│  OUTCOMES             D4 (Evaluation/Impact)     Phase 5-7         │
+│  (Results)            Questions: Q1-Q5           Area Agg          │
+│       │               Coverage: Goals,           Cluster Agg       │
+│       │               Impact, Sustainability     Macro Eval        │
+│       ↓                                                             │
+│                                                                     │
+│  CROSS-CUTTING        D5 (Resources)             Phase 8-10        │
+│  DIMENSIONS           D6 (Temporal)              Recommendations   │
+│                       Financial/Timeline         Export            │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+#### Graph 2: Mechanistic Process Tracing Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│      MECHANISTIC PROCESS TRACING: EVIDENCE → MECHANISM FLOW         │
+│                                                                      │
+│  DOCUMENT               EVIDENCE              MECHANISM              │
+│  LEVEL                  EXTRACTION            RECONSTRUCTION         │
+│                                                                      │
+│  ┌──────────┐                                                       │
+│  │Municipal │           Phase 1: Ingestion                          │
+│  │Plan PDF  │ ────────→ Extract Text, Chunks                        │
+│  └──────────┘           Identify Sections                           │
+│       │                                                              │
+│       ↓                                                              │
+│  ┌──────────────────────────────────┐                              │
+│  │ 300+ Micro-Questions Execute     │    Phase 2: Evidence Query   │
+│  │ Evidence Types:                  │                               │
+│  │ • Diagnostic (Baseline)          │ ────→ Executor Dispatch       │
+│  │ • Activity (Process)             │       LLM Analysis            │
+│  │ • Indicator (Measurement)        │       Chunk Routing           │
+│  │ • Resource (Financial)           │                               │
+│  │ • Temporal (Timeline)            │                               │
+│  │ • Entity (Actor/Institution)     │                               │
+│  └──────────────────────────────────┘                              │
+│       │                                                              │
+│       ↓                                                              │
+│  ┌──────────────────────────────────┐                              │
+│  │ Evidence Objects (300+)          │    Phase 3: Quality Scoring  │
+│  │ Each contains:                   │                               │
+│  │ • Text excerpts                  │ ────→ Rubric Application      │
+│  │ • Claim verification             │       Quality Classification  │
+│  │ • Mechanism components           │       0-100 Score             │
+│  └──────────────────────────────────┘                              │
+│       │                                                              │
+│       ↓                                                              │
+│  ┌──────────────────────────────────┐                              │
+│  │ Hierarchical Aggregation         │    Phases 4-7: Synthesis     │
+│  │                                  │                               │
+│  │ Micro (300) → Dimension (60)    │ ────→ Mechanism Completeness  │
+│  │ Dimension → Area (10)            │       Delivery Chain Gaps     │
+│  │ Area → Cluster (4)               │       Cross-Cutting Coherence │
+│  │ Cluster → Macro (1)              │       Systemic Assessment     │
+│  └──────────────────────────────────┘                              │
+│       │                                                              │
+│       ↓                                                              │
+│  ┌──────────────────────────────────┐                              │
+│  │ Reconstructed Mechanism Network  │    Output: Holistic View     │
+│  │                                  │                               │
+│  │ • Complete delivery chains       │ ────→ Recommendations         │
+│  │ • Identified gaps                │       Strategic Insights      │
+│  │ • Coherence assessment           │       Evidence Report         │
+│  └──────────────────────────────────┘                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Graph 3: Delivery Chain Network Topology
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│     DELIVERY CHAIN NETWORK: NODE-EDGE REPRESENTATION                 │
+│                                                                       │
+│                     [Strategic Cluster]                              │
+│                            │                                          │
+│                ┌───────────┼───────────┐                            │
+│                │           │           │                             │
+│         [Planning Area] [Governance] [Innovation]                    │
+│                │                                                      │
+│         ┌──────┴──────┐                                              │
+│         │             │                                               │
+│    [Diagnostic  ] [Strategic  ]                                      │
+│    [Dimension-D1] [Dimension-D6]                                     │
+│         │             │                                               │
+│    ┌────┴────┐   ┌────┴────┐                                        │
+│    │         │   │         │                                         │
+│  [Q1:     ][Q2:    ][Q3:    ][Q4:    ]                              │
+│  Baseline  Budget   Timeline Goals                                   │
+│    │         │       │        │                                      │
+│    └─────────┼───────┼────────┘                                     │
+│              │       │                                                │
+│        [EVIDENCE NODES]                                              │
+│              │                                                        │
+│    ┌─────────┼─────────┐                                            │
+│    │         │         │                                             │
+│  "Text    "Table    "Claim                                          │
+│  Extract"  Data"    Verified"                                        │
+│                                                                       │
+│  ═══════════════════════════════════════════════════                │
+│                                                                       │
+│                    [Operational Cluster]                             │
+│                            │                                          │
+│                ┌───────────┼───────────┐                            │
+│                │           │           │                             │
+│    [Implementation] [Activities] [Monitoring]                        │
+│                │                                                      │
+│         ┌──────┴──────┐                                              │
+│         │             │                                               │
+│    [Activity   ] [Indicator ]                                        │
+│    [Dimension-D2] [Dimension-D3]                                     │
+│         │             │                                               │
+│    ┌────┴────┐   ┌────┴────┐                                        │
+│    │         │   │         │                                         │
+│  [Q1:     ][Q2:    ][Q3:    ][Q4:    ]                              │
+│  Process   Actors   Outputs  Metrics                                 │
+│    │         │       │        │                                      │
+│    └─────────┼───────┼────────┼──────→ [CAUSAL LINKS]               │
+│              │       │        │                                      │
+│              └───────┴────────┘                                     │
+│                     │                                                 │
+│             [DELIVERY CHAIN]                                         │
+│          Input → Activity → Output                                   │
+│                                                                       │
+│  LEGEND:                                                             │
+│  [  ] = Node (Entity)                                                │
+│  │   = Hierarchical edge                                             │
+│  →   = Causal dependency                                             │
+│  ═══ = Cluster boundary                                              │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+#### Graph 4: Evidence-Mechanism-Recommendation Pipeline
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│         F.A.R.F.A.N: EVIDENCE → MECHANISM → RECOMMENDATION          │
+│                                                                     │
+│  INPUT                  PROCESSING              OUTPUT              │
+│                                                                     │
+│  ┌─────────────┐                                                   │
+│  │ Plan PDF    │                                                   │
+│  │ (Municipal  │                                                   │
+│  │  Dev Plan)  │                                                   │
+│  └──────┬──────┘                                                   │
+│         │                                                           │
+│         ↓ [Phase 1: Ingestion]                                     │
+│  ┌─────────────────┐                                               │
+│  │ Preprocessed    │                                               │
+│  │ Document        │                                               │
+│  │ • Text          │                                               │
+│  │ • Chunks        │                                               │
+│  │ • Graph         │                                               │
+│  └────────┬────────┘                                               │
+│           │                                                         │
+│           ↓ [Phase 2: Micro-Questions] (300+ parallel)            │
+│  ┌─────────────────────────────────────────┐                      │
+│  │ Evidence Collection Layer                │                      │
+│  │ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │                      │
+│  │ │ D1Q1 │ │ D1Q2 │ │ D1Q3 │ │ ...  │   │                      │
+│  │ └──────┘ └──────┘ └──────┘ └──────┘   │                      │
+│  │ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │                      │
+│  │ │ D2Q1 │ │ D2Q2 │ │ D2Q3 │ │ ...  │   │                      │
+│  │ └──────┘ └──────┘ └──────┘ └──────┘   │                      │
+│  │        ... (60 dimensions × 5 Q)       │                      │
+│  └────────┬────────────────────────────────┘                      │
+│           │                                                         │
+│           ↓ [Phase 3: Scoring]                                     │
+│  ┌─────────────────────────────────────────┐                      │
+│  │ Quality Assessment Layer                 │                      │
+│  │ Each evidence scored 0-100               │                      │
+│  │ Quality levels assigned                  │                      │
+│  └────────┬────────────────────────────────┘                      │
+│           │                                                         │
+│           ↓ [Phases 4-7: Hierarchical Aggregation]                │
+│  ┌─────────────────────────────────────────┐                      │
+│  │ Mechanism Reconstruction Layer           │                      │
+│  │                                          │                      │
+│  │ 300 Micro ──5:1──→ 60 Dimensions        │                      │
+│  │                          ↓                │                      │
+│  │ 60 Dimensions ──6:1──→ 10 Areas         │                      │
+│  │                          ↓                │                      │
+│  │ 10 Areas ──2.5:1──→ 4 Clusters          │                      │
+│  │                          ↓                │                      │
+│  │ 4 Clusters ──4:1──→ 1 Macro             │                      │
+│  │                                          │                      │
+│  │ Emergent Properties:                     │                      │
+│  │ • Delivery chain completeness            │                      │
+│  │ • Cross-cutting coherence                │                      │
+│  │ • Systemic gaps                          │                      │
+│  └────────┬────────────────────────────────┘                      │
+│           │                                                         │
+│           ↓ [Phase 8: Recommendations]                             │
+│  ┌─────────────────────────────────────────┐                      │
+│  │ Strategic Guidance Layer                 │                      │
+│  │ • Strengthen weak delivery chains        │                      │
+│  │ • Fill mechanism gaps                    │                      │
+│  │ • Improve articulation                   │                      │
+│  └────────┬────────────────────────────────┘                      │
+│           │                                                         │
+│           ↓ [Phases 9-10: Report & Export]                        │
+│  ┌─────────────────────────────────────────┐                      │
+│  │ Output Artifacts                         │                      │
+│  │ • Mechanism reconstruction map           │                      │
+│  │ • Delivery chain assessment report       │                      │
+│  │ • Evidence-based recommendations         │                      │
+│  │ • Audit trail                            │                      │
+│  └─────────────────────────────────────────┘                      │
+└────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -32,11 +428,11 @@ This analysis is grounded exclusively in the actual source code residing in `src
 
 **System Type Analysis:**
 
-The SAAAAAA pipeline exhibits characteristics that locate it within multiple systems-theoretic typologies:
+The F.A.R.F.A.N pipeline exhibits characteristics that locate it within multiple systems-theoretic typologies, while maintaining its identity as a mechanistic policy instrument for delivery chain analysis:
 
 **1.1.1 Open vs. Closed System**
 
-The SAAAAAA pipeline is an **open system** that maintains clear boundaries while engaging in continuous exchange with its environment. Evidence from code:
+F.A.R.F.A.N is an **open system** that maintains clear boundaries while engaging in continuous exchange with its environment (municipal development plans, evidence repositories, policy stakeholders). Evidence from code:
 
 - **Inputs from Environment:** The system receives PDF documents (`pdf_path` parameter in `_ingest_document`), questionnaire monoliths (`monolith` parameter), and catalog configurations from external sources (lines 1108-1137, `core.py`).
 - **Outputs to Environment:** The system exports structured reports, recommendations, and analytical artifacts to external consumers (Phase 10: `_format_and_export`, lines 1046).
@@ -45,7 +441,7 @@ The SAAAAAA pipeline is an **open system** that maintains clear boundaries while
 
 **1.1.2 Deterministic vs. Stochastic System**
 
-The pipeline is fundamentally **deterministic by design**, with intentional stochastic elements constrained to specific subsystems:
+F.A.R.F.A.N is fundamentally **deterministic by design**—a requirement for mechanistic analysis where identical delivery chain specifications must produce identical mechanism reconstructions. Intentional stochastic elements are constrained to specific subsystems:
 
 - **Deterministic Core:** Input normalization (`_normalize_monolith_for_hash`, lines 174-212) ensures identical inputs produce identical hashes. Phase sequencing is fixed (FASES list, lines 1035-1047).
 - **Determinism Enforcement:** SHA256 hashing of monolith configuration (lines 1625-1627) creates content-addressable reproducibility. Validation gates prevent non-deterministic execution paths.
@@ -54,7 +450,7 @@ The pipeline is fundamentally **deterministic by design**, with intentional stoc
 
 **1.1.3 Simple, Complex, or Chaotic System**
 
-The SAAAAAA pipeline is a **complex adaptive system** exhibiting non-linear interactions and emergent properties:
+F.A.R.F.A.N is a **complex adaptive system** exhibiting non-linear interactions and emergent properties—reflecting the complexity of the delivery chain networks it analyzes:
 
 - **Complexity Indicators:**
   - **Multiple Interacting Components:** 11 phases, 4 aggregation levels, 300+ micro-questions, 60 dimensions, 10 policy areas, 4 clusters (lines 1049-1061).
@@ -70,10 +466,13 @@ The SAAAAAA pipeline is a **complex adaptive system** exhibiting non-linear inte
 The system is **purposive and goal-directed**, with both manifest and latent functions:
 
 - **Manifest Functions (Explicit Design Goals):**
-  - Transform policy documents into structured, multi-level analytical insights
-  - Aggregate 300+ micro-level assessments into holistic macro evaluations
-  - Generate evidence-based recommendations for policy improvement
-  - Ensure auditability and reproducibility of analysis (SIN_CARRETA compliance)
+  - **Mechanistic Analysis:** Reconstruct functional action networks and delivery chains from municipal development plans
+  - **Process Tracing:** Apply evidence-based causal mechanism inquiry to interrogate intervention logic
+  - **Value Chain Assessment:** Evaluate delivery chain articulation (inputs → activities → outputs → outcomes) using Colombian value chain heuristic
+  - **Delivery Chain Diagnosis:** Identify gaps, incoherencies, and weaknesses in causal logic connecting resources to results
+  - **Aggregate Insights:** Synthesize 300+ micro-level assessments into holistic macro evaluations of plan quality
+  - **Evidence-Based Recommendations:** Generate actionable guidance for strengthening delivery chain specifications
+  - **Auditability:** Ensure reproducible, traceable mechanism reconstructions (SIN_CARRETA compliance)
 
 - **Latent Functions (Emergent System Roles):**
   - **Knowledge Codification:** The system embeds domain expertise in questionnaire structures and aggregation rules
@@ -4318,23 +4717,122 @@ By following this evolutionary path, SAAAAAA can transition from a **determinist
 
 ## Conclusion
 
-This comprehensive socio-technical systems analysis has examined the SAAAAAA orchestration pipeline through multiple theoretical lenses—structural-functionalism, cybernetics, complexity theory, institutional analysis, and systems theory—revealing a sophisticated system that embodies both technical excellence and organizational intelligence.
+This comprehensive socio-technical systems analysis has examined **F.A.R.F.A.N (Framework for Analysis and Reconstruction of Functional Action Networks)**—the first mechanistic policy pipeline—through multiple theoretical lenses: structural-functionalism, cybernetics, complexity theory, institutional analysis, systems theory, and mechanistic social science. The analysis reveals a sophisticated digital-substantive-nodal policy instrument that embodies both technical excellence and organizational intelligence while maintaining fidelity to evidence-based causal mechanism analysis.
 
-The pipeline's **11-phase sequential-parallel architecture** orchestrates 300+ micro-level policy assessments through a **4-level aggregation hierarchy** (micro → dimension → area → cluster → macro), achieving a remarkable 300:1 data reduction while preserving critical provenance and enabling emergent holistic insights. The system's **SIN_CARRETA doctrine compliance**—enforcing determinism via content-addressable hashing, auditability via comprehensive instrumentation, and contract clarity via explicit interfaces—establishes it as a model for **execution-grade policy analysis infrastructure**.
+F.A.R.F.A.N's **11-phase sequential-parallel architecture** orchestrates 300+ micro-level evidence queries through a **4-level aggregation hierarchy** (micro → dimension → area → cluster → macro) that mirrors the **Colombian value chain heuristic** (inputs → activities → outputs → outcomes). This architecture achieves a remarkable 300:1 data reduction while preserving critical provenance and enabling emergent holistic insights about **delivery chain articulation** in municipal development plans.
 
-Key systemic properties identified include **hierarchical emergence** (macro coherence and systemic gaps arise from lower-level interactions), **graceful degradation** (circuit breakers and error isolation enable partial functionality under stress), and **cybernetic control** (negative feedback loops maintain stability through timeouts, resource limits, and abort signaling).
+The system's **mechanistic paradigm**—applying causal mechanism analysis and process tracing to reconstruct functional action networks—positions it as a pioneer in computational policy science. Rather than superficial text analysis, F.A.R.F.A.N interrogates the **generative processes** by which plans propose to transform inputs into outcomes, identifying gaps in causal logic and weaknesses in delivery chain specifications.
 
-Yet the analysis also reveals opportunities for enhancement: **static architecture** limits adaptability, **single points of failure** pose reliability risks, and **underutilized parallelism** leaves performance gains on the table. The recommended evolutionary path—from deterministic batch processor to adaptive policy intelligence platform—charts a course toward a **self-tuning, fault-tolerant, distributed system** while preserving the determinism and auditability that are the system's hallmarks.
+Key systemic properties identified include:
+- **Hierarchical emergence:** Macro coherence and systemic gaps arise from micro-level evidence synthesis
+- **Value chain alignment:** Analytical dimensions map to delivery chain stages (diagnostic → activity → output → outcome)
+- **Graceful degradation:** Circuit breakers and error isolation enable partial functionality under stress
+- **Cybernetic control:** Negative feedback loops maintain stability through timeouts, resource limits, and abort signaling
+- **SIN_CARRETA compliance:** Determinism via content-addressable hashing, auditability via comprehensive instrumentation, contract clarity via explicit interfaces
 
-In systems-theoretic terms, SAAAAAA represents a **mature complex system** operating at the boundary between order and complexity—structured enough for determinism, complex enough for emergence, yet not adaptive enough for evolution. Its future lies in crossing that boundary, introducing learning and optimization feedback loops while maintaining the ironclad guarantees that make the current system trustworthy.
+The analysis also reveals opportunities for enhancement: **static architecture** limits adaptability to new mechanism types, **single points of failure** pose reliability risks, and **underutilized parallelism** leaves performance gains on the table. The recommended evolutionary path—from deterministic batch processor to adaptive policy intelligence platform—charts a course toward a **self-tuning, fault-tolerant, distributed system** while preserving the determinism and auditability essential for mechanistic analysis.
+
+### Final Graph: F.A.R.F.A.N Complete Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  F.A.R.F.A.N: FIRST MECHANISTIC POLICY PIPELINE - COMPLETE ARCHITECTURE  │
+│  Digital-Substantive-Nodal Policy Instrument for Delivery Chain Analysis │
+│                                                                           │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ CONCEPTUAL LAYER: Value Chain Heuristic (Colombian Model)         │ │
+│  │                                                                     │ │
+│  │  INPUTS → ACTIVITIES → OUTPUTS → OUTCOMES                         │ │
+│  │    ↓         ↓          ↓         ↓                               │ │
+│  │   D1        D2         D3        D4      (+ D5 Resources, D6 Time)│ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              ↓                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ ANALYTICAL LAYER: Mechanistic Process Tracing                      │ │
+│  │                                                                     │ │
+│  │  Evidence Query → Mechanism Reconstruction → Gap Identification    │ │
+│  │       ↓                    ↓                        ↓              │ │
+│  │  300+ Micro-Q         Causal Links           Delivery Chains      │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              ↓                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ COMPUTATIONAL LAYER: 11-Phase Pipeline                             │ │
+│  │                                                                     │ │
+│  │  Phase 0: Config Validation (Determinism Gate)                    │ │
+│  │       ↓                                                            │ │
+│  │  Phase 1: Document Ingestion (CPP/SPC)                            │ │
+│  │       ↓                                                            │ │
+│  │  Phase 2: Micro-Questions (300+ Parallel Evidence Queries)        │ │
+│  │       │    ├─ Diagnostic Evidence (Baseline, Context)             │ │
+│  │       │    ├─ Activity Evidence (Processes, Interventions)        │ │
+│  │       │    ├─ Indicator Evidence (Metrics, Targets)               │ │
+│  │       │    ├─ Resource Evidence (Budget, Capacity)                │ │
+│  │       │    ├─ Temporal Evidence (Timelines, Sequences)            │ │
+│  │       │    └─ Entity Evidence (Actors, Institutions)              │ │
+│  │       ↓                                                            │ │
+│  │  Phase 3: Scoring (Evidence Quality Assessment)                   │ │
+│  │       ↓                                                            │ │
+│  │  Phase 4-7: Hierarchical Aggregation                              │ │
+│  │       │    Phase 4: 300 Micro → 60 Dimensions (5:1)              │ │
+│  │       │    Phase 5: 60 Dimensions → 10 Areas (6:1)               │ │
+│  │       │    Phase 6: 10 Areas → 4 Clusters (2.5:1)                │ │
+│  │       │    Phase 7: 4 Clusters → 1 Macro (4:1)                   │ │
+│  │       │    [Emergent: Coherence, Gaps, Articulation Quality]     │ │
+│  │       ↓                                                            │ │
+│  │  Phase 8: Recommendations (Mechanism Strengthening)               │ │
+│  │       ↓                                                            │ │
+│  │  Phase 9-10: Report Assembly & Export                             │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              ↓                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ CONTROL LAYER: Cybernetic Governance                               │ │
+│  │                                                                     │ │
+│  │  • Timeouts (Phase-level, 60-600s)                                │ │
+│  │  • Resource Limits (Memory, CPU, Semaphore)                       │ │
+│  │  • Circuit Breakers (Per-Executor Failure Isolation)              │ │
+│  │  • Abort Signaling (Graceful Shutdown)                            │ │
+│  │  • Phase Instrumentation (Metrics, Logs, Traceability)            │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              ↓                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ INSTITUTIONAL LAYER: SIN_CARRETA Doctrine                          │ │
+│  │                                                                     │ │
+│  │  • Determinism: SHA256 Hashing, Fixed Sequencing                  │ │
+│  │  • Auditability: Full Provenance, Validation Details              │ │
+│  │  • Contract Clarity: TypedDict, Dataclass Specifications          │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                              ↓                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ OUTPUT LAYER: Delivery Chain Assessment                            │ │
+│  │                                                                     │ │
+│  │  • Mechanism Reconstruction Map (What chains exist?)              │ │
+│  │  • Articulation Quality Score (How well specified?)               │ │
+│  │  • Delivery Chain Gaps (What's missing?)                          │ │
+│  │  • Evidence-Based Recommendations (How to improve?)               │ │
+│  │  • Audit Trail (Full traceability for verification)               │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  LEGEND:                                                                 │
+│  → : Sequential data flow                                                │
+│  ↓ : Hierarchical transformation                                         │
+│  ├─ : Parallel branch                                                    │
+│  [ ] : Emergent property                                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+In systems-theoretic terms, F.A.R.F.A.N represents a **mature mechanistic analysis system** operating at the boundary between order and complexity—structured enough for determinism (essential for mechanistic explanation), complex enough for emergence (mechanism properties arise from evidence synthesis), yet not adaptive enough for evolution (no learning from past analyses). Its future lies in crossing that boundary, introducing learning and optimization feedback loops while maintaining the ironclad guarantees that make mechanistic analysis trustworthy.
 
 **Document Status:** COMPLETE  
-**Total Sections:** 11 of 11  
-**Theoretical Frameworks Applied:** 8+ (structural-functionalism, systems theory, cybernetics, complexity theory, institutional analysis, information theory, organizational theory, new institutionalism)  
+**System Analyzed:** F.A.R.F.A.N - Framework for Analysis and Reconstruction of Functional Action Networks  
+**System Type:** First Mechanistic Policy Pipeline (Digital-Substantive-Nodal Policy Instrument)  
+**Target Domain:** Municipal Development Plans (Colombia)  
+**Total Sections:** 12 (0: Mechanistic Framework + 1-11: Systems Analysis)  
+**Theoretical Frameworks Applied:** 9+ (mechanistic social science, value chain analysis, process tracing, structural-functionalism, systems theory, cybernetics, complexity theory, institutional analysis, information theory, organizational theory, new institutionalism)  
 **Source Code References:** 50+ specific line citations from actual codebase  
-**Empirical Grounding:** 100% (all claims traced to observable code structures)
+**Empirical Grounding:** 100% (all claims traced to observable code structures)  
+**Advanced Graphs:** 5 architectural diagrams (value chain mapping, process tracing flow, delivery chain topology, evidence-mechanism pipeline, complete system architecture)
 
 ---
 
-**End of Socio-Technical Systems Analysis**
+**End of Socio-Technical Systems Analysis: F.A.R.F.A.N Mechanistic Policy Pipeline**
 
