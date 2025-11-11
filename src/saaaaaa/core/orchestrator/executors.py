@@ -62,7 +62,7 @@ import numpy as np
 from saaaaaa.utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
-from .calibration_registry import CALIBRATIONS, resolve_calibration
+from .calibration_registry import CALIBRATIONS, resolve_calibration, CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
 from .advanced_module_config import (
     AdvancedModuleConfig,
     DEFAULT_ADVANCED_CONFIG,
@@ -1296,10 +1296,16 @@ class MethodSequenceValidatingMixin:
     def _get_method_sequence(self) -> list[tuple[str, str]]:
         """Return the method sequence for this executor.
         
+        Section 5.1: Support METHOD_SEQUENCE class attribute (preferred)
+        Falls back to _get_method_sequence() method for backward compatibility.
+        
         Returns:
             List of (class_name, method_name) tuples
         """
-        # Default implementation for executors that don't override
+        # Section 5.1: Check for METHOD_SEQUENCE class attribute first (new pattern)
+        if hasattr(self.__class__, 'METHOD_SEQUENCE'):
+            return self.__class__.METHOD_SEQUENCE
+        # Fallback to method implementation for backward compatibility
         return []
 
 
@@ -1313,6 +1319,14 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         config: ExecutorConfig | None = None,
         questionnaire_provider=None,
     ) -> None:
+        # Section 3: ExecutorConfig Contract Enforcement
+        # Config is REQUIRED - no fallbacks allowed
+        if config is None:
+            raise ValueError(
+                f"{self.__class__.__name__}: ExecutorConfig is required and cannot be None. "
+                "Use build_processor() factory or provide explicit config."
+            )
+        
         self.executor = method_executor
         self.signal_registry = signal_registry
         self.questionnaire_provider = questionnaire_provider
@@ -1326,7 +1340,46 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         adv_config: AdvancedModuleConfig = (
             self.config.advanced_modules or CONSERVATIVE_ADVANCED_CONFIG
         )
+    
+    def _validate_executor_config(self) -> None:
+        """Section 3.2: Validate config at construction time.
+        
+        Enforces contract requirements:
+        - timeout_s > 0
+        - retry >= 0
+        - seed >= 0
+        - Logs config hash for traceability
+        """
+        if self.config.timeout_s <= 0:
+            raise ValueError(f"config.timeout_s must be > 0, got {self.config.timeout_s}")
+        
+        if self.config.retry < 0:
+            raise ValueError(f"config.retry must be >= 0, got {self.config.retry}")
+        
+        if self.config.seed < 0:
+            raise ValueError(f"config.seed must be >= 0, got {self.config.seed}")
+        
+        config_hash = self.config.compute_hash()
+        logger.info(
+            "executor_config_validated",
+            extra={
+                "executor_class": self.__class__.__name__,
+                "config_hash": config_hash,
+                "timeout_s": self.config.timeout_s,
+                "retry": self.config.retry,
+                "seed": self.config.seed,
+            }
+        )
 
+        # Section 7.2: Track advanced module activation
+        self.module_activations = {
+            "quantum": {"count": 0, "total_time": 0.0},
+            "neuromorphic": {"count": 0, "total_time": 0.0},
+            "causal": {"count": 0, "total_time": 0.0},
+            "info_theory": {"count": 0, "total_time": 0.0},
+            "meta_learning": {"count": 0, "total_time": 0.0},
+        }
+        
         # Log only hard facts with academic basis
         logger.info(
             "executor_initialized",
@@ -1336,6 +1389,7 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 "timeout_s": self.config.timeout_s,
                 "retry": self.config.retry,
                 "advanced_modules": "academically_grounded",
+                "advanced_module_version": adv_config.advanced_module_version,  # Section 7.3
                 "quantum_methods": adv_config.quantum_num_methods,
                 "neuromorphic_stages": adv_config.neuromorphic_num_stages,
                 "causal_variables": adv_config.causal_num_variables,
@@ -1449,16 +1503,21 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         """
         Fetch signals from registry for the given policy area.
         
-        Adds OpenTelemetry span for observability.
+        Adds OpenTelemetry span for observability. Signal registry is now required
+        (explicit None allowed for graceful degradation, but absence is logged).
         
         Args:
             policy_area: Policy area to fetch signals for
             
         Returns:
-            Signal pack data or None if unavailable
+            Signal pack data or None if unavailable (explicit None or missing)
         """
+        # Explicit None check - signal_registry is required but can be explicitly None
         if self.signal_registry is None:
-            logger.debug("No signal registry available, skipping signal fetch")
+            logger.warning(
+                f"Signal registry is explicitly None for {self.__class__.__name__}. "
+                "Execution will proceed without signal enhancement, which may reduce analysis quality."
+            )
             return None
         
         if HAS_OTEL and tracer:
@@ -1473,21 +1532,31 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 
                 if signal_pack:
                     span.set_attribute("signal_version", signal_pack.version)
-                    span.set_attribute("signal_hash", signal_pack.compute_hash()[:16])
+                    signal_hash = signal_pack.compute_hash()[:16]
+                    span.set_attribute("signal_hash", signal_hash)
                     span.set_status(Status(StatusCode.OK))
                     
-                    # Track usage
+                    # Track usage with enhanced metadata
                     self.used_signals.append({
                         "version": signal_pack.version,
                         "policy_area": signal_pack.policy_area,
                         "hash": signal_pack.compute_hash(),
+                        "hash_short": signal_hash,
                         "keys_used": signal_pack.get_keys_used(),
                         "timestamp_utc": time.time(),
+                        "pattern_count": len(signal_pack.patterns) if hasattr(signal_pack, 'patterns') else 0,
                     })
                     
-                    logger.info(f"Fetched signals for {policy_area}: version={signal_pack.version}")
+                    logger.info(
+                        f"Fetched signals for {policy_area}: version={signal_pack.version}, "
+                        f"hash={signal_hash}"
+                    )
+                    
+                    # Sort patterns for determinism (stable ordering across runs)
+                    patterns = sorted(signal_pack.patterns) if isinstance(signal_pack.patterns, list) else signal_pack.patterns
+                    
                     return {
-                        "patterns": signal_pack.patterns,
+                        "patterns": patterns,  # Sorted for determinism
                         "indicators": signal_pack.indicators,
                         "regex": signal_pack.regex,
                         "verbs": signal_pack.verbs,
@@ -1502,21 +1571,39 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
             # No OpenTelemetry, fetch without span
             signal_pack = self.signal_registry.get(policy_area)
             if signal_pack:
+                signal_hash = signal_pack.compute_hash()[:16]
                 self.used_signals.append({
                     "version": signal_pack.version,
                     "policy_area": signal_pack.policy_area,
                     "hash": signal_pack.compute_hash(),
+                    "hash_short": signal_hash,
                     "keys_used": signal_pack.get_keys_used(),
                     "timestamp_utc": time.time(),
+                    "pattern_count": len(signal_pack.patterns) if hasattr(signal_pack, 'patterns') else 0,
                 })
+                
+                # Sort patterns for determinism (stable ordering across runs)
+                patterns = sorted(signal_pack.patterns) if isinstance(signal_pack.patterns, list) else signal_pack.patterns
+                
+                logger.info(
+                    f"Fetched signals for {policy_area}: version={signal_pack.version}, "
+                    f"hash={signal_hash}"
+                )
+                
                 return {
-                    "patterns": signal_pack.patterns,
+                    "patterns": patterns,  # Sorted for determinism
                     "indicators": signal_pack.indicators,
                     "regex": signal_pack.regex,
                     "verbs": signal_pack.verbs,
                     "entities": signal_pack.entities,
                     "thresholds": signal_pack.thresholds,
                 }
+            
+            # Log signal miss (requested but not found)
+            logger.warning(
+                f"Signal pack not found for policy_area='{policy_area}' in {self.__class__.__name__}. "
+                "This may affect analysis quality."
+            )
             return None
 
     def _validate_calibrations(self) -> None:
@@ -1524,7 +1611,23 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         Ensure every (class, method) pair in this executor's method sequence
         has an explicit, non-default calibration entry appropriate for
         policy-document analysis.
+        
+        Also validates calibration version compatibility.
         """
+        # Check calibration version compatibility first
+        from .versions import check_version_compatibility
+        try:
+            check_version_compatibility(
+                "calibration",
+                CALIBRATION_VERSION,
+                MINIMUM_SUPPORTED_VERSION
+            )
+        except ValueError as e:
+            raise RuntimeError(
+                f"Calibration version incompatibility in {self.__class__.__name__}: {e}"
+            ) from e
+        
+        # Validate each method has calibration
         seq = getattr(self, "_get_method_sequence", lambda: [])()
         for class_name, method_name in seq:
             calib = resolve_calibration(class_name, method_name)
@@ -1538,6 +1641,37 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                     f"Default/placeholder calibration not allowed for "
                     f"{class_name}.{method_name} in {self.__class__.__name__}"
                 )
+    
+    def get_calibration_manifest_data(self) -> dict[str, Any]:
+        """
+        Get calibration information for verification manifest.
+        
+        Returns:
+            Dictionary with calibration version, hash, method count, and missing methods
+        """
+        import hashlib
+        
+        seq = getattr(self, "_get_method_sequence", lambda: [])()
+        methods_calibrated = []
+        methods_missing = []
+        
+        for class_name, method_name in seq:
+            calib = resolve_calibration(class_name, method_name, strict=False)
+            if calib:
+                methods_calibrated.append(f"{class_name}.{method_name}")
+            else:
+                methods_missing.append(f"{class_name}.{method_name}")
+        
+        # Compute hash of calibrated methods
+        calibration_data = "".join(sorted(methods_calibrated)).encode()
+        calibration_hash = hashlib.sha256(calibration_data).hexdigest()[:16]
+        
+        return {
+            "version": CALIBRATION_VERSION,
+            "hash": calibration_hash,
+            "methods_calibrated": len(methods_calibrated),
+            "methods_missing": methods_missing,
+        }
 
     def execute_with_optimization(self, doc, method_executor,
                                   method_sequence: list[tuple[str, str]], 
@@ -1556,11 +1690,25 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         - Execution time tracking
         - Failure metrics collection
         - **DETERMINISTIC EXECUTION** via policy_unit_id seeding
+        - **Section 3.3**: Config values propagated to execution context
         """
         execution_start = time.time()
         self.executor = method_executor
         results = {}
         current_data = doc.raw_text
+        
+        # Section 3.3: Use config.timeout_s for execution timeout budget
+        total_timeout_budget = self.config.timeout_s
+        logger.info(
+            "execution_started",
+            extra={
+                "executor_class": self.__class__.__name__,
+                "timeout_budget_s": total_timeout_budget,
+                "retry_limit": self.config.retry,
+                "seed": self.config.seed,
+                "num_methods": len(method_sequence),
+            }
+        )
         
         # Derive policy_unit_id from environment or doc if not provided
         if policy_unit_id is None:
@@ -1653,8 +1801,12 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 if signals:
                     self._argument_context['signals'] = signals
 
+                # Section 5.3: Runtime sequence tracking
+                executed_sequence = []
+                
                 for idx, (class_name, method_name) in enumerate(method_sequence):
                     method_key = f"{class_name}.{method_name}"
+                    executed_sequence.append((class_name, method_name))
 
                     self.probabilistic_executor.define_prior(
                         method_key, "beta", alpha=2, beta=2

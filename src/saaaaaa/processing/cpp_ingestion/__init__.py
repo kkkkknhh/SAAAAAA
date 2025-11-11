@@ -1,9 +1,10 @@
 """
-CPP (Canon Policy Package) Ingestion Models
+CPP Ingestion Package (Deprecated - Use SPC Ingestion)
 
-This module provides data models for the Canon Policy Package format.
-These models are used by the CPP adapter to convert ingested documents
-into the orchestrator's PreprocessedDocument format.
+This package provides backward compatibility for Canon Policy Package (CPP) ingestion.
+The terminology has been migrated to Smart Policy Chunks (SPC).
+
+For new code, use: saaaaaa.processing.spc_ingestion
 """
 
 from .models import (
@@ -12,6 +13,7 @@ from .models import (
     ChunkGraph,
     ChunkResolution,
     Confidence,
+    IntegrityIndex,
     PolicyFacet,
     PolicyManifest,
     ProvenanceMap,
@@ -19,10 +21,9 @@ from .models import (
     TextSpan,
     TimeFacet,
     GeoFacet,
-    IntegrityIndex,
-    BudgetInfo,
-    KPIInfo,
-    EntityInfo,
+    Budget,
+    KPI,
+    Entity,
 )
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "ChunkGraph",
     "ChunkResolution",
     "Confidence",
+    "IntegrityIndex",
     "PolicyFacet",
     "PolicyManifest",
     "ProvenanceMap",
@@ -38,8 +40,7 @@ __all__ = [
     "TextSpan",
     "TimeFacet",
     "GeoFacet",
-    "IntegrityIndex",
-    "BudgetInfo",
-    "KPIInfo",
-    "EntityInfo",
+    "Budget",
+    "KPI",
+    "Entity",
 ]
