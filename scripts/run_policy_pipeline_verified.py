@@ -108,7 +108,16 @@ class VerifiedPipelineRunner:
         
         # Initialize seed registry for deterministic execution
         self.seed_registry = get_global_seed_registry()
-        self.seed_registry.set_policy_unit_id(f"plan1_{self.execution_id}")
+        self.seed_registry = get_global_seed_registry()
+        # Safely set identifiers regardless of SeedRegistry API shape
+        if hasattr(self.seed_registry, "set_policy_unit_id"):
+            self.seed_registry.set_policy_unit_id(f"plan1_{self.execution_id}")
+        else:
+            setattr(self.seed_registry, "policy_unit_id", f"plan1_{self.execution_id}")
+        if hasattr(self.seed_registry, "set_correlation_id"):
+            self.seed_registry.set_correlation_id(self.execution_id)
+        else:
+            setattr(self.seed_registry, "correlation_id", self.execution_id)
         self.seed_registry.set_correlation_id(self.execution_id)
         
         # Initialize verification manifest builder
