@@ -20,37 +20,151 @@ from saaaaaa.analysis.recommendation_engine import (
 )
 
 
-_STRICT_TEMPLATE = {
-    "problem": (
-        "La dimensión evaluada evidencia déficit específico porque el diagnóstico carece de series "
-        "históricas comparables, supuestos de validez y referencias a fuentes verificables que "
-        "permitan cerrar la brecha priorizada."
-    ),
-    "intervention": (
-        "Implementar un plan de acción secuenciado con responsables definidos, interoperabilidad de "
-        "bases de datos sectoriales y entregables trazables para cerrar la brecha identificada en la "
-        "dimensión prioritaria."
-    ),
-    "indicator": {
-        "name": "Indicador estructurado de prueba",
-        "target": 0.75,
-        "unit": "proporción"
-    },
-    "responsible": {
-        "entity": "Secretaría de Planeación",
-        "role": "Coordina seguimiento",
-        "partners": ["Secretaría de Hacienda"]
-    },
-    "horizon": {"start": "T0", "end": "T1"},
-    "verification": [
-        "Informe técnico firmado por Secretaría de Planeación"
-    ]
-}
+_ENHANCED_FEATURES = [
+    "template_parameterization",
+    "execution_logic",
+    "measurable_indicators",
+    "unambiguous_time_horizons",
+    "testable_verification",
+    "cost_tracking",
+    "authority_mapping",
+]
 
 
-def build_strict_template() -> dict:
-    """Return a deep copy of a template that satisfies strict validation."""
-    return deepcopy(_STRICT_TEMPLATE)
+def build_strict_template(
+    *,
+    pa_id: str | None = "PA01",
+    dim_id: str | None = "DIM01",
+    question_id: str = "Q001",
+    cluster_id: str | None = None,
+) -> dict:
+    """Return a deep copy of an enhanced template that satisfies strict validation."""
+
+    template_params: dict[str, str] = {"question_id": question_id}
+    if pa_id:
+        template_params["pa_id"] = pa_id
+    if dim_id:
+        template_params["dim_id"] = dim_id
+    if cluster_id:
+        template_params["cluster_id"] = cluster_id
+
+    base_identifier = f"{(pa_id or 'GEN')}-{(dim_id or cluster_id or 'GEN')}"
+
+    template = {
+        "problem": (
+            "La dimensión evaluada evidencia déficit específico porque el diagnóstico carece de series "
+            "históricas comparables, supuestos de validez y referencias a fuentes verificables que "
+            "permitan cerrar la brecha priorizada."
+        ),
+        "intervention": (
+            "Implementar un plan de acción secuenciado con responsables definidos, interoperabilidad de "
+            "bases de datos sectoriales y entregables trazables para cerrar la brecha identificada en la "
+            "dimensión prioritaria."
+        ),
+        "indicator": {
+            "name": "Indicador estructurado de prueba",
+            "baseline": None,
+            "target": 0.75,
+            "unit": "proporción",
+            "formula": "COUNT(valid_items) / COUNT(total_items)",
+            "acceptable_range": [0.5, 1.0],
+            "baseline_measurement_date": "2024-01-01",
+            "measurement_frequency": "mensual",
+            "data_source": "Sistema de seguimiento",
+            "data_source_query": "SELECT 1",
+            "responsible_measurement": "Secretaría de Planeación",
+            "escalation_if_below": 0.5,
+        },
+        "responsible": {
+            "entity": "Secretaría de Planeación",
+            "role": "Coordina seguimiento",
+            "partners": ["Secretaría de Hacienda"],
+            "legal_mandate": "Ley 152 de 1994",
+            "approval_chain": [
+                {"level": 1, "role": "Coordinador", "decision": "Valida alcance"},
+                {"level": 2, "role": "Secretario", "decision": "Aprueba presupuesto"},
+            ],
+            "escalation_path": {
+                "threshold_days_delay": 10,
+                "escalate_to": "Secretaría de Gobierno",
+                "final_escalation": "Despacho del Alcalde",
+                "consequences": ["Reasignación de responsables"],
+            },
+        },
+        "horizon": {
+            "start": "T0",
+            "end": "T1",
+            "start_type": "plan_approval_date",
+            "duration_months": 6,
+            "milestones": [
+                {
+                    "name": "Inicio",
+                    "offset_months": 1,
+                    "deliverables": ["Plan de trabajo aprobado"],
+                    "verification_required": True,
+                }
+            ],
+            "dependencies": [],
+            "critical_path": True,
+        },
+        "verification": [
+            {
+                "id": f"VER-{base_identifier}-001",
+                "type": "DOCUMENT",
+                "artifact": "Informe técnico firmado",
+                "format": "PDF",
+                "required_sections": ["Objetivo", "Resultados"],
+                "approval_required": True,
+                "approver": "Secretaría de Planeación",
+                "due_date": "T1",
+                "automated_check": False,
+            }
+        ],
+        "template_id": f"TPL-{base_identifier}",
+        "template_params": template_params,
+    }
+
+    return deepcopy(template)
+
+
+def build_execution_block(
+    *, pa_id: str | None = "PA01", dim_id: str | None = "DIM01", cluster_id: str | None = None
+) -> dict:
+    """Build a compliant execution block for enhanced rules."""
+
+    conditions: list[str] = []
+    if pa_id:
+        conditions.append(f"pa_id = '{pa_id}'")
+    if dim_id:
+        conditions.append(f"dim_id = '{dim_id}'")
+    if cluster_id:
+        conditions.append(f"cluster_id = '{cluster_id}'")
+    trigger = " AND ".join(conditions) if conditions else "TRUE"
+
+    return {
+        "trigger_condition": trigger,
+        "blocking": False,
+        "auto_apply": False,
+        "requires_approval": True,
+        "approval_roles": ["Secretaría de Planeación"],
+    }
+
+
+def build_budget_block(*, estimated_cost: float = 1_000_000.0) -> dict:
+    """Return a minimal but valid enhanced budget block."""
+
+    return {
+        "estimated_cost_cop": estimated_cost,
+        "cost_breakdown": {
+            "personal": estimated_cost * 0.5,
+            "tecnologia": estimated_cost * 0.3,
+            "consultoria": estimated_cost * 0.2,
+        },
+        "funding_sources": [
+            {"source": "Recursos propios", "amount": estimated_cost, "confirmed": False}
+        ],
+        "fiscal_year": 2025,
+    }
 
 
 class TestRecommendationEngineDataIntegrity:
@@ -60,7 +174,8 @@ class TestRecommendationEngineDataIntegrity:
         """Test behavior with empty micro scores."""
         # Create minimal rules file for testing
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": []
         }
 
@@ -93,7 +208,8 @@ class TestRecommendationEngineDataIntegrity:
     def test_malformed_score_keys(self):
         """Test behavior with malformed score keys."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "TEST-001",
@@ -103,7 +219,9 @@ class TestRecommendationEngineDataIntegrity:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": build_strict_template()
+                    "template": build_strict_template(pa_id="PA01", dim_id="DIM01"),
+                    "execution": build_execution_block(pa_id="PA01", dim_id="DIM01"),
+                    "budget": build_budget_block(),
                 }
             ]
         }
@@ -140,7 +258,8 @@ class TestRecommendationEngineDataIntegrity:
     def test_null_and_none_values(self):
         """Test handling of null/None values in data."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": []
         }
 
@@ -174,7 +293,8 @@ class TestRecommendationEngineDataIntegrity:
     def test_extreme_score_values(self):
         """Test handling of extreme score values."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "TEST-001",
@@ -184,7 +304,9 @@ class TestRecommendationEngineDataIntegrity:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": build_strict_template()
+                    "template": build_strict_template(pa_id="PA01", dim_id="DIM01"),
+                    "execution": build_execution_block(pa_id="PA01", dim_id="DIM01"),
+                    "budget": build_budget_block(),
                 }
             ]
         }
@@ -223,7 +345,8 @@ class TestRecommendationEngineBehavioralCorrectness:
     def test_score_threshold_boundary(self):
         """Test score threshold boundary conditions."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "BOUNDARY-001",
@@ -233,7 +356,9 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": build_strict_template()
+                    "template": build_strict_template(pa_id="PA01", dim_id="DIM01"),
+                    "execution": build_execution_block(pa_id="PA01", dim_id="DIM01"),
+                    "budget": build_budget_block(),
                 }
             ]
         }
@@ -269,7 +394,8 @@ class TestRecommendationEngineBehavioralCorrectness:
     def test_meso_score_band_logic(self):
         """Test MESO score band categorization logic."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "MESO-BAJO",
@@ -279,7 +405,9 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "score_band": "BAJO",
                         "variance_level": "BAJA"
                     },
-                    "template": build_strict_template()
+                    "template": build_strict_template(pa_id=None, dim_id=None, cluster_id="CL01"),
+                    "execution": build_execution_block(pa_id=None, dim_id=None, cluster_id="CL01"),
+                    "budget": build_budget_block(),
                 }
             ]
         }
@@ -314,7 +442,7 @@ class TestRecommendationEngineBehavioralCorrectness:
 
     def test_template_variable_substitution(self):
         """Test template variable substitution correctness."""
-        template = build_strict_template()
+        template = build_strict_template(pa_id="PA05", dim_id="DIM03")
         template['problem'] = (
             "El componente {{PAxx}}-{{DIMxx}} presenta rezago analítico en los insumos que "
             "deben sustentar la priorización territorial y poblacional."
@@ -325,7 +453,8 @@ class TestRecommendationEngineBehavioralCorrectness:
         )
 
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "VAR-001",
@@ -335,7 +464,9 @@ class TestRecommendationEngineBehavioralCorrectness:
                         "dim_id": "DIM03",
                         "score_lt": 2.0
                     },
-                    "template": template
+                    "template": template,
+                    "execution": build_execution_block(pa_id="PA05", dim_id="DIM03"),
+                    "budget": build_budget_block(),
                 }
             ]
         }
@@ -370,7 +501,8 @@ class TestRecommendationEngineStressResponse:
     def test_large_number_of_scores(self):
         """Test with large number of scores."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": []
         }
 
@@ -407,28 +539,33 @@ class TestRecommendationEngineStressResponse:
         # Generate 100 rules
         rules = []
         for i in range(100):
-            template = build_strict_template()
+            pa_id = f"PA{(i % 10) + 1:02d}"
+            dim_id = f"DIM{(i % 6) + 1:02d}"
+            template = build_strict_template(pa_id=pa_id, dim_id=dim_id)
             template['problem'] = (
                 f"El diagnóstico {i} evidencia carencias en datos trazables y en la modelación de "
-                "riesgos necesarios para tomar decisiones." 
+                "riesgos necesarios para tomar decisiones."
             )
             template['intervention'] = (
                 f"Ejecutar la intervención técnica {i} con cronograma verificable, metas "
-                "cuantificadas y responsables designados." 
+                "cuantificadas y responsables designados."
             )
             rules.append({
                 "rule_id": f"RULE-{i:03d}",
                 "level": "MICRO",
                 "when": {
-                    "pa_id": f"PA{(i%10)+1:02d}",
-                    "dim_id": f"DIM{(i%6)+1:02d}",
+                    "pa_id": pa_id,
+                    "dim_id": dim_id,
                     "score_lt": 2.0
                 },
-                "template": template
+                "template": template,
+                "execution": build_execution_block(pa_id=pa_id, dim_id=dim_id),
+                "budget": build_budget_block(estimated_cost=1_000_000.0 + i * 1000),
             })
 
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": rules
         }
 
@@ -459,7 +596,8 @@ class TestRecommendationMetadata:
     def test_metadata_populated(self):
         """Test that metadata is properly populated."""
         test_rules = {
-            "version": "2.0.0",
+            "version": "2.0",
+            "enhanced_features": _ENHANCED_FEATURES,
             "rules": [
                 {
                     "rule_id": "META-001",
@@ -469,7 +607,9 @@ class TestRecommendationMetadata:
                         "dim_id": "DIM01",
                         "score_lt": 2.0
                     },
-                    "template": build_strict_template()
+                    "template": build_strict_template(pa_id="PA01", dim_id="DIM01"),
+                    "execution": build_execution_block(pa_id="PA01", dim_id="DIM01"),
+                    "budget": build_budget_block(),
                 }
             ]
         }

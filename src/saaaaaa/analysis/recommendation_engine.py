@@ -15,22 +15,30 @@ Supports three levels of recommendations:
 - MACRO: Plan-level strategic recommendations
 
 Author: Integration Team
-Version: 1.0.0
+Version: 2.0.0
 Python: 3.10+
 """
 
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
 
 import jsonschema
 
 logger = logging.getLogger(__name__)
+
+_REQUIRED_ENHANCED_FEATURES = {
+    "template_parameterization",
+    "execution_logic",
+    "measurable_indicators",
+    "unambiguous_time_horizons",
+    "testable_verification",
+    "cost_tracking",
+    "authority_mapping",
+}
 
 # ============================================================================
 # DATA STRUCTURES FOR RECOMMENDATIONS
@@ -108,7 +116,7 @@ class RecommendationEngine:
 
     def __init__(
         self,
-        rules_path: str = "config/recommendation_rules.json",
+        rules_path: str = "config/recommendation_rules_enhanced.json",
         schema_path: str = "rules/recommendation_rules.schema.json",
         questionnaire_provider=None,
         orchestrator=None
@@ -188,6 +196,7 @@ class RecommendationEngine:
 
             # Validate against schema
             jsonschema.validate(instance=self.rules, schema=self.schema)
+            self._validate_ruleset_metadata()
 
             # Organize rules by level
             for rule in self.rules.get('rules', []):
@@ -305,8 +314,8 @@ class RecommendationEngine:
                     # Enhanced fields (v2.0)
                     execution=rule.get('execution'),
                     budget=rule.get('budget'),
-                    template_id=template.get('template_id'),
-                    template_params=template.get('template_params')
+                    template_id=rendered.get('template_id'),
+                    template_params=rendered.get('template_params')
                 )
                 recommendations.append(rec)
 
@@ -335,21 +344,33 @@ class RecommendationEngine:
         """
         ctx = context or {}
 
-        # Build substitution map
         substitutions = {
             'PAxx': pa_id,
             'DIMxx': dim_id,
-            'Q001': ctx.get('question_id', 'Q001'),  # Default or from context
+            'pa_id': pa_id,
+            'dim_id': dim_id,
         }
 
-        rendered = {}
-        for key, value in template.items():
-            if isinstance(value, str):
-                rendered[key] = self._substitute_variables(value, substitutions)
-            else:
-                rendered[key] = value
+        question_hint = ctx.get('question_id')
+        template_params = template.get('template_params', {}) if isinstance(template, dict) else {}
+        if isinstance(template_params, dict):
+            for key, value in template_params.items():
+                if isinstance(value, str):
+                    substitutions.setdefault(key, value)
+                    substitutions.setdefault(key.upper(), value)
+                    if key == 'question_id':
+                        question_hint = value
 
-        return rendered
+        if isinstance(question_hint, str):
+            substitutions.setdefault(question_hint, question_hint)
+            substitutions.setdefault('question_id', question_hint)
+            substitutions.setdefault('Q001', question_hint)
+
+        for key, value in ctx.items():
+            if isinstance(value, str):
+                substitutions.setdefault(key, value)
+
+        return self._render_template(template, substitutions)
 
     # ========================================================================
     # MESO LEVEL RECOMMENDATIONS
@@ -427,8 +448,8 @@ class RecommendationEngine:
                 # Enhanced fields (v2.0)
                 execution=rule.get('execution'),
                 budget=rule.get('budget'),
-                template_id=template.get('template_id'),
-                template_params=template.get('template_params')
+                template_id=rendered.get('template_id'),
+                template_params=rendered.get('template_params')
             )
             recommendations.append(rec)
 
@@ -477,14 +498,20 @@ class RecommendationEngine:
             'cluster_id': cluster_id,
         }
 
-        rendered = {}
-        for key, value in template.items():
-            if isinstance(value, str):
-                rendered[key] = self._substitute_variables(value, substitutions)
-            else:
-                rendered[key] = value
+        if isinstance(template, dict):
+            params = template.get('template_params', {})
+            if isinstance(params, dict):
+                for key, value in params.items():
+                    if isinstance(value, str):
+                        substitutions.setdefault(key, value)
+                        substitutions.setdefault(key.upper(), value)
 
-        return rendered
+        if context:
+            for key, value in context.items():
+                if isinstance(value, str):
+                    substitutions.setdefault(key, value)
+
+        return self._render_template(template, substitutions)
 
     # ========================================================================
     # MACRO LEVEL RECOMMENDATIONS
@@ -569,8 +596,8 @@ class RecommendationEngine:
                 # Enhanced fields (v2.0)
                 execution=rule.get('execution'),
                 budget=rule.get('budget'),
-                template_id=template.get('template_id'),
-                template_params=template.get('template_params')
+                template_id=rendered.get('template_id'),
+                template_params=rendered.get('template_params')
             )
             recommendations.append(rec)
 
@@ -591,14 +618,20 @@ class RecommendationEngine:
 
         substitutions = {}
 
-        rendered = {}
-        for key, value in template.items():
-            if isinstance(value, str):
-                rendered[key] = self._substitute_variables(value, substitutions)
-            else:
-                rendered[key] = value
+        if context:
+            for key, value in context.items():
+                if isinstance(value, str):
+                    substitutions.setdefault(key, value)
 
-        return rendered
+        if isinstance(template, dict):
+            params = template.get('template_params', {})
+            if isinstance(params, dict):
+                for key, value in params.items():
+                    if isinstance(value, str):
+                        substitutions.setdefault(key, value)
+                        substitutions.setdefault(key.upper(), value)
+
+        return self._render_template(template, substitutions)
 
     # ========================================================================
     # UTILITY METHODS
@@ -620,6 +653,20 @@ class RecommendationEngine:
             pattern = r'\{\{' + re.escape(var) + r'\}\}'
             result = re.sub(pattern, value, result)
         return result
+
+    def _render_template(self, template: dict[str, Any], substitutions: dict[str, str]) -> dict[str, Any]:
+        """Recursively render a template applying substitutions to nested structures."""
+
+        def render_value(value: Any) -> Any:
+            if isinstance(value, str):
+                return self._substitute_variables(value, substitutions)
+            if isinstance(value, list):
+                return [render_value(item) for item in value]
+            if isinstance(value, dict):
+                return {k: render_value(v) for k, v in value.items()}
+            return value
+
+        return render_value(template)
 
     # ========================================================================
     # VALIDATION UTILITIES
@@ -650,7 +697,17 @@ class RecommendationEngine:
         if not isinstance(template, dict):
             raise ValueError(f"Rule {rule_id} lacks a structured template")
 
-        self._validate_template(rule_id, template)
+        self._validate_template(rule_id, template, level)
+
+        execution = rule.get('execution')
+        if execution is None:
+            raise ValueError(f"Rule {rule_id} is missing execution block required for enhanced rules")
+        self._validate_execution(rule_id, execution)
+
+        budget = rule.get('budget')
+        if budget is None:
+            raise ValueError(f"Rule {rule_id} is missing budget block required for enhanced rules")
+        self._validate_budget(rule_id, budget)
 
     def _validate_micro_when(self, rule_id: str, when: Dict[str, Any]) -> None:
         required_keys = ('pa_id', 'dim_id', 'score_lt')
@@ -742,8 +799,8 @@ class RecommendationEngine:
                 f"Rule {rule_id} must specify at least one MACRO discriminant condition"
             )
 
-    def _validate_template(self, rule_id: str, template: Dict[str, Any]) -> None:
-        required_fields = ['problem', 'intervention', 'indicator', 'responsible', 'horizon', 'verification']
+    def _validate_template(self, rule_id: str, template: Dict[str, Any], level: str) -> None:
+        required_fields = ['problem', 'intervention', 'indicator', 'responsible', 'horizon', 'verification', 'template_id', 'template_params']
         for field in required_fields:
             if field not in template:
                 raise ValueError(f"Rule {rule_id} template missing '{field}'")
@@ -786,6 +843,33 @@ class RecommendationEngine:
             if float(lower) >= float(upper):
                 raise ValueError(f"Rule {rule_id} acceptable_range lower bound must be < upper bound")
 
+        template_id = template['template_id']
+        if not isinstance(template_id, str) or not template_id.strip():
+            raise ValueError(f"Rule {rule_id} template_id must be a non-empty string")
+
+        template_params = template['template_params']
+        if not isinstance(template_params, dict):
+            raise ValueError(f"Rule {rule_id} template_params must be an object")
+        allowed_param_keys = {'pa_id', 'dim_id', 'cluster_id', 'question_id'}
+        unknown_params = set(template_params) - allowed_param_keys
+        if unknown_params:
+            raise ValueError(f"Rule {rule_id} template_params contains unsupported keys: {sorted(unknown_params)}")
+
+        required_params: set[str] = set()
+        if level == 'MICRO':
+            required_params = {'pa_id', 'dim_id', 'question_id'}
+        elif level == 'MESO':
+            required_params = {'cluster_id'}
+
+        missing_params = required_params - set(template_params)
+        if missing_params:
+            raise ValueError(
+                f"Rule {rule_id} template_params missing required keys for {level}: {sorted(missing_params)}"
+            )
+
+        if level != 'MACRO' and not template_params:
+            raise ValueError(f"Rule {rule_id} template_params cannot be empty for {level} level")
+
         responsible = template['responsible']
         if not isinstance(responsible, dict):
             raise ValueError(f"Rule {rule_id} responsible must be an object")
@@ -812,20 +896,116 @@ class RecommendationEngine:
         if not isinstance(verification, list) or not verification:
             raise ValueError(f"Rule {rule_id} must define verification artifacts")
         for artifact in verification:
-            if isinstance(artifact, str):
-                if len(artifact.strip()) < 10:
-                    raise ValueError(
-                        f"Rule {rule_id} verification entries must describe concrete artifacts"
-                    )
-            elif isinstance(artifact, dict):
-                if not artifact.get('id') or not artifact.get('type'):
-                    raise ValueError(
-                        f"Rule {rule_id} structured verification entries require 'id' and 'type'"
-                    )
-            else:
+            if not isinstance(artifact, dict):
                 raise ValueError(
-                    f"Rule {rule_id} verification entries must be strings or structured dictionaries"
+                    f"Rule {rule_id} verification entries must be structured dictionaries"
                 )
+            required_artifact_fields = (
+                'id',
+                'type',
+                'artifact',
+                'format',
+                'approval_required',
+                'approver',
+                'due_date',
+            )
+            for key in required_artifact_fields:
+                if key not in artifact or not artifact[key]:
+                    raise ValueError(
+                        f"Rule {rule_id} verification artifact missing required field '{key}'"
+                    )
+            if 'required_sections' in artifact:
+                sections = artifact['required_sections']
+                if not isinstance(sections, list) or not all(isinstance(s, str) and s.strip() for s in sections):
+                    raise ValueError(
+                        f"Rule {rule_id} verification required_sections must be a list of non-empty strings"
+                    )
+
+    def _validate_execution(self, rule_id: str, execution: Dict[str, Any]) -> None:
+        if not isinstance(execution, dict):
+            raise ValueError(f"Rule {rule_id} execution block must be an object")
+
+        required_keys = {
+            'trigger_condition',
+            'blocking',
+            'auto_apply',
+            'requires_approval',
+            'approval_roles',
+        }
+        missing = required_keys - execution.keys()
+        if missing:
+            raise ValueError(f"Rule {rule_id} execution block missing keys: {sorted(missing)}")
+
+        if not isinstance(execution['trigger_condition'], str) or not execution['trigger_condition'].strip():
+            raise ValueError(f"Rule {rule_id} execution trigger_condition must be a non-empty string")
+        for flag in ('blocking', 'auto_apply', 'requires_approval'):
+            if not isinstance(execution[flag], bool):
+                raise ValueError(f"Rule {rule_id} execution field '{flag}' must be boolean")
+
+        roles = execution['approval_roles']
+        if not isinstance(roles, list) or not roles:
+            raise ValueError(f"Rule {rule_id} execution approval_roles must be a non-empty list")
+        if any(not isinstance(role, str) or not role.strip() for role in roles):
+            raise ValueError(f"Rule {rule_id} execution approval_roles must contain non-empty strings")
+
+    def _validate_budget(self, rule_id: str, budget: Dict[str, Any]) -> None:
+        if not isinstance(budget, dict):
+            raise ValueError(f"Rule {rule_id} budget block must be an object")
+
+        required_keys = {'estimated_cost_cop', 'cost_breakdown', 'funding_sources', 'fiscal_year'}
+        missing = required_keys - budget.keys()
+        if missing:
+            raise ValueError(f"Rule {rule_id} budget block missing keys: {sorted(missing)}")
+
+        if not self._is_number(budget['estimated_cost_cop']):
+            raise ValueError(f"Rule {rule_id} budget estimated_cost_cop must be numeric")
+
+        cost_breakdown = budget['cost_breakdown']
+        if not isinstance(cost_breakdown, dict) or not cost_breakdown:
+            raise ValueError(f"Rule {rule_id} cost_breakdown must be a non-empty object")
+        for key, value in cost_breakdown.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError(f"Rule {rule_id} cost_breakdown keys must be non-empty strings")
+            if not self._is_number(value):
+                raise ValueError(f"Rule {rule_id} cost_breakdown values must be numeric")
+
+        funding_sources = budget['funding_sources']
+        if not isinstance(funding_sources, list) or not funding_sources:
+            raise ValueError(f"Rule {rule_id} funding_sources must be a non-empty list")
+        for source in funding_sources:
+            if not isinstance(source, dict):
+                raise ValueError(f"Rule {rule_id} funding source entries must be objects")
+            for key in ('source', 'amount', 'confirmed'):
+                if key not in source:
+                    raise ValueError(f"Rule {rule_id} funding source missing '{key}'")
+            if not isinstance(source['source'], str) or not source['source'].strip():
+                raise ValueError(f"Rule {rule_id} funding source name must be a non-empty string")
+            if not self._is_number(source['amount']):
+                raise ValueError(f"Rule {rule_id} funding source amount must be numeric")
+            if not isinstance(source['confirmed'], bool):
+                raise ValueError(f"Rule {rule_id} funding source confirmed flag must be boolean")
+
+        fiscal_year = budget['fiscal_year']
+        if not isinstance(fiscal_year, int):
+            raise ValueError(f"Rule {rule_id} fiscal_year must be an integer")
+
+    def _validate_ruleset_metadata(self) -> None:
+        version = self.rules.get('version')
+        if not isinstance(version, str) or not version.startswith('2.0'):
+            raise ValueError(
+                "Enhanced recommendation engine requires ruleset version 2.0"
+            )
+
+        features = self.rules.get('enhanced_features')
+        if not isinstance(features, list) or not features:
+            raise ValueError("Enhanced recommendation engine requires enhanced_features list")
+
+        feature_set = {feature for feature in features if isinstance(feature, str)}
+        missing = _REQUIRED_ENHANCED_FEATURES - feature_set
+        if missing:
+            raise ValueError(
+                f"Enhanced recommendation rules missing required features: {sorted(missing)}"
+            )
 
     @staticmethod
     def _is_number(value: Any) -> bool:
@@ -914,7 +1094,24 @@ class RecommendationEngine:
                 lines.append(f"\n**Horizonte:** {rec.horizon.get('start')} → {rec.horizon.get('end')}\n")
                 lines.append("\n**Verificación:**")
                 for v in rec.verification:
-                    lines.append(f"- {v}")
+                    if isinstance(v, dict):
+                        descriptor = f"[{v.get('type', 'ARTIFACT')}] {v.get('artifact', 'Sin artefacto')}"
+                        due = v.get('due_date')
+                        approver = v.get('approver')
+                        suffix_parts: list[str] = []
+                        if due:
+                            suffix_parts.append(f"entrega: {due}")
+                        if approver:
+                            suffix_parts.append(f"aprueba: {approver}")
+                        suffix = f" ({'; '.join(suffix_parts)})" if suffix_parts else ""
+                        lines.append(f"- {descriptor}{suffix}")
+                        sections = v.get('required_sections') or []
+                        if sections:
+                            lines.append(
+                                "  - Secciones requeridas: " + ", ".join(str(section) for section in sections)
+                            )
+                    else:
+                        lines.append(f"- {v}")
                 lines.append("")
 
         return "\n".join(lines)
@@ -924,7 +1121,7 @@ class RecommendationEngine:
 # ============================================================================
 
 def load_recommendation_engine(
-    rules_path: str = "config/recommendation_rules.json",
+    rules_path: str = "config/recommendation_rules_enhanced.json",
     schema_path: str = "rules/recommendation_rules.schema.json"
 ) -> RecommendationEngine:
     """
