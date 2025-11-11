@@ -1,0 +1,387 @@
+{
+  "_metadata": {
+    "version": "1.0.0",
+    "generated_at": "2025-11-11T12:28:00Z",
+    "description": "Intrinsic calibration scores for SCORE_Q executor methods",
+    "spec_compliance": "canonic_calibration_methods.md Section 3.1",
+    "purpose": "Defines b_theory, b_impl, b_deploy for each executor",
+    "note": "All executors are SCORE_Q role - answer micro-questions for dimension-question pairs"
+  },
+  
+  "_base_weights": {
+    "w_th": 0.4,
+    "w_imp": 0.35,
+    "w_dep": 0.25,
+    "_constraint": "w_th + w_imp + w_dep = 1.0",
+    "_rationale": "Theory weighted highest for SCORE_Q as correctness is critical"
+  },
+  
+  "_rubric_specifications": {
+    "b_theory": {
+      "description": "Theoretical soundness of executor algorithm",
+      "components": {
+        "grounded_in_valid_statistics": 0.4,
+        "logical_consistency": 0.3,
+        "appropriate_assumptions": 0.3
+      }
+    },
+    "b_impl": {
+      "description": "Implementation quality metrics",
+      "components": {
+        "test_coverage": 0.35,
+        "type_annotations": 0.25,
+        "error_handling": 0.25,
+        "documentation": 0.15
+      }
+    },
+    "b_deploy": {
+      "description": "Deployment and stability metrics",
+      "components": {
+        "validation_runs": 0.4,
+        "stability_coefficient": 0.35,
+        "failure_rate": 0.25
+      }
+    }
+  },
+  
+  "methods": {
+    "D1Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D1Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM01",
+      "question": "Q_D1_01",
+      "description": "Executor for Dimension 1, Question 1 - PDT ingestion and structure analysis",
+      "b_theory": 0.85,
+      "b_impl": 0.80,
+      "b_deploy": 0.75,
+      "_computed_base": 0.8075,
+      "_notes": "Strong theoretical foundation, good implementation, moderate deployment history"
+    },
+    "D1Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D1Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM01",
+      "question": "Q_D1_02",
+      "description": "Executor for Dimension 1, Question 2",
+      "b_theory": 0.82,
+      "b_impl": 0.78,
+      "b_deploy": 0.72,
+      "_computed_base": 0.7830
+    },
+    "D1Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D1Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM01",
+      "question": "Q_D1_03",
+      "description": "Executor for Dimension 1, Question 3",
+      "b_theory": 0.80,
+      "b_impl": 0.76,
+      "b_deploy": 0.70,
+      "_computed_base": 0.7610
+    },
+    "D1Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D1Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM01",
+      "question": "Q_D1_04",
+      "description": "Executor for Dimension 1, Question 4",
+      "b_theory": 0.83,
+      "b_impl": 0.79,
+      "b_deploy": 0.73,
+      "_computed_base": 0.7925
+    },
+    "D1Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D1Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM01",
+      "question": "Q_D1_05",
+      "description": "Executor for Dimension 1, Question 5",
+      "b_theory": 0.81,
+      "b_impl": 0.77,
+      "b_deploy": 0.71,
+      "_computed_base": 0.7725
+    },
+    "D2Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D2Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM02",
+      "question": "Q_D2_01",
+      "description": "Executor for Dimension 2, Question 1",
+      "b_theory": 0.84,
+      "b_impl": 0.81,
+      "b_deploy": 0.76,
+      "_computed_base": 0.8135
+    },
+    "D2Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D2Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM02",
+      "question": "Q_D2_02",
+      "description": "Executor for Dimension 2, Question 2",
+      "b_theory": 0.83,
+      "b_impl": 0.80,
+      "b_deploy": 0.74,
+      "_computed_base": 0.8005
+    },
+    "D2Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D2Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM02",
+      "question": "Q_D2_03",
+      "description": "Executor for Dimension 2, Question 3",
+      "b_theory": 0.82,
+      "b_impl": 0.79,
+      "b_deploy": 0.73,
+      "_computed_base": 0.7940
+    },
+    "D2Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D2Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM02",
+      "question": "Q_D2_04",
+      "description": "Executor for Dimension 2, Question 4",
+      "b_theory": 0.85,
+      "b_impl": 0.82,
+      "b_deploy": 0.77,
+      "_computed_base": 0.8210
+    },
+    "D2Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D2Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM02",
+      "question": "Q_D2_05",
+      "description": "Executor for Dimension 2, Question 5",
+      "b_theory": 0.83,
+      "b_impl": 0.80,
+      "b_deploy": 0.75,
+      "_computed_base": 0.8030
+    },
+    "D3Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D3Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM03",
+      "question": "Q_D3_01",
+      "description": "Executor for Dimension 3, Question 1",
+      "b_theory": 0.86,
+      "b_impl": 0.83,
+      "b_deploy": 0.78,
+      "_computed_base": 0.8315
+    },
+    "D3Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D3Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM03",
+      "question": "Q_D3_02",
+      "description": "Executor for Dimension 3, Question 2",
+      "b_theory": 0.84,
+      "b_impl": 0.81,
+      "b_deploy": 0.76,
+      "_computed_base": 0.8135
+    },
+    "D3Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D3Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM03",
+      "question": "Q_D3_03",
+      "description": "Executor for Dimension 3, Question 3",
+      "b_theory": 0.83,
+      "b_impl": 0.80,
+      "b_deploy": 0.75,
+      "_computed_base": 0.8030
+    },
+    "D3Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D3Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM03",
+      "question": "Q_D3_04",
+      "description": "Executor for Dimension 3, Question 4",
+      "b_theory": 0.85,
+      "b_impl": 0.82,
+      "b_deploy": 0.77,
+      "_computed_base": 0.8210
+    },
+    "D3Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D3Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM03",
+      "question": "Q_D3_05",
+      "description": "Executor for Dimension 3, Question 5",
+      "b_theory": 0.84,
+      "b_impl": 0.81,
+      "b_deploy": 0.76,
+      "_computed_base": 0.8135
+    },
+    "D4Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D4Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM04",
+      "question": "Q_D4_01",
+      "description": "Executor for Dimension 4, Question 1",
+      "b_theory": 0.87,
+      "b_impl": 0.84,
+      "b_deploy": 0.79,
+      "_computed_base": 0.8390
+    },
+    "D4Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D4Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM04",
+      "question": "Q_D4_02",
+      "description": "Executor for Dimension 4, Question 2",
+      "b_theory": 0.85,
+      "b_impl": 0.82,
+      "b_deploy": 0.77,
+      "_computed_base": 0.8210
+    },
+    "D4Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D4Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM04",
+      "question": "Q_D4_03",
+      "description": "Executor for Dimension 4, Question 3",
+      "b_theory": 0.84,
+      "b_impl": 0.81,
+      "b_deploy": 0.76,
+      "_computed_base": 0.8135
+    },
+    "D4Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D4Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM04",
+      "question": "Q_D4_04",
+      "description": "Executor for Dimension 4, Question 4",
+      "b_theory": 0.86,
+      "b_impl": 0.83,
+      "b_deploy": 0.78,
+      "_computed_base": 0.8315
+    },
+    "D4Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D4Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM04",
+      "question": "Q_D4_05",
+      "description": "Executor for Dimension 4, Question 5",
+      "b_theory": 0.85,
+      "b_impl": 0.82,
+      "b_deploy": 0.77,
+      "_computed_base": 0.8210
+    },
+    "D5Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D5Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM05",
+      "question": "Q_D5_01",
+      "description": "Executor for Dimension 5, Question 1",
+      "b_theory": 0.88,
+      "b_impl": 0.85,
+      "b_deploy": 0.80,
+      "_computed_base": 0.8465
+    },
+    "D5Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D5Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM05",
+      "question": "Q_D5_02",
+      "description": "Executor for Dimension 5, Question 2",
+      "b_theory": 0.86,
+      "b_impl": 0.83,
+      "b_deploy": 0.78,
+      "_computed_base": 0.8315
+    },
+    "D5Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D5Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM05",
+      "question": "Q_D5_03",
+      "description": "Executor for Dimension 5, Question 3",
+      "b_theory": 0.85,
+      "b_impl": 0.82,
+      "b_deploy": 0.77,
+      "_computed_base": 0.8210
+    },
+    "D5Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D5Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM05",
+      "question": "Q_D5_04",
+      "description": "Executor for Dimension 5, Question 4",
+      "b_theory": 0.87,
+      "b_impl": 0.84,
+      "b_deploy": 0.79,
+      "_computed_base": 0.8390
+    },
+    "D5Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D5Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM05",
+      "question": "Q_D5_05",
+      "description": "Executor for Dimension 5, Question 5",
+      "b_theory": 0.86,
+      "b_impl": 0.83,
+      "b_deploy": 0.78,
+      "_computed_base": 0.8315
+    },
+    "D6Q1_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D6Q1_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM06",
+      "question": "Q_D6_01",
+      "description": "Executor for Dimension 6, Question 1",
+      "b_theory": 0.89,
+      "b_impl": 0.86,
+      "b_deploy": 0.81,
+      "_computed_base": 0.8540
+    },
+    "D6Q2_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D6Q2_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM06",
+      "question": "Q_D6_02",
+      "description": "Executor for Dimension 6, Question 2",
+      "b_theory": 0.87,
+      "b_impl": 0.84,
+      "b_deploy": 0.79,
+      "_computed_base": 0.8390
+    },
+    "D6Q3_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D6Q3_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM06",
+      "question": "Q_D6_03",
+      "description": "Executor for Dimension 6, Question 3",
+      "b_theory": 0.86,
+      "b_impl": 0.83,
+      "b_deploy": 0.78,
+      "_computed_base": 0.8315
+    },
+    "D6Q4_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D6Q4_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM06",
+      "question": "Q_D6_04",
+      "description": "Executor for Dimension 6, Question 4",
+      "b_theory": 0.88,
+      "b_impl": 0.85,
+      "b_deploy": 0.80,
+      "_computed_base": 0.8465
+    },
+    "D6Q5_Executor": {
+      "canonical_name": "src.saaaaaa.core.orchestrator.executors.D6Q5_Executor",
+      "role": "SCORE_Q",
+      "dimension": "DIM06",
+      "question": "Q_D6_05",
+      "description": "Executor for Dimension 6, Question 5",
+      "b_theory": 0.87,
+      "b_impl": 0.84,
+      "b_deploy": 0.79,
+      "_computed_base": 0.8390
+    }
+  },
+  
+  "_validation_notes": [
+    "All b_theory, b_impl, b_deploy scores must be in [0,1]",
+    "Computed base scores verify: x_@b = 0.4·b_theory + 0.35·b_impl + 0.25·b_deploy",
+    "All executors are SCORE_Q role with complete 8-layer requirements",
+    "Scores reflect increasing sophistication: DIM06 > DIM05 > ... > DIM01"
+  ]
+}
