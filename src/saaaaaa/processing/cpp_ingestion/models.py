@@ -1,8 +1,10 @@
 """
-Canon Policy Package (CPP) Data Models
+CPP Ingestion Models (Deprecated - Use SPC)
 
-Minimal implementation of CPP models for SPC ingestion compatibility.
-These models represent the structured output from the SPC ingestion pipeline.
+Data models for Canon Policy Package (CPP) ingestion pipeline.
+These models define the structure of policy documents after phase-one ingestion.
+
+NOTE: This is a compatibility layer. New code should use SPC (Smart Policy Chunks) terminology.
 """
 
 from __future__ import annotations
@@ -13,22 +15,22 @@ from typing import Any, Optional
 
 
 class ChunkResolution(Enum):
-    """Chunk resolution levels."""
-    MICRO = "micro"
-    MESO = "meso"
-    MACRO = "macro"
+    """Granularity level for policy chunks."""
+    MICRO = "MICRO"  # Fine-grained chunks (sentences, clauses)
+    MESO = "MESO"    # Medium chunks (paragraphs, sections)
+    MACRO = "MACRO"  # Coarse chunks (chapters, themes)
 
 
 @dataclass
 class TextSpan:
-    """Text span with start and end positions."""
+    """Represents a span of text in the original document."""
     start: int
     end: int
 
 
 @dataclass
 class Confidence:
-    """Confidence scores for various aspects."""
+    """Confidence scores for various extraction processes."""
     layout: float = 1.0
     ocr: float = 1.0
     typing: float = 1.0
@@ -36,104 +38,115 @@ class Confidence:
 
 @dataclass
 class PolicyFacet:
-    """Policy-related facets of a chunk."""
-    axes: list[str] = field(default_factory=list)
+    """Policy-related metadata facets."""
     programs: list[str] = field(default_factory=list)
     projects: list[str] = field(default_factory=list)
+    axes: list[str] = field(default_factory=list)
 
 
 @dataclass
 class TimeFacet:
-    """Temporal facets of a chunk."""
+    """Temporal metadata facets."""
     years: list[int] = field(default_factory=list)
     periods: list[str] = field(default_factory=list)
 
 
 @dataclass
 class GeoFacet:
-    """Geographic facets of a chunk."""
+    """Geographic metadata facets."""
     territories: list[str] = field(default_factory=list)
     regions: list[str] = field(default_factory=list)
 
 
 @dataclass
-class BudgetInfo:
-    """Budget information."""
-    source: str = ""
-    use: str = ""
-    amount: float = 0.0
-    year: Optional[int] = None
+class ProvenanceMap:
+    """Provenance information for chunk extraction."""
+    source_page: Optional[int] = None
+    source_section: Optional[str] = None
+    extraction_method: str = "semantic_chunking"
+
+
+@dataclass
+class Budget:
+    """Budget information extracted from policy document."""
+    source: str
+    use: str
+    amount: float
+    year: int
     currency: str = "COP"
 
 
 @dataclass
-class KPIInfo:
-    """Key Performance Indicator information."""
-    name: str = ""
-    baseline: Optional[float] = None
-    target: Optional[float] = None
-    unit: str = ""
+class KPI:
+    """Key Performance Indicator extracted from policy."""
+    indicator_name: str
+    target_value: Optional[float] = None
+    unit: Optional[str] = None
+    year: Optional[int] = None
 
 
 @dataclass
-class EntityInfo:
-    """Entity information."""
-    text: str = ""
-    type: str = ""
+class Entity:
+    """Named entity extracted from text."""
+    text: str
+    entity_type: str
     confidence: float = 1.0
 
 
 @dataclass
 class Chunk:
-    """A chunk of text with metadata."""
+    """
+    A semantic chunk of policy text with metadata.
+    
+    This is the fundamental unit of the CPP/SPC ingestion pipeline.
+    """
     id: str
-    bytes_hash: str
+    text: str
     text_span: TextSpan
     resolution: ChunkResolution
-    text: str
+    bytes_hash: str
+    
+    # Facets and metadata
     policy_facets: PolicyFacet = field(default_factory=PolicyFacet)
     time_facets: TimeFacet = field(default_factory=TimeFacet)
     geo_facets: GeoFacet = field(default_factory=GeoFacet)
     confidence: Confidence = field(default_factory=Confidence)
-    provenance: Optional[dict[str, Any]] = None
-    kpi: Optional[KPIInfo] = None
-    budget: Optional[BudgetInfo] = None
-    entities: list[EntityInfo] = field(default_factory=list)
+    
+    # Optional structured data
+    provenance: Optional[ProvenanceMap] = None
+    budget: Optional[Budget] = None
+    kpi: Optional[KPI] = None
+    entities: list[Entity] = field(default_factory=list)
 
 
 @dataclass
 class ChunkGraph:
-    """Graph of chunks with relationships."""
+    """
+    Graph structure containing all chunks and their relationships.
+    """
     chunks: dict[str, Chunk] = field(default_factory=dict)
-    edges: list[dict[str, Any]] = field(default_factory=list)
-    
-    def add_chunk(self, chunk: Chunk) -> None:
-        """Add a chunk to the graph."""
-        self.chunks[chunk.id] = chunk
+    edges: list[tuple[str, str, str]] = field(default_factory=list)  # (from_id, to_id, relation_type)
 
 
 @dataclass
 class PolicyManifest:
-    """Manifest of policy elements found in the document."""
-    axes: int = 0
-    programs: int = 0
-    projects: int = 0
+    """
+    High-level manifest summarizing policy structure.
+    """
+    axes: list[str] = field(default_factory=list)
+    programs: list[str] = field(default_factory=list)
+    projects: list[str] = field(default_factory=list)
     years: list[int] = field(default_factory=list)
     territories: list[str] = field(default_factory=list)
-    indicators: int = 0
+    indicators: list[str] = field(default_factory=list)
     budget_rows: int = 0
 
 
 @dataclass
-class ProvenanceMap:
-    """Provenance mapping for chunks."""
-    page_mappings: dict[str, int] = field(default_factory=dict)
-    token_mappings: dict[str, list[int]] = field(default_factory=dict)
-
-
-@dataclass
 class QualityMetrics:
-    """Quality metrics for the ingested document."""
+    """
+    Quality metrics for the ingestion process.
+    """
     boundary_f1: float = 0.0
     kpi_linkage_rate: float = 0.0
     budget_consistency_score: float = 0.0
@@ -145,18 +158,28 @@ class QualityMetrics:
 
 @dataclass
 class IntegrityIndex:
-    """Integrity index for verification."""
+    """
+    Cryptographic integrity verification data.
+    """
     blake3_root: str
     chunk_hashes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class CanonPolicyPackage:
-    """Canon Policy Package - the main container for ingested documents."""
+    """
+    Canon Policy Package - Complete output from phase-one ingestion.
+    
+    This is the top-level container for all ingestion results.
+    Also known as Smart Policy Chunks (SPC) in newer terminology.
+    """
     schema_version: str
-    policy_manifest: PolicyManifest
     chunk_graph: ChunkGraph
-    provenance_map: ProvenanceMap
-    quality_metrics: QualityMetrics
-    integrity_index: IntegrityIndex
+    
+    # Optional high-level metadata
+    policy_manifest: Optional[PolicyManifest] = None
+    quality_metrics: Optional[QualityMetrics] = None
+    integrity_index: Optional[IntegrityIndex] = None
+    
+    # Raw metadata
     metadata: dict[str, Any] = field(default_factory=dict)
