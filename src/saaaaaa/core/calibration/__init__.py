@@ -30,6 +30,20 @@ from .config import (
     DEFAULT_CALIBRATION_CONFIG,
 )
 
+from .pdt_structure import PDTStructure
+
+from .compatibility import (
+    CompatibilityRegistry,
+    ContextualLayerEvaluator,
+)
+
+from .unit_layer import UnitLayerEvaluator
+from .congruence_layer import CongruenceLayerEvaluator
+from .chain_layer import ChainLayerEvaluator
+from .meta_layer import MetaLayerEvaluator
+from .choquet_aggregator import ChoquetAggregator
+from .orchestrator import CalibrationOrchestrator
+
 __all__ = [
     # Data structures
     "LayerID",
@@ -39,10 +53,21 @@ __all__ = [
     "CompatibilityMapping",
     "InteractionTerm",
     "CalibrationResult",
+    "PDTStructure",
     # Configuration
     "UnitLayerConfig",
     "MetaLayerConfig",
     "ChoquetAggregationConfig",
     "CalibrationSystemConfig",
     "DEFAULT_CALIBRATION_CONFIG",
+    # Layer Evaluators
+    "UnitLayerEvaluator",
+    "CompatibilityRegistry",
+    "ContextualLayerEvaluator",
+    "CongruenceLayerEvaluator",
+    "ChainLayerEvaluator",
+    "MetaLayerEvaluator",
+    # Aggregation & Orchestration
+    "ChoquetAggregator",
+    "CalibrationOrchestrator",
 ]
