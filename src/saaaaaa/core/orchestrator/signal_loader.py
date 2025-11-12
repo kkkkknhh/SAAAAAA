@@ -35,6 +35,7 @@ except ImportError:
 
 from .signals import SignalPack
 from .signal_consumption import generate_signal_manifests, SignalManifest
+from .factory import load_questionnaire_monolith
 
 
 def compute_fingerprint(content: str | bytes) -> str:
@@ -79,24 +80,9 @@ def get_monolith_path() -> Path:
     )
 
 
-def load_questionnaire_monolith() -> dict[str, Any]:
-    """
-    Load questionnaire monolith JSON file.
-    
-    Returns:
-        Parsed JSON data
-    """
-    monolith_path = get_monolith_path()
-    with open(monolith_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    logger.info(
-        "questionnaire_monolith_loaded",
-        path=str(monolith_path),
-        questions=len(data.get('blocks', {}).get('micro_questions', [])),
-    )
-    
-    return data
+# NOTE: load_questionnaire_monolith() is now imported from factory.py
+# This eliminates the duplicate implementation and ensures single source of truth
+# for questionnaire loading as per architectural requirements.
 
 
 def extract_patterns_by_policy_area(

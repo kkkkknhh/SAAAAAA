@@ -29,6 +29,7 @@ _CLASS_PATHS: Mapping[str, str] = {
     "AdvancedSemanticChunker": "saaaaaa.processing.embedding_policy.AdvancedSemanticChunker",
     # SemanticChunker is an alias maintained for backwards compatibility.
     "SemanticChunker": "saaaaaa.processing.embedding_policy.AdvancedSemanticChunker",
+    "SemanticProcessor": "saaaaaa.processing.semantic_chunking_policy.SemanticProcessor",
     "SemanticAnalyzer": "saaaaaa.analysis.Analyzer_one.SemanticAnalyzer",
     "PerformanceAnalyzer": "saaaaaa.analysis.Analyzer_one.PerformanceAnalyzer",
     "TextMiningEngine": "saaaaaa.analysis.Analyzer_one.TextMiningEngine",
