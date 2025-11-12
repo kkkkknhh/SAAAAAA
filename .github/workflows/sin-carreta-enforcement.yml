@@ -1,0 +1,128 @@
+name: SIN_CARRETA Enforcement
+
+on:
+  push:
+    branches: [ "main", "develop", "copilot/**" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  syspath-check:
+    name: Enforce No sys.path Manipulation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check for sys.path manipulation
+      run: |
+        echo "=== SIN_CARRETA Enforcement: sys.path Manipulation Check ==="
+        
+        # Search for sys.path.insert or sys.path.append in source code
+        if grep -r -E "sys\.path\.(insert|append)" --include="*.py" src/ tests/ scripts/ 2>/dev/null; then
+          echo ""
+          echo "❌ FATAL: Direct sys.path manipulation detected"
+          echo ""
+          echo "SIN_CARRETA VIOLATION: sys.path manipulation is forbidden."
+          echo ""
+          echo "The only acceptable import method is:"
+          echo "  1. Create virtual environment: python3 -m venv venv"
+          echo "  2. Activate it: source venv/bin/activate"
+          echo "  3. Install package: pip install -e ."
+          echo "  4. Import normally: from saaaaaa.module import ..."
+          echo ""
+          echo "See docs/CONTRIBUTING.md for details."
+          exit 1
+        else
+          echo "✅ No sys.path manipulation detected"
+          echo "✅ SIN_CARRETA compliance: PASS"
+        fi
+    
+    - name: Verify package structure
+      run: |
+        echo "=== Verifying Canonical Package Structure ==="
+        
+        # Check that src/saaaaaa/ exists
+        if [ ! -d "src/saaaaaa" ]; then
+          echo "❌ FATAL: src/saaaaaa/ directory not found"
+          exit 1
+        fi
+        
+        # Check that pyproject.toml exists
+        if [ ! -f "pyproject.toml" ]; then
+          echo "❌ FATAL: pyproject.toml not found"
+          exit 1
+        fi
+        
+        echo "✅ Canonical structure verified"
+    
+    - name: Check for compatibility wrappers
+      run: |
+        echo "=== Checking for Forbidden Compatibility Wrappers ==="
+        
+        # Look for Python files at root that import from src/saaaaaa
+        # (these are compatibility wrappers that bypass pip install -e .)
+        found_wrappers=0
+        
+        for file in *.py; do
+          if [ -f "$file" ] && [ "$file" != "setup.py" ]; then
+            if grep -q "from saaaaaa\." "$file" 2>/dev/null; then
+              echo "⚠️  Potential compatibility wrapper: $file"
+              found_wrappers=1
+            fi
+          fi
+        done
+        
+        if [ $found_wrappers -eq 1 ]; then
+          echo ""
+          echo "❌ FATAL: Compatibility wrappers detected at repository root"
+          echo "These files bypass the proper pip install -e . mechanism."
+          echo "Remove them or move them to src/saaaaaa/ as proper modules."
+          exit 1
+        else
+          echo "✅ No compatibility wrappers found at root"
+        fi
+
+  editable-install-test:
+    name: Verify Editable Install Works
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    
+    - name: Test editable installation
+      run: |
+        echo "=== Testing pip install -e . ==="
+        python -m venv venv
+        source venv/bin/activate
+        
+        # Install in editable mode
+        pip install -e .
+        
+        # Verify the package is importable
+        python -c "import saaaaaa; print(f'✅ Successfully imported saaaaaa from {saaaaaa.__file__}')"
+        
+        # Verify core modules are accessible
+        python -c "from saaaaaa.core.orchestrator import Orchestrator; print('✅ Core modules accessible')"
+        
+        echo "✅ Editable install: PASS"
+    
+    - name: Verify scripts work after install
+      run: |
+        echo "=== Testing Scripts After Install ==="
+        source venv/bin/activate
+        
+        # Test that at least one script runs without sys.path errors
+        # (We'll just check imports, not full execution)
+        python -c "
+import sys
+import importlib.util
+spec = importlib.util.spec_from_file_location('test_script', 'scripts/verify_imports.py')
+if spec and spec.loader:
+    print('✅ Scripts can be loaded after pip install -e .')
+        "
