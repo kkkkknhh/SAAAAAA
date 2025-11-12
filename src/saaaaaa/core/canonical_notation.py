@@ -58,14 +58,15 @@ def _load_canonical_notation() -> dict[str, Any]:
         KeyError: If canonical_notation section is missing
     """
     try:
-        from saaaaaa.core.orchestrator.factory import load_questionnaire_monolith
+        from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
     except ImportError as e:
         raise ImportError(
-            "Cannot import orchestrator factory. "
+            "Cannot import questionnaire module. "
             "Ensure saaaaaa.core.orchestrator is available."
         ) from e
     
-    data = load_questionnaire_monolith()
+    canonical = load_questionnaire()
+    data = dict(canonical.data)
     
     if "canonical_notation" not in data:
         raise KeyError("canonical_notation section missing from questionnaire")
