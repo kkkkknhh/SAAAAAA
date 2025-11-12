@@ -42,7 +42,7 @@ from saaaaaa.processing.aggregation import (
 )
 
 from .arg_router import ArgRouterError, ArgumentValidationError, ExtendedArgRouter
-from .calibration_registry import resolve_calibration, get_calibration_hash, CALIBRATION_VERSION
+from .calibration_registry import resolve_calibration
 from .class_registry import ClassRegistryError, build_class_registry
 from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
 
@@ -846,10 +846,6 @@ class MethodExecutor:
 
         self.raw_calibrations = calibrations  # Will be empty dict after migration
         self.calibrations = self._map_calibrations_to_classes(calibrations)  # Will be empty dict
-        
-        # Add calibration metadata for traceability
-        self.calibration_version = CALIBRATION_VERSION
-        self.calibration_hash = get_calibration_hash()
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
