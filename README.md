@@ -141,6 +141,127 @@ For detailed information, see [PROOF_VERIFICATION.md](PROOF_VERIFICATION.md)
 
 ---
 
+## 📋 Questionnaire Integrity Protocol
+
+**STATUS: ENFORCED** 🔒
+
+This system implements the **QUESTIONNAIRE DETERMINISM ENFORCEMENT PROTOCOL** to ensure that the questionnaire monolith (containing 305 questions across 6 dimensions and 10 policy areas) is loaded, validated, and used in a completely deterministic and tamper-proof manner.
+
+### The Law
+
+1. **Single Load Point**: `questionnaire.load_questionnaire()` is the ONLY way to load questionnaire data
+2. **Immutable Data**: All questionnaire data uses `MappingProxyType` or `tuple` (no mutable dicts/lists)
+3. **Hash Verification**: Every load verifies SHA256 matches `EXPECTED_HASH` in questionnaire.py
+4. **Structure Validation**: 300 micro + 4 meso + 1 macro = 305 questions or FAIL
+5. **No Direct Access**: `questionnaire_monolith.json` is NEVER read directly except by questionnaire.py
+
+### Usage (Correct)
+
+```python
+# ✅ ALWAYS DO THIS:
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
+
+questionnaire = load_questionnaire()  # Returns CanonicalQuestionnaire
+
+# Access data (immutable)
+micro_questions = questionnaire.micro_questions  # tuple of MappingProxyType
+question_count = questionnaire.micro_question_count  # 300
+total_count = questionnaire.total_question_count  # 305
+hash_verified = questionnaire.sha256  # Matches EXPECTED_HASH
+```
+
+### Violations = Build Failure
+
+```python
+# ❌ NEVER DO THIS:
+import json
+with open("data/questionnaire_monolith.json") as f:
+    data = json.load(f)  # VIOLATION! Bypasses validation
+
+# ❌ NEVER DO THIS:
+questionnaire_dict = {"blocks": {"micro_questions": []}}  # VIOLATION! Wrong structure
+```
+
+### CI Enforcement
+
+The CI workflow `.github/workflows/questionnaire-integrity.yml` runs on every push and verifies:
+
+- ✅ Questionnaire file hash matches `EXPECTED_HASH`
+- ✅ Question counts: 300 micro, 4 meso, 1 macro
+- ✅ No direct `questionnaire_monolith.json` access outside questionnaire.py
+- ✅ No `json.load()` patterns that bypass the canonical loader
+
+### Manual Operations
+
+```bash
+# ❌ NEVER DO THIS:
+jq '.blocks.micro_questions' data/questionnaire_monolith.json
+
+# ✅ ALWAYS DO THIS:
+python3 -c "
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
+q = load_questionnaire()
+print(f'Micro questions: {q.micro_question_count}')
+print(f'Total questions: {q.total_question_count}')
+print(f'SHA256: {q.sha256[:16]}...')
+"
+```
+
+### Updating the Questionnaire
+
+If you legitimately modify `questionnaire_monolith.json`:
+
+1. **Compute new hash:**
+   ```bash
+   python3 -c "
+   import json, hashlib
+   data = json.load(open('data/questionnaire_monolith.json'))
+   serialized = json.dumps(data, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
+   print(hashlib.sha256(serialized.encode()).hexdigest())
+   "
+   ```
+
+2. **Update `EXPECTED_HASH` in `src/saaaaaa/core/orchestrator/questionnaire.py`:**
+   ```python
+   EXPECTED_HASH: Final[str] = "NEW_HASH_HERE"
+   ```
+
+3. **Commit both files together:**
+   ```bash
+   git add data/questionnaire_monolith.json src/saaaaaa/core/orchestrator/questionnaire.py
+   git commit -m "Update questionnaire structure (hash verified)"
+   ```
+
+### Why This Matters
+
+The questionnaire defines the entire analysis pipeline:
+- 300 micro questions organized into 6 dimensions (D1-D6)
+- 10 policy areas (PA01-PA10)
+- 4 clusters for aggregation
+- 2,207+ patterns for text matching
+- Expected elements and validation rules
+
+**Any corruption or unintended modification would:**
+- ❌ Produce different analysis results (non-deterministic)
+- ❌ Break reproducibility of published findings
+- ❌ Violate audit trail requirements
+- ❌ Compromise scientific integrity
+
+**The hash enforcement prevents all of these.**
+
+### Verification
+
+```bash
+# Check questionnaire integrity locally
+python3 -c "from saaaaaa.core.orchestrator.questionnaire import load_questionnaire; q = load_questionnaire(); print('✅ VERIFIED:', q.sha256[:16] + '...')"
+
+# Find any violations in the codebase
+grep -r "questionnaire_monolith.json" --include="*.py" . | grep -v "src/saaaaaa/core/orchestrator/questionnaire.py" | grep -v ".github/workflows"
+# Should return NOTHING (or fail CI)
+```
+
+---
+
 **Technical Implementation:** F.A.R.F.A.N integra 584 métodos analíticos distribuidos en 7 productores especializados y 1 agregador, orientado al procesamiento determinista de planes de desarrollo municipales y departamentales en Colombia. La contribución técnica principal radica en: (1) un pipeline de ingesta con 9 fases deterministas que garantiza trazabilidad completa desde token hasta coordenadas de página (provenance_completeness = 1.0), (2) un sistema de señales transversales (cross-cut signals) con transporte memory:// y HTTP opcional, incluyendo circuit breakers para resiliencia, (3) un mecanismo de enrutamiento extendido (ArgRouter) con 30+ rutas especiales que elimina caídas silenciosas de parámetros, y (4) contratos explícitos de entrada/salida con validación en fronteras de proveedor. El sistema procesa 300 preguntas de evaluación organizadas en 6 dimensiones (D1-D6: Insumos, Actividades, Productos, Resultados, Impactos, Causalidad) sobre 10 áreas de política (P1-P10), generando reportes en tres niveles de agregación: MICRO (respuestas atómicas por pregunta, 150-300 palabras), MESO (análisis de clusters por dimensión-área), y MACRO (clasificación y recomendaciones). La arquitectura sigue el patrón "Chess Strategy": apertura paralela con 7 productores independientes, medio juego de triangulación multi-fuente, y final de síntesis doctoral. El alcance excluye procesamiento en tiempo real (modo batch únicamente), datos personales identificables (PII), y claims de precisión absoluta sin intervalos de confianza.
 
 ---

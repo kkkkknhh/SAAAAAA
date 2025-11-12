@@ -2,7 +2,7 @@
 Factory module for core module initialization with dependency injection.
 
 This module is responsible for:
-1. Reading data from disk (questionnaire_monolith.json, etc.)
+1. Reading data from disk (catalogs, schemas, documents, etc.)
 2. Constructing InputContracts for core modules
 3. Initializing core modules with injected dependencies
 4. Managing I/O operations so core modules remain pure
@@ -13,8 +13,13 @@ Architectural Pattern:
 - Factory injects dependencies into core modules
 - Core modules remain I/O-free and testable
 
-Version: 1.0.0
-Status: Skeleton implementation (to be expanded with I/O migration)
+QUESTIONNAIRE INTEGRITY PROTOCOL:
+- Questionnaire loading is now in questionnaire.py module
+- All consumers MUST import from questionnaire module
+- Use questionnaire.load_questionnaire() which returns CanonicalQuestionnaire
+
+Version: 2.0.0
+Status: Questionnaire module refactored to questionnaire.py
 """
 
 import copy
@@ -24,8 +29,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 from ..contracts import (
     CDAFFrameworkInputContract,
@@ -40,6 +44,16 @@ from ..contracts import (
 )
 from . import get_questionnaire_provider
 from .core import MethodExecutor
+from .questionnaire import (
+    CanonicalQuestionnaire,
+    EXPECTED_HASH,
+    EXPECTED_MACRO_QUESTION_COUNT,
+    EXPECTED_MICRO_QUESTION_COUNT,
+    EXPECTED_MESO_QUESTION_COUNT,
+    EXPECTED_TOTAL_QUESTION_COUNT,
+    QUESTIONNAIRE_PATH,
+    load_questionnaire,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -327,128 +341,41 @@ class ProcessorBundle:
 # ============================================================================
 # FILE I/O OPERATIONS
 # ============================================================================
-
-def validate_questionnaire_structure(data: dict[str, object]) -> None:
-    """Validate questionnaire structure for required fields and types.
-    
-    Args:
-        data: Questionnaire data to validate
-        
-    Raises:
-        ValueError: If required fields are missing or invalid
-        TypeError: If data is not a dictionary
-    """
-    if not isinstance(data, dict):
-        raise ValueError("Questionnaire must be a dictionary")
-    
-    # Check top-level keys
-    required_keys = ["version", "blocks", "schema_version"]
-    missing = [k for k in required_keys if k not in data]
-    if missing:
-        raise ValueError(f"Questionnaire missing keys: {missing}")
-    
-    # Validate blocks structure
-    blocks = data["blocks"]  # type: ignore[index]
-    if not isinstance(blocks, dict):
-        raise ValueError("blocks must be a dict")
-    
-    if "micro_questions" not in blocks:
-        raise ValueError("blocks.micro_questions is required")
-    
-    micro_questions = blocks["micro_questions"]
-    if not isinstance(micro_questions, list):
-        raise ValueError("blocks.micro_questions must be a list")
-    
-    # Track for duplicate detection
-    seen_question_ids = set()
-    seen_question_globals = set()
-    
-    # Validate each question
-    required_q_keys = ["question_id", "question_global", "base_slot"]
-    
-    for i, q in enumerate(micro_questions):
-        if not isinstance(q, dict):
-            raise ValueError(f"Question {i} must be a dict, got {type(q).__name__}")
-        
-        # Check required keys
-        missing_q = [k for k in required_q_keys if k not in q]
-        if missing_q:
-            raise ValueError(f"Question {i} missing keys: {missing_q}")
-        
-        # Check for None values
-        for key in required_q_keys:
-            if q[key] is None:
-                raise ValueError(f"Question {i}: {key} cannot be None")
-        
-        # Type validation
-        question_id = q["question_id"]
-        if not isinstance(question_id, str):
-            raise ValueError(
-                f"Question {i}: question_id must be string, got {type(question_id).__name__}"
-            )
-        
-        question_global = q["question_global"]
-        if not isinstance(question_global, int):
-            raise ValueError(
-                f"Question {i}: question_global must be an integer, got {type(question_global).__name__}"
-            )
-        
-        base_slot = q["base_slot"]
-        if not isinstance(base_slot, str):
-            raise ValueError(
-                f"Question {i}: base_slot must be string, got {type(base_slot).__name__}"
-            )
-        
-        # Duplicate detection
-        if question_id in seen_question_ids:
-            raise ValueError(f"Duplicate question_id: {question_id} at index {i}")
-        seen_question_ids.add(question_id)
-        
-        if question_global in seen_question_globals:
-            raise ValueError(
-                f"Duplicate question_global: {question_global} at index {i}"
-            )
-        seen_question_globals.add(question_global)
-    
-    logger.info(
-        f"questionnaire_validation_passed: {len(micro_questions)} questions validated"
-    )
+# NOTE: Questionnaire loading functions moved to questionnaire.py
+# load_questionnaire() and validate_questionnaire_structure() are now there
 
 
 def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
-    """Load questionnaire monolith JSON file.
+    """DEPRECATED: Use questionnaire.load_questionnaire() instead.
 
-    This is the ONLY place in the system that should read questionnaire_monolith.json.
-    Core modules receive the data via contracts.
+    This function is maintained for backward compatibility only.
+    It loads the questionnaire but returns mutable dict instead of
+    CanonicalQuestionnaire.
 
     Args:
-        path: Optional path to questionnaire file. Defaults to ./questionnaire_monolith.json
+        path: Optional path to questionnaire file (parameter is ignored,
+              always loads from canonical path)
 
     Returns:
-        Loaded questionnaire data
-
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        json.JSONDecodeError: If file is not valid JSON
-        ValueError: If questionnaire structure is invalid
+        Mutable questionnaire dict (DEPRECATED)
     """
-    if path is None:
-        path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
+    import warnings
+    warnings.warn(
+        "load_questionnaire_monolith() is deprecated. "
+        "Use questionnaire.load_questionnaire() which returns CanonicalQuestionnaire.",
+        DeprecationWarning,
+        stacklevel=2
+    )
 
-    logger.info(f"Loading questionnaire from {path}")
-
-    with open(path, encoding='utf-8') as f:
-        payload = json.load(f)
-
-    if not isinstance(payload, dict):
-        raise TypeError(
-            "questionnaire_monolith.json must contain a JSON object at the top level"
+    if path is not None:
+        logger.warning(
+            "load_questionnaire_monolith: path parameter is ignored. "
+            "Questionnaire always loads from canonical path."
         )
-    
-    # Validate structure before returning
-    validate_questionnaire_structure(payload)
 
-    return payload
+    canonical = load_questionnaire()
+    # Return mutable copy for backward compatibility
+    return dict(canonical.data)
 
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
@@ -980,14 +907,23 @@ class CoreModuleFactory:
     def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
 
+        Uses canonical loader for hash verification.
+
         Returns:
-            Questionnaire data
+            Questionnaire data (dict for backward compatibility)
         """
         if self.questionnaire_cache is None:
             questionnaire_path = self.data_dir / "questionnaire_monolith.json"
-            self.questionnaire_cache = load_questionnaire_monolith(questionnaire_path)
+            # Use canonical loader for hash verification
+            canonical_q = load_questionnaire(questionnaire_path)
+            self.questionnaire_cache = dict(canonical_q.data)
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
+            logger.info(
+                "factory_loaded_questionnaire",
+                sha256=canonical_q.sha256[:16] + "...",
+                question_count=canonical_q.total_question_count,
+            )
         return self.questionnaire_cache
 
     @property
@@ -1072,10 +1008,18 @@ def build_processor(
     core_factory = factory or CoreModuleFactory(data_dir=data_dir)
 
     if questionnaire_path is not None:
-        questionnaire_data = load_questionnaire_monolith(questionnaire_path)
+        # Use canonical loader for hash verification
+        canonical_q = load_questionnaire(questionnaire_path)
+        questionnaire_data = dict(canonical_q.data)  # Convert for backward compat
         core_factory.questionnaire_cache = copy.deepcopy(questionnaire_data)
         # Initialize the global provider with this data
         get_questionnaire_provider().set_data(questionnaire_data)
+        logger.info(
+            "build_processor_using_canonical_loader",
+            path=str(questionnaire_path),
+            sha256=canonical_q.sha256[:16] + "...",
+            question_count=canonical_q.total_question_count,
+        )
     else:
         questionnaire_data = core_factory.get_questionnaire()
 
@@ -1256,110 +1200,20 @@ def compute_contract_schemas_hash() -> str:
 
 
 def validate_questionnaire_structure(data: dict[str, Any]) -> None:
-    """
-    Validate questionnaire has required structure and types.
+    """DEPRECATED: Import from questionnaire module instead.
     
-    Performs comprehensive validation including:
-    - Top-level structure (version, blocks, schema_version)
-    - Block structure (micro_questions must be list)
-    - Question fields (question_id, question_global, base_slot)
-    - Type validation for all fields
-    - Duplicate detection (question_id, question_global)
-    - Null value checking
+    This stub is maintained for backward compatibility only.
+    Use: from .questionnaire import _validate_questionnaire_structure
     
     Args:
         data: Questionnaire data to validate
         
     Raises:
-        ValueError: If validation fails with specific error message
+        ValueError: If validation fails
         TypeError: If top-level structure is invalid
     """
-    if not isinstance(data, dict):
-        raise TypeError("Questionnaire must be a dictionary")
-
-    # Check top-level keys
-    required_keys = ['version', 'blocks', 'schema_version']
-    missing = [k for k in required_keys if k not in data]
-    if missing:
-        raise ValueError(f"Questionnaire missing keys: {missing}")
-
-    # Validate blocks structure
-    blocks = data['blocks']
-    if not isinstance(blocks, dict):
-        raise ValueError("blocks must be a dict")
-
-    if 'micro_questions' not in blocks:
-        raise ValueError("blocks.micro_questions is required")
-
-    micro_questions = blocks['micro_questions']
-    if not isinstance(micro_questions, list):
-        raise ValueError("blocks.micro_questions must be a list")
-    
-    # Enforce minimum: at least 1 question required
-    if len(micro_questions) < 1:
-        raise ValueError(
-            "Questionnaire must have at least 1 micro question, got 0. "
-            "Cannot proceed with empty questionnaire."
-        )
-
-    # Track for duplicate detection
-    seen_question_ids = set()
-    seen_question_globals = set()
-
-    # Validate each question
-    required_q_keys = ['question_id', 'question_global', 'base_slot']
-
-    for i, q in enumerate(micro_questions):
-        if not isinstance(q, dict):
-            raise ValueError(f"Question {i} must be a dict, got {type(q).__name__}")
-        
-        # Check required keys
-        missing_q = [k for k in required_q_keys if k not in q]
-        if missing_q:
-            raise ValueError(f"Question {i} missing keys: {missing_q}")
-        
-        # Check for None values
-        for key in required_q_keys:
-            if q[key] is None:
-                raise ValueError(f"Question {i}: {key} cannot be None")
-        
-        # Type validation
-        question_id = q['question_id']
-        if not isinstance(question_id, str):
-            raise ValueError(
-                f"Question {i}: question_id must be string, got {type(question_id).__name__}"
-            )
-        
-        question_global = q['question_global']
-        if not isinstance(question_global, int):
-            raise ValueError(
-                f"Question {i}: question_global must be an integer, got {type(question_global).__name__}"
-            )
-        
-        base_slot = q['base_slot']
-        if not isinstance(base_slot, str):
-            raise ValueError(
-                f"Question {i}: base_slot must be string, got {type(base_slot).__name__}"
-            )
-        
-        # Duplicate detection
-        if question_id in seen_question_ids:
-            raise ValueError(f"Duplicate question_id: {question_id} at index {i}")
-        seen_question_ids.add(question_id)
-        
-        if question_global in seen_question_globals:
-            raise ValueError(
-                f"Duplicate question_global: {question_global} at index {i}"
-            )
-        seen_question_globals.add(question_global)
-
-    logger.info(
-        "questionnaire_validation_passed",
-        extra={
-            "question_count": len(micro_questions),
-            "unique_question_ids": len(seen_question_ids),
-        }
-    )
+    from .questionnaire import _validate_questionnaire_structure
+    return _validate_questionnaire_structure(data)
 
 # ============================================================================
 # MIGRATION HELPERS
@@ -1389,12 +1243,25 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # Others are clean
 
 __all__ = [
+    # Questionnaire integrity types and constants (re-exported from questionnaire.py)
+    'CanonicalQuestionnaire',
+    'EXPECTED_HASH',
+    'EXPECTED_MACRO_QUESTION_COUNT',
+    'EXPECTED_MICRO_QUESTION_COUNT',
+    'EXPECTED_MESO_QUESTION_COUNT',
+    'EXPECTED_TOTAL_QUESTION_COUNT',
+    'QUESTIONNAIRE_PATH',
+    # Canonical loader (use this!)
+    'load_questionnaire',
+    # Factory classes
     'CoreModuleFactory',
     'ProcessorBundle',
     'ContractManifest',
     'ImmutableExecutionContext',
     'load_questionnaire_monolith',
-    'validate_questionnaire_structure',
+    # Hash computation (for backward compatibility, prefer questionnaire module)
+    'compute_monolith_hash',
+    # Other loaders
     'load_catalog',
     'load_method_map',
     'get_canonical_dimensions',
@@ -1402,6 +1269,7 @@ __all__ = [
     'load_schema',
     'load_document',
     'save_results',
+    # Contract constructors
     'construct_semantic_analyzer_input',
     'construct_cdaf_input',
     'construct_pdet_input',
@@ -1410,6 +1278,7 @@ __all__ = [
     'construct_embedding_policy_input',
     'construct_semantic_chunking_input',
     'construct_policy_processor_input',
+    # Builder
     'build_processor',
     'compute_monolith_hash',
     'compute_blake3_hash',

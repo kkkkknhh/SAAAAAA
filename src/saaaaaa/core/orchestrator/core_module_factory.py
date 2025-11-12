@@ -19,17 +19,17 @@ from typing import Any
 
 import structlog
 
-from saaaaaa.core.orchestrator.questionnaire_resource_provider import (
+from .questionnaire_resource_provider import (
     QuestionnaireResourceProvider,
     Pattern,
     ValidationSpec,
 )
-from saaaaaa.core.orchestrator.signals import (
+from .signals import (
     SignalClient,
     SignalRegistry,
     InMemorySignalSource,
 )
-from saaaaaa.core.orchestrator.signal_loader import build_all_signal_packs
+from .signal_loader import build_all_signal_packs
 
 
 logger = structlog.get_logger(__name__)

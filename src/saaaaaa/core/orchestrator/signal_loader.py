@@ -56,47 +56,28 @@ def compute_fingerprint(content: str | bytes) -> str:
         return hashlib.sha256(content).hexdigest()
 
 
-def get_monolith_path() -> Path:
-    """
-    Get path to questionnaire_monolith.json.
-    
-    Returns:
-        Path object pointing to monolith file
-    """
-    # Try multiple possible locations
-    repo_root = Path(__file__).parent.parent.parent.parent.parent
-    possible_paths = [
-        repo_root / "data" / "questionnaire_monolith.json",
-        Path("data/questionnaire_monolith.json"),
-    ]
-    
-    for path in possible_paths:
-        if path.exists():
-            return path
-    
-    raise FileNotFoundError(
-        f"questionnaire_monolith.json not found in any of: {possible_paths}"
-    )
-
-
 def load_questionnaire_monolith() -> dict[str, Any]:
     """
-    Load questionnaire monolith JSON file.
+    Load questionnaire monolith using canonical loader.
+    
+    DEPRECATED: This function now uses the canonical questionnaire loader
+    for integrity checking and hash verification.
     
     Returns:
-        Parsed JSON data
+        Parsed JSON data (mutable dict for backward compatibility)
     """
-    monolith_path = get_monolith_path()
-    with open(monolith_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    from .questionnaire import load_questionnaire
+    
+    canonical = load_questionnaire()
     
     logger.info(
-        "questionnaire_monolith_loaded",
-        path=str(monolith_path),
-        questions=len(data.get('blocks', {}).get('micro_questions', [])),
+        "questionnaire_monolith_loaded_via_canonical_loader",
+        sha256=canonical.sha256[:16] + "...",
+        questions=canonical.total_question_count,
     )
     
-    return data
+    # Return mutable dict for backward compatibility
+    return dict(canonical.data)
 
 
 def extract_patterns_by_policy_area(

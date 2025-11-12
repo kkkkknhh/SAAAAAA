@@ -59,7 +59,7 @@ from typing import Any, Generic, TypeVar
 import numpy as np
 
 # Contract infrastructure - ACTUAL INTEGRATION
-from saaaaaa.utils.determinism_helpers import deterministic
+from ...utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
 from .calibration_registry import resolve_calibration
