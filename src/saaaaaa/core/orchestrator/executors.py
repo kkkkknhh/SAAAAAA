@@ -62,13 +62,21 @@ import numpy as np
 from saaaaaa.utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
-from .calibration_registry import CALIBRATIONS, resolve_calibration, CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
+from .calibration_registry import resolve_calibration
 from .advanced_module_config import (
     AdvancedModuleConfig,
     DEFAULT_ADVANCED_CONFIG,
     CONSERVATIVE_ADVANCED_CONFIG,
 )
 from .signal_consumption import SignalConsumptionProof
+
+# NEW: Calibration system imports
+try:
+    from saaaaaa.core.calibration import CalibrationOrchestrator
+    HAS_CALIBRATION = True
+except ImportError:
+    CalibrationOrchestrator = None  # type: ignore
+    HAS_CALIBRATION = False
 
 try:
     from opentelemetry import trace
@@ -1311,6 +1319,9 @@ class MethodSequenceValidatingMixin:
 
 class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
     """Advanced executor with frontier paradigmatic capabilities"""
+    
+    # Calibration threshold: methods with scores below this are skipped
+    CALIBRATION_SKIP_THRESHOLD = 0.3
 
     def __init__(
         self,
@@ -1318,6 +1329,7 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         signal_registry=None,
         config: ExecutorConfig | None = None,
         questionnaire_provider=None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,  # NEW
     ) -> None:
         # Section 3: ExecutorConfig Contract Enforcement
         # Config is REQUIRED - no fallbacks allowed
@@ -1331,9 +1343,14 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         self.signal_registry = signal_registry
         self.questionnaire_provider = questionnaire_provider
         self.config = config or CONSERVATIVE_CONFIG
+        
+        # NEW: Calibration orchestrator
+        self.calibration = calibration_orchestrator
+        
+        # NEW: Store calibration results for current execution
+        self.calibration_results: dict[str, "CalibrationResult"] = {}
 
-        if self.config is None:
-            raise RuntimeError("ExecutorConfig is required and cannot be None")
+
 
         # Get advanced module configuration from config or use default
         # Pydantic ensures type safety, so if advanced_modules is set, it's AdvancedModuleConfig
@@ -1393,6 +1410,7 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 "quantum_methods": adv_config.quantum_num_methods,
                 "neuromorphic_stages": adv_config.neuromorphic_num_stages,
                 "causal_variables": adv_config.causal_num_variables,
+                "calibration_enabled": self.calibration is not None,  # NEW
             },
         )
 
@@ -1694,6 +1712,92 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         """
         execution_start = time.time()
         self.executor = method_executor
+        
+        # ============================================================
+        # CALIBRATION PHASE (NEW - inserted per corrected spec)
+        # ============================================================
+        calibration_results = {}
+        skipped_methods = []
+        
+        if self.calibration is not None:
+            logger.info("calibration_phase_start")
+            
+            # Build context for calibration
+            try:
+                from saaaaaa.core.calibration.data_structures import ContextTuple
+                
+                # Extract context information from doc
+                question_id = getattr(doc, 'question_id', 'Q000')
+                dimension_id = getattr(doc, 'dimension_id', 'DIM00')
+                policy_area_id = getattr(doc, 'policy_area_id', 'PA00')
+                unit_quality = getattr(doc, 'unit_quality', 0.75)
+                
+                context = ContextTuple(
+                    question_id=question_id,
+                    dimension=dimension_id,
+                    policy_area=policy_area_id,
+                    unit_quality=unit_quality
+                )
+                
+                # Get PDT structure if available
+                pdt_structure = getattr(doc, 'pdt_structure', None)
+                
+                # Calibrate each method in the sequence
+                for class_name, method_name in method_sequence:
+                    method_id = f"{class_name}.{method_name}"
+                    method_version = "v1.0.0"  # Default version
+                    
+                    try:
+                        # THIS IS THE CRITICAL CALL THAT WAS MISSING:
+                        cal_result = self.calibration.calibrate(
+                            method_id=method_id,
+                            method_version=method_version,
+                            context=context,
+                            pdt_structure=pdt_structure,
+                            graph_config=self.config.compute_hash() if hasattr(self.config, 'compute_hash') else None,
+                            subgraph_id=f"{question_id}_{class_name}"
+                        )
+                        
+                        calibration_results[method_id] = cal_result
+                        
+                        logger.info(
+                            "method_calibrated",
+                            extra={
+                                "method": method_id,
+                                "final_score": cal_result.final_score,
+                                "class": class_name
+                            }
+                        )
+                        
+                    except Exception as e:
+                        logger.error(
+                            "calibration_failed",
+                            extra={
+                                "method": method_id,
+                                "error": str(e)
+                            },
+                            exc_info=True
+                        )
+                        # Continue without calibration for this method
+                
+                logger.info(
+                    "calibration_phase_complete",
+                    extra={"num_calibrated": len(calibration_results)}
+                )
+                
+            except Exception as e:
+                logger.error(
+                    "calibration_phase_error",
+                    extra={"error": str(e)},
+                    exc_info=True
+                )
+        else:
+            logger.info("calibration_disabled", extra={"reason": "orchestrator_is_none"})
+        
+        # ============================================================
+        # END CALIBRATION PHASE
+        # ============================================================
+        
         results = {}
         current_data = doc.raw_text
         
@@ -1806,6 +1910,35 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 
                 for idx, (class_name, method_name) in enumerate(method_sequence):
                     method_key = f"{class_name}.{method_name}"
+                    
+                    # ============================================================
+                    # METHOD SKIPPING BASED ON CALIBRATION (NEW)
+                    # ============================================================
+                    if method_key in calibration_results:
+                        cal_score = calibration_results[method_key].final_score
+                        
+                        if cal_score < self.CALIBRATION_SKIP_THRESHOLD:
+                            logger.warning(
+                                "method_skipped_low_calibration",
+                                extra={
+                                    "method": method_key,
+                                    "score": cal_score,
+                                    "threshold": self.CALIBRATION_SKIP_THRESHOLD
+                                }
+                            )
+                            
+                            skipped_methods.append({
+                                "method_id": method_key,
+                                "calibration_score": cal_score,
+                                "threshold": self.CALIBRATION_SKIP_THRESHOLD,
+                                "reason": "calibration_score_below_threshold"
+                            })
+                            
+                            continue  # SKIP THIS METHOD
+                    # ============================================================
+                    # END METHOD SKIPPING
+                    # ============================================================
+                    
                     executed_sequence.append((class_name, method_name))
 
                     self.probabilistic_executor.define_prior(
@@ -1945,6 +2078,35 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                     'consumption_proof': consumption_proof.get_consumption_proof() if consumption_proof else None,
                 }
             }
+            
+            # ============================================================
+            # ADD CALIBRATION RESULTS TO OUTPUT (NEW)
+            # ============================================================
+            if calibration_results:
+                from datetime import datetime
+                result["_calibration"] = {
+                    "executed_at": datetime.utcnow().isoformat(),
+                    "config_hash": self.calibration.config.compute_system_hash() if self.calibration and hasattr(self.calibration.config, 'compute_system_hash') else None,
+                    "scores": {
+                        method_id: {
+                            "final_score": res.final_score,
+                            "layer_breakdown": {
+                                str(layer): score.score
+                                for layer, score in res.layer_scores.items()
+                            },
+                            "linear_contribution": res.linear_contribution,
+                            "interaction_contribution": res.interaction_contribution,
+                            "config_hash": res.computation_metadata.get("config_hash"),
+                        }
+                        for method_id, res in calibration_results.items()
+                    },
+                    "skipped_methods": skipped_methods,
+                    "total_methods_calibrated": len(calibration_results),
+                    "total_methods_skipped": len(skipped_methods),
+                }
+            # ============================================================
+            # END CALIBRATION RESULTS
+            # ============================================================
             
             return result
             
@@ -2991,8 +3153,9 @@ class D1Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         # Validate method sequence at construction time
         self._validate_method_sequences()
         self._validate_calibrations()
@@ -3037,8 +3200,9 @@ class D1Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3071,8 +3235,9 @@ class D1Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3115,8 +3280,9 @@ class D1Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3153,8 +3319,9 @@ class D1Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3189,8 +3356,9 @@ class D2Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3231,8 +3399,9 @@ class D2Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3276,8 +3445,9 @@ class D2Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3313,8 +3483,9 @@ class D2Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3353,8 +3524,9 @@ class D2Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3394,8 +3566,9 @@ class D3Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3434,8 +3607,9 @@ class D3Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3475,8 +3649,9 @@ class D3Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3512,8 +3687,9 @@ class D3Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3551,8 +3727,9 @@ class D3Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3607,8 +3784,9 @@ class D4Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3647,8 +3825,9 @@ class D4Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3693,8 +3872,9 @@ class D4Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3735,8 +3915,9 @@ class D4Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3772,8 +3953,9 @@ class D4Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3809,8 +3991,9 @@ class D5Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3847,8 +4030,9 @@ class D5Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3894,8 +4078,9 @@ class D5Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3934,8 +4119,9 @@ class D5Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -3970,8 +4156,9 @@ class D5Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -4006,8 +4193,9 @@ class D6Q1_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -4061,8 +4249,9 @@ class D6Q2_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -4121,8 +4310,9 @@ class D6Q3_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -4165,8 +4355,9 @@ class D6Q4_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):
@@ -4224,8 +4415,9 @@ class D6Q5_Executor(AdvancedDataFlowExecutor):
         method_executor,
         signal_registry=None,
         config: ExecutorConfig | None = None,
+        calibration_orchestrator: "CalibrationOrchestrator | None" = None,
     ) -> None:
-        super().__init__(method_executor, signal_registry, config)
+        super().__init__(method_executor, signal_registry, config, calibration_orchestrator)
         self._validate_calibrations()
 
     def execute(self, doc, method_executor):

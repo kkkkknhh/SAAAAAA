@@ -14,7 +14,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 
 class RuntimeValidator:
