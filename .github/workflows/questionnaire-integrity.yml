@@ -1,0 +1,240 @@
+name: Questionnaire Integrity Check
+
+on:
+  push:
+    paths:
+      - 'data/questionnaire_monolith.json'
+      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/**/*.py'
+  pull_request:
+    paths:
+      - 'data/questionnaire_monolith.json'
+      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/**/*.py'
+  workflow_dispatch:
+
+jobs:
+  verify-questionnaire-hash:
+    name: Verify Questionnaire Hash
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Compute questionnaire hash
+        id: compute_hash
+        run: |
+          ACTUAL=$(sha256sum data/questionnaire_monolith.json | cut -d' ' -f1)
+          echo "actual_hash=$ACTUAL" >> $GITHUB_OUTPUT
+          echo "Actual hash: $ACTUAL"
+
+      - name: Extract expected hash from factory.py
+        id: expected_hash
+        run: |
+          EXPECTED=$(grep "EXPECTED_QUESTIONNAIRE_HASH" src/saaaaaa/core/orchestrator/factory.py | grep -oP '"[a-f0-9]{64}"' | tr -d '"')
+          echo "expected_hash=$EXPECTED" >> $GITHUB_OUTPUT
+          echo "Expected hash: $EXPECTED"
+
+      - name: Verify hash matches
+        run: |
+          ACTUAL="${{ steps.compute_hash.outputs.actual_hash }}"
+          EXPECTED="${{ steps.expected_hash.outputs.expected_hash }}"
+          
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "❌ QUESTIONNAIRE HASH MISMATCH!"
+            echo ""
+            echo "Actual:   $ACTUAL"
+            echo "Expected: $EXPECTED"
+            echo ""
+            echo "If this is a legitimate questionnaire change, update"
+            echo "EXPECTED_QUESTIONNAIRE_HASH in src/saaaaaa/core/orchestrator/factory.py"
+            echo "to match the actual hash above."
+            exit 1
+          else
+            echo "✅ QUESTIONNAIRE_HASH_VERIFIED"
+          fi
+
+  verify-import-discipline:
+    name: Verify Import Discipline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for direct questionnaire access
+        run: |
+          echo "Scanning for direct questionnaire_monolith.json access..."
+          
+          # Find all Python files that directly access questionnaire_monolith.json
+          # Exclude factory.py (the only allowed location) and test files
+          VIOLATIONS=$(grep -r "questionnaire_monolith\.json" src/ --include="*.py" \
+            | grep -v "src/saaaaaa/core/orchestrator/factory.py" \
+            | grep -v "# .*questionnaire_monolith\.json" \
+            | grep -v "docstring" \
+            | grep -v '"""' \
+            | grep -v "'''" \
+            || true)
+          
+          if [ ! -z "$VIOLATIONS" ]; then
+            echo "❌ DIRECT QUESTIONNAIRE ACCESS DETECTED:"
+            echo "$VIOLATIONS"
+            echo ""
+            echo "Questionnaire must ONLY be loaded via:"
+            echo "  from saaaaaa.core.orchestrator.factory import load_questionnaire"
+            echo ""
+            echo "Do NOT access questionnaire_monolith.json directly!"
+            exit 1
+          else
+            echo "✅ IMPORT_DISCIPLINE_VERIFIED"
+          fi
+
+  test-canonical-loader:
+    name: Test Canonical Loader
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal dependencies
+        run: |
+          pip install --no-deps -e . || true
+
+      - name: Test canonical loader
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          import json
+          import hashlib
+          from pathlib import Path
+          from types import MappingProxyType
+          from collections import OrderedDict
+
+          # Constants
+          EXPECTED_HASH = "f4a48932f6a3c408e65589680de334d54e69d4a43adb787bb91571788a91feb8"
+          EXPECTED_COUNT = 300
+
+          # Load and verify
+          path = Path("data/questionnaire_monolith.json")
+          
+          # Compute hash
+          raw_content = path.read_bytes()
+          sha256 = hashlib.sha256(raw_content).hexdigest()
+          
+          # Parse JSON
+          content = path.read_text(encoding='utf-8')
+          data = json.loads(content, object_pairs_hook=OrderedDict)
+          
+          # Validate
+          question_count = len(data['blocks']['micro_questions'])
+          
+          print(f"Question count: {question_count}")
+          print(f"SHA256: {sha256}")
+          
+          # Assertions
+          assert question_count == EXPECTED_COUNT, f"Expected {EXPECTED_COUNT} questions, got {question_count}"
+          assert sha256 == EXPECTED_HASH, f"Hash mismatch: expected {EXPECTED_HASH}, got {sha256}"
+          
+          print("✅ QUESTIONNAIRE_VALIDATED")
+          PYEOF
+
+  verify-immutability:
+    name: Verify Immutability
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test immutability
+        run: |
+          python3 << 'PYEOF'
+          import json
+          from pathlib import Path
+          from types import MappingProxyType
+          from collections import OrderedDict
+
+          def _deep_freeze(obj):
+              if isinstance(obj, dict):
+                  return {k: _deep_freeze(v) for k, v in obj.items()}
+              elif isinstance(obj, list):
+                  return tuple(_deep_freeze(item) for item in obj)
+              else:
+                  return obj
+
+          # Load questionnaire
+          path = Path("data/questionnaire_monolith.json")
+          content = path.read_text(encoding='utf-8')
+          data = json.loads(content, object_pairs_hook=OrderedDict)
+          
+          # Create immutable structures
+          micro_questions = tuple(
+              MappingProxyType(q) for q in data['blocks']['micro_questions']
+          )
+          immutable_data = MappingProxyType(_deep_freeze(data))
+          
+          # Test immutability
+          try:
+              immutable_data['test'] = 'should fail'
+              print("❌ Data is mutable!")
+              exit(1)
+          except TypeError:
+              print("✅ Data is immutable")
+          
+          try:
+              micro_questions[0]['test'] = 'should fail'
+              print("❌ Micro questions are mutable!")
+              exit(1)
+          except TypeError:
+              print("✅ Micro questions are immutable")
+          
+          print("✅ IMMUTABILITY_VERIFIED")
+          PYEOF
+
+  summary:
+    name: Questionnaire Integrity Summary
+    runs-on: ubuntu-latest
+    needs: [verify-questionnaire-hash, verify-import-discipline, test-canonical-loader, verify-immutability]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Questionnaire Integrity Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.verify-questionnaire-hash.result }}" == "success" ]; then
+            echo "✅ Hash verification: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Hash verification: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.verify-import-discipline.result }}" == "success" ]; then
+            echo "✅ Import discipline: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Import discipline: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.test-canonical-loader.result }}" == "success" ]; then
+            echo "✅ Canonical loader: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Canonical loader: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.verify-immutability.result }}" == "success" ]; then
+            echo "✅ Immutability: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Immutability: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi

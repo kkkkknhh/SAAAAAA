@@ -197,6 +197,55 @@ make audit-imports      # Check import health
 
 ---
 
+## 🔒 Questionnaire Integrity Protocol
+
+F.A.R.F.A.N enforces **strict questionnaire determinism** to ensure 100% verifiable, immutable, and hash-verified access to the policy questionnaire monolith.
+
+### The Five Rules
+
+1. **Single Load Point**: `factory.load_questionnaire()` is the ONLY way to load questionnaire
+2. **Immutable Data**: All questionnaire data uses `MappingProxyType` or `tuple` 
+3. **Hash Verification**: Every load verifies SHA256 == `f4a48932...` (expected hash)
+4. **Structure Validation**: Exactly 300 questions with validated schema or FAIL
+5. **No Direct Access**: `questionnaire_monolith.json` is NEVER read directly
+
+### Usage
+
+```python
+from saaaaaa.core.orchestrator.factory import load_questionnaire, CanonicalQuestionnaire
+
+# Load immutable, hash-verified questionnaire
+q: CanonicalQuestionnaire = load_questionnaire()
+
+# Access data (all immutable)
+print(f"Questions: {q.question_count}")  # 300
+print(f"Hash: {q.sha256}")  # f4a48932f6a3c408e65589680de334d54e69d4a43adb787bb91571788a91feb8
+print(f"Version: {q.version}")  # 1.0.0
+
+# Access questions (immutable tuple of MappingProxyType)
+first_q = q.micro_questions[0]
+question_id = first_q['question_id']  # ✅ Read OK
+# first_q['new_field'] = 'value'  # ❌ TypeError - immutable!
+```
+
+### CI Enforcement
+
+GitHub Actions workflow `.github/workflows/questionnaire-integrity.yml` verifies:
+- ✅ File hash matches expected constant
+- ✅ No direct file access violations
+- ✅ Canonical loader works correctly
+- ✅ Immutability is enforced
+
+### Full Documentation
+
+See [QUESTIONNAIRE_INTEGRITY_PROTOCOL.md](QUESTIONNAIRE_INTEGRITY_PROTOCOL.md) for complete details on:
+- Architecture and data flow
+- Migration guide from legacy dict access
+- How to legitimately change the questionnaire
+- Troubleshooting and security considerations
+
+---
+
 ## 1. Introducción
 
 ### 1.1. What is F.A.R.F.A.N?
