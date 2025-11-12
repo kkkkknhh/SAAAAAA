@@ -193,7 +193,7 @@ class ImmutableExecutionContext:
 
         method_seq = tuple(method_sequence) if method_sequence else ()
         args = MappingProxyType(arguments or {})
-        meta = MappingProxyType(metadata or {})
+        meta = MappingProxyType(dict(metadata or {}))
 
         # Compute hash of empty parent
         parent_hash = "root"
