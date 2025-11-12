@@ -3,7 +3,9 @@
 Structural verification of executor integration (no imports needed).
 """
 import re
+import sys
 from pathlib import Path
+
 
 def verify_executor_structure():
     """Verify the executor has all required calibration integration code."""
@@ -13,7 +15,17 @@ def verify_executor_structure():
     print("=" * 60)
 
     executor_file = Path("src/saaaaaa/core/orchestrator/executors.py")
-    content = executor_file.read_text()
+
+    # Add error handling for file reading
+    try:
+        content = executor_file.read_text()
+    except FileNotFoundError:
+        print(f"\n❌ ERROR: File not found: {executor_file}")
+        print("   Ensure you're running this script from the project root directory.")
+        return False
+    except Exception as e:
+        print(f"\n❌ ERROR: Failed to read file: {e}")
+        return False
 
     checks = []
 
@@ -43,16 +55,16 @@ def verify_executor_structure():
         print("   ❌ Calibration phase markers missing")
         checks.append(False)
 
-    # Check 4: calibration_results variable
-    if "calibration_results = {}" in content:
+    # Check 4: calibration_results variable (robust regex)
+    if re.search(r'calibration_results\s*=\s*(\{\}|dict\(\))', content):
         print("   ✅ calibration_results initialization found")
         checks.append(True)
     else:
         print("   ❌ calibration_results initialization missing")
         checks.append(False)
 
-    # Check 5: skipped_methods variable
-    if "skipped_methods = []" in content:
+    # Check 5: skipped_methods variable (robust regex)
+    if re.search(r'skipped_methods\s*=\s*(\[\]|list\(\))', content):
         print("   ✅ skipped_methods initialization found")
         checks.append(True)
     else:
@@ -68,25 +80,25 @@ def verify_executor_structure():
         print("   ❌ calibration.calibrate() call missing")
         checks.append(False)
 
-    # Check 7: Method skipping logic
+    # Check 7: Method skipping logic (exact comment)
     print("\n4. Checking method skipping...")
-    if "# METHOD SKIPPING" in content or "METHOD SKIPPING BASED ON CALIBRATION" in content:
+    if "# METHOD SKIPPING BASED ON CALIBRATION" in content:
         print("   ✅ Method skipping markers found")
         checks.append(True)
     else:
         print("   ❌ Method skipping markers missing")
         checks.append(False)
 
-    # Check 8: Skip threshold check
-    if "CALIBRATION_SKIP_THRESHOLD" in content or "SKIP_THRESHOLD" in content:
-        print("   ✅ Skip threshold check found")
+    # Check 8: Skip threshold check (usage pattern)
+    if re.search(r'cal_score\s*<\s*self\.\w*SKIP_THRESHOLD', content):
+        print("   ✅ Skip threshold usage found")
         checks.append(True)
     else:
-        print("   ❌ Skip threshold check missing")
+        print("   ❌ Skip threshold usage missing")
         checks.append(False)
 
-    # Check 9: Continue statement for skipping
-    if "continue  # SKIP" in content or "continue # SKIP" in content:
+    # Check 9: Continue statement for skipping (flexible whitespace)
+    if re.search(r'continue\s*#\s*SKIP', content):
         print("   ✅ Method skip continue found")
         checks.append(True)
     else:
@@ -134,8 +146,8 @@ def verify_executor_structure():
         print("   ❌ layer_breakdown field missing")
         checks.append(False)
 
-    # Check 15: skipped_methods in output
-    if re.search(r'"skipped_methods"\s*:\s*skipped_methods', content):
+    # Check 15: skipped_methods in output (accept single or double quotes)
+    if re.search(r'["\']skipped_methods["\']\s*:\s*skipped_methods', content):
         print("   ✅ skipped_methods in output found")
         checks.append(True)
     else:
@@ -148,8 +160,10 @@ def verify_executor_structure():
     total = len(checks)
 
     if all(checks):
-        print(f"✅ ALL {total} CHECKS PASSED - Integration structure is complete")
+        print(f"✅ ALL {total} STRUCTURAL CHECKS PASSED - Required code patterns found")
         print("=" * 60)
+        print("\nNote: This verifies code structure only. Functional integration")
+        print("      tests should be run separately to confirm runtime behavior.")
         return True
     else:
         print(f"❌ {total - passed}/{total} CHECKS FAILED")
@@ -158,6 +172,5 @@ def verify_executor_structure():
 
 
 if __name__ == "__main__":
-    import sys
     success = verify_executor_structure()
     sys.exit(0 if success else 1)

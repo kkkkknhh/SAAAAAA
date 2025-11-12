@@ -72,7 +72,8 @@ def test_unit_layer_not_stub():
                 "Año LB": 2023,
                 "Meta Cuatrienio": "150",
                 "Fuente": "DANE",
-                "Unidad Medida": "Personas"
+                "Unidad Medida": "Personas",
+                "Código MGA": "1234567"
             },
             {
                 "Tipo": "RESULTADO",
@@ -82,7 +83,8 @@ def test_unit_layer_not_stub():
                 "Año LB": 2023,
                 "Meta Cuatrienio": "95",
                 "Fuente": "Secretaría Salud",
-                "Unidad Medida": "Porcentaje"
+                "Unidad Medida": "Porcentaje",
+                "Código MGA": "7654321"
             }
         ],
         ppi_matrix_present=True,
@@ -103,7 +105,7 @@ def test_unit_layer_not_stub():
         ]
     )
 
-    # Create a minimal PDT (should get lower score but not zero due to some content)
+    # Create a minimal PDT (will get score of 0.0 due to missing required matrices - hard gates)
     pdt2 = PDTStructure(
         full_text="test2",
         total_tokens=1000,
