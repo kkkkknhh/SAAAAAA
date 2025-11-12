@@ -53,10 +53,15 @@ class CongruenceLayerEvaluator:
         Returns:
             C_play ∈ [0.0, 1.0]
         """
-        # Edge case: Single method = perfect congruence
+        # Edge case: Single method = perfect congruence, but only if method exists
         if len(method_ids) < 2:
-            logger.debug("congruence_single_method", extra={"score": 1.0})
-            return 1.0
+            method_id = method_ids[0] if method_ids else None
+            if method_id is not None and method_id in self.registry:
+                logger.debug("congruence_single_method", extra={"score": 1.0, "method_id": method_id})
+                return 1.0
+            else:
+                logger.warning("congruence_single_method_missing", extra={"score": 0.0, "method_id": method_id})
+                return 0.0
 
         logger.info(
             "congruence_evaluation_start",
