@@ -312,10 +312,14 @@ def test_unit_layer_is_data_driven():
               f"M={score_high.components.get('M', 'N/A'):.2f}, "
               f"I={score_high.components.get('I', 'N/A'):.2f}, "
               f"P={score_high.components.get('P', 'N/A'):.2f}")
-        print(f"   Low:  S={score_low.components.get('S', 'N/A'):.2f}, "
-              f"M={score_low.components.get('M', 'N/A'):.2f}, "
-              f"I={score_low.components.get('I', 'N/A'):.2f}, "
-              f"P={score_low.components.get('P', 'N/A'):.2f}")
+        # Handle N/A values (strings) gracefully
+        def fmt_score(val):
+            return f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
+        
+        print(f"   Low:  S={fmt_score(score_low.components.get('S', 'N/A'))}, "
+              f"M={fmt_score(score_low.components.get('M', 'N/A'))}, "
+              f"I={fmt_score(score_low.components.get('I', 'N/A'))}, "
+              f"P={fmt_score(score_low.components.get('P', 'N/A'))}")
     
     # Final result
     print("\n" + "=" * 60)
