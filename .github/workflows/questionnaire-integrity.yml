@@ -13,10 +13,15 @@ on:
       - 'src/**/*.py'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify-questionnaire-hash:
     name: Verify Questionnaire Hash
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,6 +67,8 @@ jobs:
   verify-import-discipline:
     name: Verify Import Discipline
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -96,6 +103,8 @@ jobs:
   test-canonical-loader:
     name: Test Canonical Loader
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -150,6 +159,8 @@ jobs:
   verify-immutability:
     name: Verify Immutability
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -209,6 +220,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [verify-questionnaire-hash, verify-import-discipline, test-canonical-loader, verify-immutability]
     if: always()
+    permissions:
+      contents: read
     steps:
       - name: Summary
         run: |
