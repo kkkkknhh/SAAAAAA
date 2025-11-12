@@ -131,7 +131,7 @@ All 7 core scripts are **COMPLIANT** with dependency injection requirements:
 
 ### Class Registry Completeness
 
-All 38 classes in the registry are properly mapped:
+All 20 classes in the registry are properly mapped:
 
 #### Core Processing Classes (7)
 - `IndustrialPolicyProcessor` → policy_processor.py
