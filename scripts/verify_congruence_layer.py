@@ -107,7 +107,7 @@ def test_congruence_differentiation():
         print(f"❌ Check 4: Scores not differentiated: {scores}")
 
     # Check 5: No stub value (1.0)
-    if perfect_score != 1.0 and partial_score != 1.0:
+    if all(s != 1.0 for s in scores):
         print("✅ Check 5: Not returning stub value (1.0)")
         checks_passed += 1
     else:
