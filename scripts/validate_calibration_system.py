@@ -6,7 +6,6 @@ This script provides EVIDENCE for all claims made in the PR.
 No lies, no exaggerations - just facts.
 """
 import sys
-import os
 from pathlib import Path
 
 # Add project root to path
@@ -65,10 +64,6 @@ try:
         LayerID,
         LayerScore,
         ContextTuple,
-        CompatibilityMapping,
-        InteractionTerm,
-        CalibrationResult,
-        CalibrationSubject,
     )
     print("✓ All core data structures imported successfully")
 except Exception as e:
@@ -77,10 +72,6 @@ except Exception as e:
 
 try:
     from src.saaaaaa.core.calibration.config import (
-        UnitLayerConfig,
-        MetaLayerConfig,
-        ChoquetAggregationConfig,
-        CalibrationSystemConfig,
         DEFAULT_CALIBRATION_CONFIG,
     )
     print("✓ Configuration modules imported successfully")

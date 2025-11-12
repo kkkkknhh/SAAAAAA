@@ -4,7 +4,6 @@ Unit Layer (@u) - PRODUCTION IMPLEMENTATION.
 Evaluates PDT quality through 4 components: S, M, I, P.
 """
 import logging
-import re
 from .config import UnitLayerConfig
 from .pdt_structure import PDTStructure
 from .data_structures import LayerID, LayerScore
@@ -18,6 +17,9 @@ class UnitLayerEvaluator:
     
     PRODUCTION IMPLEMENTATION - All scores are data-driven.
     """
+    
+    # Mandatory blocks required for PDT compliance
+    MANDATORY_BLOCKS = ["Diagnóstico", "Parte Estratégica", "PPI", "Seguimiento"]
     
     def __init__(self, config: UnitLayerConfig):
         self.config = config
@@ -116,14 +118,13 @@ class UnitLayerEvaluator:
     def _compute_structural_compliance(self, pdt: PDTStructure) -> float:
         """Compute S = w_block·B_cov + w_hierarchy·H + w_order·O."""
         # Block coverage
-        mandatory_blocks = ["Diagnóstico", "Parte Estratégica", "PPI", "Seguimiento"]
         blocks_found = sum(
-            1 for block in mandatory_blocks
+            1 for block in self.MANDATORY_BLOCKS
             if block in pdt.blocks_found
             and pdt.blocks_found[block].get("tokens", 0) >= self.config.min_block_tokens
             and pdt.blocks_found[block].get("numbers_count", 0) >= self.config.min_block_numbers
         )
-        B_cov = blocks_found / len(mandatory_blocks)
+        B_cov = blocks_found / len(self.MANDATORY_BLOCKS)
         
         # Hierarchy score
         if not pdt.headers:
@@ -301,8 +302,13 @@ class UnitLayerEvaluator:
         for row in pdt.indicator_rows:
             year_lb = row.get("Año LB")
             
-            if year_lb:
-                if not (self.config.i_valid_lb_year_min <= year_lb <= self.config.i_valid_lb_year_max):
+            if year_lb is not None:
+                try:
+                    year_lb_int = int(year_lb)
+                    if not (self.config.i_valid_lb_year_min <= year_lb_int <= self.config.i_valid_lb_year_max):
+                        logic_violations += 1
+                except (ValueError, TypeError):
+                    # Invalid year format counts as violation
                     logic_violations += 1
         
         I_logic = 1.0 - (logic_violations / len(pdt.indicator_rows))

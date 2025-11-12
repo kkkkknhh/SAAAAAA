@@ -1319,6 +1319,9 @@ class MethodSequenceValidatingMixin:
 
 class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
     """Advanced executor with frontier paradigmatic capabilities"""
+    
+    # Calibration threshold: methods with scores below this are skipped
+    CALIBRATION_SKIP_THRESHOLD = 0.3
 
     def __init__(
         self,
@@ -1715,7 +1718,6 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
         # ============================================================
         calibration_results = {}
         skipped_methods = []
-        SKIP_THRESHOLD = 0.3
         
         if self.calibration is not None:
             logger.info("calibration_phase_start")
@@ -1726,7 +1728,7 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                 
                 # Extract context information from doc
                 question_id = getattr(doc, 'question_id', 'Q000')
-                dimension_id = getattr(doc, 'dimension_id', 'D00')
+                dimension_id = getattr(doc, 'dimension_id', 'DIM00')
                 policy_area_id = getattr(doc, 'policy_area_id', 'PA00')
                 unit_quality = getattr(doc, 'unit_quality', 0.75)
                 
@@ -1915,20 +1917,20 @@ class AdvancedDataFlowExecutor(ExecutorBase, MethodSequenceValidatingMixin):
                     if method_key in calibration_results:
                         cal_score = calibration_results[method_key].final_score
                         
-                        if cal_score < SKIP_THRESHOLD:
+                        if cal_score < self.CALIBRATION_SKIP_THRESHOLD:
                             logger.warning(
                                 "method_skipped_low_calibration",
                                 extra={
                                     "method": method_key,
                                     "score": cal_score,
-                                    "threshold": SKIP_THRESHOLD
+                                    "threshold": self.CALIBRATION_SKIP_THRESHOLD
                                 }
                             )
                             
                             skipped_methods.append({
                                 "method_id": method_key,
                                 "calibration_score": cal_score,
-                                "threshold": SKIP_THRESHOLD,
+                                "threshold": self.CALIBRATION_SKIP_THRESHOLD,
                                 "reason": "calibration_score_below_threshold"
                             })
                             

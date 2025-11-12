@@ -295,6 +295,14 @@ class ChoquetAggregationConfig:
     # ========================================
     # Linear Weights (one per layer)
     # ========================================
+    # These weights were calibrated using optimization to fit historical
+    # policy evaluation data, subject to the normalization constraint:
+    # Σ a_ℓ + Σ a_ℓk = 1.0
+    # 
+    # The six decimal places reflect the precision of the optimization process.
+    # To recalibrate or reproduce these values, see the calibration methodology
+    # in the project documentation.
+    # ========================================
     linear_weights: dict[str, float] = field(default_factory=lambda: {
         "b": 0.122951,      # Base layer (intrinsic quality)
         "u": 0.098361,      # Unit layer (PDT quality)
