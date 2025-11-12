@@ -281,7 +281,7 @@ class ImmutableExecutionContext:
             metadata=self.metadata,
             parent_context_hash=self._compute_hash(),
             context_version=self.context_version + 1,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
     def to_dict(self) -> dict[str, Any]:
