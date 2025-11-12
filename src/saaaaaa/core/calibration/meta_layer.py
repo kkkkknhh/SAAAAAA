@@ -95,19 +95,6 @@ class MetaLayerEvaluator:
             self.config.w_cost * m_cost
         )
 
-        # Validate weights sum to 1.0 (within tolerance)
-        weight_sum = (self.config.w_transparency +
-                      self.config.w_governance +
-                      self.config.w_cost)
-        if abs(weight_sum - 1.0) > 0.01:
-            logger.warning(
-                "meta_weight_sum_invalid",
-                extra={
-                    "sum": weight_sum,
-                    "expected": 1.0
-                }
-            )
-
         logger.info(
             "meta_computed",
             extra={
