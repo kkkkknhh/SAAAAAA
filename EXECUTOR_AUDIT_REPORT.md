@@ -59,7 +59,7 @@ FrontierExecutorOrchestrator (4460:4556)
    - `ExecutorConfig` + `AdvancedModuleConfig` loaded
    - `FrontierExecutorOrchestrator` instantiated
    - `CoreModuleFactory` loads questionnaire via dependency injection
-   - `QuestionnaireResourceProvider` extracts 2,207+ patterns
+   - `QuestionnaireResourceProvider` extracts thousands of patterns
 
 2. **Registration Phase**
    - `ClassRegistry` builds mapping of 38 classes to import paths
