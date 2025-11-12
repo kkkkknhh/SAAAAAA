@@ -98,7 +98,6 @@ def main():
     
     # Add src to path for import testing FIRST
     if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
     
     print("=" * 70)
     print("IMPORT STANDARDIZATION VERIFICATION")

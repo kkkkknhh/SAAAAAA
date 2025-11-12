@@ -27,7 +27,6 @@ def test_compat_imports() -> bool:
     root = Path(__file__).parent.parent
     src_path = root / "src"
     if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
     
     try:
         from saaaaaa.compat import (

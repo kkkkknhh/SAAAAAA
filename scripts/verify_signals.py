@@ -23,7 +23,6 @@ from pathlib import Path
 
 # Add src to path
 REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 from saaaaaa.core.orchestrator.signals import SignalRegistry, SignalClient, InMemorySignalSource
 from saaaaaa.core.orchestrator.signal_loader import (

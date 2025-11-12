@@ -13,7 +13,6 @@ from pathlib import Path
 
 # Add src to path
 repo_root = Path(__file__).parent.parent
-sys.path.insert(0, str(repo_root / 'src'))
 
 
 def check_imports() -> tuple[bool, str]:

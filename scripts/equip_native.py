@@ -22,7 +22,6 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 src_path = root / "src"
 if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
 
 from saaaaaa.compat.native_check import (
     check_cpu_features,
