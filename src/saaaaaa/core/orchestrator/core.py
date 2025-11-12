@@ -28,8 +28,8 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Literal, ParamSpec, TypedDict, TypeVar
 
-from saaaaaa.analysis.recommendation_engine import RecommendationEngine
-from saaaaaa.processing.aggregation import (
+from ...analysis.recommendation_engine import RecommendationEngine
+from ...processing.aggregation import (
     AreaPolicyAggregator,
     AreaScore,
     ClusterAggregator,
@@ -44,7 +44,8 @@ from saaaaaa.processing.aggregation import (
 from .arg_router import ArgRouterError, ArgumentValidationError, ExtendedArgRouter
 from .calibration_registry import resolve_calibration
 from .class_registry import ClassRegistryError, build_class_registry
-from saaaaaa.core.dependency_lockdown import get_dependency_lockdown
+from ..dependency_lockdown import get_dependency_lockdown
+from .versions import CALIBRATION_VERSION
 
 if TYPE_CHECKING:
     from document_ingestion import PreprocessedDocument as IngestionPreprocessedDocument
@@ -849,7 +850,7 @@ class MethodExecutor:
         
         # Add calibration metadata for traceability
         self.calibration_version = CALIBRATION_VERSION
-        self.calibration_hash = get_calibration_hash()
+        self.calibration_hash = "n/a"  # Placeholder - hash function removed
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
