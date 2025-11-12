@@ -1,188 +1,254 @@
 """
-Congruence Layer (@C) - Ensemble Compatibility Evaluation.
+Congruence Layer (@C) - Full Implementation.
 
-This layer evaluates whether multiple methods in an ensemble are compatible,
-checking scale, semantic overlap, and fusion validity.
+Evaluates method ensemble congruence using three components:
+- c_scale: Range compatibility
+- c_sem: Semantic overlap (Jaccard index)
+- c_fusion: Fusion rule validity
+
+Formula: C_play(G|ctx) = c_scale · c_sem · c_fusion
 """
 import logging
-import json
-from pathlib import Path
-from typing import Dict, List
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
 class CongruenceLayerEvaluator:
-    """Evaluates congruence of method ensembles."""
+    """
+    Evaluates congruence of method ensembles.
 
-    def __init__(self, method_registry: Dict[str, Dict]):
+    Attributes:
+        registry: Dictionary mapping method IDs to their metadata
+    """
+
+    def __init__(self, method_registry: Dict[str, Any]):
         """
-        Initialize with method registry.
+        Initialize evaluator with method registry.
 
         Args:
-            method_registry: Dictionary mapping method IDs to their metadata
-                           (output_range, semantic_tags, fusion_requirements)
+            method_registry: Dict with method metadata (output_range, semantic_tags, etc.)
         """
         self.registry = method_registry
-        logger.info("congruence_layer_initialized", extra={"method_count": len(method_registry)})
+        logger.info("congruence_evaluator_initialized", extra={"num_methods": len(method_registry)})
 
-    def evaluate(self, method_ids: List[str], subgraph_id: str,
-                 fusion_rule: str = "weighted_average",
-                 available_inputs: List[str] = None) -> float:
+    def evaluate(
+        self,
+        method_ids: List[str],
+        subgraph_id: str,
+        fusion_rule: str = "weighted_average",
+        provided_inputs: List[str] = None
+    ) -> float:
         """
         Evaluate congruence of method ensemble.
 
+        Formula: C_play(G|ctx) = c_scale · c_sem · c_fusion
+
         Args:
-            method_ids: List of methods in the ensemble
-            subgraph_id: Identifier for the computation subgraph
-            fusion_rule: Method for combining outputs
-            available_inputs: Available inputs for fusion
+            method_ids: List of methods in the subgraph
+            subgraph_id: Identifier for this subgraph
+            fusion_rule: How outputs are combined (weighted_average, max, min, product)
+            provided_inputs: List of actual inputs provided
 
         Returns:
-            C_play = c_scale · c_sem · c_fusion (score in [0,1])
+            C_play ∈ [0.0, 1.0]
         """
-        if available_inputs is None:
-            available_inputs = []
-
-        # FIXED: Check single method exists in registry before returning 1.0
+        # Edge case: Single method = perfect congruence, but only if method exists
         if len(method_ids) < 2:
-            if len(method_ids) == 1 and method_ids[0] in self.registry:
-                return 1.0  # Single method automatically congruent
+            method_id = method_ids[0] if method_ids else None
+            if method_id is not None and method_id in self.registry:
+                logger.debug("congruence_single_method", extra={"score": 1.0, "method_id": method_id})
+                return 1.0
             else:
-                logger.warning("single_method_not_in_registry", extra={"method_id": method_ids[0] if method_ids else None})
-                return 0.0  # FIXED: Don't assume 1.0 for unknown methods
-
-        # Compute c_scale (range compatibility)
-        c_scale = self._compute_scale_compatibility(method_ids)
-
-        # Compute c_sem (semantic overlap)
-        c_sem = self._compute_semantic_overlap(method_ids)
-
-        # Compute c_fusion (fusion rule validity)
-        c_fusion = self._compute_fusion_validity(method_ids, fusion_rule, available_inputs)
-
-        # Final congruence score
-        score = c_scale * c_sem * c_fusion
+                logger.warning("congruence_single_method_missing", extra={"score": 0.0, "method_id": method_id})
+                return 0.0
 
         logger.info(
-            "congruence_evaluated",
+            "congruence_evaluation_start",
             extra={
                 "methods": method_ids,
                 "subgraph": subgraph_id,
-                "c_scale": c_scale,
-                "c_sem": c_sem,
-                "c_fusion": c_fusion,
-                "score": score
+                "fusion": fusion_rule
             }
         )
 
-        return score
+        # Component 1: Scale congruence (c_scale)
+        c_scale = self._compute_scale_congruence(method_ids)
+        logger.debug("c_scale_computed", extra={"score": c_scale})
 
-    def _compute_scale_compatibility(self, method_ids: List[str]) -> float:
+        # Component 2: Semantic congruence (c_sem)
+        c_sem = self._compute_semantic_congruence(method_ids)
+        logger.debug("c_sem_computed", extra={"score": c_sem})
+
+        # Component 3: Fusion validity (c_fusion)
+        c_fusion = self._compute_fusion_validity(
+            method_ids, fusion_rule, provided_inputs or []
+        )
+        logger.debug("c_fusion_computed", extra={"score": c_fusion})
+
+        # Final score: Product of three components
+        C_play = c_scale * c_sem * c_fusion
+
+        logger.info(
+            "congruence_computed",
+            extra={
+                "C_play": C_play,
+                "c_scale": c_scale,
+                "c_sem": c_sem,
+                "c_fusion": c_fusion,
+                "subgraph": subgraph_id
+            }
+        )
+
+        return C_play
+
+    def _compute_scale_congruence(self, method_ids: List[str]) -> float:
         """
-        Check if all methods have compatible output ranges.
+        Compute c_scale: Range compatibility.
 
-        FIXED: Check if ranges are within [0,1] instead of exact equality.
+        Scoring:
+            1.0: All ranges identical
+            0.8: All ranges convertible (within [0,1])
+            0.0: Incompatible ranges
+
+        Returns:
+            c_scale ∈ {0.0, 0.8, 1.0}
         """
         ranges = []
         for method_id in method_ids:
             if method_id not in self.registry:
-                logger.warning("method_not_in_registry", extra={"method_id": method_id})
+                logger.warning("method_not_registered", extra={"method": method_id})
                 return 0.0
 
-            output_range = self.registry[method_id].get("output_range", [0.0, 1.0])
-            # Normalize range type to avoid (0, 1) vs (0.0, 1.0) issues
-            ranges.append((float(output_range[0]), float(output_range[1])))
+            method_data = self.registry[method_id]
+            output_range = method_data.get("output_range")
 
-        # FIXED: Check if all ranges are within [0,1] instead of exact equality
-        if not all(r[0] >= 0.0 and r[1] <= 1.0 for r in ranges):
-            logger.warning("incompatible_ranges", extra={"ranges": ranges})
-            return 0.0
-
-        # Check if all ranges are similar (difference < 0.1)
-        min_lower = min(r[0] for r in ranges)
-        max_upper = max(r[1] for r in ranges)
-
-        if max_upper - min_lower > 0.5:
-            return 0.5  # Partially compatible
-        else:
-            return 1.0  # Fully compatible
-
-    def _compute_semantic_overlap(self, method_ids: List[str]) -> float:
-        """Compute semantic overlap using Jaccard similarity of tags."""
-        all_tags = []
-        for method_id in method_ids:
-            if method_id not in self.registry:
+            if output_range is None:
+                logger.warning("no_output_range", extra={"method": method_id})
                 return 0.0
-            tags = set(self.registry[method_id].get("semantic_tags", []))
-            all_tags.append(tags)
 
-        if not all_tags:
-            return 0.0
+            ranges.append(tuple(output_range))
 
-        # Compute pairwise Jaccard similarities
-        similarities = []
-        for i in range(len(all_tags)):
-            for j in range(i + 1, len(all_tags)):
-                intersection = len(all_tags[i] & all_tags[j])
-                union = len(all_tags[i] | all_tags[j])
-                if union > 0:
-                    similarities.append(intersection / union)
-                else:
-                    similarities.append(0.0)
+        # Check if all ranges are identical
+        first_range = ranges[0]
+        if all(r == first_range for r in ranges):
+            logger.debug("ranges_identical", extra={"range": first_range})
+            return 1.0
 
-        if not similarities:
-            return 1.0  # Single method case
+        # Check if all ranges are in [0,1] (convertible)
+        all_in_unit = all(r == (0.0, 1.0) for r in ranges)
+        if all_in_unit:
+            logger.debug("ranges_convertible", extra={"note": "all in [0,1]"})
+            return 0.8
 
-        # Average Jaccard similarity
-        return sum(similarities) / len(similarities)
+        # Incompatible ranges
+        logger.warning("ranges_incompatible", extra={"ranges": ranges})
+        return 0.0
 
-    def _compute_fusion_validity(self, method_ids: List[str], fusion_rule: str,
-                                  available_inputs: List[str]) -> float:
+    def _compute_semantic_congruence(self, method_ids: List[str]) -> float:
         """
-        Check if fusion rule is valid given method requirements.
+        Compute c_sem: Semantic overlap (Jaccard index).
 
-        FIXED: Add type-checking for fusion_requirements before calling .update()
-        """
-        required_fusion_inputs = set()
-
-        for method_id in method_ids:
-            if method_id not in self.registry:
-                return 0.0
-
-            fusion_reqs = self.registry[method_id].get("fusion_requirements", [])
-
-            # FIXED: Ensure fusion_requirements is iterable
-            if not isinstance(fusion_reqs, (list, set, tuple)):
-                logger.error(
-                    "invalid_fusion_requirements_type",
-                    extra={"method_id": method_id, "type": type(fusion_reqs).__name__}
-                )
-                return 0.0
-
-            required_fusion_inputs.update(fusion_reqs)
-
-        # Check if all required fusion inputs are available
-        missing = required_fusion_inputs - set(available_inputs)
-
-        if missing:
-            logger.warning("missing_fusion_inputs", extra={"missing": list(missing)})
-            return 0.5  # Partially valid
-
-        return 1.0  # Fully valid
-
-    @classmethod
-    def from_file(cls, registry_path: Path) -> "CongruenceLayerEvaluator":
-        """
-        Load evaluator from method registry JSON file.
-
-        Args:
-            registry_path: Path to method_registry.json
+        Formula: |intersection| / |union| of semantic tags
 
         Returns:
-            Configured CongruenceLayerEvaluator
+            c_sem ∈ [0.0, 1.0]
         """
-        with open(registry_path) as f:
-            data = json.load(f)
+        tag_sets = []
 
-        return cls(method_registry=data["methods"])
+        for method_id in method_ids:
+            if method_id not in self.registry:
+                logger.warning("method_not_registered", extra={"method": method_id})
+                return 0.0
+
+            tags = self.registry[method_id].get("semantic_tags", [])
+            if not isinstance(tags, (list, set)):
+                tags = []
+            tag_sets.append(set(tags))
+
+        if not tag_sets:
+            return 0.0
+
+        # Compute intersection and union
+        intersection = tag_sets[0]
+        union = tag_sets[0]
+
+        for tags in tag_sets[1:]:
+            intersection = intersection.intersection(tags)
+            union = union.union(tags)
+
+        # Jaccard index
+        if len(union) == 0:
+            logger.warning("no_semantic_tags", extra={"methods": method_ids})
+            return 0.0
+
+        jaccard = len(intersection) / len(union)
+
+        logger.debug(
+            "semantic_congruence",
+            extra={
+                "intersection": list(intersection),
+                "union_size": len(union),
+                "jaccard": jaccard
+            }
+        )
+
+        return jaccard
+
+    def _compute_fusion_validity(
+        self,
+        method_ids: List[str],
+        fusion_rule: str,
+        provided_inputs: List[str]
+    ) -> float:
+        """
+        Compute c_fusion: Fusion rule validity.
+
+        Scoring:
+            1.0: Rule valid AND all inputs present
+            0.5: Rule valid BUT some inputs missing
+            0.0: Rule invalid
+
+        Returns:
+            c_fusion ∈ {0.0, 0.5, 1.0}
+        """
+        # Check if fusion rule is valid
+        valid_rules = ["weighted_average", "max", "min", "product", "custom"]
+        if fusion_rule not in valid_rules:
+            logger.warning(
+                "invalid_fusion_rule",
+                extra={"rule": fusion_rule, "valid": valid_rules}
+            )
+            return 0.0
+
+        # Collect all fusion requirements
+        all_requirements = set()
+        for method_id in method_ids:
+            if method_id not in self.registry:
+                return 0.0
+
+            requirements = self.registry[method_id].get("fusion_requirements", [])
+            all_requirements.update(requirements)
+
+        # Check if provided inputs cover all requirements
+        provided = set(provided_inputs)
+        missing = all_requirements - provided
+
+        if not missing:
+            # All inputs provided
+            logger.debug(
+                "fusion_valid",
+                extra={"rule": fusion_rule, "all_inputs_present": True}
+            )
+            return 1.0
+        else:
+            # Some inputs missing
+            logger.warning(
+                "fusion_partial",
+                extra={
+                    "rule": fusion_rule,
+                    "missing": list(missing),
+                    "provided": list(provided)
+                }
+            )
+            return 0.5

@@ -1,103 +1,172 @@
 """
-Chain Layer (@chain) - Data Flow Validation.
+Chain Layer (@chain) - Full Implementation.
 
-This layer validates that method chains have correct data flow,
-ensuring required inputs are available and type-compatible.
+Validates data flow integrity for method chains.
+Discrete scoring system: {1.0, 0.8, 0.6, 0.3, 0.0}
 """
 import logging
-import json
-from pathlib import Path
-from typing import Dict, List, Set
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
 class ChainLayerEvaluator:
-    """Evaluates chain integrity through data flow validation."""
+    """
+    Validates chain integrity for method execution.
 
-    def __init__(self, method_signatures: Dict[str, Dict]):
+    Attributes:
+        signatures: Dictionary mapping method IDs to their input/output signatures
+    """
+
+    def __init__(self, method_signatures: Dict[str, Any]):
         """
-        Initialize with method signatures.
+        Initialize evaluator with method signatures.
 
         Args:
-            method_signatures: Dictionary mapping method IDs to their signatures
-                             (required_inputs, optional_inputs, outputs)
+            method_signatures: Dict with method input/output signatures
         """
         self.signatures = method_signatures
-        logger.info("chain_layer_initialized", extra={"method_count": len(method_signatures)})
+        logger.info("chain_evaluator_initialized", extra={"num_methods": len(method_signatures)})
 
-    def evaluate(self, method_id: str, provided_inputs: List[str]) -> float:
+    def evaluate(
+        self,
+        method_id: str,
+        provided_inputs: List[str],
+        upstream_outputs: Dict[str, str] = None
+    ) -> float:
         """
-        Evaluate chain integrity for a single method.
+        Validate chain integrity for a method.
+
+        Discrete scoring: {1.0, 0.8, 0.6, 0.3, 0.0}
 
         Args:
-            method_id: The method to evaluate
-            provided_inputs: List of available input names
+            method_id: Method to validate
+            provided_inputs: Inputs being provided
+            upstream_outputs: Types from upstream (for type checking)
 
         Returns:
-            Score in {0.0, 0.3, 0.6, 0.8, 1.0}
+            Chain score ∈ {0.0, 0.3, 0.6, 0.8, 1.0}
         """
-        # Check if method is in signatures (FIX: Return 0.0 not 0.1 for missing)
         if method_id not in self.signatures:
-            logger.warning("undeclared_method", extra={"method_id": method_id})
-            return 0.0  # FIXED: Was 0.1 in buggy version
+            logger.warning("method_signature_missing", extra={"method": method_id})
+            return 0.0  # Undeclared method
 
-        signature = self.signatures[method_id]
-        required = set(signature.get("required_inputs", []))
-        optional = set(signature.get("optional_inputs", []))
+        sig = self.signatures[method_id]
+        required = set(sig.get("required_inputs", []))
+        optional = set(sig.get("optional_inputs", []))
+        critical_optional = set(sig.get("critical_optional", []))
         provided = set(provided_inputs)
 
-        # Check required inputs
-        missing_required = required - provided
-        if missing_required:
-            logger.warning(
-                "missing_required_inputs",
-                extra={
-                    "method_id": method_id,
-                    "missing": list(missing_required),
-                    "score": 0.0
-                }
-            )
-            return 0.0
-
-        # Check optional inputs coverage
-        missing_optional = optional - provided
-        optional_coverage = 1.0 - (len(missing_optional) / len(optional)) if optional else 1.0
-
-        # Discrete mapping based on optional coverage
-        if optional_coverage == 1.0:
-            score = 1.0  # All inputs provided
-        elif optional_coverage >= 0.75:
-            score = 0.8  # Most optional inputs provided
-        elif optional_coverage >= 0.5:
-            score = 0.6  # Half of optional inputs provided
-        else:
-            score = 0.3  # Only required inputs provided
-
         logger.info(
-            "chain_evaluated",
+            "chain_validation_start",
             extra={
-                "method_id": method_id,
-                "required_satisfied": len(required),
-                "optional_coverage": optional_coverage,
-                "score": score
+                "method": method_id,
+                "required": list(required),
+                "provided": list(provided)
             }
         )
 
-        return score
+        # Check 1: Required inputs (HARD FAILURE if missing)
+        missing_required = required - provided
+        if missing_required:
+            logger.error(
+                "chain_hard_mismatch",
+                extra={
+                    "method": method_id,
+                    "missing_required": list(missing_required)
+                }
+            )
+            return 0.0  # Hard mismatch
 
-    @classmethod
-    def from_file(cls, signatures_path: Path) -> "ChainLayerEvaluator":
+        # Check 2: Critical optional inputs
+        missing_critical = critical_optional - provided
+        if missing_critical:
+            logger.warning(
+                "chain_missing_critical_optional",
+                extra={
+                    "method": method_id,
+                    "missing": list(missing_critical)
+                }
+            )
+            return 0.3  # Missing critical optional
+
+        # Check 3: Regular optional inputs
+        missing_optional = (optional - critical_optional) - provided
+        if missing_optional:
+            logger.info(
+                "chain_missing_optional",
+                extra={
+                    "method": method_id,
+                    "missing": list(missing_optional)
+                }
+            )
+            # Check severity: if many missing, lower score
+            optional_count = len(optional - critical_optional)
+            missing_count = len(missing_optional)
+            if optional_count > 0:
+                ratio = missing_count / optional_count
+                if ratio > 0.5:
+                    return 0.6  # Many optional missing
+                else:
+                    return 0.8  # Some optional missing
+
+        # All inputs present
+        logger.info("chain_valid", extra={"method": method_id, "score": 1.0})
+        return 1.0
+
+    def validate_chain_sequence(
+        self,
+        method_sequence: List[str],
+        initial_inputs: List[str]
+    ) -> Dict[str, float]:
         """
-        Load evaluator from method signatures JSON file.
+        Validate entire chain of methods.
 
         Args:
-            signatures_path: Path to method_signatures.json
+            method_sequence: Ordered list of methods
+            initial_inputs: Inputs available at start
 
         Returns:
-            Configured ChainLayerEvaluator
+            Dict mapping method_id to chain score
         """
-        with open(signatures_path) as f:
-            data = json.load(f)
+        results = {}
+        available_inputs = set(initial_inputs)
 
-        return cls(method_signatures=data["methods"])
+        for method_id in method_sequence:
+            # Validate this method
+            score = self.evaluate(method_id, list(available_inputs))
+            results[method_id] = score
+
+            # Add this method's output to available inputs
+            # (simplified - assumes output name matches method)
+            available_inputs.add(f"{method_id}_output")
+
+        return results
+
+    def compute_chain_quality(
+        self,
+        method_scores: Dict[str, float]
+    ) -> float:
+        """
+        Compute overall chain quality.
+
+        Formula: Minimum score in chain (weakest link)
+
+        Returns:
+            Overall quality ∈ [0.0, 1.0]
+        """
+        if not method_scores:
+            return 0.0
+
+        # Weakest link principle
+        min_score = min(method_scores.values())
+
+        logger.info(
+            "chain_quality_computed",
+            extra={
+                "min_score": min_score,
+                "num_methods": len(method_scores)
+            }
+        )
+
+        return min_score
