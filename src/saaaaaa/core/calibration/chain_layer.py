@@ -49,7 +49,7 @@ class ChainLayerEvaluator:
         """
         if method_id not in self.signatures:
             logger.warning("method_signature_missing", extra={"method": method_id})
-            return 0.1  # Undeclared method
+            return 0.0  # Undeclared method
 
         sig = self.signatures[method_id]
         required = set(sig.get("required_inputs", []))
