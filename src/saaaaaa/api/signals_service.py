@@ -31,7 +31,7 @@ from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from saaaaaa.core.orchestrator.signals import SignalPack, PolicyArea
-from saaaaaa.core.orchestrator.factory import load_questionnaire
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
 
 
 logger = structlog.get_logger(__name__)
@@ -41,35 +41,33 @@ logger = structlog.get_logger(__name__)
 _signal_store: dict[str, SignalPack] = {}
 
 
-def load_signals_from_monolith(monolith_path: str | Path) -> dict[str, SignalPack]:
+def load_signals_from_monolith(monolith_path: str | Path | None = None) -> dict[str, SignalPack]:
     """
     Load signal packs from questionnaire monolith using canonical loader.
 
-    Uses factory.load_questionnaire() for hash verification and immutability.
+    Uses questionnaire.load_questionnaire() for hash verification and immutability.
     This extracts policy-aware patterns, indicators, and thresholds from the
     questionnaire monolith and converts them into SignalPack format.
 
     Args:
-        monolith_path: Path to questionnaire_monolith.json
+        monolith_path: DEPRECATED - Path parameter is ignored. 
+                      Questionnaire always loads from canonical path.
 
     Returns:
         Dict mapping policy area to SignalPack
 
     TODO: Implement actual extraction logic from monolith structure
     """
-    monolith_path = Path(monolith_path)
-
-    if not monolith_path.exists():
-        logger.warning(
-            "monolith_not_found",
-            path=str(monolith_path),
-            message="Using stub signal packs",
+    if monolith_path is not None:
+        logger.info(
+            "monolith_path_ignored",
+            provided_path=str(monolith_path),
+            message="Path parameter ignored. Using canonical loader.",
         )
-        return _create_stub_signal_packs()
 
     try:
-        # Use canonical loader for hash verification and immutability
-        canonical_q = load_questionnaire(monolith_path)
+        # Use canonical loader (no path parameter - always canonical path)
+        canonical_q = load_questionnaire()
 
         logger.info(
             "signals_loaded_from_monolith",
