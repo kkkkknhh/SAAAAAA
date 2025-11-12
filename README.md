@@ -139,17 +139,17 @@ This system implements the **QUESTIONNAIRE DETERMINISM ENFORCEMENT PROTOCOL** to
 
 ### The Law
 
-1. **Single Load Point**: `factory.load_questionnaire()` is the ONLY way to load questionnaire data
+1. **Single Load Point**: `questionnaire.load_questionnaire()` is the ONLY way to load questionnaire data
 2. **Immutable Data**: All questionnaire data uses `MappingProxyType` or `tuple` (no mutable dicts/lists)
-3. **Hash Verification**: Every load verifies SHA256 matches `EXPECTED_HASH` in factory.py
+3. **Hash Verification**: Every load verifies SHA256 matches `EXPECTED_HASH` in questionnaire.py
 4. **Structure Validation**: 300 micro + 4 meso + 1 macro = 305 questions or FAIL
-5. **No Direct Access**: `questionnaire_monolith.json` is NEVER read directly except by factory.py
+5. **No Direct Access**: `questionnaire_monolith.json` is NEVER read directly except by questionnaire.py
 
 ### Usage (Correct)
 
 ```python
 # ✅ ALWAYS DO THIS:
-from saaaaaa.core.orchestrator.factory import load_questionnaire
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
 
 questionnaire = load_questionnaire()  # Returns CanonicalQuestionnaire
 
@@ -178,18 +178,18 @@ The CI workflow `.github/workflows/questionnaire-integrity.yml` runs on every pu
 
 - ✅ Questionnaire file hash matches `EXPECTED_HASH`
 - ✅ Question counts: 300 micro, 4 meso, 1 macro
-- ✅ No direct `questionnaire_monolith.json` access outside factory.py
+- ✅ No direct `questionnaire_monolith.json` access outside questionnaire.py
 - ✅ No `json.load()` patterns that bypass the canonical loader
 
 ### Manual Operations
 
 ```bash
 # ❌ NEVER DO THIS:
-cat data/questionnaire_monolith.json | jq '.blocks.micro_questions'
+jq '.blocks.micro_questions' data/questionnaire_monolith.json
 
 # ✅ ALWAYS DO THIS:
 python3 -c "
-from saaaaaa.core.orchestrator.factory import load_questionnaire
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
 q = load_questionnaire()
 print(f'Micro questions: {q.micro_question_count}')
 print(f'Total questions: {q.total_question_count}')
@@ -211,14 +211,14 @@ If you legitimately modify `questionnaire_monolith.json`:
    "
    ```
 
-2. **Update `EXPECTED_HASH` in `src/saaaaaa/core/orchestrator/factory.py`:**
+2. **Update `EXPECTED_HASH` in `src/saaaaaa/core/orchestrator/questionnaire.py`:**
    ```python
    EXPECTED_HASH: Final[str] = "NEW_HASH_HERE"
    ```
 
 3. **Commit both files together:**
    ```bash
-   git add data/questionnaire_monolith.json src/saaaaaa/core/orchestrator/factory.py
+   git add data/questionnaire_monolith.json src/saaaaaa/core/orchestrator/questionnaire.py
    git commit -m "Update questionnaire structure (hash verified)"
    ```
 
@@ -243,10 +243,10 @@ The questionnaire defines the entire analysis pipeline:
 
 ```bash
 # Check questionnaire integrity locally
-python3 -c "from saaaaaa.core.orchestrator.factory import load_questionnaire; q = load_questionnaire(); print('✅ VERIFIED:', q.sha256[:16] + '...')"
+python3 -c "from saaaaaa.core.orchestrator.questionnaire import load_questionnaire; q = load_questionnaire(); print('✅ VERIFIED:', q.sha256[:16] + '...')"
 
 # Find any violations in the codebase
-grep -r "questionnaire_monolith.json" --include="*.py" . | grep -v "src/saaaaaa/core/orchestrator/factory.py" | grep -v ".github/workflows"
+grep -r "questionnaire_monolith.json" --include="*.py" . | grep -v "src/saaaaaa/core/orchestrator/questionnaire.py" | grep -v ".github/workflows"
 # Should return NOTHING (or fail CI)
 ```
 

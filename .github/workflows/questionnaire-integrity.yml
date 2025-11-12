@@ -2,8 +2,8 @@ name: Questionnaire Integrity Check
 
 # This workflow enforces the QUESTIONNAIRE DETERMINISM ENFORCEMENT PROTOCOL
 # It ensures that:
-# 1. questionnaire_monolith.json hash matches EXPECTED_HASH in factory.py
-# 2. No direct JSON loads of questionnaire outside factory.py
+# 1. questionnaire_monolith.json hash matches EXPECTED_HASH in questionnaire.py
+# 2. No direct JSON loads of questionnaire outside questionnaire.py
 # 3. All imports use the canonical load_questionnaire() function
 # 4. Question count is exactly 305 (300 micro + 4 meso + 1 macro)
 
@@ -11,13 +11,13 @@ on:
   push:
     paths:
       - 'data/questionnaire_monolith.json'
-      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/saaaaaa/core/orchestrator/questionnaire.py'
       - 'src/**/*.py'
       - '.github/workflows/questionnaire-integrity.yml'
   pull_request:
     paths:
       - 'data/questionnaire_monolith.json'
-      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/saaaaaa/core/orchestrator/questionnaire.py'
       - 'src/**/*.py'
 
 jobs:
@@ -51,10 +51,10 @@ jobs:
           echo "actual_hash=$ACTUAL" >> $GITHUB_OUTPUT
           echo "Actual hash: $ACTUAL"
 
-      - name: Extract expected hash from factory.py
+      - name: Extract expected hash from questionnaire.py
         id: expected_hash
         run: |
-          EXPECTED=$(grep -A1 "^EXPECTED_HASH:" src/saaaaaa/core/orchestrator/factory.py | grep -oP '"\K[a-f0-9]{64}' || echo "NOT_FOUND")
+          EXPECTED=$(grep -oP 'EXPECTED_HASH.*=.*"\K[a-f0-9]{64}' src/saaaaaa/core/orchestrator/questionnaire.py || echo "NOT_FOUND")
           echo "expected_hash=$EXPECTED" >> $GITHUB_OUTPUT
           echo "Expected hash: $EXPECTED"
 
@@ -72,7 +72,7 @@ jobs:
             echo "Actual hash:   $ACTUAL"
             echo ""
             echo "If this change is intentional, update EXPECTED_HASH in:"
-            echo "  src/saaaaaa/core/orchestrator/factory.py"
+            echo "  src/saaaaaa/core/orchestrator/questionnaire.py"
             echo ""
             echo "Run this command to get the new hash:"
             echo "  python3 -c 'import json, hashlib; data=json.load(open(\"data/questionnaire_monolith.json\")); print(hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=True, separators=(\",\", \":\")).encode()).hexdigest())'"
@@ -125,7 +125,7 @@ jobs:
           echo "Checking for direct questionnaire_monolith.json access..."
 
           # Find Python files that mention questionnaire_monolith.json
-          # Exclude factory.py which is allowed to load it
+          # Exclude questionnaire.py which is the ONLY module allowed to load it
           VIOLATIONS=$(grep -r "questionnaire_monolith\.json" \
             --include="*.py" \
             --exclude-dir=".git" \
@@ -133,7 +133,7 @@ jobs:
             --exclude-dir=".pytest_cache" \
             --exclude-dir="node_modules" \
             . | \
-            grep -v "src/saaaaaa/core/orchestrator/factory.py" | \
+            grep -v "src/saaaaaa/core/orchestrator/questionnaire.py" | \
             grep -v "\.github/workflows" | \
             grep -v "#.*questionnaire_monolith\.json" || true)
 
@@ -145,7 +145,7 @@ jobs:
             echo "$VIOLATIONS"
             echo ""
             echo "All code must use:"
-            echo "  from saaaaaa.core.orchestrator.factory import load_questionnaire"
+            echo "  from saaaaaa.core.orchestrator.questionnaire import load_questionnaire"
             echo "  questionnaire = load_questionnaire()"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             exit 1
@@ -163,8 +163,7 @@ jobs:
             --exclude-dir=".git" \
             . | \
             grep -i "questionnaire" | \
-            grep -v "src/saaaaaa/core/orchestrator/factory.py" | \
-            grep -v "src/saaaaaa/core/orchestrator/questionnaire_resource_provider.py" | \
+            grep -v "src/saaaaaa/core/orchestrator/questionnaire.py" | \
             grep -v "\.github/workflows" | \
             grep -v "test_" || true)
 
@@ -203,7 +202,7 @@ jobs:
           # Verify the canonical loader exists and exports are correct
           import ast
 
-          with open('src/saaaaaa/core/orchestrator/factory.py', 'r') as f:
+          with open('src/saaaaaa/core/orchestrator/questionnaire.py', 'r') as f:
               content = f.read()
 
           # Check for required exports
@@ -219,7 +218,7 @@ jobs:
                   print(f'❌ Missing required export: {export}')
                   exit(1)
 
-          print('✅ All required exports found in factory.py')
+          print('✅ All required exports found in questionnaire.py')
 
           # Verify CanonicalQuestionnaire is a frozen dataclass
           if '@dataclass(frozen=True)' not in content:
