@@ -31,7 +31,7 @@ from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from saaaaaa.core.orchestrator.signals import SignalPack, PolicyArea
-from saaaaaa.core.orchestrator.factory import load_questionnaire
+from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
 
 
 logger = structlog.get_logger(__name__)

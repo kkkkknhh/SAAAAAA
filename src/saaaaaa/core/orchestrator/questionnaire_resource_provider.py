@@ -36,7 +36,7 @@ from typing import Any, Literal, TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from .factory import CanonicalQuestionnaire
+    from .questionnaire import CanonicalQuestionnaire
 
 logger = structlog.get_logger(__name__)
 
@@ -139,7 +139,7 @@ class QuestionnaireResourceProvider:
     instead of duplicating patterns.
 
     Usage (preferred):
-        from saaaaaa.core.orchestrator.factory import load_questionnaire
+        from saaaaaa.core.orchestrator.questionnaire import load_questionnaire
         questionnaire = load_questionnaire()
         provider = QuestionnaireResourceProvider(questionnaire)
         temporal_patterns = provider.get_temporal_patterns()
@@ -156,7 +156,7 @@ class QuestionnaireResourceProvider:
             questionnaire_data: CanonicalQuestionnaire (preferred) or dict (legacy)
         """
         # Import here to avoid circular dependency
-        from .factory import CanonicalQuestionnaire
+        from .questionnaire import CanonicalQuestionnaire
 
         if isinstance(questionnaire_data, CanonicalQuestionnaire):
             # Type-safe path: extract immutable data
@@ -208,14 +208,18 @@ class QuestionnaireResourceProvider:
         Returns:
             QuestionnaireResourceProvider instance
         """
-        from .factory import load_questionnaire
+        from .questionnaire import load_questionnaire
 
-        path = Path(path)
+        if path is not None:
+            logger.warning(
+                "from_file: path parameter is ignored by canonical loader. "
+                "Questionnaire always loads from canonical path."
+            )
 
-        logger.info("loading_questionnaire_via_canonical_loader", path=str(path))
+        logger.info("loading_questionnaire_via_canonical_loader")
 
-        # Use canonical loader for integrity checking
-        canonical = load_questionnaire(path)
+        # Use canonical loader for integrity checking (no path parameter)
+        canonical = load_questionnaire()
 
         return cls(canonical)
     
