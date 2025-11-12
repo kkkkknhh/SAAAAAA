@@ -441,7 +441,7 @@ except ImportError:
    - Meta-learning for adaptive strategies
 
 5. **Comprehensive Method Coverage**
-   - 165 methods across 38 classes
+   - 165 methods across 20 classes
    - 97.6% method signature completeness
    - Strategic articulation for 300 questions
 
