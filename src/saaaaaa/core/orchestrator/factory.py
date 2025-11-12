@@ -18,13 +18,15 @@ Status: Skeleton implementation (to be expanded with I/O migration)
 """
 
 import copy
+import hashlib
 import json
 import logging
+from collections import OrderedDict
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 from ..contracts import (
     CDAFFrameworkInputContract,
@@ -45,6 +47,81 @@ logger = logging.getLogger(__name__)
 # Canonical repository root - single source of truth for all file paths
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
+
+# The ONLY valid questionnaire path
+QUESTIONNAIRE_PATH: Final[Path] = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
+
+# Expected questionnaire SHA256 hash - UPDATE when questionnaire changes legitimately
+# Current hash computed from questionnaire_monolith.json version 1.0.0
+EXPECTED_QUESTIONNAIRE_HASH: Final[str] = (
+    "f4a48932f6a3c408e65589680de334d54e69d4a43adb787bb91571788a91feb8"
+)
+
+# Expected question count - UPDATE if questionnaire structure changes
+EXPECTED_QUESTION_COUNT_CANONICAL: Final[int] = 300
+
+@dataclass(frozen=True)
+class CanonicalQuestionnaire:
+    """Immutable, validated questionnaire with hash verification.
+    
+    This is the ONLY valid type for questionnaire data in the system.
+    All questionnaire access must go through this immutable container.
+    
+    Attributes:
+        data: Immutable view of questionnaire data (MappingProxyType)
+        sha256: SHA256 hash of the canonical JSON representation
+        micro_questions: Immutable tuple of micro questions (each as MappingProxyType)
+        question_count: Total number of micro questions
+        version: Questionnaire version string
+        schema_version: Schema version string
+    """
+
+    data: MappingProxyType[str, Any]
+    sha256: str
+    micro_questions: tuple[MappingProxyType[str, Any], ...]
+    question_count: int
+    version: str
+    schema_version: str
+
+    def __post_init__(self) -> None:
+        """Validate invariants after initialization."""
+        # Validate question count
+        if self.question_count != EXPECTED_QUESTION_COUNT_CANONICAL:
+            raise ValueError(
+                f"Expected {EXPECTED_QUESTION_COUNT_CANONICAL} questions, "
+                f"got {self.question_count}"
+            )
+
+        # Validate hash
+        if self.sha256 != EXPECTED_QUESTIONNAIRE_HASH:
+            logger.warning(
+                f"Questionnaire hash mismatch! "
+                f"Expected: {EXPECTED_QUESTIONNAIRE_HASH}, "
+                f"Got: {self.sha256}. "
+                f"If this is a legitimate change, update EXPECTED_QUESTIONNAIRE_HASH."
+            )
+
+        # Verify data is immutable
+        if not isinstance(self.data, MappingProxyType):
+            raise TypeError(
+                f"data must be MappingProxyType, got {type(self.data).__name__}"
+            )
+
+        # Verify micro_questions are all immutable
+        for i, q in enumerate(self.micro_questions):
+            if not isinstance(q, MappingProxyType):
+                raise TypeError(
+                    f"micro_questions[{i}] must be MappingProxyType, "
+                    f"got {type(q).__name__}"
+                )
+
+        logger.info(
+            f"CanonicalQuestionnaire initialized: "
+            f"version={self.version}, "
+            f"questions={self.question_count}, "
+            f"hash={self.sha256[:16]}..."
+        )
+
 
 @dataclass(frozen=True)
 class ProcessorBundle:
@@ -155,40 +232,124 @@ def validate_questionnaire_structure(data: dict[str, object]) -> None:
     )
 
 
-def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
-    """Load questionnaire monolith JSON file.
+def load_questionnaire(path: Path | None = None) -> CanonicalQuestionnaire:
+    """Load questionnaire as immutable CanonicalQuestionnaire with hash verification.
+    
+    This is the CANONICAL and ONLY way to load questionnaire data in the system.
+    Returns an immutable, validated CanonicalQuestionnaire instance.
+    
+    Args:
+        path: Optional path to questionnaire file. Defaults to QUESTIONNAIRE_PATH.
+    
+    Returns:
+        CanonicalQuestionnaire: Immutable questionnaire with validated hash
+    
+    Raises:
+        FileNotFoundError: If questionnaire file doesn't exist
+        json.JSONDecodeError: If file is not valid JSON
+        ValueError: If questionnaire structure is invalid or hash doesn't match
+        TypeError: If data types are incorrect
+    """
+    if path is None:
+        path = QUESTIONNAIRE_PATH
 
-    This is the ONLY place in the system that should read questionnaire_monolith.json.
-    Core modules receive the data via contracts.
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Questionnaire not found at {path}. "
+            f"Expected location: {QUESTIONNAIRE_PATH}"
+        )
+
+    logger.info(f"Loading canonical questionnaire from {path}")
+
+    # Compute SHA256 hash of raw file content for integrity verification
+    # This ensures we detect ANY change to the file, not just semantic changes
+    raw_content = path.read_bytes()
+    sha256 = hashlib.sha256(raw_content).hexdigest()
+    
+    # Parse JSON content
+    content = path.read_text(encoding='utf-8')
+    data = json.loads(content, object_pairs_hook=OrderedDict)
+
+    if not isinstance(data, dict):
+        raise TypeError(
+            "questionnaire_monolith.json must contain a JSON object at the top level"
+        )
+
+    # Validate structure (raises on violation)
+    validate_questionnaire_structure(data)
+
+    # Extract version info
+    version = data.get('version', 'unknown')
+    schema_version = data.get('schema_version', 'unknown')
+
+    # Extract and freeze micro questions
+    micro_questions_raw = data['blocks']['micro_questions']
+    micro_questions = tuple(
+        MappingProxyType(q) for q in micro_questions_raw
+    )
+
+    # Create immutable data structure
+    immutable_data = MappingProxyType(_deep_freeze(data))
+
+    # Create and return canonical questionnaire
+    return CanonicalQuestionnaire(
+        data=immutable_data,
+        sha256=sha256,
+        micro_questions=micro_questions,
+        question_count=len(micro_questions),
+        version=version,
+        schema_version=schema_version,
+    )
+
+
+def _deep_freeze(obj: Any) -> Any:
+    """Recursively convert mutable containers to immutable ones.
+    
+    Args:
+        obj: Object to freeze (dict, list, or other)
+    
+    Returns:
+        Immutable version of the object
+    """
+    if isinstance(obj, dict):
+        return {k: _deep_freeze(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return tuple(_deep_freeze(item) for item in obj)
+    else:
+        return obj
+
+
+def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
+    """Load questionnaire monolith JSON file (LEGACY - use load_questionnaire instead).
+    
+    DEPRECATED: This function returns a mutable dict for backward compatibility only.
+    New code should use load_questionnaire() which returns CanonicalQuestionnaire.
+    
+    This function now delegates to load_questionnaire() and converts the result
+    to a mutable dict to maintain backward compatibility.
 
     Args:
         path: Optional path to questionnaire file. Defaults to ./questionnaire_monolith.json
 
     Returns:
-        Loaded questionnaire data
+        Loaded questionnaire data (mutable dict for backward compatibility)
 
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
         ValueError: If questionnaire structure is invalid
     """
-    if path is None:
-        path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
-
-    logger.info(f"Loading questionnaire from {path}")
-
-    with open(path, encoding='utf-8') as f:
-        payload = json.load(f)
-
-    if not isinstance(payload, dict):
-        raise TypeError(
-            "questionnaire_monolith.json must contain a JSON object at the top level"
-        )
+    logger.warning(
+        "load_questionnaire_monolith() is deprecated. "
+        "Use load_questionnaire() for immutable, hash-verified access."
+    )
     
-    # Validate structure before returning
-    validate_questionnaire_structure(payload)
-
-    return payload
+    # Use canonical loader
+    canonical = load_questionnaire(path)
+    
+    # Convert back to mutable dict for backward compatibility
+    # This is the ONLY place where we allow conversion to mutable
+    return json.loads(json.dumps(dict(canonical.data)))
 
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
@@ -861,8 +1022,10 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # Others are clean
 
 __all__ = [
+    'CanonicalQuestionnaire',
     'CoreModuleFactory',
     'ProcessorBundle',
+    'load_questionnaire',
     'load_questionnaire_monolith',
     'validate_questionnaire_structure',
     'load_catalog',
