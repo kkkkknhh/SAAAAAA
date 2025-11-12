@@ -12,10 +12,6 @@ from pathlib import Path
 
 import pytest
 
-# Add src to path for testing without installation
-SRC_PATH = Path(__file__).parent.parent / "src"
-if str(SRC_PATH) not in sys.path:
-
 
 def test_package_imports():
     """Test that the main package can be imported."""

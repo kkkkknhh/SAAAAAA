@@ -130,11 +130,6 @@ def check_import_budget(budget_ms: float = 300.0) -> list[ImportTiming]:
 
 def main() -> int:
     """Main entry point."""
-    # Add src to path so we can import the package
-    root = Path(__file__).parent.parent
-    src_path = root / "src"
-    if str(src_path) not in sys.path:
-    
     results = check_import_budget()
     
     # Check for budget violations

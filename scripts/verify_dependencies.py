@@ -15,10 +15,6 @@ import sys
 from importlib import import_module
 from pathlib import Path
 
-# Add src to path if not already present
-src_path = Path(__file__).parent.parent / "src"
-if str(src_path) not in sys.path:
-
 def check_class_registry_paths():
     """Verify all class paths have saaaaaa. prefix."""
     print("=" * 70)

@@ -18,11 +18,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Add src to path
-root = Path(__file__).parent.parent
-src_path = root / "src"
-if str(src_path) not in sys.path:
-
 from saaaaaa.compat.native_check import (
     check_cpu_features,
     check_fips_mode,

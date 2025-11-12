@@ -11,11 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
 
-# Add repository root and src to sys.path to enable imports
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SRC_DIR = REPO_ROOT / "src"
-if str(REPO_ROOT) not in sys.path:
-if SRC_DIR.exists() and str(SRC_DIR) not in sys.path:
 
 PKG_PREFIXES: Sequence[str] = ("core.", "executors.", "orchestrator.")
 
