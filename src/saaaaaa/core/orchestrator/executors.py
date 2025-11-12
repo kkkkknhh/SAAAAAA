@@ -59,10 +59,11 @@ from typing import Any, Generic, TypeVar
 import numpy as np
 
 # Contract infrastructure - ACTUAL INTEGRATION
-from saaaaaa.utils.determinism_helpers import deterministic
+from ...utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
-from .calibration_registry import CALIBRATIONS, resolve_calibration, CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
+from .calibration_registry import resolve_calibration
+from .versions import CALIBRATION_VERSION, MIN_CALIBRATION_VERSION as MINIMUM_SUPPORTED_VERSION
 from .advanced_module_config import (
     AdvancedModuleConfig,
     DEFAULT_ADVANCED_CONFIG,

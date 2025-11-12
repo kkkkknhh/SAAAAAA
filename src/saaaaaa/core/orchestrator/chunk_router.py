@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from saaaaaa.core.orchestrator.core import ChunkData
+from .core import ChunkData
 
 
 @dataclass
