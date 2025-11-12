@@ -62,7 +62,7 @@ import numpy as np
 from saaaaaa.utils.determinism_helpers import deterministic
 
 from .executor_config import ExecutorConfig, CONSERVATIVE_CONFIG
-from .calibration_registry import CALIBRATIONS, resolve_calibration, CALIBRATION_VERSION, MINIMUM_SUPPORTED_VERSION
+from .calibration_registry import resolve_calibration
 from .advanced_module_config import (
     AdvancedModuleConfig,
     DEFAULT_ADVANCED_CONFIG,

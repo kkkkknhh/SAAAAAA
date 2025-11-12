@@ -846,6 +846,10 @@ class MethodExecutor:
 
         self.raw_calibrations = calibrations  # Will be empty dict after migration
         self.calibrations = self._map_calibrations_to_classes(calibrations)  # Will be empty dict
+        
+        # Add calibration metadata for traceability
+        self.calibration_version = CALIBRATION_VERSION
+        self.calibration_hash = get_calibration_hash()
 
         # Instantiate all classes
         self.instances: dict[str, Any] = {}
