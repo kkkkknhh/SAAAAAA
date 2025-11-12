@@ -4,6 +4,7 @@ Calibration orchestrator - integrates all layers.
 This is the TOP-LEVEL entry point for calibration.
 """
 import logging
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -43,18 +44,20 @@ class CalibrationOrchestrator:
     def __init__(
         self,
         config: CalibrationSystemConfig = None,
-        compatibility_path: Path | str = None
+        compatibility_path: Path | str = None,
+        method_registry_path: Path | str = None,
+        method_signatures_path: Path | str = None
     ):
         self.config = config or DEFAULT_CALIBRATION_CONFIG
-        
+
         # Initialize layer evaluators
         self.unit_evaluator = UnitLayerEvaluator(self.config.unit_layer)
-        
+
         # Load compatibility registry
         if compatibility_path:
             self.compat_registry = CompatibilityRegistry(compatibility_path)
             self.contextual_evaluator = ContextualLayerEvaluator(self.compat_registry)
-            
+
             # Validate anti-universality if enabled
             if self.config.enable_anti_universality_check:
                 self.compat_registry.validate_anti_universality(
@@ -63,14 +66,55 @@ class CalibrationOrchestrator:
         else:
             self.compat_registry = None
             self.contextual_evaluator = None
-        
-        self.congruence_evaluator = CongruenceLayerEvaluator()
-        self.chain_evaluator = ChainLayerEvaluator()
+
+        # FIXED: Load method registry and signatures for congruence/chain layers
+        # Load method registry for congruence layer
+        if method_registry_path:
+            registry_path = Path(method_registry_path)
+            with open(registry_path) as f:
+                registry_data = json.load(f)
+            self.congruence_evaluator = CongruenceLayerEvaluator(
+                method_registry=registry_data["methods"]
+            )
+        else:
+            # Fallback: try default path or use empty registry
+            default_registry = Path("data/method_registry.json")
+            if default_registry.exists():
+                with open(default_registry) as f:
+                    registry_data = json.load(f)
+                self.congruence_evaluator = CongruenceLayerEvaluator(
+                    method_registry=registry_data["methods"]
+                )
+            else:
+                logger.warning("No method_registry.json found, using empty registry")
+                self.congruence_evaluator = CongruenceLayerEvaluator(method_registry={})
+
+        # Load method signatures for chain layer
+        if method_signatures_path:
+            signatures_path = Path(method_signatures_path)
+            with open(signatures_path) as f:
+                signatures_data = json.load(f)
+            self.chain_evaluator = ChainLayerEvaluator(
+                method_signatures=signatures_data["methods"]
+            )
+        else:
+            # Fallback: try default path or use empty signatures
+            default_signatures = Path("data/method_signatures.json")
+            if default_signatures.exists():
+                with open(default_signatures) as f:
+                    signatures_data = json.load(f)
+                self.chain_evaluator = ChainLayerEvaluator(
+                    method_signatures=signatures_data["methods"]
+                )
+            else:
+                logger.warning("No method_signatures.json found, using empty signatures")
+                self.chain_evaluator = ChainLayerEvaluator(method_signatures={})
+
         self.meta_evaluator = MetaLayerEvaluator(self.config.meta_layer)
-        
+
         # Choquet aggregator
         self.aggregator = ChoquetAggregator(self.config.choquet)
-        
+
         logger.info(
             "calibration_orchestrator_initialized",
             extra={
@@ -180,37 +224,46 @@ class CalibrationOrchestrator:
                     rationale=f"No compatibility data - penalty applied"
                 )
         
-        # Layer 6: Congruence (@C) - STUB
+        # Layer 6: Congruence (@C)
         congruence_score = self.congruence_evaluator.evaluate(
             method_ids=[method_id],
-            subgraph_id=subgraph_id
+            subgraph_id=subgraph_id,
+            fusion_rule="weighted_average",
+            available_inputs=[]  # TODO: Get from actual graph execution
         )
         layer_scores[LayerID.CONGRUENCE] = LayerScore(
             layer=LayerID.CONGRUENCE,
             score=congruence_score,
-            rationale="Congruence evaluation (STUB)"
+            rationale="Congruence evaluation"
         )
         
-        # Layer 7: Chain (@chain) - STUB
+        # Layer 7: Chain (@chain)
         chain_score = self.chain_evaluator.evaluate(
             method_id=method_id,
-            required_inputs=[]
+            provided_inputs=[]  # TODO: Get from actual graph execution
         )
         layer_scores[LayerID.CHAIN] = LayerScore(
             layer=LayerID.CHAIN,
             score=chain_score,
-            rationale="Chain integrity (STUB)"
+            rationale="Chain integrity"
         )
         
-        # Layer 8: Meta (@m) - STUB
+        # Layer 8: Meta (@m)
+        # FIXED: Pass all required arguments to meta layer
         meta_score = self.meta_evaluator.evaluate(
             method_id=method_id,
-            method_version=method_version
+            method_version=method_version,
+            config_hash=self.config.compute_system_hash(),
+            formula_exported=False,  # TODO: Get from actual method execution
+            full_trace=False,  # TODO: Get from actual method execution
+            logs_conform=False,  # TODO: Validate against log schema
+            signature_valid=False,  # TODO: Verify cryptographic signature
+            execution_time_s=None  # TODO: Measure actual execution time
         )
         layer_scores[LayerID.META] = LayerScore(
             layer=LayerID.META,
             score=meta_score,
-            rationale="Meta/governance evaluation (STUB)"
+            rationale="Meta/governance evaluation"
         )
         
         # Choquet aggregation

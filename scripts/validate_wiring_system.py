@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from saaaaaa.core.wiring.bootstrap import WiringBootstrap
 from saaaaaa.core.wiring.feature_flags import WiringFeatureFlags

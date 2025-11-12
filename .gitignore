@@ -1,8 +1,11 @@
 __pycache__/
-artifacts/
 *.pyc
 forge.log
 venv/
+
+# Build artifacts (SIN_CARRETA compliance)
+artifacts/
+/artifacts/
 
 # Environment and configuration
 .env

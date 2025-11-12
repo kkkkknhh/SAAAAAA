@@ -68,7 +68,6 @@ def get_monolith_path() -> Path:
     possible_paths = [
         repo_root / "data" / "questionnaire_monolith.json",
         Path("data/questionnaire_monolith.json"),
-        Path("/home/runner/work/SAAAAAA/SAAAAAA/data/questionnaire_monolith.json"),
     ]
     
     for path in possible_paths:
