@@ -1,0 +1,19 @@
+{
+  "methods": {
+    "pattern_extractor_v2": {
+      "output_range": [0.0, 1.0],
+      "semantic_tags": ["extraction", "text", "pattern"],
+      "fusion_requirements": ["text"]
+    },
+    "coherence_validator": {
+      "output_range": [0.0, 1.0],
+      "semantic_tags": ["validation", "coherence", "text"],
+      "fusion_requirements": ["extracted_text", "reference_corpus"]
+    },
+    "table_extractor": {
+      "output_range": [0.0, 1.0],
+      "semantic_tags": ["extraction", "table", "structure"],
+      "fusion_requirements": ["document"]
+    }
+  }
+}
