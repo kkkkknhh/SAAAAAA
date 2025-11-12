@@ -210,11 +210,11 @@ class QuestionnaireResourceProvider:
         """
         from .questionnaire import load_questionnaire
 
-        if path is not None:
-            logger.warning(
-                "from_file: path parameter is ignored by canonical loader. "
-                "Questionnaire always loads from canonical path."
-            )
+        logger.warning(
+            "from_file: path parameter is ignored by canonical loader. "
+            "Questionnaire always loads from canonical path.",
+            provided_path=str(path)
+        )
 
         logger.info("loading_questionnaire_via_canonical_loader")
 

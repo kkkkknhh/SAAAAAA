@@ -46,6 +46,7 @@ from .core import MethodExecutor
 from .questionnaire import (
     CanonicalQuestionnaire,
     EXPECTED_HASH,
+    EXPECTED_MACRO_QUESTION_COUNT,
     EXPECTED_MICRO_QUESTION_COUNT,
     EXPECTED_MESO_QUESTION_COUNT,
     EXPECTED_TOTAL_QUESTION_COUNT,
@@ -725,6 +726,7 @@ __all__ = [
     # Questionnaire integrity types and constants (re-exported from questionnaire.py)
     'CanonicalQuestionnaire',
     'EXPECTED_HASH',
+    'EXPECTED_MACRO_QUESTION_COUNT',
     'EXPECTED_MICRO_QUESTION_COUNT',
     'EXPECTED_MESO_QUESTION_COUNT',
     'EXPECTED_TOTAL_QUESTION_COUNT',
