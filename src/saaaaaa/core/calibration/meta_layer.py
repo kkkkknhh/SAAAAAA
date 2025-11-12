@@ -48,7 +48,8 @@ class MetaLayerEvaluator:
         execution_time_s: Optional[float] = None
     ) -> float:
         """
-        Compute x_@m = 0.5·m_transp + 0.4·m_gov + 0.1·m_cost
+        Compute the weighted score x_@m = w_transparency·m_transp + w_governance·m_gov + w_cost·m_cost,
+        where `w_transparency`, `w_governance`, and `w_cost` come from the provided `config`.
 
         Args:
             method_id: Method identifier
