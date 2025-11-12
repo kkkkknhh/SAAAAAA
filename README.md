@@ -23,22 +23,32 @@ This repository is configured for **Python 3.12** with **NumPy 1.26.4** (NOT a d
 
 ## 📦 Package Installation & Dependency Management
 
-### Quick Installation
+### ⚠️ MANDATORY: Editable Install Required
 
-**Option 1: Package Installation (Recommended)**
+**This project enforces SIN_CARRETA compliance. You MUST install the package before using it.**
+
 ```bash
-# Basic installation (core features)
-pip install -e .
+# Step 1: Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# With Bayesian analysis (PyMC, PyTensor, arviz)
-pip install -e ".[bayesian]"
-
-# With ML/DL support (torch, tensorflow)
-pip install -e ".[ml]"
-
-# Complete installation (all features)
-pip install -e ".[all]"
+# Step 2: Install package (REQUIRED - choose one)
+pip install -e .                    # Basic installation (core features)
+pip install -e ".[dev]"            # With development tools
+pip install -e ".[bayesian]"       # With Bayesian analysis (PyMC, PyTensor, arviz)
+pip install -e ".[ml]"             # With ML/DL support (torch, tensorflow)
+pip install -e ".[all]"            # Complete installation (all features)
 ```
+
+**Why is this mandatory?**
+- ✅ Deterministic, reproducible imports
+- ✅ No `sys.path` manipulation (banned)
+- ✅ Standard Python packaging practices
+- ✅ CI/CD enforcement
+
+**See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for complete SIN_CARRETA doctrine.**
+
+### Alternative: Pinned Requirements (Advanced)
 
 **Option 2: Pinned Requirements (Development/Production)**
 ```bash

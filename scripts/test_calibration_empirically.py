@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 # Ensure src/ is in Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from saaaaaa.utils.paths import data_dir
 from saaaaaa.processing.spc_ingestion import CPPIngestionPipeline

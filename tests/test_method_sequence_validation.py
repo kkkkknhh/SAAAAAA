@@ -6,7 +6,6 @@ from hypothesis import given, strategies as st
 # Add src to path for imports
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from saaaaaa.core.orchestrator.executors import MethodSequenceValidatingMixin
 
