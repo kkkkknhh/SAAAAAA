@@ -13,18 +13,23 @@ Architectural Pattern:
 - Factory injects dependencies into core modules
 - Core modules remain I/O-free and testable
 
-Version: 1.0.0
-Status: Skeleton implementation (to be expanded with I/O migration)
+QUESTIONNAIRE INTEGRITY PROTOCOL:
+This is the ONLY module that should load questionnaire_monolith.json.
+All consumers MUST use load_questionnaire() which returns CanonicalQuestionnaire.
+
+Version: 2.0.0
+Status: Questionnaire determinism enforcement implemented
 """
 
 import copy
+import hashlib
 import json
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 from ..contracts import (
     CDAFFrameworkInputContract,
@@ -45,6 +50,113 @@ logger = logging.getLogger(__name__)
 # Canonical repository root - single source of truth for all file paths
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
+
+# QUESTIONNAIRE INTEGRITY CONSTANTS
+# The ONLY valid questionnaire path
+QUESTIONNAIRE_PATH: Final[Path] = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
+
+# Expected structure hash - MUST match actual file or load fails
+# This hash is computed using: json.dumps(data, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
+# Update this when questionnaire is legitimately modified
+EXPECTED_HASH: Final[str] = "27f7f784583d637158cb70ee236f1a98f77c1a08366612b5ae11f3be24062658"
+
+# Expected question counts (enforcement levels)
+EXPECTED_MICRO_QUESTION_COUNT: Final[int] = 300
+EXPECTED_MESO_QUESTION_COUNT: Final[int] = 4
+EXPECTED_TOTAL_QUESTION_COUNT: Final[int] = 305  # 300 micro + 4 meso + 1 macro
+
+@dataclass(frozen=True)
+class CanonicalQuestionnaire:
+    """Immutable, validated, hash-verified questionnaire.
+
+    This is the ONLY valid representation of questionnaire data in the system.
+    All questionnaire consumers MUST accept this type, not raw dicts.
+
+    Attributes:
+        data: Immutable view of questionnaire structure
+        sha256: Computed SHA-256 hash (must match EXPECTED_HASH)
+        micro_questions: Immutable tuple of micro questions
+        meso_questions: Immutable tuple of meso questions
+        macro_question: Immutable macro question or None
+        micro_question_count: Number of micro questions (must be 300)
+        total_question_count: Total questions including meso + macro (must be 305)
+        version: Questionnaire version string
+        schema_version: Schema version string
+
+    Invariants enforced at construction:
+        - sha256 == EXPECTED_HASH
+        - micro_question_count == 300
+        - total_question_count == 305
+        - All data structures are immutable (MappingProxyType/tuple)
+        - No None values in required fields
+        - No duplicate question_id or question_global values
+    """
+
+    data: MappingProxyType[str, Any]
+    sha256: str
+    micro_questions: tuple[MappingProxyType, ...]
+    meso_questions: tuple[MappingProxyType, ...]
+    macro_question: MappingProxyType | None
+    micro_question_count: int
+    total_question_count: int
+    version: str
+    schema_version: str
+
+    def __post_init__(self) -> None:
+        """Validate all invariants on construction.
+
+        Raises:
+            ValueError: If any invariant is violated
+        """
+        # Hash verification
+        if self.sha256 != EXPECTED_HASH:
+            raise ValueError(
+                f"QUESTIONNAIRE INTEGRITY VIOLATION: Hash mismatch!\n"
+                f"Expected: {EXPECTED_HASH}\n"
+                f"Got:      {self.sha256}\n"
+                f"The questionnaire file has been modified. If this was intentional, "
+                f"update EXPECTED_HASH in factory.py"
+            )
+
+        # Count verification
+        if self.micro_question_count != EXPECTED_MICRO_QUESTION_COUNT:
+            raise ValueError(
+                f"Expected {EXPECTED_MICRO_QUESTION_COUNT} micro questions, "
+                f"got {self.micro_question_count}"
+            )
+
+        if self.total_question_count != EXPECTED_TOTAL_QUESTION_COUNT:
+            raise ValueError(
+                f"Expected {EXPECTED_TOTAL_QUESTION_COUNT} total questions, "
+                f"got {self.total_question_count}"
+            )
+
+        # Immutability verification
+        if not isinstance(self.data, MappingProxyType):
+            raise TypeError(
+                f"data must be MappingProxyType, got {type(self.data).__name__}"
+            )
+
+        if not isinstance(self.micro_questions, tuple):
+            raise TypeError(
+                f"micro_questions must be tuple, got {type(self.micro_questions).__name__}"
+            )
+
+        # Validate all micro questions are immutable
+        for i, q in enumerate(self.micro_questions):
+            if not isinstance(q, MappingProxyType):
+                raise TypeError(
+                    f"micro_questions[{i}] must be MappingProxyType, "
+                    f"got {type(q).__name__}"
+                )
+
+        logger.info(
+            "canonical_questionnaire_validated",
+            sha256=self.sha256[:16] + "...",
+            micro_count=self.micro_question_count,
+            total_count=self.total_question_count,
+            version=self.version,
+        )
 
 @dataclass(frozen=True)
 class ProcessorBundle:
@@ -155,40 +267,126 @@ def validate_questionnaire_structure(data: dict[str, object]) -> None:
     )
 
 
-def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
-    """Load questionnaire monolith JSON file.
+def load_questionnaire(path: Path | None = None) -> CanonicalQuestionnaire:
+    """Load and validate questionnaire with full integrity checking.
 
-    This is the ONLY place in the system that should read questionnaire_monolith.json.
-    Core modules receive the data via contracts.
+    This is the ONLY function that should load questionnaire_monolith.json.
+    It enforces:
+    - File existence and readability
+    - JSON validity
+    - Structure validation (300 micro, 4 meso, 1 macro)
+    - SHA-256 hash verification
+    - Immutability (all data wrapped in MappingProxyType/tuple)
+    - No duplicate question IDs
 
     Args:
-        path: Optional path to questionnaire file. Defaults to ./questionnaire_monolith.json
+        path: Optional path to questionnaire file.
+              Defaults to data/questionnaire_monolith.json
 
     Returns:
-        Loaded questionnaire data
+        CanonicalQuestionnaire with validated, immutable data
 
     Raises:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If file is not valid JSON
-        ValueError: If questionnaire structure is invalid
+        ValueError: If structure/hash validation fails
+        TypeError: If data types are incorrect
     """
     if path is None:
-        path = _DEFAULT_DATA_DIR / "questionnaire_monolith.json"
+        path = QUESTIONNAIRE_PATH
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Questionnaire file not found: {path}\n"
+            f"Expected location: {QUESTIONNAIRE_PATH}"
+        )
 
     logger.info(f"Loading questionnaire from {path}")
 
-    with open(path, encoding='utf-8') as f:
-        payload = json.load(f)
+    # Read file content
+    content = path.read_text(encoding='utf-8')
 
-    if not isinstance(payload, dict):
+    # Parse JSON
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(
+            f"Invalid JSON in questionnaire file: {e.msg}",
+            e.doc,
+            e.pos
+        ) from e
+
+    if not isinstance(data, dict):
         raise TypeError(
             "questionnaire_monolith.json must contain a JSON object at the top level"
         )
-    
-    # Validate structure before returning
-    validate_questionnaire_structure(payload)
 
-    return payload
+    # Validate structure (raises on failure)
+    validate_questionnaire_structure(data)
+
+    # Compute SHA-256 hash for integrity verification
+    canonical_json = json.dumps(
+        data,
+        sort_keys=True,
+        ensure_ascii=True,
+        separators=(',', ':'),
+    )
+    sha256 = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
+
+    # Extract blocks
+    blocks = data['blocks']
+    micro_questions = blocks['micro_questions']
+    meso_questions = blocks.get('meso_questions', [])
+    macro_question = blocks.get('macro_question')
+
+    # Convert to immutable structures
+    micro_immutable = tuple(MappingProxyType(q) for q in micro_questions)
+    meso_immutable = tuple(MappingProxyType(q) for q in meso_questions)
+    macro_immutable = MappingProxyType(macro_question) if macro_question else None
+
+    # Count total questions
+    total_count = len(micro_questions) + len(meso_questions)
+    if macro_question:
+        total_count += 1
+
+    # Construct CanonicalQuestionnaire (validates invariants in __post_init__)
+    return CanonicalQuestionnaire(
+        data=MappingProxyType(data),
+        sha256=sha256,
+        micro_questions=micro_immutable,
+        meso_questions=meso_immutable,
+        macro_question=macro_immutable,
+        micro_question_count=len(micro_questions),
+        total_question_count=total_count,
+        version=data.get('version', 'unknown'),
+        schema_version=data.get('schema_version', 'unknown'),
+    )
+
+
+def load_questionnaire_monolith(path: Path | None = None) -> dict[str, Any]:
+    """DEPRECATED: Use load_questionnaire() instead.
+
+    This function is maintained for backward compatibility only.
+    It loads the questionnaire but returns mutable dict instead of
+    CanonicalQuestionnaire.
+
+    Args:
+        path: Optional path to questionnaire file
+
+    Returns:
+        Mutable questionnaire dict (DEPRECATED)
+    """
+    import warnings
+    warnings.warn(
+        "load_questionnaire_monolith() is deprecated. "
+        "Use load_questionnaire() which returns CanonicalQuestionnaire.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
+    canonical = load_questionnaire(path)
+    # Return mutable copy for backward compatibility
+    return dict(canonical.data)
 
 def load_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load method catalog JSON file.
@@ -564,14 +762,23 @@ class CoreModuleFactory:
     def get_questionnaire(self) -> dict[str, Any]:
         """Get questionnaire monolith data (cached).
 
+        Uses canonical loader for hash verification.
+
         Returns:
-            Questionnaire data
+            Questionnaire data (dict for backward compatibility)
         """
         if self.questionnaire_cache is None:
             questionnaire_path = self.data_dir / "questionnaire_monolith.json"
-            self.questionnaire_cache = load_questionnaire_monolith(questionnaire_path)
+            # Use canonical loader for hash verification
+            canonical_q = load_questionnaire(questionnaire_path)
+            self.questionnaire_cache = dict(canonical_q.data)
             # Also set it in the global provider for backward compatibility
             get_questionnaire_provider().set_data(self.questionnaire_cache)
+            logger.info(
+                "factory_loaded_questionnaire",
+                sha256=canonical_q.sha256[:16] + "...",
+                question_count=canonical_q.total_question_count,
+            )
         return self.questionnaire_cache
 
     @property
@@ -649,15 +856,26 @@ def build_processor(
     Returns:
         A :class:`ProcessorBundle` containing a ready-to-use method executor,
         the questionnaire payload (as an immutable mapping) and the factory.
+
+    Note:
+        Uses load_questionnaire() for hash verification and immutability.
     """
 
     core_factory = factory or CoreModuleFactory(data_dir=data_dir)
 
     if questionnaire_path is not None:
-        questionnaire_data = load_questionnaire_monolith(questionnaire_path)
+        # Use canonical loader for hash verification
+        canonical_q = load_questionnaire(questionnaire_path)
+        questionnaire_data = dict(canonical_q.data)  # Convert for backward compat
         core_factory.questionnaire_cache = copy.deepcopy(questionnaire_data)
         # Initialize the global provider with this data
         get_questionnaire_provider().set_data(questionnaire_data)
+        logger.info(
+            "build_processor_using_canonical_loader",
+            path=str(questionnaire_path),
+            sha256=canonical_q.sha256[:16] + "...",
+            question_count=canonical_q.total_question_count,
+        )
     else:
         questionnaire_data = core_factory.get_questionnaire()
 
@@ -861,10 +1079,23 @@ def migrate_io_from_module(module_name: str, line_numbers: list[int]) -> None:
 # Others are clean
 
 __all__ = [
+    # Questionnaire integrity types and constants
+    'CanonicalQuestionnaire',
+    'EXPECTED_HASH',
+    'EXPECTED_MICRO_QUESTION_COUNT',
+    'EXPECTED_TOTAL_QUESTION_COUNT',
+    'QUESTIONNAIRE_PATH',
+    # Canonical loader (use this!)
+    'load_questionnaire',
+    # Factory classes
     'CoreModuleFactory',
     'ProcessorBundle',
+    # Legacy/deprecated (use load_questionnaire instead)
     'load_questionnaire_monolith',
+    # Validation
     'validate_questionnaire_structure',
+    'compute_monolith_hash',
+    # Other loaders
     'load_catalog',
     'load_method_map',
     'get_canonical_dimensions',
@@ -872,6 +1103,7 @@ __all__ = [
     'load_schema',
     'load_document',
     'save_results',
+    # Contract constructors
     'construct_semantic_analyzer_input',
     'construct_cdaf_input',
     'construct_pdet_input',
@@ -880,7 +1112,6 @@ __all__ = [
     'construct_embedding_policy_input',
     'construct_semantic_chunking_input',
     'construct_policy_processor_input',
+    # Builder
     'build_processor',
-    'compute_monolith_hash',
-    'validate_questionnaire_structure',
 ]

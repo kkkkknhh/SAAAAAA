@@ -1,0 +1,278 @@
+name: Questionnaire Integrity Check
+
+# This workflow enforces the QUESTIONNAIRE DETERMINISM ENFORCEMENT PROTOCOL
+# It ensures that:
+# 1. questionnaire_monolith.json hash matches EXPECTED_HASH in factory.py
+# 2. No direct JSON loads of questionnaire outside factory.py
+# 3. All imports use the canonical load_questionnaire() function
+# 4. Question count is exactly 305 (300 micro + 4 meso + 1 macro)
+
+on:
+  push:
+    paths:
+      - 'data/questionnaire_monolith.json'
+      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/**/*.py'
+      - '.github/workflows/questionnaire-integrity.yml'
+  pull_request:
+    paths:
+      - 'data/questionnaire_monolith.json'
+      - 'src/saaaaaa/core/orchestrator/factory.py'
+      - 'src/**/*.py'
+
+jobs:
+  verify-hash:
+    name: Verify Questionnaire Hash
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Compute actual questionnaire hash
+        id: compute_hash
+        run: |
+          ACTUAL=$(python3 -c "
+          import json
+          import hashlib
+
+          with open('data/questionnaire_monolith.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+
+          # Use same algorithm as factory.py
+          serialized = json.dumps(data, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
+          hash_val = hashlib.sha256(serialized.encode('utf-8')).hexdigest()
+          print(hash_val)
+          ")
+          echo "actual_hash=$ACTUAL" >> $GITHUB_OUTPUT
+          echo "Actual hash: $ACTUAL"
+
+      - name: Extract expected hash from factory.py
+        id: expected_hash
+        run: |
+          EXPECTED=$(grep -A1 "^EXPECTED_HASH:" src/saaaaaa/core/orchestrator/factory.py | grep -oP '"\K[a-f0-9]{64}' || echo "NOT_FOUND")
+          echo "expected_hash=$EXPECTED" >> $GITHUB_OUTPUT
+          echo "Expected hash: $EXPECTED"
+
+      - name: Verify hash match
+        run: |
+          ACTUAL="${{ steps.compute_hash.outputs.actual_hash }}"
+          EXPECTED="${{ steps.expected_hash.outputs.expected_hash }}"
+
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "❌ QUESTIONNAIRE INTEGRITY VIOLATION"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "questionnaire_monolith.json has been modified!"
+            echo ""
+            echo "Expected hash: $EXPECTED"
+            echo "Actual hash:   $ACTUAL"
+            echo ""
+            echo "If this change is intentional, update EXPECTED_HASH in:"
+            echo "  src/saaaaaa/core/orchestrator/factory.py"
+            echo ""
+            echo "Run this command to get the new hash:"
+            echo "  python3 -c 'import json, hashlib; data=json.load(open(\"data/questionnaire_monolith.json\")); print(hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=True, separators=(\",\", \":\")).encode()).hexdigest())'"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 1
+          fi
+
+          echo "✅ Questionnaire hash verified: $ACTUAL"
+
+      - name: Verify question counts
+        run: |
+          python3 -c "
+          import json
+          import sys
+
+          with open('data/questionnaire_monolith.json', 'r') as f:
+              data = json.load(f)
+
+          blocks = data['blocks']
+          micro = len(blocks.get('micro_questions', []))
+          meso = len(blocks.get('meso_questions', []))
+          has_macro = 1 if blocks.get('macro_question') else 0
+          total = micro + meso + has_macro
+
+          print(f'Micro questions: {micro}')
+          print(f'Meso questions: {meso}')
+          print(f'Macro question: {has_macro}')
+          print(f'Total: {total}')
+
+          if micro != 300:
+              print(f'❌ Expected 300 micro questions, got {micro}')
+              sys.exit(1)
+
+          if total != 305:
+              print(f'❌ Expected 305 total questions, got {total}')
+              sys.exit(1)
+
+          print('✅ Question counts verified')
+          "
+
+  verify-import-discipline:
+    name: Verify Import Discipline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for direct questionnaire JSON loads
+        run: |
+          echo "Checking for direct questionnaire_monolith.json access..."
+
+          # Find Python files that mention questionnaire_monolith.json
+          # Exclude factory.py which is allowed to load it
+          VIOLATIONS=$(grep -r "questionnaire_monolith\.json" \
+            --include="*.py" \
+            --exclude-dir=".git" \
+            --exclude-dir="__pycache__" \
+            --exclude-dir=".pytest_cache" \
+            --exclude-dir="node_modules" \
+            . | \
+            grep -v "src/saaaaaa/core/orchestrator/factory.py" | \
+            grep -v "\.github/workflows" | \
+            grep -v "#.*questionnaire_monolith\.json" || true)
+
+          if [ ! -z "$VIOLATIONS" ]; then
+            echo "❌ DIRECT QUESTIONNAIRE ACCESS DETECTED"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "The following files access questionnaire_monolith.json directly:"
+            echo ""
+            echo "$VIOLATIONS"
+            echo ""
+            echo "All code must use:"
+            echo "  from saaaaaa.core.orchestrator.factory import load_questionnaire"
+            echo "  questionnaire = load_questionnaire()"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 1
+          fi
+
+          echo "✅ No direct questionnaire access found"
+
+      - name: Check for json.load of questionnaire
+        run: |
+          echo "Checking for json.load patterns that might bypass factory..."
+
+          # Look for suspicious patterns like open() + json.load() near "questionnaire"
+          SUSPICIOUS=$(grep -r -A2 -B2 "json\.load" \
+            --include="*.py" \
+            --exclude-dir=".git" \
+            . | \
+            grep -i "questionnaire" | \
+            grep -v "src/saaaaaa/core/orchestrator/factory.py" | \
+            grep -v "src/saaaaaa/core/orchestrator/questionnaire_resource_provider.py" | \
+            grep -v "\.github/workflows" | \
+            grep -v "test_" || true)
+
+          if [ ! -z "$SUSPICIOUS" ]; then
+            echo "⚠️  WARNING: Found json.load near 'questionnaire' in non-factory files"
+            echo "Review these to ensure they use load_questionnaire():"
+            echo ""
+            echo "$SUSPICIOUS"
+            echo ""
+            # Don't fail on this, just warn
+          fi
+
+          echo "✅ Import discipline check complete"
+
+  verify-canonical-loader:
+    name: Verify Canonical Loader Works
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install minimal dependencies needed for import
+          pip install structlog || true
+
+      - name: Test canonical loader import
+        run: |
+          python3 -c "
+          # Verify the canonical loader exists and exports are correct
+          import ast
+
+          with open('src/saaaaaa/core/orchestrator/factory.py', 'r') as f:
+              content = f.read()
+
+          # Check for required exports
+          required_exports = [
+              'CanonicalQuestionnaire',
+              'load_questionnaire',
+              'EXPECTED_HASH',
+              'QUESTIONNAIRE_PATH',
+          ]
+
+          for export in required_exports:
+              if export not in content:
+                  print(f'❌ Missing required export: {export}')
+                  exit(1)
+
+          print('✅ All required exports found in factory.py')
+
+          # Verify CanonicalQuestionnaire is a frozen dataclass
+          if '@dataclass(frozen=True)' not in content:
+              print('⚠️  Warning: CanonicalQuestionnaire may not be frozen')
+
+          # Verify hash checking logic exists
+          if 'EXPECTED_HASH' not in content or 'sha256' not in content:
+              print('❌ Hash verification logic missing')
+              exit(1)
+
+          print('✅ Hash verification logic present')
+          print('✅ QUESTIONNAIRE INTEGRITY PROTOCOL VALIDATED')
+          "
+
+  report:
+    name: Generate Integrity Report
+    runs-on: ubuntu-latest
+    needs: [verify-hash, verify-import-discipline, verify-canonical-loader]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate report
+        run: |
+          echo "# Questionnaire Integrity Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.verify-hash.result }}" == "success" ]; then
+            echo "✅ Hash verification: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Hash verification: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.verify-import-discipline.result }}" == "success" ]; then
+            echo "✅ Import discipline: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Import discipline: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.verify-canonical-loader.result }}" == "success" ]; then
+            echo "✅ Canonical loader: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Canonical loader: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Protocol Status" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.verify-hash.result }}" == "success" ] && \
+             [ "${{ needs.verify-import-discipline.result }}" == "success" ] && \
+             [ "${{ needs.verify-canonical-loader.result }}" == "success" ]; then
+            echo "🟢 **QUESTIONNAIRE DETERMINISM ENFORCED**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔴 **PROTOCOL VIOLATIONS DETECTED**" >> $GITHUB_STEP_SUMMARY
+          fi

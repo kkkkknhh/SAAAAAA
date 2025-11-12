@@ -42,12 +42,12 @@ class ContractLoadReport:
 
 class JSONContractLoader:
     """Load JSON contract files and compute integrity metadata.
-    
+
     ARCHITECTURAL BOUNDARY: This loader is for generic JSON contracts ONLY.
     It must NOT be used to load questionnaire_monolith.json directly.
-    
+
     For questionnaire access, use:
-    - factory.load_questionnaire_monolith() for I/O
+    - factory.load_questionnaire() for canonical loading (returns CanonicalQuestionnaire)
     - QuestionnaireResourceProvider for pattern extraction
     """
 
@@ -94,8 +94,8 @@ class JSONContractLoader:
         if path.name == "questionnaire_monolith.json":
             raise ValueError(
                 "ARCHITECTURAL VIOLATION: questionnaire_monolith.json must ONLY be "
-                "loaded via factory.load_questionnaire_monolith(). "
-                "Use factory.py for I/O, QuestionnaireResourceProvider for patterns."
+                "loaded via factory.load_questionnaire() which enforces hash verification. "
+                "Use factory.load_questionnaire() for canonical loading."
             )
         
         text = path.read_text(encoding="utf-8")

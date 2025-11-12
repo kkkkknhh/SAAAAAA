@@ -31,7 +31,7 @@ from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from saaaaaa.core.orchestrator.signals import SignalPack, PolicyArea
-from saaaaaa.core.orchestrator.factory import load_questionnaire_monolith
+from saaaaaa.core.orchestrator.factory import load_questionnaire
 
 
 logger = structlog.get_logger(__name__)
@@ -43,24 +43,22 @@ _signal_store: dict[str, SignalPack] = {}
 
 def load_signals_from_monolith(monolith_path: str | Path) -> dict[str, SignalPack]:
     """
-    Load signal packs from questionnaire monolith using factory (architecture-compliant).
-    
-    This function now uses factory.load_questionnaire_monolith() instead of direct
-    file I/O, ensuring compliance with the questionnaire access architecture.
-    
+    Load signal packs from questionnaire monolith using canonical loader.
+
+    Uses factory.load_questionnaire() for hash verification and immutability.
     This extracts policy-aware patterns, indicators, and thresholds from the
     questionnaire monolith and converts them into SignalPack format.
-    
+
     Args:
         monolith_path: Path to questionnaire_monolith.json
-        
+
     Returns:
         Dict mapping policy area to SignalPack
-        
+
     TODO: Implement actual extraction logic from monolith structure
     """
     monolith_path = Path(monolith_path)
-    
+
     if not monolith_path.exists():
         logger.warning(
             "monolith_not_found",
@@ -68,21 +66,22 @@ def load_signals_from_monolith(monolith_path: str | Path) -> dict[str, SignalPac
             message="Using stub signal packs",
         )
         return _create_stub_signal_packs()
-    
+
     try:
-        # Use factory for I/O (architecture-compliant)
-        monolith_data = load_questionnaire_monolith(monolith_path)
-        
-        # TODO: Implement extraction logic
-        # For now, create stub packs
+        # Use canonical loader for hash verification and immutability
+        canonical_q = load_questionnaire(monolith_path)
+
         logger.info(
             "signals_loaded_from_monolith",
             path=str(monolith_path),
+            sha256=canonical_q.sha256[:16] + "...",
+            question_count=canonical_q.total_question_count,
             message="TODO: Implement actual extraction",
         )
-        
+
+        # TODO: Implement extraction logic using canonical_q.data
         return _create_stub_signal_packs()
-        
+
     except Exception as e:
         logger.error("failed_to_load_monolith", path=str(monolith_path), error=str(e))
         return _create_stub_signal_packs()

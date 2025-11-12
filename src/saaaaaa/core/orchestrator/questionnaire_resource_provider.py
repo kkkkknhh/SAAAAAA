@@ -17,6 +17,11 @@ Design Principles:
 - Lazy extraction with caching
 - Category-based pattern retrieval
 - Full traceability and observability
+
+QUESTIONNAIRE INTEGRITY:
+- Accepts CanonicalQuestionnaire for type safety
+- Falls back to dict for backward compatibility (with warning)
+- All data access assumes immutable structures
 """
 
 from __future__ import annotations
@@ -26,10 +31,12 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TYPE_CHECKING
 
 import structlog
 
+if TYPE_CHECKING:
+    from .factory import CanonicalQuestionnaire
 
 logger = structlog.get_logger(__name__)
 
@@ -126,56 +133,91 @@ class ValidationSpec:
 class QuestionnaireResourceProvider:
     """
     Provider for questionnaire-derived patterns and validations.
-    
+
     This is the SINGLE SOURCE OF TRUTH for all patterns extracted from
     the questionnaire monolith. All module classes MUST use this provider
     instead of duplicating patterns.
-    
-    Usage:
-        provider = QuestionnaireResourceProvider.from_file("data/questionnaire_monolith.json")
+
+    Usage (preferred):
+        from saaaaaa.core.orchestrator.factory import load_questionnaire
+        questionnaire = load_questionnaire()
+        provider = QuestionnaireResourceProvider(questionnaire)
         temporal_patterns = provider.get_temporal_patterns()
-        all_patterns = provider.extract_all_patterns()
+
+    Usage (legacy):
+        provider = QuestionnaireResourceProvider.from_file("data/questionnaire_monolith.json")
     """
-    
-    def __init__(self, questionnaire_data: dict[str, Any]):
+
+    def __init__(self, questionnaire_data: CanonicalQuestionnaire | dict[str, Any]):
         """
         Initialize provider with questionnaire data.
-        
+
         Args:
-            questionnaire_data: Parsed questionnaire monolith JSON
+            questionnaire_data: CanonicalQuestionnaire (preferred) or dict (legacy)
         """
-        self._data = questionnaire_data
+        # Import here to avoid circular dependency
+        from .factory import CanonicalQuestionnaire
+
+        if isinstance(questionnaire_data, CanonicalQuestionnaire):
+            # Type-safe path: extract immutable data
+            self._data = dict(questionnaire_data.data)  # Convert to mutable for internal use
+            self._canonical = questionnaire_data
+            logger.info(
+                "questionnaire_resource_provider_initialized",
+                source="canonical",
+                sha256=questionnaire_data.sha256[:16] + "...",
+                version=questionnaire_data.version,
+                schema_version=questionnaire_data.schema_version,
+            )
+        elif isinstance(questionnaire_data, dict):
+            # Legacy path: accept dict but warn
+            import warnings
+            warnings.warn(
+                "QuestionnaireResourceProvider should receive CanonicalQuestionnaire, "
+                "not dict. Use load_questionnaire() from factory module.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            self._data = questionnaire_data
+            self._canonical = None
+            logger.warning(
+                "questionnaire_resource_provider_initialized",
+                source="dict_legacy",
+                version=questionnaire_data.get("version", "unknown"),
+                schema_version=questionnaire_data.get("schema_version", "unknown"),
+            )
+        else:
+            raise TypeError(
+                f"questionnaire_data must be CanonicalQuestionnaire or dict, "
+                f"got {type(questionnaire_data).__name__}"
+            )
+
         self._patterns_cache: dict[str, list[Pattern]] | None = None
         self._validations_cache: list[ValidationSpec] | None = None
-        
-        logger.info(
-            "questionnaire_resource_provider_initialized",
-            version=questionnaire_data.get("version", "unknown"),
-            schema_version=questionnaire_data.get("schema_version", "unknown"),
-        )
     
     @classmethod
     def from_file(cls, path: str | Path) -> QuestionnaireResourceProvider:
         """
         Load provider from questionnaire monolith file.
-        
+
+        This method now uses the canonical loader for integrity checking.
+
         Args:
             path: Path to questionnaire_monolith.json
-            
+
         Returns:
             QuestionnaireResourceProvider instance
         """
+        from .factory import load_questionnaire
+
         path = Path(path)
-        
-        if not path.exists():
-            logger.error("questionnaire_file_not_found", path=str(path))
-            raise FileNotFoundError(f"Questionnaire monolith not found: {path}")
-        
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        logger.info("questionnaire_loaded_from_file", path=str(path))
-        return cls(data)
+
+        logger.info("loading_questionnaire_via_canonical_loader", path=str(path))
+
+        # Use canonical loader for integrity checking
+        canonical = load_questionnaire(path)
+
+        return cls(canonical)
     
     def extract_all_patterns(self) -> list[Pattern]:
         """

@@ -68,12 +68,21 @@ class CalibrationEngine:
         # SIN_CARRETA: Validate fusion weights at load time
         self._validate_fusion_weights()
         
-        # Load questionnaire monolith
+        # Load questionnaire monolith using canonical loader
+        # This ensures hash verification and immutability
+        from saaaaaa.core.orchestrator.factory import load_questionnaire
+
         if monolith_path is None:
-            monolith_path = config_dir.parent / "data" / "questionnaire_monolith.json"
+            # Use default path from factory
+            canonical_q = load_questionnaire()
         else:
-            monolith_path = Path(monolith_path)
-        self.monolith = self._load_json(monolith_path)
+            # Use specified path
+            canonical_q = load_questionnaire(Path(monolith_path))
+
+        # Convert to dict for backward compatibility with calibration system
+        # (CalibrationEngine expects dict, not CanonicalQuestionnaire)
+        self.monolith = dict(canonical_q.data)
+        self._questionnaire_hash = canonical_q.sha256  # Store for verification
         
         # Compute config hash
         self.config_hash = self._compute_config_hash()
