@@ -225,8 +225,37 @@ def resolve_calibration_with_context(
         return base_calibration
 
 
+def get_calibration_hash() -> str:
+    """Get hash of calibration file for versioning/verification.
+    
+    This function computes a SHA256 hash of the calibration file to enable
+    versioning and verification of calibration data.
+    
+    Returns:
+        Hexadecimal SHA256 hash string of calibration file
+    """
+    import hashlib
+    
+    if not _CALIBRATION_FILE.exists():
+        logger.warning(f"Calibration file not found: {_CALIBRATION_FILE}")
+        return "unknown"
+    
+    try:
+        content = _CALIBRATION_FILE.read_bytes()
+        return hashlib.sha256(content).hexdigest()
+    except Exception as e:
+        logger.error(f"Failed to compute calibration hash: {e}")
+        return "error"
+
+
+# Calibration version identifier
+CALIBRATION_VERSION: str = "1.0.0"
+
+
 __all__ = [
     "MethodCalibration",
     "resolve_calibration",
     "resolve_calibration_with_context",
+    "get_calibration_hash",
+    "CALIBRATION_VERSION",
 ]
