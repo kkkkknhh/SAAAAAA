@@ -17,7 +17,6 @@ from typing import Dict, Tuple
 
 # Add src to path
 REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO_ROOT / 'src'))
 
 
 class SignalConsumptionVerifier:

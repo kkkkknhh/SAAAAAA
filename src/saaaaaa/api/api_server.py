@@ -43,7 +43,7 @@ from flask_socketio import SocketIO, emit
 from werkzeug.exceptions import HTTPException
 
 # Import orchestrator components
-from recommendation_engine import load_recommendation_engine
+from saaaaaa.analysis.recommendation_engine import load_recommendation_engine
 
 # Configure logging
 logging.basicConfig(

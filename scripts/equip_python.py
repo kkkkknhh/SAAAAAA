@@ -90,12 +90,6 @@ def test_package_import() -> bool:
     """Test that the saaaaaa package can be imported."""
     print("=== SAAAAAA Package Import ===")
     
-    # Add src to path
-    root = Path(__file__).parent.parent
-    src_path = root / "src"
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-    
     try:
         import saaaaaa
         print(f"✓ Package imported successfully")

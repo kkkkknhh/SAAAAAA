@@ -1295,19 +1295,35 @@ class Orchestrator:
         )
 
         # Initialize RecommendationEngine for 3-level recommendations
+        # Get questionnaire provider for dependency injection (shared by all init paths)
+        try:
+            from . import get_questionnaire_provider
+            questionnaire_provider = get_questionnaire_provider()
+        except Exception as e:
+            logger.warning(f"Failed to get questionnaire provider: {e}")
+            questionnaire_provider = None
+        
+        # Note: Passing orchestrator=self is safe here because RecommendationEngine
+        # only stores the reference in __init__ and doesn't access orchestrator
+        # attributes during initialization. The orchestrator is fully set up at
+        # this point (all required attributes initialized above).
         try:
             # Try to load enhanced rules first (v2.0), fallback to v1.0
             try:
                 self.recommendation_engine = RecommendationEngine(
                     rules_path="config/recommendation_rules_enhanced.json",
-                    schema_path="rules/recommendation_rules_enhanced.schema.json"
+                    schema_path="rules/recommendation_rules_enhanced.schema.json",
+                    questionnaire_provider=questionnaire_provider,
+                    orchestrator=self
                 )
                 logger.info("RecommendationEngine initialized with enhanced v2.0 rules")
             except Exception as e_enhanced:
                 logger.info(f"Enhanced rules not available ({e_enhanced}), falling back to v1.0")
                 self.recommendation_engine = RecommendationEngine(
                     rules_path="config/recommendation_rules.json",
-                    schema_path="rules/recommendation_rules.schema.json"
+                    schema_path="rules/recommendation_rules.schema.json",
+                    questionnaire_provider=questionnaire_provider,
+                    orchestrator=self
                 )
                 logger.info("RecommendationEngine initialized with v1.0 rules")
         except Exception as e:

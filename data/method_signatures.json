@@ -1,0 +1,19 @@
+{
+  "methods": {
+    "pattern_extractor_v2": {
+      "required_inputs": ["text", "question_id"],
+      "optional_inputs": ["context", "patterns", "regex_flags"],
+      "outputs": ["extracted_text", "matches"]
+    },
+    "coherence_validator": {
+      "required_inputs": ["extracted_text", "question_id"],
+      "optional_inputs": ["reference_corpus"],
+      "outputs": ["validation_score", "coherence_metrics"]
+    },
+    "table_extractor": {
+      "required_inputs": ["document"],
+      "optional_inputs": ["table_detection_threshold"],
+      "outputs": ["tables", "table_metadata"]
+    }
+  }
+}
