@@ -10,7 +10,7 @@ Run: python validate_factory_interventions.py
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from types import MappingProxyType
 from dataclasses import dataclass, field
 
