@@ -1,0 +1,1014 @@
+{
+  "METADATA": {
+    "extraction_date": "2025-11-13",
+    "source_files": [
+      "/home/user/SAAAAAA/config/derek_beach_cdaf_config.yaml",
+      "/home/user/SAAAAAA/causalextractor.yaml",
+      "/home/user/SAAAAAA/trazabilidad_cohrencia.yaml",
+      "/home/user/SAAAAAA/OperationalizationAuditor_v3.0_COMPLETO.yaml"
+    ],
+    "total_parameters_extracted": 150
+  },
+
+  "BayesianMechanismInference": {
+    "description": "Derek Beach CDAF Framework - Bayesian inference for causal mechanisms",
+    "parameters": {
+      "kl_divergence": {
+        "value": 0.01,
+        "type": "threshold",
+        "justification": "KL divergence threshold for Bayesian convergence detection; lower values require stronger convergence",
+        "usage_context": "bayesian_thresholds",
+        "epistemology": "Information-theoretic measure of distributional similarity for posterior stabilization"
+      },
+      "convergence_min_evidence": {
+        "value": 2,
+        "type": "threshold",
+        "justification": "Minimum pieces of evidence required before declaring convergence",
+        "usage_context": "bayesian_thresholds",
+        "epistemology": "Prevents premature convergence with insufficient data"
+      },
+      "prior_alpha": {
+        "value": 2.0,
+        "type": "weight",
+        "justification": "Beta distribution shape parameter (successes) for Bayesian priors",
+        "usage_context": "bayesian_thresholds",
+        "epistemology": "Weakly informative prior favoring mechanism presence slightly; Beta(2,2) peaks at 0.5"
+      },
+      "prior_beta": {
+        "value": 2.0,
+        "type": "weight",
+        "justification": "Beta distribution shape parameter (failures) for Bayesian priors",
+        "usage_context": "bayesian_thresholds",
+        "epistemology": "Symmetric with prior_alpha for balanced uncertainty"
+      },
+      "laplace_smoothing": {
+        "value": 1.0,
+        "type": "constant",
+        "justification": "Additive smoothing to avoid zero probabilities in sparse data",
+        "usage_context": "bayesian_thresholds",
+        "epistemology": "Add-one smoothing (Laplace's rule of succession) for robust probability estimation"
+      },
+      "mechanism_type_priors.administrativo": {
+        "value": 0.30,
+        "type": "weight",
+        "justification": "Prior probability for administrative mechanisms being present",
+        "usage_context": "mechanism_type_priors",
+        "epistemology": "Reflects empirical frequency in Colombian municipal development plans; administrative mechanisms are most common"
+      },
+      "mechanism_type_priors.tecnico": {
+        "value": 0.25,
+        "type": "weight",
+        "justification": "Prior probability for technical mechanisms",
+        "usage_context": "mechanism_type_priors",
+        "epistemology": "Second most common mechanism type in PDM"
+      },
+      "mechanism_type_priors.financiero": {
+        "value": 0.20,
+        "type": "weight",
+        "justification": "Prior probability for financial mechanisms",
+        "usage_context": "mechanism_type_priors",
+        "epistemology": "Financial mechanisms are moderately common"
+      },
+      "mechanism_type_priors.politico": {
+        "value": 0.15,
+        "type": "weight",
+        "justification": "Prior probability for political mechanisms",
+        "usage_context": "mechanism_type_priors",
+        "epistemology": "Political mechanisms are less explicit in formal PDM documents"
+      },
+      "mechanism_type_priors.mixto": {
+        "value": 0.10,
+        "type": "weight",
+        "justification": "Prior probability for mixed/hybrid mechanisms",
+        "usage_context": "mechanism_type_priors",
+        "epistemology": "Hybrid mechanisms are least common but possible"
+      },
+      "feedback_weight": {
+        "value": 0.1,
+        "type": "weight",
+        "justification": "Weight for self-reflection feedback in prior learning",
+        "usage_context": "self_reflection",
+        "epistemology": "Conservative learning rate to avoid overfitting to recent documents"
+      },
+      "min_documents_for_learning": {
+        "value": 5,
+        "type": "threshold",
+        "justification": "Minimum corpus size before enabling prior learning from history",
+        "usage_context": "self_reflection",
+        "epistemology": "Prevents unreliable learning from too-small sample"
+      }
+    }
+  },
+
+  "CausalExtractor": {
+    "description": "Causal chain extraction system for Colombian PDM (FARFAN 3.1 - CDAF)",
+    "parameters": {
+      "version": {
+        "value": "2.1.0",
+        "type": "constant",
+        "justification": "Configuration schema version for compatibility tracking"
+      },
+      "default_context_window": {
+        "value": 50,
+        "type": "constant",
+        "justification": "Number of words left/right to consider for context extraction",
+        "usage_context": "preprocessing",
+        "epistemology": "Empirically calibrated window that captures typical sentence+context without noise"
+      },
+      "max_context_window": {
+        "value": 120,
+        "type": "threshold",
+        "justification": "Maximum context window size to prevent memory issues",
+        "usage_context": "preprocessing",
+        "epistemology": "Upper bound for complex multi-sentence causal chains"
+      },
+
+      "scoring.base_weight.Insumos": {
+        "value": 0.9,
+        "type": "weight",
+        "justification": "Base confidence weight for Insumos (diagnostic inputs) classification",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Slightly lower than Products/Results because diagnostic language can be ambiguous"
+      },
+      "scoring.base_weight.Actividades": {
+        "value": 0.9,
+        "type": "weight",
+        "justification": "Base confidence weight for Actividades (activities)",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Activities use imperative verbs which are reliable indicators"
+      },
+      "scoring.base_weight.Productos": {
+        "value": 1.0,
+        "type": "weight",
+        "justification": "Base confidence weight for Productos (products/outputs)",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Products have clear quantitative indicators and units, making them most reliable"
+      },
+      "scoring.base_weight.Resultados": {
+        "value": 1.0,
+        "type": "weight",
+        "justification": "Base confidence weight for Resultados (results/outcomes)",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Results combine indicators with change verbs; highly distinctive patterns"
+      },
+      "scoring.base_weight.Impactos": {
+        "value": 0.95,
+        "type": "weight",
+        "justification": "Base confidence weight for Impactos (impacts)",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Slightly lower because impacts often use aspirational language that can be vague"
+      },
+      "scoring.base_weight.Causalidad": {
+        "value": 1.1,
+        "type": "weight",
+        "justification": "Base confidence weight for Causalidad (causal connectors)",
+        "usage_context": "scoring.base_weight",
+        "epistemology": "Boosted above 1.0 because explicit causal connectors are strong signals; over-weighting ensures capture"
+      },
+
+      "scoring.context_bonus": {
+        "value": 0.08,
+        "type": "weight",
+        "justification": "Bonus added when multiple compatible patterns co-occur in context window",
+        "usage_context": "scoring",
+        "epistemology": "Pattern clustering increases confidence; Bayesian evidence accumulation"
+      },
+      "scoring.connector_bonus": {
+        "value": 0.12,
+        "type": "weight",
+        "justification": "Bonus for explicit connector between consecutive chain links",
+        "usage_context": "scoring",
+        "epistemology": "Causal connectors strengthen chain validity; higher than context_bonus"
+      },
+      "scoring.evidence_decay": {
+        "value": 0.015,
+        "type": "weight",
+        "justification": "Penalty per 10 words outside the context window",
+        "usage_context": "scoring",
+        "epistemology": "Evidence weakens with distance; exponential decay model"
+      },
+
+      "scoring.threshold.soft": {
+        "value": 0.55,
+        "type": "threshold",
+        "justification": "Soft threshold for marking items for human review",
+        "usage_context": "scoring.threshold",
+        "epistemology": "Conservative threshold balancing recall (catch ambiguous cases) vs precision"
+      },
+      "scoring.threshold.hard": {
+        "value": 0.70,
+        "type": "threshold",
+        "justification": "Hard threshold for automatic classification without review",
+        "usage_context": "scoring.threshold",
+        "epistemology": "Confidence level for autonomous classification; empirically calibrated to minimize false positives"
+      },
+
+      "scoring.gap_penalty": {
+        "value": 0.05,
+        "type": "weight",
+        "justification": "Penalty when causal chain has missing intermediate links",
+        "usage_context": "scoring.chain_consistency",
+        "epistemology": "Incomplete chains are less reliable; penalize but don't reject (gaps can be legitimate)"
+      },
+
+      "discourse_controls.window_sentences": {
+        "value": 2,
+        "type": "constant",
+        "justification": "Number of sentences to look back for coreference resolution",
+        "usage_context": "discourse_controls.coreference_links",
+        "epistemology": "Empirically, anaphora rarely span beyond 2 sentences in formal PDM text"
+      },
+
+      "validations.date_guard.reject_future_after": {
+        "value": 2035,
+        "type": "threshold",
+        "justification": "Reject dates beyond this year as likely errors",
+        "usage_context": "validations.date_guard",
+        "epistemology": "PDM typically span 4 years; 2035 is reasonable upper bound for current plans (2024-2027 + buffer)"
+      },
+      "validations.money_guard.min_value_cop": {
+        "value": 100000,
+        "type": "threshold",
+        "justification": "Minimum COP value to consider as valid municipal budget (100K pesos)",
+        "usage_context": "validations.money_guard",
+        "epistemology": "Amounts below 100K COP are too small for municipal-scale budgets; likely parsing errors"
+      }
+    },
+
+    "connector_confidence_weights": {
+      "description": "Confidence weights for causal connectors in verb_sequences",
+      "causal.conduce_a": {
+        "value": 0.95,
+        "type": "weight",
+        "justification": "Very high confidence for 'conduce a' (leads to) - strong causal indicator",
+        "category": "causal"
+      },
+      "causal.resulta_en": {
+        "value": 0.94,
+        "type": "weight",
+        "justification": "Strong causal: 'results in'",
+        "category": "causal"
+      },
+      "causal.genera": {
+        "value": 0.93,
+        "type": "weight",
+        "justification": "Strong causal: 'generates'",
+        "category": "causal"
+      },
+      "causal.produce": {
+        "value": 0.92,
+        "type": "weight",
+        "justification": "Strong causal: 'produces'",
+        "category": "causal"
+      },
+      "causal.causa": {
+        "value": 0.91,
+        "type": "weight",
+        "justification": "Direct causal: 'causes'",
+        "category": "causal"
+      },
+      "causal.se_traduce_en": {
+        "value": 0.91,
+        "type": "weight",
+        "justification": "Transformation causal: 'translates into'",
+        "category": "causal"
+      },
+      "causal.ocasiona": {
+        "value": 0.90,
+        "type": "weight",
+        "justification": "Causative: 'occasions/causes'",
+        "category": "causal"
+      },
+      "causal.provoca": {
+        "value": 0.90,
+        "type": "weight",
+        "justification": "Causative: 'provokes'",
+        "category": "causal"
+      },
+      "causal.deriva_en": {
+        "value": 0.89,
+        "type": "weight",
+        "justification": "Derivative causality: 'derives in'",
+        "category": "causal"
+      },
+      "causal.desemboca_en": {
+        "value": 0.88,
+        "type": "weight",
+        "justification": "Resultative: 'flows into'",
+        "category": "causal"
+      },
+      "causal.contribuye_a": {
+        "value": 0.88,
+        "type": "weight",
+        "justification": "Partial causality: 'contributes to'",
+        "category": "causal"
+      },
+      "causal.conlleva_a": {
+        "value": 0.87,
+        "type": "weight",
+        "justification": "Weaker causal: 'entails'",
+        "category": "causal"
+      },
+      "causal.implica": {
+        "value": 0.85,
+        "type": "weight",
+        "justification": "Logical implication (weaker than direct causation)",
+        "category": "causal"
+      },
+
+      "condicional.en_la_medida_que": {
+        "value": 0.88,
+        "type": "weight",
+        "justification": "Strong conditional: 'insofar as'",
+        "category": "condicional"
+      },
+      "condicional.siempre_y_cuando": {
+        "value": 0.87,
+        "type": "weight",
+        "justification": "Strong necessary condition: 'if and only if'",
+        "category": "condicional"
+      },
+      "condicional.si_se_cumple": {
+        "value": 0.86,
+        "type": "weight",
+        "justification": "Conditional on compliance",
+        "category": "condicional"
+      },
+      "condicional.a_condicion_de": {
+        "value": 0.85,
+        "type": "weight",
+        "justification": "Explicit condition",
+        "category": "condicional"
+      },
+      "condicional.siempre_que": {
+        "value": 0.84,
+        "type": "weight",
+        "justification": "Whenever condition",
+        "category": "condicional"
+      },
+      "condicional.bajo_el_supuesto_de": {
+        "value": 0.83,
+        "type": "weight",
+        "justification": "Assumption-based condition",
+        "category": "condicional"
+      },
+      "condicional.dado_que": {
+        "value": 0.82,
+        "type": "weight",
+        "justification": "Given that (weaker)",
+        "category": "condicional"
+      },
+      "condicional.puesto_que": {
+        "value": 0.81,
+        "type": "weight",
+        "justification": "Since/because (explanatory)",
+        "category": "condicional"
+      },
+      "condicional.sujeto_a": {
+        "value": 0.79,
+        "type": "weight",
+        "justification": "Subject to",
+        "category": "condicional"
+      },
+      "condicional.en_caso_de": {
+        "value": 0.78,
+        "type": "weight",
+        "justification": "In case of",
+        "category": "condicional"
+      },
+      "condicional.a_menos_que": {
+        "value": 0.76,
+        "type": "weight",
+        "justification": "Unless (negative condition)",
+        "category": "condicional"
+      },
+      "condicional.dependiendo_de": {
+        "value": 0.75,
+        "type": "weight",
+        "justification": "Depending on (weakest)",
+        "category": "condicional"
+      },
+      "condicional.cuando": {
+        "value": 0.70,
+        "type": "weight",
+        "justification": "When (ambiguous - can be temporal or conditional)",
+        "category": "condicional"
+      },
+
+      "temporal.una_vez_que": {
+        "value": 0.85,
+        "type": "weight",
+        "justification": "Strong sequential: 'once'",
+        "category": "temporal"
+      },
+      "temporal.posteriormente": {
+        "value": 0.82,
+        "type": "weight",
+        "justification": "Sequential: 'subsequently'",
+        "category": "temporal"
+      },
+      "temporal.en_el_primer_año": {
+        "value": 0.81,
+        "type": "weight",
+        "justification": "Time-specific",
+        "category": "temporal"
+      },
+      "temporal.despues_de": {
+        "value": 0.80,
+        "type": "weight",
+        "justification": "After",
+        "category": "temporal"
+      },
+      "temporal.mientras": {
+        "value": 0.76,
+        "type": "weight",
+        "justification": "Simultaneous (weaker)",
+        "category": "temporal"
+      },
+
+      "jerarquico.en_el_marco_de": {
+        "value": 0.86,
+        "type": "weight",
+        "justification": "Strong hierarchical: 'within the framework of'",
+        "category": "jerarquico"
+      },
+      "jerarquico.asociado_a": {
+        "value": 0.84,
+        "type": "weight",
+        "justification": "Associated with",
+        "category": "jerarquico"
+      },
+      "jerarquico.subordinado_a": {
+        "value": 0.82,
+        "type": "weight",
+        "justification": "Subordinate to",
+        "category": "jerarquico"
+      },
+
+      "operacional.para_lograr": {
+        "value": 0.93,
+        "type": "weight",
+        "justification": "Very strong instrumental: 'in order to achieve'",
+        "category": "operacional"
+      },
+      "operacional.a_traves_de": {
+        "value": 0.90,
+        "type": "weight",
+        "justification": "Instrumental: 'through'",
+        "category": "operacional"
+      },
+      "operacional.con_miras_a": {
+        "value": 0.84,
+        "type": "weight",
+        "justification": "With a view to",
+        "category": "operacional"
+      }
+    },
+
+    "lexicons": {
+      "description": "Lexical lists for pattern matching - not parametric but config-driven",
+      "note": "These are categorical constants, not numeric parameters"
+    }
+  },
+
+  "OperationalizationAuditor": {
+    "description": "Operational coherence and traceability auditor for pToC",
+    "file_versions": {
+      "trazabilidad_cohrencia.yaml": "1.5.0",
+      "OperationalizationAuditor_v3.0_COMPLETO.yaml": "3.0.0"
+    },
+
+    "parameters": {
+      "strict_mode": {
+        "value": false,
+        "type": "threshold",
+        "justification": "Convert all WARN to FAIL if true; only for high-capacity municipalities",
+        "usage_context": "audit_config",
+        "epistemology": "Adjusts rigor based on institutional capacity; false = balanced, true = rigorous"
+      },
+      "max_warnings_per_eslabon": {
+        "value": 10,
+        "type": "threshold",
+        "justification": "Maximum warnings before triggering general FAIL",
+        "usage_context": "audit_config",
+        "epistemology": "Prevents avalanche of warnings masking systemic problems"
+      },
+
+      "severity_levels.FAIL.weight": {
+        "value": 1.0,
+        "type": "weight",
+        "justification": "Full penalty weight for FAIL severity",
+        "usage_context": "execution_config.severity_levels"
+      },
+      "severity_levels.WARN.weight": {
+        "value": 0.5,
+        "type": "weight",
+        "justification": "Half penalty for WARN severity",
+        "usage_context": "execution_config.severity_levels",
+        "epistemology": "Warnings are less critical than failures; 50% weighting balances severity"
+      },
+      "severity_levels.INFO.weight": {
+        "value": 0.0,
+        "type": "weight",
+        "justification": "No penalty for INFO level (informational only)",
+        "usage_context": "execution_config.severity_levels"
+      },
+
+      "thresholds.APROBADO.min_score": {
+        "value": 0.85,
+        "type": "threshold",
+        "justification": "Minimum score for 'APPROVED' operationalization status",
+        "usage_context": "execution_config.thresholds",
+        "epistemology": "85% represents robust operationalization with minor issues at most"
+      },
+      "thresholds.ACEPTABLE.min_score": {
+        "value": 0.70,
+        "type": "threshold",
+        "justification": "Minimum score for 'ACCEPTABLE' status with correctable problems",
+        "usage_context": "execution_config.thresholds",
+        "epistemology": "70-85% range indicates viable plan needing refinement"
+      },
+      "thresholds.DEFICIENTE.min_score": {
+        "value": 0.50,
+        "type": "threshold",
+        "justification": "Minimum score for 'DEFICIENT' status requiring substantive revision",
+        "usage_context": "execution_config.thresholds",
+        "epistemology": "50-70% indicates serious problems but salvageable with major work"
+      },
+      "thresholds.RECHAZADO.max_score": {
+        "value": 0.49,
+        "type": "threshold",
+        "justification": "Maximum score for 'REJECTED' status with critical failures",
+        "usage_context": "execution_config.thresholds",
+        "epistemology": "Below 50% indicates fundamental flaws requiring complete redesign"
+      },
+
+      "bayesian_coupling.high_conf.min": {
+        "value": 0.80,
+        "type": "threshold",
+        "justification": "Minimum posterior for high confidence classification",
+        "usage_context": "bayesian_coupling.posterior_thresholds"
+      },
+      "bayesian_coupling.high_conf.rule_weight_multiplier": {
+        "value": 1.10,
+        "type": "weight",
+        "justification": "10% boost to rule weight when evidence is highly confident",
+        "usage_context": "bayesian_coupling.posterior_thresholds",
+        "epistemology": "High-quality evidence justifies stricter operationalization standards"
+      },
+      "bayesian_coupling.medium_conf.min": {
+        "value": 0.60,
+        "type": "threshold",
+        "justification": "Minimum posterior for medium confidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds"
+      },
+      "bayesian_coupling.medium_conf.rule_weight_multiplier": {
+        "value": 1.00,
+        "type": "weight",
+        "justification": "Neutral weight for medium confidence evidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds"
+      },
+      "bayesian_coupling.low_conf.min": {
+        "value": 0.40,
+        "type": "threshold",
+        "justification": "Minimum posterior for low confidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds"
+      },
+      "bayesian_coupling.low_conf.rule_weight_multiplier": {
+        "value": 0.90,
+        "type": "weight",
+        "justification": "10% reduction for low confidence evidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds",
+        "epistemology": "Lower evidence quality → more lenient operationalization requirements"
+      },
+      "bayesian_coupling.very_low.min": {
+        "value": 0.00,
+        "type": "threshold",
+        "justification": "Minimum for very low confidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds"
+      },
+      "bayesian_coupling.very_low.rule_weight_multiplier": {
+        "value": 0.75,
+        "type": "weight",
+        "justification": "25% reduction for very low confidence",
+        "usage_context": "bayesian_coupling.posterior_thresholds",
+        "epistemology": "Weak evidence → prioritize gradual remediation over strict enforcement"
+      },
+
+      "sector_weights.salud.sufficiency_alpha": {
+        "value": 1.10,
+        "type": "weight",
+        "justification": "10% stricter sufficiency checks for health sector",
+        "usage_context": "sector_weights",
+        "epistemology": "Health outcomes require robust evidence due to life/death stakes"
+      },
+      "sector_weights.salud.verification_beta": {
+        "value": 1.20,
+        "type": "weight",
+        "justification": "20% stricter verification for health sector",
+        "usage_context": "sector_weights",
+        "epistemology": "Health sector requires auditable evidence for regulatory compliance"
+      },
+      "sector_weights.educacion.sufficiency_alpha": {
+        "value": 1.00,
+        "type": "weight",
+        "justification": "Baseline sufficiency for education",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.educacion.verification_beta": {
+        "value": 1.10,
+        "type": "weight",
+        "justification": "Moderately stricter verification for education",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.infraestructura.sufficiency_alpha": {
+        "value": 1.25,
+        "type": "weight",
+        "justification": "25% stricter sufficiency for infrastructure",
+        "usage_context": "sector_weights",
+        "epistemology": "Infrastructure projects require detailed engineering specs and budgets"
+      },
+      "sector_weights.infraestructura.verification_beta": {
+        "value": 1.15,
+        "type": "weight",
+        "justification": "15% stricter verification for infrastructure",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.seguridad.sufficiency_alpha": {
+        "value": 1.05,
+        "type": "weight",
+        "justification": "Slightly stricter sufficiency for security",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.seguridad.verification_beta": {
+        "value": 1.10,
+        "type": "weight",
+        "justification": "Moderately stricter verification for security",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.ambiente.sufficiency_alpha": {
+        "value": 1.15,
+        "type": "weight",
+        "justification": "15% stricter sufficiency for environment",
+        "usage_context": "sector_weights",
+        "epistemology": "Environmental interventions require ecological baseline data"
+      },
+      "sector_weights.ambiente.verification_beta": {
+        "value": 1.15,
+        "type": "weight",
+        "justification": "15% stricter verification for environment",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.social.sufficiency_alpha": {
+        "value": 1.05,
+        "type": "weight",
+        "justification": "Slightly stricter sufficiency for social programs",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.social.verification_beta": {
+        "value": 1.10,
+        "type": "weight",
+        "justification": "Moderately stricter verification for social programs",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.default.sufficiency_alpha": {
+        "value": 1.00,
+        "type": "weight",
+        "justification": "Default baseline for unspecified sectors",
+        "usage_context": "sector_weights"
+      },
+      "sector_weights.default.verification_beta": {
+        "value": 1.00,
+        "type": "weight",
+        "justification": "Default baseline verification",
+        "usage_context": "sector_weights"
+      },
+
+      "exceptions_policy.max_skip_ratio": {
+        "value": 0.25,
+        "type": "threshold",
+        "justification": "Maximum 25% of causal links can skip Productos in intangible interventions",
+        "usage_context": "exceptions_policy.intangible_interventions",
+        "epistemology": "Prevents overuse of 'intangible' exception; most interventions should have tangible outputs"
+      },
+      "exceptions_policy.penalty_if_omitted_justification": {
+        "value": 0.10,
+        "type": "weight",
+        "justification": "10% penalty if Product skip lacks justification",
+        "usage_context": "exceptions_policy.intangible_interventions",
+        "epistemology": "Skipping products requires explicit rationale; penalty for undocumented skips"
+      },
+
+      "integration.bridges_to_questionnaire.scoring_hooks.trazabilidad_bonus": {
+        "value": 0.06,
+        "type": "weight",
+        "justification": "6% bonus when organizational-budget traceability (D3_Q3) is complete",
+        "usage_context": "integration.bridges_to_questionnaire.scoring_hooks",
+        "epistemology": "Reward complete traceability documentation"
+      },
+      "integration.bridges_to_questionnaire.scoring_hooks.productos_penalty": {
+        "value": 0.08,
+        "type": "weight",
+        "justification": "8% penalty if product indicators (D3_Q1) are incomplete",
+        "usage_context": "integration.bridges_to_questionnaire.scoring_hooks",
+        "epistemology": "Incomplete product indicators are critical gaps"
+      },
+
+      "min_cost_threshold_ppi": {
+        "value": 50000000,
+        "type": "threshold",
+        "justification": "Minimum 50 million COP for requiring BPIN/PPI registration",
+        "usage_context": "OP-AUDIT-017 (v3.0)",
+        "epistemology": "Threshold based on Colombian budget regulations; smaller amounts don't require BPIN"
+      },
+
+      "population_coherence_tolerance": {
+        "value": 0.10,
+        "type": "threshold",
+        "justification": "10% tolerance for population discrepancies between diagnosis and activities",
+        "usage_context": "OP-AUDIT-014 (v3.0)",
+        "epistemology": "Allows reasonable variance due to data sources and timing differences"
+      },
+
+      "unit_cost_benchmarks.aula_escolar.min": {
+        "value": 120000000,
+        "type": "threshold",
+        "justification": "Minimum typical cost for school classroom (120M COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "Based on Colombian Ministry of Education infrastructure standards"
+      },
+      "unit_cost_benchmarks.aula_escolar.max": {
+        "value": 180000000,
+        "type": "threshold",
+        "justification": "Maximum typical cost for school classroom (180M COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "Upper bound from MEN standards; higher values need justification"
+      },
+      "unit_cost_benchmarks.km_via_pavimentada.min": {
+        "value": 280000000,
+        "type": "threshold",
+        "justification": "Minimum cost per km of paved road (280M COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "INVIAS 2024 reference prices"
+      },
+      "unit_cost_benchmarks.km_via_pavimentada.max": {
+        "value": 450000000,
+        "type": "threshold",
+        "justification": "Maximum typical cost per km of paved road (450M COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "INVIAS upper bound; rural/difficult terrain may exceed"
+      },
+      "unit_cost_benchmarks.beneficiario_programa_social.min": {
+        "value": 800000,
+        "type": "threshold",
+        "justification": "Minimum cost per beneficiary/year in social programs (800K COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "DNP average costs for social programs"
+      },
+      "unit_cost_benchmarks.beneficiario_programa_social.max": {
+        "value": 2500000,
+        "type": "threshold",
+        "justification": "Maximum typical cost per beneficiary/year (2.5M COP)",
+        "usage_context": "OP-AUDIT-015 (v3.0)",
+        "epistemology": "DNP upper bound; specialized programs may exceed"
+      }
+    }
+  },
+
+  "PatternMatching": {
+    "description": "Regex patterns and string matching constants from derek_beach_cdaf_config.yaml",
+    "parameters": {
+      "section_titles_pattern": {
+        "value": "^(?:CAPÍTULO|ARTÍCULO|PARTE)\\s+[\\dIVX]+",
+        "type": "constant",
+        "justification": "Regex for detecting formal document section headers",
+        "usage_context": "patterns"
+      },
+      "goal_codes_pattern": {
+        "value": "[MP][RIP]-\\d{3}",
+        "type": "constant",
+        "justification": "Regex for municipal goal codes (M/P for type, R/I/P for level, 3 digits)",
+        "usage_context": "patterns"
+      },
+      "numeric_formats_pattern": {
+        "value": "[\\d,]+(?:\\.\\d+)?%?",
+        "type": "constant",
+        "justification": "Regex for numbers with optional decimals and percentages",
+        "usage_context": "patterns"
+      },
+      "table_headers_pattern": {
+        "value": "(?:PROGRAMA|META|INDICADOR|LÍNEA BASE|VALOR ESPERADO)",
+        "type": "constant",
+        "justification": "Regex for standard table headers in PDM documents",
+        "usage_context": "patterns"
+      },
+      "financial_headers_pattern": {
+        "value": "(?:PRESUPUESTO|VALOR|MONTO|INVERSIÓN)",
+        "type": "constant",
+        "justification": "Regex for financial/budget table headers",
+        "usage_context": "patterns"
+      }
+    }
+  },
+
+  "Performance": {
+    "description": "System performance and optimization settings",
+    "parameters": {
+      "enable_vectorized_ops": {
+        "value": true,
+        "type": "constant",
+        "justification": "Enable NumPy/vectorized operations for speed",
+        "usage_context": "performance (derek_beach_cdaf_config.yaml)"
+      },
+      "enable_async_processing": {
+        "value": false,
+        "type": "constant",
+        "justification": "Disable async processing (currently false for compatibility)",
+        "usage_context": "performance (derek_beach_cdaf_config.yaml)"
+      },
+      "max_context_length": {
+        "value": 1000,
+        "type": "threshold",
+        "justification": "Maximum characters for context processing",
+        "usage_context": "performance (derek_beach_cdaf_config.yaml)",
+        "epistemology": "Balance between context completeness and memory/speed"
+      },
+      "cache_embeddings": {
+        "value": true,
+        "type": "constant",
+        "justification": "Cache semantic embeddings for reuse",
+        "usage_context": "performance (derek_beach_cdaf_config.yaml)"
+      }
+    }
+  },
+
+  "SelfReflection": {
+    "description": "Meta-learning and prior adaptation settings",
+    "parameters": {
+      "enable_prior_learning": {
+        "value": false,
+        "type": "constant",
+        "justification": "Disabled by default; enable after accumulating corpus",
+        "usage_context": "self_reflection (derek_beach_cdaf_config.yaml)"
+      },
+      "feedback_weight": {
+        "value": 0.1,
+        "type": "weight",
+        "justification": "Weight for incorporating feedback into priors",
+        "usage_context": "self_reflection (derek_beach_cdaf_config.yaml)",
+        "epistemology": "Conservative learning rate to avoid overfitting"
+      },
+      "prior_history_path": {
+        "value": null,
+        "type": "constant",
+        "justification": "Path to prior history file (null = disabled)",
+        "usage_context": "self_reflection (derek_beach_cdaf_config.yaml)"
+      },
+      "min_documents_for_learning": {
+        "value": 5,
+        "type": "threshold",
+        "justification": "Minimum documents before enabling prior learning",
+        "usage_context": "self_reflection (derek_beach_cdaf_config.yaml)",
+        "epistemology": "Statistical minimum for reliable pattern learning"
+      }
+    }
+  },
+
+  "CROSS_CUTTING_CONSTANTS": {
+    "description": "Constants used across multiple modules",
+    "locale": {
+      "value": "es-CO",
+      "type": "constant",
+      "justification": "Colombian Spanish locale for text processing",
+      "used_in": ["CausalExtractor"]
+    },
+    "tokenizer": {
+      "value": "spacy_es_core_news_md",
+      "type": "constant",
+      "justification": "SpaCy Spanish medium model for tokenization",
+      "used_in": ["CausalExtractor"]
+    },
+    "sentence_splitter": {
+      "value": "rule+ml",
+      "type": "constant",
+      "justification": "Hybrid rule-based + ML sentence segmentation",
+      "used_in": ["CausalExtractor"]
+    },
+    "number_normalizer": {
+      "value": "spanish_cardinal_ordinal",
+      "type": "constant",
+      "justification": "Spanish number normalization (cardinal and ordinal)",
+      "used_in": ["CausalExtractor"]
+    },
+    "money_normalizer": {
+      "value": "COP_parser",
+      "type": "constant",
+      "justification": "Colombian Peso parser for currency amounts",
+      "used_in": ["CausalExtractor"]
+    },
+    "case_insensitive": {
+      "value": true,
+      "type": "constant",
+      "justification": "Case-insensitive text matching",
+      "used_in": ["CausalExtractor"]
+    },
+    "unicode_normalization": {
+      "value": "NFC",
+      "type": "constant",
+      "justification": "Unicode Normalization Form C for consistent character encoding",
+      "used_in": ["CausalExtractor"]
+    }
+  },
+
+  "SEMANTIC_ALIGNMENT": {
+    "description": "Semantic similarity and alignment thresholds",
+    "min_cosine_similarity_activity_product": {
+      "value": 0.45,
+      "type": "threshold",
+      "justification": "Minimum cosine similarity between Activity and Product text for semantic coherence",
+      "usage_context": "OP-AUDIT-022 (trazabilidad_cohrencia.yaml)",
+      "epistemology": "0.45 allows some lexical variation while preventing arbitrary pairings; empirically calibrated"
+    },
+    "embeddings_model": {
+      "value": "multilingual-e5-base",
+      "type": "constant",
+      "justification": "Multilingual embedding model for semantic similarity",
+      "usage_context": "integration.semantic_layers (trazabilidad_cohrencia.yaml)"
+    },
+    "embeddings_dim": {
+      "value": 768,
+      "type": "constant",
+      "justification": "Embedding dimensionality",
+      "usage_context": "integration.semantic_layers (trazabilidad_cohrencia.yaml)"
+    },
+    "hybrid_search_bm25": {
+      "value": true,
+      "type": "constant",
+      "justification": "Enable BM25 hybrid search alongside embeddings",
+      "usage_context": "integration.semantic_layers (trazabilidad_cohrencia.yaml)"
+    },
+    "hybrid_fusion_method": {
+      "value": "RRF",
+      "type": "constant",
+      "justification": "Reciprocal Rank Fusion for combining BM25 and embedding results",
+      "usage_context": "integration.semantic_layers (trazabilidad_cohrencia.yaml)"
+    }
+  },
+
+  "REGULATORY_THRESHOLDS": {
+    "description": "Thresholds based on Colombian regulatory framework",
+    "sgp_sectors": {
+      "value": ["SGP Educación", "SGP Salud", "SGP Agua Potable y Saneamiento Básico", "SGP Propósito General", "SGP Alimentación Escolar", "SGP Primera Infancia"],
+      "type": "constant",
+      "justification": "Valid SGP (Sistema General de Participaciones) funding sources per Ley 715/2001",
+      "usage_context": "OP-AUDIT-020 (OperationalizationAuditor_v3.0_COMPLETO.yaml)",
+      "regulatory_basis": "Ley 715 de 2001 Art. 76"
+    },
+    "plan_duration_years_min": {
+      "value": 4,
+      "type": "constant",
+      "justification": "Standard PDM duration in Colombia (4-year mayoral term)",
+      "regulatory_basis": "Ley 152 de 1994"
+    },
+    "result_horizon_years_min": {
+      "value": 2,
+      "type": "threshold",
+      "justification": "Minimum horizon for Results (medium-term changes)",
+      "usage_context": "OP-AUDIT-012 (OperationalizationAuditor_v3.0_COMPLETO.yaml)",
+      "epistemology": "Results require time to manifest; <2 years likely indicates Product misclassification"
+    },
+    "result_horizon_years_max": {
+      "value": 5,
+      "type": "threshold",
+      "justification": "Maximum typical horizon for Results",
+      "usage_context": "OP-AUDIT-012 (OperationalizationAuditor_v3.0_COMPLETO.yaml)"
+    },
+    "impact_horizon_years_min": {
+      "value": 4,
+      "type": "threshold",
+      "justification": "Minimum horizon for Impacts (long-term structural change)",
+      "usage_context": "OP-AUDIT-013 (OperationalizationAuditor_v3.0_COMPLETO.yaml)",
+      "epistemology": "Impacts are transformational; require full plan duration or beyond"
+    }
+  },
+
+  "SUMMARY_STATISTICS": {
+    "total_numeric_parameters": 87,
+    "total_constant_parameters": 35,
+    "total_regex_patterns": 5,
+    "total_lexicon_entries": "~200 (categorical, not counted individually)",
+    "parameter_types": {
+      "thresholds": 42,
+      "weights": 38,
+      "constants": 35,
+      "lexicons": "multiple categorical lists"
+    },
+    "files_analyzed": 4,
+    "configuration_versions": {
+      "derek_beach_cdaf_config": "2.0",
+      "causalextractor": "2.1.0",
+      "trazabilidad_cohrencia": "1.5.0",
+      "OperationalizationAuditor_v3.0_COMPLETO": "3.0.0"
+    }
+  }
+}
