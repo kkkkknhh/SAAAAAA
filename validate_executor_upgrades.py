@@ -206,6 +206,8 @@ def validate_protocol_modules() -> bool:
         print("  ✓ DeterministicRNG context manager works")
 
     except ImportError as e:
+        print(f"  ❌ FAILED: Import error: {e}")
+        return False
         print(f"  ⚠️  Import skipped (missing dependencies): {e}")
         print("  ℹ️  This is expected in limited environments")
         print("  ✓ Module files exist and are syntactically valid")
