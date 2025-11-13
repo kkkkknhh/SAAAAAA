@@ -76,6 +76,10 @@ class Budget:
     currency: str = "COP"
 
 
+# Alias for compatibility
+BudgetInfo = Budget
+
+
 @dataclass
 class KPI:
     """Key Performance Indicator extracted from policy."""
@@ -126,6 +130,14 @@ class ChunkGraph:
     """
     chunks: dict[str, Chunk] = field(default_factory=dict)
     edges: list[tuple[str, str, str]] = field(default_factory=list)  # (from_id, to_id, relation_type)
+
+    def add_chunk(self, chunk: Chunk) -> None:
+        """Add a chunk to the graph."""
+        self.chunks[chunk.id] = chunk
+
+    def add_edge(self, from_id: str, to_id: str, relation_type: str) -> None:
+        """Add an edge to the graph."""
+        self.edges.append((from_id, to_id, relation_type))
 
 
 @dataclass
