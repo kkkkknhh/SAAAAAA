@@ -155,7 +155,7 @@ Framework de inferencia causal con 4 tipos de tests evidenciales:
 ```
 PP (policy_processor.py)           : 100% ████████████████████ (30/30)
 CD (contradiction_deteccion.py)    : 57%  ███████████░░░░░░░░░░ (17/30)
-EP (embedding_policy.py)           : 70%  ██████████████░░░░░░ (21/30)
+EP (embedding_policy.py)           : 47%  █████████░░░░░░░░░░ (14/30)
 FV (financiero_viabilidad_tablas.py): 60% ████████████░░░░░░░░ (18/30)
 A1 (Analyzer_one.py)               : 50%  ██████████░░░░░░░░░░ (15/30)
 DB (dereck_beach.py)               : 43%  ████████░░░░░░░░░░░░ (13/30)
