@@ -159,7 +159,7 @@ EP (embedding_policy.py)           : 70%  ████████████�
 FV (financiero_viabilidad_tablas.py): 60% ████████████░░░░░░░░ (18/30)
 A1 (Analyzer_one.py)               : 50%  ██████████░░░░░░░░░░ (15/30)
 DB (dereck_beach.py)               : 43%  ████████░░░░░░░░░░░░ (13/30)
-TC (teoria_cambio.py)              : 40%  ████████░░░░░░░░░░░░ (12/30)
+TC (teoria_cambio.py)              : 30%  ██████░░░░░░░░░░░░░░ (9/30)
 SC (semantic_chunking_policy.py)   : 3%   ░░░░░░░░░░░░░░░░░░░░ (1/30)
 RA (report_assembly.py)            : 0%   ░░░░░░░░░░░░░░░░░░░░ (0/30)
 ```
