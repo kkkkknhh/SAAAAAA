@@ -153,13 +153,18 @@ class DeterministicRNG:
             ...     result = rng.choice([1, 2, 3])
             ...     # RNG automatically cleaned up after block
         """
+        previous = getattr(cls._local, 'rng', None)
         rng = cls.seed_from_context(policy_unit_id, correlation_id, additional_entropy)
 
         try:
             yield rng
         finally:
-            # Clean up thread-local storage
-            cls._local.rng = None
+            # Restore previous thread-local RNG to support nested contexts
+            if previous is None:
+                if hasattr(cls._local, 'rng'):
+                    delattr(cls._local, 'rng')
+            else:
+                cls._local.rng = previous
 
     # ========================================================================
     # RANDOM GENERATION METHODS (Python stdlib compatibility)
@@ -336,7 +341,7 @@ def deterministic_legacy(policy_unit_id: Optional[str], correlation_id: Optional
                 self.np = np_seed
                 self.python = python_seed
 
-        seeds = LegacySeeds(np=rng.seed, python=rng.seed + 1)
+        seeds = LegacySeeds(np_seed=rng.seed, python_seed=rng.seed + 1)
 
         yield seeds
 

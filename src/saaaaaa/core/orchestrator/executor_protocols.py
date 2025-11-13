@@ -156,7 +156,7 @@ def validate_signal_pack(signal_pack: object) -> tuple[bool, str]:
     if not isinstance(signal_pack.indicators, list):
         return False, f"indicators must be list, got {type(signal_pack.indicators).__name__}"
 
-    if not isinstance(signal_pack.regex, dict):
+    if not isinstance(signal_pack.regex, list):
         return False, f"regex must be dict, got {type(signal_pack.regex).__name__}"
 
     if not isinstance(signal_pack.verbs, list):

@@ -51,7 +51,7 @@ class ContractManifest:
             'created_at': self.created_at,
         }
         manifest_json = json.dumps(manifest_data, sort_keys=True, separators=(',', ':'))
-        manifest_hash = hashlib.blake2b(manifest_json.encode('utf-8'), digest_size=32).hexdigest()
+        manifest_hash = compute_blake3_hash(manifest_json)
         object.__setattr__(self, 'manifest_hash', manifest_hash)
 
     def verify_compatibility(self, executor_manifest: 'ContractManifest') -> tuple[bool, str]:
@@ -109,7 +109,7 @@ class ImmutableExecutionContext:
             metadata=meta,
             parent_context_hash="root",
             context_version=1,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
     def _compute_hash(self) -> str:
