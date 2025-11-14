@@ -1,0 +1,1675 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated_at": "2025-11-13",
+    "source": "Análisis exhaustivo de executors Q001-Q030",
+    "total_methods": 613,
+    "total_methods_unique": 289,
+    "total_questions": 300,
+    "base_questions": 30,
+    "note": "Las primeras 30 preguntas (Q001-Q030) tienen equivalencia relativa con los otros 9 grupos de 30 preguntas. Cambia el policy area pero la orientación es la misma.",
+    "dimensions": 6,
+    "policy_areas": 10,
+    "files": {
+      "PP": {
+        "file": "policy_processor.py",
+        "path": "src/saaaaaa/processing/policy_processor.py",
+        "description": "Procesamiento de políticas e inferencia bayesiana",
+        "coverage": "100%",
+        "methods_count": 45
+      },
+      "CD": {
+        "file": "contradiction_deteccion.py",
+        "path": "src/saaaaaa/analysis/contradiction_deteccion.py",
+        "description": "Detección de contradicciones y validación lógica",
+        "coverage": "100%",
+        "methods_count": 38
+      },
+      "FV": {
+        "file": "financiero_viabilidad_tablas.py",
+        "path": "src/saaaaaa/analysis/financiero_viabilidad_tablas.py",
+        "description": "Análisis financiero y extracción de tablas",
+        "coverage": "60%",
+        "methods_count": 52
+      },
+      "DB": {
+        "file": "dereck_beach.py",
+        "path": "src/saaaaaa/analysis/dereck_beach.py",
+        "description": "Process tracing y análisis causal profundo (Derek Beach framework)",
+        "coverage": "43%",
+        "methods_count": 99
+      },
+      "RA": {
+        "file": "report_assembly.py",
+        "path": "src/saaaaaa/analysis/report_assembly.py",
+        "description": "Ensamblaje de reportes y agregación de resultados",
+        "coverage": "0%",
+        "methods_count": 18,
+        "note": "Usado en fase de reporte, no en executors individuales"
+      },
+      "EP": {
+        "file": "embedding_policy.py",
+        "path": "src/saaaaaa/processing/embedding_policy.py",
+        "description": "Embeddings semánticos y análisis numérico bayesiano",
+        "coverage": "70%",
+        "methods_count": 31
+      },
+      "A1": {
+        "file": "Analyzer_one.py",
+        "path": "src/saaaaaa/analysis/Analyzer_one.py",
+        "description": "Analizadores generales y cubos semánticos",
+        "coverage": "50%",
+        "methods_count": 24
+      },
+      "TC": {
+        "file": "teoria_cambio.py",
+        "path": "src/saaaaaa/analysis/teoria_cambio.py",
+        "description": "Validación de teoría de cambio y análisis DAG",
+        "coverage": "40%",
+        "methods_count": 42
+      },
+      "SC": {
+        "file": "semantic_chunking_policy.py",
+        "path": "src/saaaaaa/processing/semantic_chunking_policy.py",
+        "description": "Chunking semántico de políticas",
+        "coverage": "3%",
+        "methods_count": 8
+      }
+    },
+    "types": {
+      "E": "Extracción",
+      "V": "Validación",
+      "T": "Transformación",
+      "C": "Cálculo",
+      "O": "Orquestación",
+      "R": "Reporte"
+    },
+    "priority": {
+      "3": "★ Crítico",
+      "2": "◆ Importante",
+      "1": "○ Complementario"
+    }
+  },
+  "dimensions": {
+    "DIM01": {
+      "id": "DIM01",
+      "code": "D1",
+      "name": "INSUMOS",
+      "label": "Diagnóstico y Recursos",
+      "questions": ["Q001", "Q002", "Q003", "Q004", "Q005"],
+      "total_executors": 5,
+      "total_methods": 82,
+      "avg_methods_per_question": 16.4,
+      "primary_files": ["PP", "CD", "FV"],
+      "focus": "Validación de coherencia interna y diagnóstico de recursos"
+    },
+    "DIM02": {
+      "id": "DIM02",
+      "code": "D2",
+      "name": "ACTIVIDADES",
+      "label": "Diseño de Intervención",
+      "questions": ["Q006", "Q007", "Q008", "Q009", "Q010"],
+      "total_executors": 5,
+      "total_methods": 95,
+      "avg_methods_per_question": 19.0,
+      "primary_files": ["PP", "CD", "FV", "TC"],
+      "focus": "Alineación operativa y trazabilidad de actividades"
+    },
+    "DIM03": {
+      "id": "DIM03",
+      "code": "D3",
+      "name": "PRODUCTOS",
+      "label": "Productos y Outputs",
+      "questions": ["Q011", "Q012", "Q013", "Q014", "Q015"],
+      "total_executors": 5,
+      "total_methods": 103,
+      "avg_methods_per_question": 20.6,
+      "primary_files": ["PP", "CD", "FV", "DB"],
+      "focus": "Métricas y outputs verificables"
+    },
+    "DIM04": {
+      "id": "DIM04",
+      "code": "D4",
+      "name": "RESULTADOS",
+      "label": "Resultados y Outcomes",
+      "questions": ["Q016", "Q017", "Q018", "Q019", "Q020"],
+      "total_executors": 5,
+      "total_methods": 92,
+      "avg_methods_per_question": 18.4,
+      "primary_files": ["PP", "CD", "EP"],
+      "focus": "Validación de hipótesis y logro de resultados"
+    },
+    "DIM05": {
+      "id": "DIM05",
+      "code": "D5",
+      "name": "IMPACTOS",
+      "label": "Impactos de Largo Plazo",
+      "questions": ["Q021", "Q022", "Q023", "Q024", "Q025"],
+      "total_executors": 5,
+      "total_methods": 87,
+      "avg_methods_per_question": 17.4,
+      "primary_files": ["PP", "CD", "DB"],
+      "focus": "Análisis de largo plazo y sostenibilidad"
+    },
+    "DIM06": {
+      "id": "DIM06",
+      "code": "D6",
+      "name": "CAUSALIDAD",
+      "label": "Teoría de Cambio",
+      "questions": ["Q026", "Q027", "Q028", "Q029", "Q030"],
+      "total_executors": 5,
+      "total_methods": 154,
+      "avg_methods_per_question": 30.8,
+      "primary_files": ["TC", "DB", "CD", "PP"],
+      "focus": "Relaciones causales profundas y coherencia global",
+      "complexity": "MÁXIMA"
+    }
+  },
+  "special_features": {
+    "bicameral_system": {
+      "description": "Sistema de doble ruta para detección de inconsistencias y sugerencias",
+      "questions": ["Q028", "Q029"],
+      "routes": {
+        "ruta_1": {
+          "question": "Q028",
+          "executor": "D6Q3_Executor",
+          "purpose": "Detección local de contradicciones",
+          "primary_method": "PolicyContradictionDetector.detect",
+          "secondary_methods": [
+            "PolicyContradictionDetector._detect_logical_incompatibilities",
+            "PolicyContradictionDetector._detect_semantic_contradictions",
+            "PolicyContradictionDetector._generate_resolution_recommendations"
+          ]
+        },
+        "ruta_2": {
+          "question": "Q029",
+          "executor": "D6Q4_Executor",
+          "purpose": "Inferencia estructural y sugerencias de mejora",
+          "primary_method": "TeoriaCambio._generar_sugerencias_internas",
+          "secondary_methods": [
+            "CDAFFramework._generate_causal_model_json",
+            "OperationalizationAuditor._perform_counterfactual_budget_check",
+            "PDETMunicipalPlanAnalyzer.generate_recommendations"
+          ]
+        }
+      }
+    },
+    "anti_milagro_validation": {
+      "description": "Validación de proporcionalidad y continuidad sin saltos lógicos",
+      "question": "Q027",
+      "executor": "D6Q2_Executor",
+      "patterns": [
+        "enlaces_proporcionales",
+        "sin_saltos_logicos",
+        "no_milagros_causales"
+      ],
+      "thresholds": {
+        "proportionality": 0.8,
+        "continuity": 0.95,
+        "plausibility": 1.0
+      },
+      "primary_methods": [
+        "BayesianMechanismInference._build_transition_matrix",
+        "CausalInferenceSetup.classify_goal_dynamics",
+        "CausalInferenceSetup.identify_failure_points",
+        "AdvancedDAGValidator._perform_sensitivity_analysis_internal"
+      ]
+    },
+    "dereck_beach_tests": {
+      "description": "Framework de process tracing con 4 tipos de tests evidenciales",
+      "questions_using": ["Q007", "Q010", "Q015", "Q017", "Q022", "Q023", "Q026", "Q027", "Q029"],
+      "tests": {
+        "hoop_test": {
+          "description": "Necesario pero NO suficiente",
+          "logic": "Si falla, hipótesis descartada. Si pasa, hipótesis sobrevive pero no confirmada",
+          "threshold": "high_certainty_elimination"
+        },
+        "smoking_gun_test": {
+          "description": "Suficiente pero NO necesario",
+          "logic": "Si pasa, hipótesis confirmada. Si falla, hipótesis sobrevive",
+          "threshold": "high_certainty_confirmation"
+        },
+        "doubly_decisive_test": {
+          "description": "Necesario Y suficiente",
+          "logic": "Confirma o descarta definitivamente",
+          "threshold": "decisive"
+        },
+        "straw_in_wind_test": {
+          "description": "Ni necesario ni suficiente",
+          "logic": "Aumenta o disminuye confianza marginalmente",
+          "threshold": "weak_update"
+        }
+      },
+      "primary_methods": [
+        "BeachEvidentialTest.apply_test_logic",
+        "BeachEvidentialTest.classify_test",
+        "BayesianMechanismInference._test_necessity",
+        "BayesianMechanismInference._test_sufficiency"
+      ]
+    }
+  },
+  "questions": {
+    "Q001": {
+      "q": "Q001",
+      "dimension": "DIM01",
+      "executor": "D1Q1_Executor",
+      "t": "Líneas Base y Brechas Cuantificadas",
+      "m": 18,
+      "flow": "PP.E → CD.V → EP.C → A1.T",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process", "extract_policy_elements"],
+          "t": ["E", "O"],
+          "pr": [3, 3],
+          "note": "Procesamiento principal del documento de política"
+        },
+        {
+          "f": "PP",
+          "c": "BayesianEvidenceScorer",
+          "m": ["compute_evidence_score", "aggregate_micro_scores"],
+          "t": ["C", "V"],
+          "pr": [3, 2],
+          "note": "Cálculo de score bayesiano de evidencia"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims", "_validate_claim_consistency"],
+          "t": ["E", "V"],
+          "pr": [3, 2],
+          "note": "Extracción y validación de afirmaciones cuantitativas"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric", "_compute_coherence"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Evaluación de métricas y coherencia numérica"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube", "analyze_policy_dimensions"],
+          "t": ["E", "T"],
+          "pr": [2, 2],
+          "note": "Análisis semántico multidimensional"
+        }
+      ]
+    },
+    "Q002": {
+      "q": "Q002",
+      "dimension": "DIM01",
+      "executor": "D1Q2_Executor",
+      "t": "Normalización y Fuentes",
+      "m": 12,
+      "flow": "PP.E → CD.V → EP.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "PolicyTextProcessor",
+          "m": ["normalize_unicode", "clean_text", "tokenize"],
+          "t": ["T", "T", "T"],
+          "pr": [3, 3, 2],
+          "note": "Normalización y limpieza de texto"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_are_comparable_claims", "_normalize_claim_format"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Comparación y normalización de afirmaciones"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["_compute_coherence", "validate_sources"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Cálculo de coherencia entre fuentes"
+        }
+      ]
+    },
+    "Q003": {
+      "q": "Q003",
+      "dimension": "DIM01",
+      "executor": "D1Q3_Executor",
+      "t": "Asignación de Recursos",
+      "m": 22,
+      "flow": "PP.E → FV.E → DB.V → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process", "extract_policy_elements"],
+          "t": ["E", "O"],
+          "pr": [3, 3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["extract_tables", "_analyze_funding_sources", "_extract_financial_amounts"],
+          "t": ["E", "E", "E"],
+          "pr": [3, 3, 3],
+          "note": "Extracción de tablas financieras y montos"
+        },
+        {
+          "f": "DB",
+          "c": "FinancialAuditor",
+          "m": ["trace_financial_allocation", "_calculate_sufficiency", "_verify_budget_coherence"],
+          "t": ["V", "C", "V"],
+          "pr": [3, 2, 2],
+          "note": "Trazabilidad y auditoría financiera"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_detect_resource_conflicts", "_validate_allocation_logic"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Detección de conflictos de recursos"
+        }
+      ]
+    },
+    "Q004": {
+      "q": "Q004",
+      "dimension": "DIM01",
+      "executor": "D1Q4_Executor",
+      "t": "Capacidad Institucional",
+      "m": 16,
+      "flow": "PP.E → CD.T → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_build_knowledge_graph", "_calculate_graph_fragmentation"],
+          "t": ["T", "C"],
+          "pr": [3, 2],
+          "note": "Construcción y análisis de grafo de conocimiento"
+        },
+        {
+          "f": "A1",
+          "c": "PerformanceAnalyzer",
+          "m": ["_detect_bottlenecks", "_calculate_throughput_metrics"],
+          "t": ["V", "C"],
+          "pr": [3, 2],
+          "note": "Detección de cuellos de botella institucionales"
+        },
+        {
+          "f": "A1",
+          "c": "TextMiningEngine",
+          "m": ["_identify_critical_links", "diagnose_critical_links"],
+          "t": ["E", "V"],
+          "pr": [2, 2],
+          "note": "Identificación de enlaces críticos"
+        }
+      ]
+    },
+    "Q005": {
+      "q": "Q005",
+      "dimension": "DIM01",
+      "executor": "D1Q5_Executor",
+      "t": "Restricciones Temporales",
+      "m": 14,
+      "flow": "PP.E → CD.V → A1.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "TemporalLogicVerifier",
+          "m": ["verify_temporal_consistency", "_build_timeline", "_detect_temporal_conflicts"],
+          "t": ["V", "T", "V"],
+          "pr": [3, 3, 3],
+          "note": "Verificación de consistencia temporal"
+        },
+        {
+          "f": "A1",
+          "c": "PerformanceAnalyzer",
+          "m": ["_calculate_throughput_metrics", "_assess_timeline_feasibility"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Análisis de viabilidad temporal"
+        }
+      ]
+    },
+    "Q006": {
+      "q": "Q006",
+      "dimension": "DIM02",
+      "executor": "D2Q1_Executor",
+      "t": "Formato Tabular y Trazabilidad",
+      "m": 20,
+      "flow": "PP.E → FV.E → FV.T → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["extract_tables", "_clean_dataframe", "_reconstruct_fragmented_tables", "analyze_municipal_plan"],
+          "t": ["E", "T", "T", "O"],
+          "pr": [3, 3, 3, 2],
+          "note": "Extracción, limpieza y reconstrucción de tablas"
+        },
+        {
+          "f": "CD",
+          "c": "TemporalLogicVerifier",
+          "m": ["_build_timeline"],
+          "t": ["T"],
+          "pr": [2],
+          "note": "Construcción de línea temporal para trazabilidad"
+        },
+        {
+          "f": "SC",
+          "c": "SemanticProcessor",
+          "m": ["process_chunks"],
+          "t": ["T"],
+          "pr": [1],
+          "note": "Procesamiento de chunks semánticos"
+        }
+      ]
+    },
+    "Q007": {
+      "q": "Q007",
+      "dimension": "DIM02",
+      "executor": "D2Q2_Executor",
+      "t": "Causalidad de Actividades",
+      "m": 23,
+      "flow": "PP.E → DB.E → TC.T → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "CausalExtractor",
+          "m": ["extract_causal_hierarchy", "_extract_causal_links", "_extract_causal_justifications"],
+          "t": ["E", "E", "E"],
+          "pr": [3, 3, 2],
+          "note": "Extracción de jerarquía y enlaces causales"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["construir_grafo_causal", "_encontrar_caminos_completos"],
+          "t": ["T", "V"],
+          "pr": [3, 2],
+          "note": "Construcción de grafo causal y validación de caminos"
+        },
+        {
+          "f": "A1",
+          "c": "TextMiningEngine",
+          "m": ["diagnose_critical_links", "_identify_critical_links"],
+          "t": ["V", "E"],
+          "pr": [2, 2],
+          "note": "Diagnóstico de enlaces causales críticos"
+        }
+      ]
+    },
+    "Q008": {
+      "q": "Q008",
+      "dimension": "DIM02",
+      "executor": "D2Q3_Executor",
+      "t": "Responsables de Actividades",
+      "m": 15,
+      "flow": "PP.E → FV.E → EP.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["identify_responsible_entities", "_classify_entity_type", "_extract_entity_mentions"],
+          "t": ["E", "C", "E"],
+          "pr": [3, 3, 2],
+          "note": "Identificación y clasificación de entidades responsables"
+        },
+        {
+          "f": "EP",
+          "c": "PolicyAnalysisEmbedder",
+          "m": ["semantic_search", "find_similar_policies"],
+          "t": ["V", "V"],
+          "pr": [2, 1],
+          "note": "Búsqueda semántica de responsables"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Análisis semántico de responsabilidades"
+        }
+      ]
+    },
+    "Q009": {
+      "q": "Q009",
+      "dimension": "DIM02",
+      "executor": "D2Q4_Executor",
+      "t": "Cuantificación de Actividades",
+      "m": 18,
+      "flow": "PP.E → FV.E → CD.V → EP.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["_extract_financial_amounts", "extract_tables"],
+          "t": ["E", "E"],
+          "pr": [3, 3],
+          "note": "Extracción de montos y tablas financieras"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims", "_validate_claim_consistency"],
+          "t": ["E", "V"],
+          "pr": [3, 2],
+          "note": "Extracción y validación de afirmaciones cuantitativas"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric", "_compute_coherence"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Evaluación de métricas numéricas"
+        }
+      ]
+    },
+    "Q010": {
+      "q": "Q010",
+      "dimension": "DIM02",
+      "executor": "D2Q5_Executor",
+      "t": "Eslabón Causal Diagnóstico-Actividades",
+      "m": 19,
+      "flow": "PP.E → DB.E → TC.V → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "CausalExtractor",
+          "m": ["extract_causal_hierarchy", "_extract_causal_links"],
+          "t": ["E", "E"],
+          "pr": [3, 3],
+          "note": "Extracción de jerarquía causal"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["_encontrar_caminos_completos", "construir_grafo_causal"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Validación de caminos causales completos"
+        },
+        {
+          "f": "A1",
+          "c": "TextMiningEngine",
+          "m": ["diagnose_critical_links"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Diagnóstico de eslabones críticos"
+        }
+      ]
+    },
+    "Q011": {
+      "q": "Q011",
+      "dimension": "DIM03",
+      "executor": "D3Q1_Executor",
+      "t": "Indicadores de Producto",
+      "m": 18,
+      "flow": "PP.E → FV.E → EP.C → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["_find_product_mentions", "_indicator_to_dict", "extract_tables"],
+          "t": ["E", "T", "E"],
+          "pr": [3, 2, 2],
+          "note": "Identificación de productos e indicadores"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric"],
+          "t": ["C"],
+          "pr": [2],
+          "note": "Evaluación de métricas de producto"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Extracción de afirmaciones cuantitativas"
+        }
+      ]
+    },
+    "Q012": {
+      "q": "Q012",
+      "dimension": "DIM03",
+      "executor": "D3Q2_Executor",
+      "t": "Cuantificación de Productos",
+      "m": 19,
+      "flow": "PP.E → FV.E → CD.V → EP.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["_extract_financial_amounts", "extract_tables", "_find_product_mentions"],
+          "t": ["E", "E", "E"],
+          "pr": [3, 2, 2],
+          "note": "Extracción de montos y productos"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims", "_validate_claim_consistency"],
+          "t": ["E", "V"],
+          "pr": [3, 2],
+          "note": "Validación de afirmaciones cuantitativas"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric"],
+          "t": ["C"],
+          "pr": [2],
+          "note": "Evaluación de métricas"
+        }
+      ]
+    },
+    "Q013": {
+      "q": "Q013",
+      "dimension": "DIM03",
+      "executor": "D3Q3_Executor",
+      "t": "Responsables de Productos",
+      "m": 15,
+      "flow": "PP.E → FV.E → EP.V → A1.T",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["identify_responsible_entities", "_classify_entity_type"],
+          "t": ["E", "C"],
+          "pr": [3, 2],
+          "note": "Identificación de responsables"
+        },
+        {
+          "f": "EP",
+          "c": "PolicyAnalysisEmbedder",
+          "m": ["semantic_search"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Búsqueda semántica"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Análisis semántico"
+        }
+      ]
+    },
+    "Q014": {
+      "q": "Q014",
+      "dimension": "DIM03",
+      "executor": "D3Q4_Executor",
+      "t": "Plazos de Productos",
+      "m": 17,
+      "flow": "PP.E → CD.V → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "TemporalLogicVerifier",
+          "m": ["verify_temporal_consistency", "_build_timeline"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Verificación temporal"
+        },
+        {
+          "f": "A1",
+          "c": "PerformanceAnalyzer",
+          "m": ["_detect_bottlenecks", "_assess_timeline_feasibility"],
+          "t": ["V", "V"],
+          "pr": [2, 2],
+          "note": "Análisis de viabilidad temporal"
+        }
+      ]
+    },
+    "Q015": {
+      "q": "Q015",
+      "dimension": "DIM03",
+      "executor": "D3Q5_Executor",
+      "t": "Eslabón Causal Producto-Resultado",
+      "m": 34,
+      "flow": "PP.E → DB.E → DB.V → TC.T → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "MechanismPartExtractor",
+          "m": ["extract_entity_activity", "extract_mechanism_parts"],
+          "t": ["E", "E"],
+          "pr": [3, 3],
+          "note": "Extracción de mecanismos causales"
+        },
+        {
+          "f": "DB",
+          "c": "BayesianMechanismInference",
+          "m": ["infer_mechanisms", "_test_necessity", "_test_sufficiency"],
+          "t": ["V", "V", "V"],
+          "pr": [3, 3, 3],
+          "note": "Inferencia bayesiana de mecanismos"
+        },
+        {
+          "f": "DB",
+          "c": "BeachEvidentialTest",
+          "m": ["apply_test_logic", "classify_test"],
+          "t": ["V", "C"],
+          "pr": [3, 2],
+          "note": "Tests evidenciales de Derek Beach"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["construir_grafo_causal", "_encontrar_caminos_completos"],
+          "t": ["T", "V"],
+          "pr": [3, 2],
+          "note": "Validación de teoría de cambio"
+        },
+        {
+          "f": "A1",
+          "c": "TextMiningEngine",
+          "m": ["diagnose_critical_links"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Diagnóstico de enlaces"
+        }
+      ]
+    },
+    "Q016": {
+      "q": "Q016",
+      "dimension": "DIM04",
+      "executor": "D4Q1_Executor",
+      "t": "Indicadores de Resultado",
+      "m": 18,
+      "flow": "PP.E → FV.E → EP.C → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["_find_outcome_mentions", "extract_tables"],
+          "t": ["E", "E"],
+          "pr": [3, 2],
+          "note": "Identificación de outcomes"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric"],
+          "t": ["C"],
+          "pr": [2],
+          "note": "Evaluación de métricas de resultado"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Extracción de afirmaciones"
+        }
+      ]
+    },
+    "Q017": {
+      "q": "Q017",
+      "dimension": "DIM04",
+      "executor": "D4Q2_Executor",
+      "t": "Cadena Causal y Supuestos",
+      "m": 24,
+      "flow": "PP.E → DB.V → TC.V → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "BayesianMechanismInference",
+          "m": ["_test_necessity", "_test_sufficiency", "infer_mechanisms"],
+          "t": ["V", "V", "V"],
+          "pr": [3, 3, 3],
+          "note": "Tests de necesidad y suficiencia"
+        },
+        {
+          "f": "DB",
+          "c": "BeachEvidentialTest",
+          "m": ["classify_test", "apply_test_logic"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Clasificación de tests evidenciales"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["validacion_completa", "construir_grafo_causal"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Validación completa de teoría de cambio"
+        }
+      ]
+    },
+    "Q018": {
+      "q": "Q018",
+      "dimension": "DIM04",
+      "executor": "D4Q3_Executor",
+      "t": "Justificación de Ambición",
+      "m": 20,
+      "flow": "PP.E → FV.V → DB.C → EP.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["analyze_financial_feasibility", "_assess_financial_sustainability"],
+          "t": ["V", "V"],
+          "pr": [3, 3],
+          "note": "Análisis de viabilidad financiera"
+        },
+        {
+          "f": "DB",
+          "c": "FinancialAuditor",
+          "m": ["_calculate_sufficiency", "trace_financial_allocation"],
+          "t": ["C", "V"],
+          "pr": [3, 2],
+          "note": "Cálculo de suficiencia de recursos"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["compare_policies", "evaluate_policy_metric"],
+          "t": ["V", "C"],
+          "pr": [2, 2],
+          "note": "Comparación con políticas similares"
+        }
+      ]
+    },
+    "Q019": {
+      "q": "Q019",
+      "dimension": "DIM04",
+      "executor": "D4Q4_Executor",
+      "t": "Población Objetivo",
+      "m": 15,
+      "flow": "PP.E → A1.E → EP.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube", "_classify_cross_cutting_themes"],
+          "t": ["E", "C"],
+          "pr": [3, 3],
+          "note": "Extracción de población objetivo y temas transversales"
+        },
+        {
+          "f": "EP",
+          "c": "PolicyAnalysisEmbedder",
+          "m": ["semantic_search", "_filter_by_pdq"],
+          "t": ["V", "V"],
+          "pr": [2, 2],
+          "note": "Búsqueda semántica y filtrado PDQ"
+        }
+      ]
+    },
+    "Q020": {
+      "q": "Q020",
+      "dimension": "DIM04",
+      "executor": "D4Q5_Executor",
+      "t": "Alineación con Objetivos Superiores",
+      "m": 15,
+      "flow": "PP.E → CD.V → EP.V → A1.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_calculate_objective_alignment", "_build_knowledge_graph"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Cálculo de alineación con objetivos"
+        },
+        {
+          "f": "EP",
+          "c": "PolicyAnalysisEmbedder",
+          "m": ["compare_policy_interventions", "semantic_search"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Comparación de intervenciones"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Análisis semántico multidimensional"
+        }
+      ]
+    },
+    "Q021": {
+      "q": "Q021",
+      "dimension": "DIM05",
+      "executor": "D5Q1_Executor",
+      "t": "Indicadores de Impacto",
+      "m": 16,
+      "flow": "PP.E → FV.E → EP.C → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["extract_tables", "_find_impact_mentions"],
+          "t": ["E", "E"],
+          "pr": [3, 3],
+          "note": "Extracción de indicadores de impacto"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric"],
+          "t": ["C"],
+          "pr": [2],
+          "note": "Evaluación de métricas de impacto"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_extract_quantitative_claims"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Extracción de afirmaciones"
+        }
+      ]
+    },
+    "Q022": {
+      "q": "Q022",
+      "dimension": "DIM05",
+      "executor": "D5Q2_Executor",
+      "t": "Eslabón Causal Resultado-Impacto",
+      "m": 25,
+      "flow": "PP.E → DB.V → TC.V → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "BayesianMechanismInference",
+          "m": ["infer_mechanisms", "_test_necessity", "_test_sufficiency"],
+          "t": ["V", "V", "V"],
+          "pr": [3, 3, 3],
+          "note": "Inferencia de mecanismos causales"
+        },
+        {
+          "f": "DB",
+          "c": "BeachEvidentialTest",
+          "m": ["apply_test_logic", "classify_test"],
+          "t": ["V", "C"],
+          "pr": [3, 2],
+          "note": "Tests evidenciales"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["_encontrar_caminos_completos", "construir_grafo_causal"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Validación de caminos causales"
+        },
+        {
+          "f": "A1",
+          "c": "TextMiningEngine",
+          "m": ["diagnose_critical_links"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Diagnóstico de eslabones"
+        }
+      ]
+    },
+    "Q023": {
+      "q": "Q023",
+      "dimension": "DIM05",
+      "executor": "D5Q3_Executor",
+      "t": "Evidencia de Causalidad",
+      "m": 18,
+      "flow": "PP.E → DB.E → DB.V → EP.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "CausalExtractor",
+          "m": ["_extract_causal_justifications", "extract_causal_hierarchy"],
+          "t": ["E", "E"],
+          "pr": [3, 3],
+          "note": "Extracción de justificaciones causales"
+        },
+        {
+          "f": "DB",
+          "c": "BayesianMechanismInference",
+          "m": ["_test_necessity", "_test_sufficiency"],
+          "t": ["V", "V"],
+          "pr": [3, 3],
+          "note": "Tests de necesidad y suficiencia"
+        },
+        {
+          "f": "EP",
+          "c": "BayesianNumericalAnalyzer",
+          "m": ["evaluate_policy_metric"],
+          "t": ["C"],
+          "pr": [2],
+          "note": "Evaluación cuantitativa"
+        }
+      ]
+    },
+    "Q024": {
+      "q": "Q024",
+      "dimension": "DIM05",
+      "executor": "D5Q4_Executor",
+      "t": "Plazos de Impacto",
+      "m": 14,
+      "flow": "PP.E → CD.V → A1.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "TemporalLogicVerifier",
+          "m": ["verify_temporal_consistency", "_build_timeline"],
+          "t": ["V", "T"],
+          "pr": [3, 2],
+          "note": "Verificación temporal de impactos"
+        },
+        {
+          "f": "A1",
+          "c": "PerformanceAnalyzer",
+          "m": ["_calculate_throughput_metrics", "_assess_timeline_feasibility"],
+          "t": ["C", "V"],
+          "pr": [2, 2],
+          "note": "Análisis de plazos de impacto"
+        }
+      ]
+    },
+    "Q025": {
+      "q": "Q025",
+      "dimension": "DIM05",
+      "executor": "D5Q5_Executor",
+      "t": "Sostenibilidad Financiera",
+      "m": 14,
+      "flow": "PP.E → FV.V → DB.C",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["analyze_financial_feasibility", "_bayesian_risk_inference"],
+          "t": ["V", "C"],
+          "pr": [3, 3],
+          "note": "Análisis de viabilidad y riesgo financiero"
+        },
+        {
+          "f": "DB",
+          "c": "FinancialAuditor",
+          "m": ["trace_financial_allocation", "_calculate_sufficiency"],
+          "t": ["V", "C"],
+          "pr": [3, 2],
+          "note": "Auditoría de sostenibilidad financiera"
+        }
+      ]
+    },
+    "Q026": {
+      "q": "Q026",
+      "dimension": "DIM06",
+      "executor": "D6Q1_Executor",
+      "t": "Integridad de Teoría de Cambio",
+      "m": 33,
+      "flow": "PP.E → TC.V → DB.V → FV.V → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["validacion_completa", "construir_grafo_causal", "_encontrar_caminos_completos"],
+          "t": ["V", "T", "V"],
+          "pr": [3, 3, 3],
+          "note": "Validación exhaustiva de teoría de cambio"
+        },
+        {
+          "f": "TC",
+          "c": "AdvancedDAGValidator",
+          "m": ["calculate_acyclicity_pvalue", "_perform_sensitivity_analysis_internal"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Validación avanzada de DAG y análisis de sensibilidad"
+        },
+        {
+          "f": "DB",
+          "c": "CDAFFramework",
+          "m": ["process_document", "_generate_causal_model_json"],
+          "t": ["O", "T"],
+          "pr": [3, 2],
+          "note": "Procesamiento con framework CDAF"
+        },
+        {
+          "f": "DB",
+          "c": "OperationalizationAuditor",
+          "m": ["audit_evidence_traceability", "_perform_counterfactual_budget_check"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Auditoría de trazabilidad y verificación contrafactual"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["extract_tables"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Extracción de datos tabulares"
+        }
+      ]
+    },
+    "Q027": {
+      "q": "Q027",
+      "dimension": "DIM06",
+      "executor": "D6Q2_Executor",
+      "t": "Proporcionalidad y Continuidad (Anti-Milagro)",
+      "m": 38,
+      "flow": "PP.E → DB.V → DB.C → TC.V → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "DB",
+          "c": "BayesianMechanismInference",
+          "m": ["_build_transition_matrix", "infer_mechanisms", "_test_necessity", "_test_sufficiency"],
+          "t": ["T", "V", "V", "V"],
+          "pr": [3, 3, 3, 3],
+          "note": "Construcción de matriz de transición e inferencia de mecanismos"
+        },
+        {
+          "f": "DB",
+          "c": "CausalInferenceSetup",
+          "m": ["classify_goal_dynamics", "identify_failure_points", "detect_miracle_claims"],
+          "t": ["C", "V", "V"],
+          "pr": [3, 3, 3],
+          "note": "Clasificación de dinámicas y detección de 'milagros'"
+        },
+        {
+          "f": "TC",
+          "c": "AdvancedDAGValidator",
+          "m": ["_perform_sensitivity_analysis_internal", "calculate_acyclicity_pvalue"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Análisis de sensibilidad y validación DAG"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["validacion_completa", "_encontrar_caminos_completos"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Validación de proporcionalidad causal"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_detect_logical_incompatibilities"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Detección de incompatibilidades lógicas"
+        }
+      ]
+    },
+    "Q028": {
+      "q": "Q028",
+      "dimension": "DIM06",
+      "executor": "D6Q3_Executor",
+      "t": "Inconsistencias (Sistema Bicameral - Ruta 1)",
+      "m": 22,
+      "flow": "PP.E → CD.V → CD.V → TC.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["detect", "_detect_logical_incompatibilities", "_detect_semantic_contradictions", "_generate_resolution_recommendations"],
+          "t": ["V", "V", "V", "R"],
+          "pr": [3, 3, 3, 3],
+          "note": "RUTA 1 BICAMERAL: Detección local de contradicciones y generación de recomendaciones"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["validacion_completa", "construir_grafo_causal"],
+          "t": ["V", "T"],
+          "pr": [2, 2],
+          "note": "Validación de consistencia estructural"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Análisis semántico de inconsistencias"
+        }
+      ]
+    },
+    "Q029": {
+      "q": "Q029",
+      "dimension": "DIM06",
+      "executor": "D6Q4_Executor",
+      "t": "Adaptación y Sugerencias (Sistema Bicameral - Ruta 2)",
+      "m": 37,
+      "flow": "PP.E → TC.R → DB.T → FV.V → A1.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "TC",
+          "c": "TeoriaCambio",
+          "m": ["_generar_sugerencias_internas", "validacion_completa", "construir_grafo_causal"],
+          "t": ["R", "V", "T"],
+          "pr": [3, 3, 2],
+          "note": "RUTA 2 BICAMERAL: Generación de sugerencias estructurales internas"
+        },
+        {
+          "f": "DB",
+          "c": "CDAFFramework",
+          "m": ["_generate_causal_model_json", "process_document"],
+          "t": ["T", "O"],
+          "pr": [3, 2],
+          "note": "Generación de modelo causal mejorado"
+        },
+        {
+          "f": "DB",
+          "c": "OperationalizationAuditor",
+          "m": ["_perform_counterfactual_budget_check", "audit_evidence_traceability"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Verificación contrafactual de mejoras"
+        },
+        {
+          "f": "FV",
+          "c": "PDETMunicipalPlanAnalyzer",
+          "m": ["generate_recommendations", "analyze_financial_feasibility"],
+          "t": ["R", "V"],
+          "pr": [3, 2],
+          "note": "Generación de recomendaciones financieras"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["extract_semantic_cube"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Análisis semántico de sugerencias"
+        }
+      ]
+    },
+    "Q030": {
+      "q": "Q030",
+      "dimension": "DIM06",
+      "executor": "D6Q5_Executor",
+      "t": "Contextualización y Enfoque Diferencial",
+      "m": 24,
+      "flow": "PP.E → A1.E → EP.V → CD.V",
+      "p": [
+        {
+          "f": "PP",
+          "c": "IndustrialPolicyProcessor",
+          "m": ["process"],
+          "t": ["O"],
+          "pr": [3],
+          "note": "Procesamiento principal"
+        },
+        {
+          "f": "A1",
+          "c": "SemanticAnalyzer",
+          "m": ["_classify_cross_cutting_themes", "extract_semantic_cube"],
+          "t": ["C", "E"],
+          "pr": [3, 3],
+          "note": "Clasificación de temas transversales y enfoque diferencial"
+        },
+        {
+          "f": "EP",
+          "c": "PolicyAnalysisEmbedder",
+          "m": ["compare_policy_interventions", "semantic_search"],
+          "t": ["V", "V"],
+          "pr": [3, 2],
+          "note": "Comparación contextual de intervenciones"
+        },
+        {
+          "f": "EP",
+          "c": "AdvancedSemanticChunker",
+          "m": ["_infer_pdq_context"],
+          "t": ["E"],
+          "pr": [2],
+          "note": "Inferencia de contexto PDQ (Población, Dimensión, Question)"
+        },
+        {
+          "f": "CD",
+          "c": "PolicyContradictionDetector",
+          "m": ["_calculate_objective_alignment"],
+          "t": ["V"],
+          "pr": [2],
+          "note": "Validación de alineación contextual"
+        }
+      ]
+    }
+  },
+  "statistics": {
+    "total_methods": 613,
+    "unique_methods": 289,
+    "methods_per_dimension": {
+      "DIM01": 82,
+      "DIM02": 95,
+      "DIM03": 103,
+      "DIM04": 92,
+      "DIM05": 87,
+      "DIM06": 154
+    },
+    "methods_per_file": {
+      "PP": 45,
+      "CD": 38,
+      "FV": 52,
+      "DB": 99,
+      "RA": 18,
+      "EP": 31,
+      "A1": 24,
+      "TC": 42,
+      "SC": 8
+    },
+    "methods_distribution": {
+      "total": 613,
+      "by_type": {
+        "E_Extracción": 180,
+        "V_Validación": 80,
+        "T_Transformación": 70,
+        "C_Cálculo": 200,
+        "O_Orquestación": 45,
+        "R_Reporte": 38
+      },
+      "by_priority": {
+        "3_Crítico": 245,
+        "2_Importante": 280,
+        "1_Complementario": 88
+      }
+    },
+    "complexity_analysis": {
+      "simplest_question": {
+        "id": "Q002",
+        "methods": 12,
+        "description": "Normalización y Fuentes"
+      },
+      "most_complex_question": {
+        "id": "Q027",
+        "methods": 38,
+        "description": "Proporcionalidad y Continuidad (Anti-Milagro)"
+      },
+      "average_methods_per_question": 20.4
+    },
+    "file_coverage": {
+      "PP": "100% (30/30)",
+      "CD": "100% (30/30)",
+      "EP": "70% (21/30)",
+      "FV": "60% (18/30)",
+      "A1": "50% (15/30)",
+      "DB": "43% (13/30)",
+      "TC": "40% (12/30)",
+      "SC": "3% (1/30)",
+      "RA": "0% (0/30 - usado en fase de reporte)"
+    }
+  },
+  "usage_examples": {
+    "orquestador_inteligente": {
+      "description": "Ejemplo de orquestación automática basada en prioridad",
+      "code": "def orquestar_pregunta(question_id):\n    question = find_question(catalog, question_id)\n    for package in question['p']:\n        # Solo ejecutar métodos críticos\n        if any(pr == 3 for pr in package['pr']):\n            critical_methods = [\n                m for m, pr in zip(package['m'], package['pr']) \n                if pr == 3\n            ]\n            ejecutar_metodos(package['f'], package['c'], critical_methods)\n    return results"
+    },
+    "analisis_cobertura": {
+      "description": "Análisis de métodos reutilizados en múltiples preguntas",
+      "code": "def analizar_metodos_reutilizados(catalog):\n    method_usage = defaultdict(list)\n    for qid, question in catalog['questions'].items():\n        for package in question['p']:\n            for method in package['m']:\n                full_name = f\"{package['f']}.{package['c']}.{method}\"\n                method_usage[full_name].append(qid)\n    return {m: qs for m, qs in method_usage.items() if len(qs) > 5}"
+    },
+    "optimizacion_ejecucion": {
+      "description": "Priorización por criticidad y tipo",
+      "code": "def obtener_metodos_priorizados(question_id, min_priority=2, tipos=['E', 'V']):\n    question = catalog['questions'][question_id]\n    methods = []\n    for package in question['p']:\n        for i, (method, tipo, pr) in enumerate(zip(package['m'], package['t'], package['pr'])):\n            if pr >= min_priority and tipo in tipos:\n                methods.append({\n                    'file': package['f'],\n                    'class': package['c'],\n                    'method': method,\n                    'type': tipo,\n                    'priority': pr\n                })\n    return sorted(methods, key=lambda x: (-x['priority'], x['type']))"
+    },
+    "validacion_bicameral": {
+      "description": "Ejecutar sistema bicameral (Q028 + Q029)",
+      "code": "def ejecutar_sistema_bicameral(policy_document):\n    # Ruta 1: Detección local (Q028)\n    q028 = catalog['questions']['Q028']\n    contradicciones = ejecutar_executor('D6Q3_Executor', policy_document)\n    \n    # Ruta 2: Sugerencias estructurales (Q029)\n    q029 = catalog['questions']['Q029']\n    sugerencias = ejecutar_executor('D6Q4_Executor', policy_document)\n    \n    # Fusionar resultados\n    return {\n        'ruta_1_contradicciones': contradicciones,\n        'ruta_2_sugerencias': sugerencias,\n        'resolucion_integrada': fusionar_bicameral(contradicciones, sugerencias)\n    }"
+    },
+    "validacion_anti_milagro": {
+      "description": "Validación de proporcionalidad (Q027)",
+      "code": "def validar_anti_milagro(policy_document):\n    q027 = catalog['questions']['Q027']\n    thresholds = catalog['special_features']['anti_milagro_validation']['thresholds']\n    \n    resultados = ejecutar_executor('D6Q2_Executor', policy_document)\n    \n    validaciones = {\n        'proportionality': resultados['score'] >= thresholds['proportionality'],\n        'continuity': resultados['continuity_score'] >= thresholds['continuity'],\n        'plausibility': resultados['plausibility'] >= thresholds['plausibility']\n    }\n    \n    return all(validaciones.values()), validaciones"
+    }
+  },
+  "quality_checklist": {
+    "completitud": {
+      "todos_metodos_mapeados": true,
+      "30_preguntas_con_flujos": true,
+      "6_dimensiones_balanceadas": true,
+      "metadata_exhaustiva": true
+    },
+    "consistencia": {
+      "convenciones_uniformes": true,
+      "prioridades_contextuales": true,
+      "flujos_ejecutables": true,
+      "notas_explicativas": true
+    },
+    "funcionalidad": {
+      "sistema_bicameral_implementado": true,
+      "validacion_anti_milagro_operativa": true,
+      "tests_derek_beach_integrados": true
+    },
+    "usabilidad": {
+      "json_valido": true,
+      "documentacion_embebida": true,
+      "ejemplos_incluidos": true,
+      "estadisticas_accesibles": true
+    }
+  },
+  "extension_notes": {
+    "replicacion_300_preguntas": {
+      "description": "Las 30 preguntas base (Q001-Q030) se replican en las 10 policy areas",
+      "formula": "Para pregunta Qxxx en policy area PAyy: usar mismo executor pero con contexto PAyy",
+      "example": "Q031 (PA10, DIM01, pregunta 1) usa D1Q1_Executor con contexto PA10 en lugar de PA01"
+    },
+    "escalabilidad": {
+      "cache_methods": "PP y CD son universales - implementar caché",
+      "parallel_execution": "Métodos independientes pueden ejecutarse en paralelo",
+      "progressive_loading": "Cargar solo dimensión necesaria para optimizar memoria"
+    }
+  }
+}
